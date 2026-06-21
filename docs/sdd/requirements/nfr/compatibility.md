@@ -25,7 +25,7 @@ Electronベースのアーキテクチャにより、同一コードベースで
 
 ### NFR-C-003: MusicXML対応
 
-- **NFR-C-003**: システムはMusicXML 3.1仕様（https://www.w3.org/2021/06/musicxml40/）に準拠したファイルを読み込めなければならない
+- **NFR-C-003**: システムはMusicXML 3.1仕様（W3C/MusicXML 4.0仕様書参照）に準拠したファイルを読み込めなければならない
 - 対応形式: .xml（非圧縮）および .mxl（MusicXML Compressed）
 
 ### NFR-C-004/005: MIDI対応

@@ -7,8 +7,12 @@
       "no-mix-dearu-desumasu": {
         "preferInList": "である"
       },
-      "ja-no-mixed-period": {
-        "periodMark": "。"
+      "ja-no-mixed-period": false,
+      "max-kanji-continuous-len": {
+        "max": 8
+      },
+      "max-comma": {
+        "max": 7
       }
     }
   }

@@ -1,0 +1,171 @@
+# タスク計画 — MusicXMLピアノ練習アプリ
+
+> AIエージェント（Claude Code等）が実行することを前提としています。
+> 各タスクファイルに詳細な実装指示・受入基準・TDD手順が記載されています。
+
+## 情報の明確性チェック（全体）
+
+### ユーザーから明示された情報
+- [x] 技術スタック: Electron v29+ / React 18 / TypeScript 5 / Vite
+- [x] テストフレームワーク: Vitest
+- [x] リンター/フォーマッター: ESLint + Prettier
+- [x] パッケージマネージャー: npm
+- [x] 外部ランタイム依存なし（Python・Node.js別途インストール不要）
+- [x] 対象OS: Windows 10/11（Phase 1）
+
+### 不明/要確認の情報（全体）
+
+| 項目 | 現状の理解 | 確認状況 |
+|------|-----------|----------|
+| Electronバージョン | v29を想定 | [x] 設計判断として決定 |
+| OSMDバージョン | 最新安定版（0.9.x系） | [x] 設計判断として決定 |
+| Zustand バージョン | v4 | [x] 設計判断として決定 |
+| node-midi | v2.x | [x] 設計判断として決定 |
+
+---
+
+## 進捗サマリ
+
+| フェーズ | 完了 | 進行中 | 未着手 | ブロック | 詳細 |
+|---------|------|--------|--------|----------|------|
+| Phase 1: 開発環境構築 | 0 | 0 | 3 | 0 | [詳細](phase-1/) @phase-1/ |
+| Phase 2: データ層・型定義 | 0 | 0 | 4 | 0 | [詳細](phase-2/) @phase-2/ |
+| Phase 3: MIDI & IPC | 0 | 0 | 2 | 0 | [詳細](phase-3/) @phase-3/ |
+| Phase 4: UIコアコンポーネント | 0 | 0 | 4 | 0 | [詳細](phase-4/) @phase-4/ |
+| Phase 5: 練習エンジン統合 | 0 | 0 | 3 | 0 | [詳細](phase-5/) @phase-5/ |
+| Phase 6: 運指エンジン（DP） | 0 | 0 | 4 | 0 | [詳細](phase-6/) @phase-6/ |
+| Phase 7: パッケージング・QA | 0 | 0 | 2 | 0 | [詳細](phase-7/) @phase-7/ |
+
+**合計**: 22タスク / 推定合計: 約820分（AIエージェント作業時間）
+
+---
+
+## 並列実行グループ
+
+### グループA: Phase 2（TASK-004完了後に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-005 | src/lib/musicxml-parser/** | TASK-004 |
+| TASK-006 | src/lib/annotation-store/** | TASK-004 |
+| TASK-007 | src/lib/app-settings/** | TASK-004 |
+
+### グループB: Phase 4（TASK-010完了後に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-011 | src/components/ScoreRenderer/** | TASK-010 |
+| TASK-012 | src/components/PianoKeyboard/** | TASK-010 |
+| TASK-013 | src/components/Toolbar/** | TASK-010 |
+
+### グループC: Phase 5（TASK-010〜013完了後に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-014 | src/lib/practice-engine/** | Phase 4 |
+| TASK-015 | src/lib/audio-engine/** | Phase 4 |
+
+### グループD: Phase 6（TASK-017完了後に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-018 | src/workers/fingering/dp-solver.ts | TASK-017 |
+| TASK-019 | src/workers/fingering/scale-patterns.ts | TASK-017 |
+
+---
+
+## タスク一覧
+
+### Phase 1: 開発環境構築（順次実行）
+*推定期間: 90分*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-001 | Electronプロジェクト初期化（Vite+React+TS） | TODO | - | 30min | [詳細](phase-1/TASK-001.md) @phase-1/TASK-001.md |
+| TASK-002 | 開発ツール設定（ESLint/Prettier/Vitest/strict） | TODO | TASK-001 | 20min | [詳細](phase-1/TASK-002.md) @phase-1/TASK-002.md |
+| TASK-003 | electron-builder + node-midi ビルド設定 | TODO | TASK-002 | 40min | [詳細](phase-1/TASK-003.md) @phase-1/TASK-003.md |
+
+### Phase 2: データ層・型定義
+*推定期間: 130分（TASK-004後、005〜007は並列可）*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-004 | 内部データモデル型定義（Score/Note/Annotation等） | TODO | Phase 1 | 30min | [詳細](phase-2/TASK-004.md) @phase-2/TASK-004.md |
+| TASK-005 | MusicXML Parser実装（.xml/.mxl対応） | TODO | TASK-004 | 60min | [詳細](phase-2/TASK-005.md) @phase-2/TASK-005.md |
+| TASK-006 | Annotation Store実装（CRUD+JSON永続化） | TODO | TASK-004 | 40min | [詳細](phase-2/TASK-006.md) @phase-2/TASK-006.md |
+| TASK-007 | App Settings実装（electron-store+ファイル履歴） | TODO | TASK-004 | 20min | [詳細](phase-2/TASK-007.md) @phase-2/TASK-007.md |
+
+### Phase 3: MIDI & IPC（順次実行）
+*推定期間: 60min*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-008 | MIDI Controller実装（node-midi + Main Process） | TODO | Phase 2 | 40min | [詳細](phase-3/TASK-008.md) @phase-3/TASK-008.md |
+| TASK-009 | IPC Bridge実装（Preload Script + 型付きAPI） | TODO | TASK-008 | 20min | [詳細](phase-3/TASK-009.md) @phase-3/TASK-009.md |
+
+### Phase 4: UIコアコンポーネント
+*推定期間: 150min（TASK-010後、011〜013は並列可）*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-010 | Zustand Store定義（PracticeSessionState） | TODO | Phase 3 | 30min | [詳細](phase-4/TASK-010.md) @phase-4/TASK-010.md |
+| TASK-011 | Score Renderer実装（OSMD統合・カーソル制御） | TODO | TASK-010 | 60min | [詳細](phase-4/TASK-011.md) @phase-4/TASK-011.md |
+| TASK-012 | Piano Keyboard実装（Canvas 2D / 88鍵） | TODO | TASK-010 | 50min | [詳細](phase-4/TASK-012.md) @phase-4/TASK-012.md |
+| TASK-013 | Toolbar / Controls UI実装 | TODO | TASK-010 | 40min | [詳細](phase-4/TASK-013.md) @phase-4/TASK-013.md |
+
+### Phase 5: 練習エンジン統合
+*推定期間: 120min（014〜015は並列可）*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-014 | Practice Engine実装（正誤判定・ループ管理） | TODO | Phase 4 | 60min | [詳細](phase-5/TASK-014.md) @phase-5/TASK-014.md |
+| TASK-015 | Audio Engine実装（Tone.js伴奏・メトロノーム） | TODO | Phase 4 | 40min | [詳細](phase-5/TASK-015.md) @phase-5/TASK-015.md |
+| TASK-016 | MIDI→PracticeEngine統合（IPC接続・フルフロー） | TODO | TASK-014, TASK-015 | 40min | [詳細](phase-5/TASK-016.md) @phase-5/TASK-016.md |
+
+### Phase 6: 運指エンジン（Parncutt-Terzuolo DP）
+*推定期間: 160min（TASK-017後、018〜019は並列可）*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-017 | フィンガリングWeb Worker基盤・型定義・コスト関数 | TODO | Phase 5 | 40min | [詳細](phase-6/TASK-017.md) @phase-6/TASK-017.md |
+| TASK-018 | DPソルバー実装（Parncutt-Terzuoloモデル） | TODO | TASK-017 | 60min | [詳細](phase-6/TASK-018.md) @phase-6/TASK-018.md |
+| TASK-019 | スケール定型パターン実装（全24調） | TODO | TASK-017 | 30min | [詳細](phase-6/TASK-019.md) @phase-6/TASK-019.md |
+| TASK-020 | FingeringEngineService + 運指UI統合 | TODO | TASK-018, TASK-019 | 40min | [詳細](phase-6/TASK-020.md) @phase-6/TASK-020.md |
+
+### Phase 7: パッケージング・QA
+*推定期間: 80min*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-021 | electron-builder設定（Windows NSISインストーラー） | TODO | Phase 6 | 30min | [詳細](phase-7/TASK-021.md) @phase-7/TASK-021.md |
+| TASK-022 | 統合テスト・E2Eシナリオ整備 | TODO | TASK-021 | 50min | [詳細](phase-7/TASK-022.md) @phase-7/TASK-022.md |
+
+---
+
+## リスクと軽減策
+
+| リスク | 影響度 | 発生確率 | 軽減策 |
+|--------|--------|----------|--------|
+| node-midiのelectron-rebuild失敗 | 高 | 中 | `electron-rebuild`をpostinstallスクリプトに組み込み、CIで早期検証 |
+| OSMD内部APIの変更 | 中 | 低 | OSMDバージョンを固定（package.json exact version）、ラッパー層で吸収 |
+| フィンガリングDPの計算精度不足 | 中 | 中 | Cメジャースケールを基準テストケースとして実装前に期待値を確定 |
+| MIDIレイテンシが10msを超える | 高 | 低 | Phase 3完了時点でベンチマーク計測、超過時はIPCバッファリングを調整 |
+
+## タスクステータスの凡例
+- `TODO` — 未着手
+- `IN_PROGRESS` — 作業中
+- `BLOCKED` — ブロック中
+- `REVIEW` — レビュー待ち
+- `DONE` — 完了
+
+---
+
+## ドキュメント構成
+
+```
+docs/sdd/tasks/
+├── index.md          # このファイル
+├── phase-1/          # TASK-001〜003: 開発環境
+├── phase-2/          # TASK-004〜007: データ層
+├── phase-3/          # TASK-008〜009: MIDI & IPC
+├── phase-4/          # TASK-010〜013: UIコア
+├── phase-5/          # TASK-014〜016: 練習エンジン
+├── phase-6/          # TASK-017〜020: 運指エンジン
+└── phase-7/          # TASK-021〜022: パッケージング
+```

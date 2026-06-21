@@ -8,7 +8,7 @@
 
 ## 説明
 
-electron-builderを使ってWindowsのNSISインストーラーを生成する完全な設定を行う。
+electron-builderを使ってWindowsのNSISインストーラーを生成する完全な設定をする。
 エンドユーザーはNode.js不要で `setup.exe` をダブルクリックするだけでインストールできること。
 
 ## 対象ファイル

@@ -9,7 +9,7 @@
 ## 説明
 
 `node-midi`（ネイティブアドオン）をElectronで使用するためのビルド設定と、
-`electron-builder`によるWindowsインストーラー生成の基本設定を行う。
+`electron-builder`によるWindowsインストーラー生成の基本設定をする。
 
 ## 技術的文脈
 

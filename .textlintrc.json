@@ -1,0 +1,19 @@
+{
+  "rules": {
+    "preset-ja-technical-writing": {
+      "sentence-length": {
+        "max": 150
+      },
+      "no-mix-dearu-desumasu": {
+        "preferInList": "である"
+      },
+      "ja-no-mixed-period": false,
+      "max-kanji-continuous-len": {
+        "max": 8
+      },
+      "max-comma": {
+        "max": 7
+      }
+    }
+  }
+}

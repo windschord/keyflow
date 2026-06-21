@@ -71,8 +71,8 @@ export const usePracticeStore = create<PracticeStore>()(/* ... */);
 ## 受入基準
 
 - [ ] `usePracticeStore` がアプリ全体でインポートできる
-- [ ] `setPracticeMode('right')` 後に `practiceMode === 'right'` になる
-- [ ] `setLoopRange(5, 10)` 後に `loopStart === 5`, `loopEnd === 10` になる
+- [ ] `setPracticeMode('right')` 実行後、`practiceMode === 'right'` になる
+- [ ] `setLoopRange(5, 10)` 実行後、`loopStart === 5`, `loopEnd === 10` になる
 - [ ] テストが4件以上ありすべてパス
 
 **依存関係**: Phase 3完了

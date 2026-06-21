@@ -1,0 +1,9 @@
+# ドキュメント（Prettier対象外）
+docs/
+CLAUDE.md
+README.md
+
+# ビルド成果物
+out/
+dist/
+node_modules/

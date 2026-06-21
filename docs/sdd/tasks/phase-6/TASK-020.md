@@ -60,8 +60,8 @@ interface FingeringPanelProps {
 ## 受入基準
 
 - [ ] 「運指提案」ボタンクリックでWorkerが起動し、プログレスバーが表示される
-- [ ] 計算完了後に楽譜上に未承認運指（薄い色）が表示される
-- [ ] 「承認」で確定色（濃い色）に変わりAnnotationStoreに保存される
+- [ ] 計算完了後、楽譜上に未承認運指（薄い色）が表示される
+- [ ] 「承認」で確定色（濃い色）へ変わり、AnnotationStoreに保存される
 - [ ] Workerが60秒でタイムアウトした場合にエラーメッセージが表示される
 - [ ] `FingeringEngineService` のテストが3件以上パス（Workerをモック）
 

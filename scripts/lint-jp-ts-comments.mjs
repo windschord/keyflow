@@ -13,6 +13,13 @@ import { readdirSync, statSync } from 'node:fs';
 
 const JAPANESE_PATTERN = /[　-鿿＀-￯゠-ヿ぀-ゟ]/;
 
+/**
+ * ディレクトリを再帰的に走査して指定した拡張子のファイル一覧を返す
+ * @param {string} dir - 走査するディレクトリのパス
+ * @param {string[]} exts - 対象ファイル拡張子の配列（例: ['.ts', '.tsx']）
+ * @param {string[]} results - 結果を蓄積する配列（再帰呼び出し用）
+ * @returns {string[]} 見つかったファイルの絶対パス一覧
+ */
 function walkDir(dir, exts, results = []) {
   let entries;
   try {

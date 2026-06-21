@@ -68,12 +68,21 @@ if (commentLines.length === 0) {
 const tmpDir = mkdtempSync(join(tmpdir(), 'textlint-ts-'))
 const tmpFile = join(tmpDir, 'comments.txt')
 
+let hasError = false
 try {
   writeFileSync(tmpFile, commentLines.join('\n'))
   execSync(`npx textlint --config .textlintrc.json "${tmpFile}"`, { stdio: 'inherit' })
   console.log('日本語コメントのlintが完了しました。')
 } catch {
-  process.exit(1)
+  hasError = true
 } finally {
-  rmSync(tmpDir, { recursive: true, force: true })
+  try {
+    rmSync(tmpDir, { recursive: true, force: true })
+  } catch {
+    // cleanup failure is non-fatal
+  }
+}
+
+if (hasError) {
+  process.exit(1)
 }

@@ -31,4 +31,4 @@ module.exports = {
     'react/prop-types': 'off',
   },
   ignorePatterns: ['out/', 'dist/', 'node_modules/', '*.cjs'],
-}
+};

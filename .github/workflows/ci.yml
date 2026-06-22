@@ -69,3 +69,21 @@ jobs:
 
       - name: Run tests with coverage
         run: npm run test:coverage
+
+  build:
+    name: Build Check (typecheck + electron-vite build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build

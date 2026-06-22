@@ -44,6 +44,21 @@ describe('usePracticeStore', () => {
     expect(usePracticeStore.getState().bpm).toBe(140);
   });
 
+  it('should toggle metronome correctly', () => {
+    const { setMetronomeEnabled } = usePracticeStore.getState();
+    expect(usePracticeStore.getState().metronomeEnabled).toBe(false);
+    setMetronomeEnabled(true);
+    expect(usePracticeStore.getState().metronomeEnabled).toBe(true);
+  });
+
+  it('should clamp BPM to valid range', () => {
+    const { setBpm } = usePracticeStore.getState();
+    setBpm(5);
+    expect(usePracticeStore.getState().bpm).toBe(20);
+    setBpm(999);
+    expect(usePracticeStore.getState().bpm).toBe(400);
+  });
+
   it('should set score correctly', () => {
     const { setScore } = usePracticeStore.getState();
     const mockScore = {

@@ -38,6 +38,9 @@ export const createPracticeSlice: StateCreator<PracticeSlice> = (set) => ({
   loopEnd: 1,
   stats: initialStats,
   setPracticeMode: (mode) => set({ practiceMode: mode }),
-  setLoopRange: (start, end) => set({ loopStart: start, loopEnd: end }),
+  setLoopRange: (start, end) => {
+    if (start >= end) return;
+    set({ loopStart: start, loopEnd: end });
+  },
   toggleLoop: () => set((state) => ({ loopEnabled: !state.loopEnabled })),
 });

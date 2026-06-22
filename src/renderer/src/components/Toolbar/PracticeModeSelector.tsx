@@ -6,8 +6,13 @@ export const PracticeModeSelector: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Input elements should not trigger global shortcuts
-      if (e.target instanceof HTMLInputElement) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLButtonElement ||
+        e.target instanceof HTMLSelectElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
 
       switch (e.key.toLowerCase()) {
         case 'r':

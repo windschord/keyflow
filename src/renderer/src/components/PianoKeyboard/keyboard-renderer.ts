@@ -45,8 +45,8 @@ export function renderKeyboard({
     } else if (isPressed) {
       fillColor = isBlack ? KEY_COLORS.black.correct : KEY_COLORS.white.correct;
     } else if (expectedNote) {
-      // Dummy implementation for hand based guid color
-      const isRightHand = true;
+      const isRightHand =
+        expectedNote.partId.toLowerCase().includes('right') || practiceMode === 'right';
       fillColor = isBlack
         ? isRightHand
           ? KEY_COLORS.black.guidRight

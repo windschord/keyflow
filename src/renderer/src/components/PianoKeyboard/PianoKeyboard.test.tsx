@@ -12,6 +12,7 @@ describe('PianoKeyboard and KeyLayout', () => {
       clearRect: vi.fn(),
       fillRect: vi.fn(),
       strokeRect: vi.fn(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     })) as any;
   });
 

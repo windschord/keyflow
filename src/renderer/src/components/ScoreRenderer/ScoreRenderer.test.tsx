@@ -20,7 +20,8 @@ vi.mock('./osmd-controller', () => {
 });
 
 describe('ScoreRenderer', () => {
-  const mockScore: any = { title: 'Test Score' };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mockScore: any = { title: 'Test Score', parts: [] };
 
   it('renders placeholder when score is null', () => {
     render(

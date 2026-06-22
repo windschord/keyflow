@@ -17,7 +17,7 @@ export const createUiSlice: StateCreator<UiSlice> = (set) => ({
   metronomeEnabled: false,
   zoom: 1.0,
   pianoHeight: 150,
-  setBpm: (bpm) => set({ bpm }),
+  setBpm: (bpm) => set({ bpm: Math.max(20, Math.min(400, bpm)) }),
   setMetronomeEnabled: (enabled) => set({ metronomeEnabled: enabled }),
   setZoom: (zoom) => set({ zoom }),
 });

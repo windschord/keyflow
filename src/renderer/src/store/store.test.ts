@@ -46,7 +46,14 @@ describe('usePracticeStore', () => {
 
   it('should set score correctly', () => {
     const { setScore } = usePracticeStore.getState();
-    const mockScore: any = { title: 'Test' };
+    const mockScore = {
+      title: 'Test',
+      parts: [],
+      measures: [],
+      tempo: 120,
+      timeSignature: { beats: 4, beatType: 4 },
+      keySignature: 0,
+    };
     setScore(mockScore, 'path/to/file.xml');
     expect(usePracticeStore.getState().score).toBe(mockScore);
     expect(usePracticeStore.getState().musicXmlPath).toBe('path/to/file.xml');

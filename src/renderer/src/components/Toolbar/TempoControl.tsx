@@ -11,7 +11,8 @@ export const TempoControl: React.FC = () => {
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const ratio = parseInt(e.target.value, 10) / 100;
-    setBpm(Math.round(originalBpm * ratio));
+    const newBpm = originalBpm > 0 ? Math.round(originalBpm * ratio) : 120;
+    setBpm(Math.max(20, Math.min(400, newBpm)));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,7 +30,7 @@ export const TempoControl: React.FC = () => {
     setInputValue(newBpm.toString());
   };
 
-  const currentRatio = Math.round((bpm / originalBpm) * 100) || 100;
+  const currentRatio = originalBpm > 0 ? Math.round((bpm / originalBpm) * 100) : 100;
 
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>

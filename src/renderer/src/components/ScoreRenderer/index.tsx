@@ -53,17 +53,18 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   }, [zoom]);
 
   useEffect(() => {
-    if (osmdControllerRef.current) {
-      if (practiceMode === 'right') {
-        osmdControllerRef.current.setPartOpacity('left-part-id', 0.5);
-      } else if (practiceMode === 'left') {
-        osmdControllerRef.current.setPartOpacity('right-part-id', 0.5);
-      } else {
-        osmdControllerRef.current.setPartOpacity('right-part-id', 1.0);
-        osmdControllerRef.current.setPartOpacity('left-part-id', 1.0);
-      }
+    if (osmdControllerRef.current && score) {
+      score.parts.forEach((part) => {
+        if (practiceMode === 'right' && part.hand === 'left') {
+          osmdControllerRef.current!.setPartOpacity(part.id, 0.5);
+        } else if (practiceMode === 'left' && part.hand === 'right') {
+          osmdControllerRef.current!.setPartOpacity(part.id, 0.5);
+        } else {
+          osmdControllerRef.current!.setPartOpacity(part.id, 1.0);
+        }
+      });
     }
-  }, [practiceMode]);
+  }, [practiceMode, score]);
 
   return (
     <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>

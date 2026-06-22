@@ -6,7 +6,13 @@ import { LoopControl } from './LoopControl';
 export const Toolbar: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLButtonElement ||
+        e.target instanceof HTMLSelectElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
       if (e.code === 'Space') {
         e.preventDefault();
         // Dummy play/pause logic

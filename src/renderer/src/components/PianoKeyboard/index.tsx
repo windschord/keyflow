@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, MouseEvent } from 'react';
 import { PracticeMode, Note, Annotation } from '../../types';
 import { renderKeyboard } from './keyboard-renderer';
-import { WHITE_KEY_WIDTH } from './key-layout';
+import { WHITE_KEY_WIDTH, getNotePosition, MIDI_MIN, MIDI_MAX } from './key-layout';
 
 export interface PianoKeyboardProps {
   expectedNotes: Note[];
@@ -41,6 +41,50 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
     }
   }, [expectedNotes, pressedKeys, incorrectKeys, annotations, practiceMode, height]);
 
+  const handleCanvasClick = (e: MouseEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    let clickedMidi = -1;
+    // Check black keys first (they are drawn on top)
+    for (let midi = MIDI_MIN; midi <= MIDI_MAX; midi++) {
+      const pos = getNotePosition(midi);
+      if (
+        pos.isBlack &&
+        x >= pos.x &&
+        x <= pos.x + pos.width &&
+        y >= pos.y &&
+        y <= pos.y + pos.height
+      ) {
+        clickedMidi = midi;
+        break;
+      }
+    }
+
+    if (clickedMidi === -1) {
+      // Check white keys
+      for (let midi = MIDI_MIN; midi <= MIDI_MAX; midi++) {
+        const pos = getNotePosition(midi);
+        if (
+          !pos.isBlack &&
+          x >= pos.x &&
+          x <= pos.x + pos.width &&
+          y >= pos.y &&
+          y <= pos.y + pos.height
+        ) {
+          clickedMidi = midi;
+          break;
+        }
+      }
+    }
+
+    if (clickedMidi !== -1) {
+      onKeyClick(clickedMidi);
+    }
+  };
+
   return (
     <div
       style={{ overflowX: 'auto', width: '100%', height: `${height}px` }}
@@ -52,6 +96,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
         height={height}
         data-testid="piano-canvas"
         style={{ display: 'block' }}
+        onClick={handleCanvasClick}
       />
     </div>
   );

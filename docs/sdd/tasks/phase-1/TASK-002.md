@@ -45,11 +45,14 @@
 ---
 
 ## 実行情報
-**実行方式**: Jules API
-**Jules Session ID**: 9597799638685866839
-**Jules ブランチ名**: jules-9597799638685866839-9984bc54
-**PR作成先**: main
-**開始日時**: 2026-06-22
-**PR番号**: #2
-**PR URL**: https://github.com/windschord/keyflow/pull/2
-**PR作成日時**: 2026-06-22
+
+| 項目 | 値 |
+|------|-----|
+| 実行方式 | Jules API |
+| Jules Session ID | 9597799638685866839 |
+| Jules ブランチ名 | jules-9597799638685866839-9984bc54 |
+| PR 作成先 | main |
+| 開始日時 | 2026-06-22 |
+| PR 番号 | #2 |
+| PR URL | https://github.com/windschord/keyflow/pull/2 |
+| PR 作成日時 | 2026-06-22 |

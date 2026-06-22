@@ -1,6 +1,6 @@
 # TASK-002: 開発ツール設定（ESLint/Prettier/Vitest/TypeScript strict）
 
-**ステータス**: TODO
+**ステータス**: REVIEW
 **推定工数**: 20分
 **依存**: TASK-001
 
@@ -41,3 +41,18 @@
 - [ ] `npm run format` が正常動作する
 
 **依存関係**: TASK-001
+
+---
+
+## 実行情報
+
+| 項目 | 値 |
+|------|-----|
+| 実行方式 | Jules API |
+| Jules Session ID | 9597799638685866839 |
+| Jules ブランチ名 | jules-9597799638685866839-9984bc54 |
+| PR 作成先 | main |
+| 開始日時 | 2026-06-22 |
+| PR 番号 | #2 |
+| PR URL | https://github.com/windschord/keyflow/pull/2 |
+| PR 作成日時 | 2026-06-22 |

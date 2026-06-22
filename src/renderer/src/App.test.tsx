@@ -1,15 +1,29 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from './App';
+import { vi } from 'vitest';
 
 describe('App', () => {
-  it('renders without crashing', () => {
-    render(<App />);
-  });
+  it('renders without crashing and handles ipc', () => {
+    const mockSend = vi.fn();
+    Object.defineProperty(window, 'electron', {
+      value: {
+        ipcRenderer: {
+          send: mockSend,
+        },
+        process: {
+          versions: {
+            node: 'v18',
+            chrome: 'v100',
+            electron: 'v29',
+          }
+        }
+      },
+      writable: true,
+    });
 
-  it('calls ipcRenderer.send when Send IPC link is clicked', () => {
     render(<App />);
-    const sendIpcLink = screen.getByText('Send IPC');
-    fireEvent.click(sendIpcLink);
-    expect(window.electron.ipcRenderer.send).toHaveBeenCalledWith('ping');
+    const link = screen.getByText('Send IPC');
+    fireEvent.click(link);
+    expect(mockSend).toHaveBeenCalledWith('ping');
   });
 });

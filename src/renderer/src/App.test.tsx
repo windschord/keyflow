@@ -1,29 +1,25 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import App from './App';
 import { vi } from 'vitest';
 
-describe('App', () => {
-  it('renders without crashing and handles ipc', () => {
-    const mockSend = vi.fn();
-    Object.defineProperty(window, 'electron', {
-      value: {
-        ipcRenderer: {
-          send: mockSend,
-        },
-        process: {
-          versions: {
-            node: 'v18',
-            chrome: 'v100',
-            electron: 'v29',
-          },
-        },
-      },
-      writable: true,
-    });
+vi.mock('./components/ScoreRenderer', () => ({
+  ScoreRenderer: () => <div data-testid="mock-score-renderer">ScoreRenderer</div>
+}));
 
+vi.mock('./components/PianoKeyboard', () => ({
+  PianoKeyboard: () => <div data-testid="mock-piano-keyboard">PianoKeyboard</div>
+}));
+
+vi.mock('./components/Toolbar', () => ({
+  Toolbar: () => <div data-testid="mock-toolbar">Toolbar</div>
+}));
+
+describe('App', () => {
+  it('renders correctly with layout components', () => {
     render(<App />);
-    const link = screen.getByText('Send IPC');
-    fireEvent.click(link);
-    expect(mockSend).toHaveBeenCalledWith('ping');
+
+    expect(screen.getByTestId('mock-toolbar')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-score-renderer')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-piano-keyboard')).toBeInTheDocument();
   });
 });

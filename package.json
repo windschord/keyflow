@@ -21,7 +21,9 @@
     "test:coverage": "vitest run --coverage --passWithNoTests"
   },
   "dependencies": {
-    "electron": "^42.4.1"
+    "electron": "^42.4.1",
+    "opensheetmusicdisplay": "^2.0.0",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.0",

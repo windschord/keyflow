@@ -19,12 +19,8 @@ describe('Type Definitions', () => {
 
     const mockScore: Score = {
       title: 'Test Score',
-      parts: [
-        { id: 'P1', name: 'Piano Right', hand: 'right', clef: 'treble' },
-      ],
-      measures: [
-        { number: 1, notes: [mockNote] },
-      ],
+      parts: [{ id: 'P1', name: 'Piano Right', hand: 'right', clef: 'treble' }],
+      measures: [{ number: 1, notes: [mockNote] }],
       tempo: 120,
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,

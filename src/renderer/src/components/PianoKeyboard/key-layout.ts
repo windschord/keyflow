@@ -2,7 +2,7 @@ export const WHITE_KEY_WIDTH = 24;
 export const WHITE_KEY_HEIGHT = 120;
 export const BLACK_KEY_WIDTH = 14;
 export const BLACK_KEY_HEIGHT = 75;
-export const MIDI_MIN = 21;  // A0
+export const MIDI_MIN = 21; // A0
 export const MIDI_MAX = 108; // C8
 
 export const KEY_COLORS = {
@@ -11,14 +11,14 @@ export const KEY_COLORS = {
     guidRight: '#5B9BD5',
     guidLeft: '#70AD47',
     correct: '#FFD966',
-    incorrect: '#FF6B6B'
+    incorrect: '#FF6B6B',
   },
   black: {
     normal: '#1A1A1A',
     guidRight: '#3A6A9E',
     guidLeft: '#4A7A30',
     correct: '#CCA028',
-    incorrect: '#CC3333'
+    incorrect: '#CC3333',
   },
 };
 
@@ -28,7 +28,11 @@ const isBlackKey = (midiNumber: number): boolean => {
 };
 
 export function getNotePosition(midiNumber: number): {
-  x: number; y: number; width: number; height: number; isBlack: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isBlack: boolean;
 } {
   if (midiNumber < MIDI_MIN || midiNumber > MIDI_MAX) {
     throw new Error(`MIDI number ${midiNumber} out of range`);
@@ -60,7 +64,7 @@ export function getNotePosition(midiNumber: number): {
     else if (noteInOctave === 8) offsetRatio = 0.5;
     else if (noteInOctave === 10) offsetRatio = 0.7;
 
-    x = whiteKeyIndex * WHITE_KEY_WIDTH - (BLACK_KEY_WIDTH * offsetRatio);
+    x = whiteKeyIndex * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH * offsetRatio;
   }
 
   return {

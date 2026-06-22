@@ -19,14 +19,16 @@ export const Toolbar: React.FC = () => {
   }, []);
 
   return (
-    <div style={{
-      display: 'flex',
-      gap: '24px',
-      padding: '12px',
-      borderBottom: '1px solid #ccc',
-      backgroundColor: '#f5f5f5',
-      flexWrap: 'wrap'
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        gap: '24px',
+        padding: '12px',
+        borderBottom: '1px solid #ccc',
+        backgroundColor: '#f5f5f5',
+        flexWrap: 'wrap',
+      }}
+    >
       <PracticeModeSelector />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
       <TempoControl />

@@ -16,7 +16,7 @@ export function renderKeyboard({
   pressedKeys,
   incorrectKeys,
   annotations,
-  practiceMode
+  practiceMode,
 }: RenderOptions) {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
@@ -34,7 +34,7 @@ export function renderKeyboard({
 
   const drawKey = (midiNumber: number, isBlack: boolean) => {
     const pos = getNotePosition(midiNumber);
-    const expectedNote = expectedNotes.find(n => n.midiNumber === midiNumber);
+    const expectedNote = expectedNotes.find((n) => n.midiNumber === midiNumber);
     const isPressed = pressedKeys.has(midiNumber);
     const isIncorrect = incorrectKeys.has(midiNumber);
 
@@ -45,11 +45,15 @@ export function renderKeyboard({
     } else if (isPressed) {
       fillColor = isBlack ? KEY_COLORS.black.correct : KEY_COLORS.white.correct;
     } else if (expectedNote) {
-        // Dummy implementation for hand based guid color
-        const isRightHand = true;
-        fillColor = isBlack
-          ? (isRightHand ? KEY_COLORS.black.guidRight : KEY_COLORS.black.guidLeft)
-          : (isRightHand ? KEY_COLORS.white.guidRight : KEY_COLORS.white.guidLeft);
+      // Dummy implementation for hand based guid color
+      const isRightHand = true;
+      fillColor = isBlack
+        ? isRightHand
+          ? KEY_COLORS.black.guidRight
+          : KEY_COLORS.black.guidLeft
+        : isRightHand
+          ? KEY_COLORS.white.guidRight
+          : KEY_COLORS.white.guidLeft;
     }
 
     ctx.fillStyle = fillColor;
@@ -60,8 +64,8 @@ export function renderKeyboard({
   };
 
   // Draw white keys first
-  whiteKeys.forEach(midi => drawKey(midi, false));
+  whiteKeys.forEach((midi) => drawKey(midi, false));
 
   // Draw black keys on top
-  blackKeys.forEach(midi => drawKey(midi, true));
+  blackKeys.forEach((midi) => drawKey(midi, true));
 }

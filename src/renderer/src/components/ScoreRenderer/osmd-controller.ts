@@ -20,12 +20,12 @@ export class OSMDController {
     // Basic implementation for cursor
     // The cursor needs to be enabled to be moved
     if (this.osmd.cursor) {
-        if (this.osmd.cursor.Hidden) {
-            this.osmd.cursor.show();
-        }
-        // Actually mapping noteId to OSMD Note requires osmd internal mapping.
-        // For UI mock purposes, we will just move to next for now if not hidden.
-        // This will be expanded later.
+      if (this.osmd.cursor.Hidden) {
+        this.osmd.cursor.show();
+      }
+      // Actually mapping noteId to OSMD Note requires osmd internal mapping.
+      // For UI mock purposes, we will just move to next for now if not hidden.
+      // This will be expanded later.
     }
   }
 

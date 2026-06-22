@@ -35,14 +35,17 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
           pressedKeys,
           incorrectKeys,
           annotations,
-          practiceMode
+          practiceMode,
         });
       }
     }
   }, [expectedNotes, pressedKeys, incorrectKeys, annotations, practiceMode, height]);
 
   return (
-    <div style={{ overflowX: 'auto', width: '100%', height: `${height}px` }} data-testid="keyboard-container">
+    <div
+      style={{ overflowX: 'auto', width: '100%', height: `${height}px` }}
+      data-testid="keyboard-container"
+    >
       <canvas
         ref={canvasRef}
         width={totalWidth}

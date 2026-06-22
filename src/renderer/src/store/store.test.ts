@@ -6,15 +6,15 @@ describe('usePracticeStore', () => {
     // Zustand store reset
     const store = usePracticeStore.getState();
     usePracticeStore.setState({
-        ...store,
-        score: null,
-        musicXmlPath: null,
-        practiceMode: 'both',
-        loopEnabled: false,
-        loopStart: 1,
-        loopEnd: 1,
-        bpm: 120,
-        metronomeEnabled: false,
+      ...store,
+      score: null,
+      musicXmlPath: null,
+      practiceMode: 'both',
+      loopEnabled: false,
+      loopStart: 1,
+      loopEnd: 1,
+      bpm: 120,
+      metronomeEnabled: false,
     });
   });
 

@@ -15,7 +15,7 @@ vi.mock('./osmd-controller', () => {
         setZoom: vi.fn(),
         highlightNote: vi.fn(),
       };
-    })
+    }),
   };
 });
 

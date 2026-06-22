@@ -33,11 +33,7 @@ export const LoopControl: React.FC = () => {
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <input
-          type="checkbox"
-          checked={loopEnabled}
-          onChange={toggleLoop}
-        />
+        <input type="checkbox" checked={loopEnabled} onChange={toggleLoop} />
         Loop
       </label>
       <input

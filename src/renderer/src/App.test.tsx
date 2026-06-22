@@ -3,15 +3,15 @@ import App from './App';
 import { vi } from 'vitest';
 
 vi.mock('./components/ScoreRenderer', () => ({
-  ScoreRenderer: () => <div data-testid="mock-score-renderer">ScoreRenderer</div>
+  ScoreRenderer: () => <div data-testid="mock-score-renderer">ScoreRenderer</div>,
 }));
 
 vi.mock('./components/PianoKeyboard', () => ({
-  PianoKeyboard: () => <div data-testid="mock-piano-keyboard">PianoKeyboard</div>
+  PianoKeyboard: () => <div data-testid="mock-piano-keyboard">PianoKeyboard</div>,
 }));
 
 vi.mock('./components/Toolbar', () => ({
-  Toolbar: () => <div data-testid="mock-toolbar">Toolbar</div>
+  Toolbar: () => <div data-testid="mock-toolbar">Toolbar</div>,
 }));
 
 describe('App', () => {

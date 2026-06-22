@@ -15,11 +15,10 @@ describe('App', () => {
             node: 'v18',
             chrome: 'v100',
             electron: 'v29',
-          }
-        }
+          },
+        },
       },
       writable: true,
-      configurable: true,
     });
 
     render(<App />);

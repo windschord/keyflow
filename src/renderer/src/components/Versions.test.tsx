@@ -10,11 +10,10 @@ describe('Versions', () => {
             node: 'v18',
             chrome: 'v100',
             electron: 'v29',
-          }
-        }
+          },
+        },
       },
       writable: true,
-      configurable: true,
     });
 
     render(<Versions />);

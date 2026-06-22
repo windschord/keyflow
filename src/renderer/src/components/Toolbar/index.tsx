@@ -7,7 +7,7 @@ export const Toolbar: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
-      if (["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(tag)) return;
+      if (['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'].includes(tag)) return;
       if (e.code === 'Space') {
         e.preventDefault();
         // Dummy play/pause logic

@@ -6,17 +6,18 @@ import { usePracticeStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
 
 function App(): React.JSX.Element {
-  const { score, expectedNotes, pressedKeys, incorrectKeys, practiceMode, zoom, pianoHeight } = usePracticeStore(
-    useShallow((s) => ({
-      score: s.score,
-      expectedNotes: s.expectedNotes,
-      pressedKeys: s.pressedKeys,
-      incorrectKeys: s.incorrectKeys,
-      practiceMode: s.practiceMode,
-      zoom: s.zoom,
-      pianoHeight: s.pianoHeight,
-    }))
-  );
+  const { score, expectedNotes, pressedKeys, incorrectKeys, practiceMode, zoom, pianoHeight } =
+    usePracticeStore(
+      useShallow((s) => ({
+        score: s.score,
+        expectedNotes: s.expectedNotes,
+        pressedKeys: s.pressedKeys,
+        incorrectKeys: s.incorrectKeys,
+        practiceMode: s.practiceMode,
+        zoom: s.zoom,
+        pianoHeight: s.pianoHeight,
+      }))
+    );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>

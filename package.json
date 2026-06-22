@@ -21,7 +21,7 @@
     "test:coverage": "vitest run --coverage --passWithNoTests"
   },
   "dependencies": {
-    "electron": "^29.1.0"
+    "electron": "^42.4.1"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.0",

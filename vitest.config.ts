@@ -12,17 +12,18 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    setupFiles: ['src/renderer/src/test/setup.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/main/index.ts',
-        'src/renderer/src/**/*.tsx',
-        'src/renderer/src/**/*.ts',
         'src/preload/index.ts',
         'src/**/*.d.ts',
         'src/**/*.test.{ts,tsx}',
         'src/**/*.spec.{ts,tsx}',
+        'src/renderer/src/main.tsx',
+        'src/renderer/src/test/**',
       ],
       thresholds: {
         lines: 90,

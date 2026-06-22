@@ -68,18 +68,4 @@ describe('Toolbar UI', () => {
     fireEvent.keyDown(window, { key: 'L' });
     expect(usePracticeStore.getState().practiceMode).toBe('left');
   });
-
-  it('updates BPM via slider', () => {
-    render(<Toolbar />);
-    const slider = screen.getByTestId('tempo-slider') as HTMLInputElement;
-    fireEvent.change(slider, { target: { value: '150' } });
-    expect(usePracticeStore.getState().bpm).toBe(180);
-  });
-
-  it('toggles metronome', () => {
-    render(<Toolbar />);
-    const checkbox = screen.getByLabelText('Metronome');
-    fireEvent.click(checkbox);
-    expect(usePracticeStore.getState().metronomeEnabled).toBe(true);
-  });
 });

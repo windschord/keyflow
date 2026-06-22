@@ -57,3 +57,4 @@ lerna-debug.log*
 
 # node-midi ネイティブビルド成果物（electron-rebuildで再生成）
 *.node
+*.log

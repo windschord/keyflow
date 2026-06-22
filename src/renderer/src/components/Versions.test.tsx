@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import Versions from './Versions';
 
 describe('Versions', () => {
@@ -14,8 +14,13 @@ describe('Versions', () => {
         }
       },
       writable: true,
+      configurable: true,
     });
 
     render(<Versions />);
+
+    expect(screen.getByText(/v18/)).toBeInTheDocument();
+    expect(screen.getByText(/v100/)).toBeInTheDocument();
+    expect(screen.getByText(/v29/)).toBeInTheDocument();
   });
 });

@@ -19,6 +19,7 @@ describe('App', () => {
         }
       },
       writable: true,
+      configurable: true,
     });
 
     render(<App />);

@@ -111,3 +111,17 @@ it('detects "Piano Right" as right hand', () => {
 - [ ] テストが5件以上ありすべてパス
 
 **依存関係**: TASK-004
+
+---
+
+## 実行情報
+
+**実行方式**: Jules API + ローカル修正
+**Jules Session ID**: 3598245982887663378
+**Jules ブランチ名**: feat/ipc-musicxml-parser-3598245982887663378
+**PR作成先**: main
+**開始日時**: 2026-06-23 10:43
+**PR番号**: #10
+**PR URL**: https://github.com/windschord/keyflow/pull/10
+**PR作成日時**: 2026-06-23
+**CI結果**: 全ジョブパス（2026-06-24）

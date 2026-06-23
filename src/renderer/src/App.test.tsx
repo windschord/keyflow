@@ -22,4 +22,186 @@ describe('App', () => {
     expect(screen.getByTestId('mock-score-renderer')).toBeInTheDocument();
     expect(screen.getByTestId('mock-piano-keyboard')).toBeInTheDocument();
   });
+
+  it('renders Open File button', () => {
+    render(<App />);
+    expect(screen.getByText('Open File')).toBeInTheDocument();
+  });
+
+  it('triggers electronAPI file methods when Open File button is clicked', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const SIMPLE_XML = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        read: readMock,
+      },
+    };
+
+    render(<App />);
+    const openFileBtn = screen.getByText('Open File');
+
+    // In React 18, setting states in test events must be wrapped with act()
+    // However since we are testing async function behavior, await act may be necessary.
+    // The previous implementation had some warnings so we will be careful.
+    const { act } = await import('@testing-library/react');
+    await act(async () => {
+      openFileBtn.click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(showOpenDialogMock).toHaveBeenCalled();
+    expect(readMock).toHaveBeenCalledWith('test.xml');
+  });
+
+  it('triggers electronAPI file methods correctly when opening an .mxl file', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.mxl');
+
+    const containerXml = `<?xml version="1.0" encoding="UTF-8"?>
+<container>
+  <rootfiles>
+    <rootfile full-path="score.xml" media-type="application/vnd.recordare.musicxml+xml"/>
+  </rootfiles>
+</container>`;
+    const SIMPLE_XML = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+    const { zipSync } = await import('fflate');
+
+    const zipped = zipSync({
+      'META-INF/container.xml': new TextEncoder().encode(containerXml),
+      'score.xml': new TextEncoder().encode(SIMPLE_XML),
+    });
+
+    const readBinaryMock = vi.fn().mockResolvedValue(zipped.buffer);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        readBinary: readBinaryMock,
+      },
+    };
+
+    render(<App />);
+    const openFileBtn = screen.getByText('Open File');
+
+    const { act } = await import('@testing-library/react');
+    await act(async () => {
+      openFileBtn.click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(showOpenDialogMock).toHaveBeenCalled();
+    expect(readBinaryMock).toHaveBeenCalledWith('test.mxl');
+  });
+
+  it('handles user canceling Open File dialog', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue(null);
+    const readMock = vi.fn();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        read: readMock,
+      },
+    };
+
+    render(<App />);
+    const openFileBtn = screen.getByText('Open File');
+
+    const { act } = await import('@testing-library/react');
+    await act(async () => {
+      openFileBtn.click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(showOpenDialogMock).toHaveBeenCalled();
+    expect(readMock).not.toHaveBeenCalled();
+  });
+
+  it('handles parsing errors by alerting the user', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockResolvedValue('<xml/>'); // invalid xml
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        read: readMock,
+      },
+    };
+
+    // Mock window.alert
+    const alertMock = vi.fn();
+    window.alert = alertMock;
+
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(<App />);
+    const openFileBtn = screen.getByText('Open File');
+
+    const { act } = await import('@testing-library/react');
+    await act(async () => {
+      openFileBtn.click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(showOpenDialogMock).toHaveBeenCalled();
+    expect(alertMock).toHaveBeenCalledWith('Failed to parse MusicXML file. Please check the file format.');
+
+    consoleErrorMock.mockRestore();
+  });
+
+  it('handles errors when invoking electronAPI functions', async () => {
+    const showOpenDialogMock = vi.fn().mockRejectedValue(new Error('IPC Error'));
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+      },
+    };
+
+    // Mock window.alert
+    const alertMock = vi.fn();
+    window.alert = alertMock;
+
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(<App />);
+    const openFileBtn = screen.getByText('Open File');
+
+    const { act } = await import('@testing-library/react');
+    await act(async () => {
+      openFileBtn.click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(showOpenDialogMock).toHaveBeenCalled();
+    expect(alertMock).toHaveBeenCalledWith(
+      'Failed to parse MusicXML file. Please check the file format.'
+    );
+
+    consoleErrorMock.mockRestore();
+  });
 });

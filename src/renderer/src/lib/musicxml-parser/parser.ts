@@ -159,9 +159,10 @@ export function parse(xmlContent: string): Score {
       let notes = m['note'] || [];
       if (!Array.isArray(notes)) notes = [notes];
       (notes as unknown[]).forEach((note: unknown, _noteIndex: number) => {
+        if (!note || typeof note !== 'object') return;
         const n = note as Record<string, unknown>;
-        const isRest = 'rest' in n;
-        const isChord = 'chord' in n;
+        const isRest = 'rest' in n || n['rest'] !== undefined;
+        const isChord = 'chord' in n || n['chord'] !== undefined;
         const duration = n['duration'] ? parseInt(n['duration'] as string, 10) : 0;
 
         let pitchObj = { step: 'C', octave: 4, alter: 0 };

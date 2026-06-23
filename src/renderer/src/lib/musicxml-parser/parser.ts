@@ -21,7 +21,11 @@ export function parse(xmlContent: string): Score {
     attributeNamePrefix: '@_',
     isArray: (_name, jpath, _isLeafNode, _isAttribute) => {
       const jpathStr = String(jpath);
-      if (['score-partwise.part-list.score-part', 'score-partwise.part', 'measure', 'note'].includes(jpathStr)) {
+      if (
+        ['score-partwise.part-list.score-part', 'score-partwise.part', 'measure', 'note'].includes(
+          jpathStr
+        )
+      ) {
         return true;
       }
       return false;
@@ -32,7 +36,9 @@ export function parse(xmlContent: string): Score {
   try {
     parsed = parser.parse(xmlContent) as Record<string, unknown>;
   } catch (err: unknown) {
-    throw new MusicXMLParseError('Invalid XML format: ' + (err instanceof Error ? err.message : String(err)));
+    throw new MusicXMLParseError(
+      'Invalid XML format: ' + (err instanceof Error ? err.message : String(err))
+    );
   }
 
   if (!parsed || !parsed['score-partwise']) {
@@ -41,7 +47,10 @@ export function parse(xmlContent: string): Score {
 
   const scorePartwise = parsed['score-partwise'] as Record<string, unknown> | undefined;
 
-  const title = (scorePartwise?.['work'] as Record<string, unknown>)?.['work-title'] as string | undefined || (scorePartwise?.['movement-title'] as string | undefined) || 'Untitled';
+  const title =
+    ((scorePartwise?.['work'] as Record<string, unknown>)?.['work-title'] as string | undefined) ||
+    (scorePartwise?.['movement-title'] as string | undefined) ||
+    'Untitled';
 
   const partsList = (scorePartwise?.['part-list'] as Record<string, unknown>)?.['score-part'] || [];
   const parts: Part[] = [];
@@ -59,7 +68,9 @@ export function parse(xmlContent: string): Score {
     const partName = sp['part-name'] as string | undefined;
 
     // Find the corresponding part data to look for a clef
-    const partData = (rawParts as Record<string, unknown>[]).find((p: Record<string, unknown>) => p['@_id'] === partId);
+    const partData = (rawParts as Record<string, unknown>[]).find(
+      (p: Record<string, unknown>) => p['@_id'] === partId
+    );
     let clefSign: string | undefined;
     let clefType: 'treble' | 'bass' = 'treble';
 
@@ -73,7 +84,9 @@ export function parse(xmlContent: string): Score {
       if (fm && fm['attributes']) {
         const attributes = fm['attributes'] as Record<string, unknown>;
         if (attributes && attributes['clef']) {
-          const clef = Array.isArray(attributes['clef']) ? attributes['clef'][0] : attributes['clef'];
+          const clef = Array.isArray(attributes['clef'])
+            ? attributes['clef'][0]
+            : attributes['clef'];
           clefSign = (clef as Record<string, unknown>)['sign'] as string | undefined;
           if (clefSign === 'F') {
             clefType = 'bass';
@@ -126,7 +139,10 @@ export function parse(xmlContent: string): Score {
           beatType = parseInt((time['beat-type'] as string | undefined) || '4', 10);
         }
         if (attrs['key'] && (attrs['key'] as Record<string, unknown>)['fifths']) {
-          keySignature = parseInt((attrs['key'] as Record<string, unknown>)['fifths'] as string, 10);
+          keySignature = parseInt(
+            (attrs['key'] as Record<string, unknown>)['fifths'] as string,
+            10
+          );
         }
       }
 

@@ -16,7 +16,8 @@ if (process.contextIsolated) {
       file: {
         showOpenDialog: (): Promise<string | null> => ipcRenderer.invoke('file:show-open-dialog'),
         read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
-        readBinary: (path: string): Promise<ArrayBuffer> => ipcRenderer.invoke('file:read-binary', path),
+        readBinary: (path: string): Promise<ArrayBuffer> =>
+          ipcRenderer.invoke('file:read-binary', path),
       },
     });
   } catch (error) {
@@ -32,7 +33,8 @@ if (process.contextIsolated) {
     file: {
       showOpenDialog: (): Promise<string | null> => ipcRenderer.invoke('file:show-open-dialog'),
       read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
-      readBinary: (path: string): Promise<ArrayBuffer> => ipcRenderer.invoke('file:read-binary', path),
+      readBinary: (path: string): Promise<ArrayBuffer> =>
+        ipcRenderer.invoke('file:read-binary', path),
     },
   };
 }

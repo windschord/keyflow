@@ -7,19 +7,27 @@ import { useShallow } from 'zustand/react/shallow';
 import { parse, parseMxl } from './lib/musicxml-parser';
 
 function App(): React.JSX.Element {
-  const { score, expectedNotes, pressedKeys, incorrectKeys, practiceMode, zoom, pianoHeight, setScore } =
-    usePracticeStore(
-      useShallow((s) => ({
-        score: s.score,
-        expectedNotes: s.expectedNotes,
-        pressedKeys: s.pressedKeys,
-        incorrectKeys: s.incorrectKeys,
-        practiceMode: s.practiceMode,
-        zoom: s.zoom,
-        pianoHeight: s.pianoHeight,
-        setScore: s.setScore,
-      }))
-    );
+  const {
+    score,
+    expectedNotes,
+    pressedKeys,
+    incorrectKeys,
+    practiceMode,
+    zoom,
+    pianoHeight,
+    setScore,
+  } = usePracticeStore(
+    useShallow((s) => ({
+      score: s.score,
+      expectedNotes: s.expectedNotes,
+      pressedKeys: s.pressedKeys,
+      incorrectKeys: s.incorrectKeys,
+      practiceMode: s.practiceMode,
+      zoom: s.zoom,
+      pianoHeight: s.pianoHeight,
+      setScore: s.setScore,
+    }))
+  );
 
   const handleOpenFile = async () => {
     try {

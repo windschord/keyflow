@@ -13,6 +13,7 @@ export class OSMDController {
   }
 
   async load(xmlContent: string): Promise<void> {
+    this.loaded = false;
     await this.osmd.load(xmlContent);
     this.osmd.render();
     this.loaded = true;

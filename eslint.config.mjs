@@ -3,6 +3,7 @@ import tseslint from 'typescript-eslint';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import prettier from 'eslint-config-prettier';
+import globals from 'globals';
 
 export default tseslint.config(
   { ignores: ['out/', 'dist/', 'node_modules/', '**/*.cjs', '**/*.mjs'] },
@@ -19,8 +20,8 @@ export default tseslint.config(
         project: ['./tsconfig.node.json', './tsconfig.eslint.json'],
       },
       globals: {
-        browser: true,
-        node: true,
+        ...globals.browser,
+        ...globals.node,
       },
     },
     settings: {

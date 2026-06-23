@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import { vi } from 'vitest';
 
@@ -52,16 +52,11 @@ describe('App', () => {
     render(<App />);
     const openFileBtn = screen.getByText('Open File');
 
-    // In React 18, setting states in test events must be wrapped with act()
-    // However since we are testing async function behavior, await act may be necessary.
-    // The previous implementation had some warnings so we will be careful.
-    const { act } = await import('@testing-library/react');
-    await act(async () => {
-      openFileBtn.click();
-      await new Promise((r) => setTimeout(r, 0));
-    });
+    openFileBtn.click();
 
-    expect(showOpenDialogMock).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(showOpenDialogMock).toHaveBeenCalled();
+    });
     expect(readMock).toHaveBeenCalledWith('test.xml');
   });
 
@@ -104,13 +99,11 @@ describe('App', () => {
     render(<App />);
     const openFileBtn = screen.getByText('Open File');
 
-    const { act } = await import('@testing-library/react');
-    await act(async () => {
-      openFileBtn.click();
-      await new Promise((r) => setTimeout(r, 0));
-    });
+    openFileBtn.click();
 
-    expect(showOpenDialogMock).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(showOpenDialogMock).toHaveBeenCalled();
+    });
     expect(readBinaryMock).toHaveBeenCalledWith('test.mxl');
   });
 
@@ -129,13 +122,11 @@ describe('App', () => {
     render(<App />);
     const openFileBtn = screen.getByText('Open File');
 
-    const { act } = await import('@testing-library/react');
-    await act(async () => {
-      openFileBtn.click();
-      await new Promise((r) => setTimeout(r, 0));
-    });
+    openFileBtn.click();
 
-    expect(showOpenDialogMock).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(showOpenDialogMock).toHaveBeenCalled();
+    });
     expect(readMock).not.toHaveBeenCalled();
   });
 
@@ -152,23 +143,21 @@ describe('App', () => {
     };
 
     // Mock window.alert
-    const alertMock = vi.fn();
-    window.alert = alertMock;
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<App />);
     const openFileBtn = screen.getByText('Open File');
 
-    const { act } = await import('@testing-library/react');
-    await act(async () => {
-      openFileBtn.click();
-      await new Promise((r) => setTimeout(r, 0));
-    });
+    openFileBtn.click();
 
-    expect(showOpenDialogMock).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(showOpenDialogMock).toHaveBeenCalled();
+    });
     expect(alertMock).toHaveBeenCalledWith('Failed to parse MusicXML file. Please check the file format.');
 
+    alertMock.mockRestore();
     consoleErrorMock.mockRestore();
   });
 
@@ -183,25 +172,23 @@ describe('App', () => {
     };
 
     // Mock window.alert
-    const alertMock = vi.fn();
-    window.alert = alertMock;
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<App />);
     const openFileBtn = screen.getByText('Open File');
 
-    const { act } = await import('@testing-library/react');
-    await act(async () => {
-      openFileBtn.click();
-      await new Promise((r) => setTimeout(r, 0));
-    });
+    openFileBtn.click();
 
-    expect(showOpenDialogMock).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(showOpenDialogMock).toHaveBeenCalled();
+    });
     expect(alertMock).toHaveBeenCalledWith(
       'Failed to parse MusicXML file. Please check the file format.'
     );
 
+    alertMock.mockRestore();
     consoleErrorMock.mockRestore();
   });
 });

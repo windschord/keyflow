@@ -69,11 +69,11 @@ export interface NoteJudgement { result: JudgementResult; note: Note | null; adv
 
 ## 実行情報
 
-**実行方式**: Jules API
-**Jules Session ID**: 6261273643889928189
-**Jules ブランチ名**: ui-design-verification-components-6261273643889928189
-**PR作成先**: main
-**開始日時**: 2026-06-22 11:42
-**PR番号**: #8
-**PR URL**: https://github.com/windschord/keyflow/pull/8
-**PR作成日時**: 2026-06-22 12:18
+- **実行方式**: Jules API
+- **Jules Session ID**: 6261273643889928189
+- **Jules ブランチ名**: ui-design-verification-components-6261273643889928189
+- **PR作成先**: main
+- **開始日時**: 2026-06-22 11:42
+- **PR番号**: #8
+- **PR URL**: https://github.com/windschord/keyflow/pull/8
+- **PR作成日時**: 2026-06-22 12:18

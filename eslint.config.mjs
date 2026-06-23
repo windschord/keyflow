@@ -37,5 +37,5 @@ export default tseslint.config(
       'react/prop-types': 'off',
     },
   },
-  prettier,
+  prettier
 );

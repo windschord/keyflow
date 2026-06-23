@@ -1,34 +1,56 @@
-import Versions from './components/Versions';
-import electronLogo from './assets/electron.svg';
+import React from 'react';
+import { Toolbar } from './components/Toolbar';
+import { ScoreRenderer } from './components/ScoreRenderer';
+import { PianoKeyboard } from './components/PianoKeyboard';
+import { usePracticeStore } from './store';
+import { useShallow } from 'zustand/react/shallow';
 
 function App(): React.JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping');
+  const { score, expectedNotes, pressedKeys, incorrectKeys, practiceMode, zoom, pianoHeight } =
+    usePracticeStore(
+      useShallow((s) => ({
+        score: s.score,
+        expectedNotes: s.expectedNotes,
+        pressedKeys: s.pressedKeys,
+        incorrectKeys: s.incorrectKeys,
+        practiceMode: s.practiceMode,
+        zoom: s.zoom,
+        pianoHeight: s.pianoHeight,
+      }))
+    );
 
   return (
-    <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by electron-vite</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-        &nbsp;and <span className="ts">TypeScript</span>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      {/* 1. Toolbar (Fixed Header) */}
+      <div style={{ flexShrink: 0 }}>
+        <Toolbar />
       </div>
-      <p className="tip">
-        Please try pressing <code>F12</code> to open the devTool
-      </p>
-      <div className="actions">
-        <div className="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
-        </div>
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
-          </a>
-        </div>
+
+      {/* 2. ScoreRenderer (Flex Grow) */}
+      <div style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+        <ScoreRenderer
+          score={score}
+          currentNoteId={null}
+          practiceMode={practiceMode}
+          loopRange={null}
+          zoom={zoom}
+          onNoteClick={() => {}}
+        />
       </div>
-      <Versions></Versions>
-    </>
+
+      {/* 3. PianoKeyboard (Fixed Footer) */}
+      <div style={{ flexShrink: 0 }}>
+        <PianoKeyboard
+          expectedNotes={expectedNotes}
+          pressedKeys={pressedKeys}
+          incorrectKeys={incorrectKeys}
+          annotations={[]}
+          practiceMode={practiceMode}
+          onKeyClick={() => {}}
+          height={pianoHeight}
+        />
+      </div>
+    </div>
   );
 }
 

@@ -29,9 +29,9 @@
 | フェーズ | 完了 | 進行中 | 未着手 | ブロック | 詳細 |
 |---------|------|--------|--------|----------|------|
 | Phase 1: 開発環境構築 | 0 | 0 | 3 | 0 | [詳細](phase-1/) @phase-1/ |
-| Phase 2: データ層・型定義 | 0 | 0 | 4 | 0 | [詳細](phase-2/) @phase-2/ |
+| Phase 2: データ層・型定義 | 1 | 0 | 3 | 0 | [詳細](phase-2/) @phase-2/ |
 | Phase 3: MIDI & IPC | 0 | 0 | 2 | 0 | [詳細](phase-3/) @phase-3/ |
-| Phase 4: UIコアコンポーネント | 0 | 0 | 4 | 0 | [詳細](phase-4/) @phase-4/ |
+| Phase 4: UIコアコンポーネント | 4 | 0 | 0 | 0 | [詳細](phase-4/) @phase-4/ |
 | Phase 5: 練習エンジン統合 | 0 | 0 | 3 | 0 | [詳細](phase-5/) @phase-5/ |
 | Phase 6: 運指エンジン（DP） | 0 | 0 | 4 | 0 | [詳細](phase-6/) @phase-6/ |
 | Phase 7: パッケージング・QA | 0 | 0 | 2 | 0 | [詳細](phase-7/) @phase-7/ |
@@ -86,7 +86,7 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-004 | 内部データモデル型定義（Score/Note/Annotation等） | TODO | Phase 1 | 30min | [詳細](phase-2/TASK-004.md) @phase-2/TASK-004.md |
+| TASK-004 | 内部データモデル型定義（Score/Note/Annotation等） | DONE | Phase 1 | 30min | [詳細](phase-2/TASK-004.md) @phase-2/TASK-004.md |
 | TASK-005 | MusicXML Parser実装（.xml/.mxl対応） | TODO | TASK-004 | 60min | [詳細](phase-2/TASK-005.md) @phase-2/TASK-005.md |
 | TASK-006 | Annotation Store実装（CRUD+JSON永続化） | TODO | TASK-004 | 40min | [詳細](phase-2/TASK-006.md) @phase-2/TASK-006.md |
 | TASK-007 | App Settings実装（electron-store+ファイル履歴） | TODO | TASK-004 | 20min | [詳細](phase-2/TASK-007.md) @phase-2/TASK-007.md |
@@ -104,10 +104,10 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-010 | Zustand Store定義（PracticeSessionState） | TODO | Phase 3 | 30min | [詳細](phase-4/TASK-010.md) @phase-4/TASK-010.md |
-| TASK-011 | Score Renderer実装（OSMD統合・カーソル制御） | TODO | TASK-010 | 60min | [詳細](phase-4/TASK-011.md) @phase-4/TASK-011.md |
-| TASK-012 | Piano Keyboard実装（Canvas 2D / 88鍵） | TODO | TASK-010 | 50min | [詳細](phase-4/TASK-012.md) @phase-4/TASK-012.md |
-| TASK-013 | Toolbar / Controls UI実装 | TODO | TASK-010 | 40min | [詳細](phase-4/TASK-013.md) @phase-4/TASK-013.md |
+| TASK-010 | Zustand Store定義（PracticeSessionState） | DONE | Phase 3 | 30min | [詳細](phase-4/TASK-010.md) @phase-4/TASK-010.md |
+| TASK-011 | Score Renderer実装（OSMD統合・カーソル制御） | DONE | TASK-010 | 60min | [詳細](phase-4/TASK-011.md) @phase-4/TASK-011.md |
+| TASK-012 | Piano Keyboard実装（Canvas 2D / 88鍵） | DONE | TASK-010 | 50min | [詳細](phase-4/TASK-012.md) @phase-4/TASK-012.md |
+| TASK-013 | Toolbar / Controls UI実装 | DONE | TASK-010 | 40min | [詳細](phase-4/TASK-013.md) @phase-4/TASK-013.md |
 
 ### Phase 5: 練習エンジン統合
 *推定期間: 120min（014〜015は並列可）*

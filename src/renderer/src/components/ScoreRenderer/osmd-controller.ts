@@ -2,6 +2,7 @@ import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 
 export class OSMDController {
   private osmd: OpenSheetMusicDisplay;
+  private loaded = false;
 
   constructor(container: HTMLDivElement) {
     this.osmd = new OpenSheetMusicDisplay(container, {
@@ -12,8 +13,10 @@ export class OSMDController {
   }
 
   async load(xmlContent: string): Promise<void> {
+    this.loaded = false;
     await this.osmd.load(xmlContent);
     this.osmd.render();
+    this.loaded = true;
   }
 
   moveCursor(noteId: string): void {
@@ -39,7 +42,9 @@ export class OSMDController {
 
   setZoom(factor: number): void {
     this.osmd.zoom = factor;
-    this.osmd.render();
+    if (this.loaded) {
+      this.osmd.render();
+    }
   }
 
   highlightNote(noteId: string, color: 'correct' | 'incorrect' | 'expected'): void {

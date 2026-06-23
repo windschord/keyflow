@@ -1,6 +1,6 @@
 # TASK-013: Toolbar / Controls UI実装
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 40分
 **依存**: TASK-010
 

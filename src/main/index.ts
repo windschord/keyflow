@@ -1,5 +1,6 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron';
 import { join } from 'path';
+import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 
@@ -14,6 +15,8 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
     },
   });
 
@@ -51,6 +54,27 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'));
+
+  ipcMain.handle('file:show-open-dialog', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'MusicXML', extensions: ['xml', 'mxl'] }],
+    });
+    if (canceled || filePaths.length === 0) {
+      return null;
+    }
+    return filePaths[0];
+  });
+
+  ipcMain.handle('file:read', async (_, path: string) => {
+    const content = await fs.promises.readFile(path, 'utf-8');
+    return content;
+  });
+
+  ipcMain.handle('file:read-binary', async (_, path: string) => {
+    const content = await fs.promises.readFile(path);
+    return content;
+  });
 
   createWindow();
 

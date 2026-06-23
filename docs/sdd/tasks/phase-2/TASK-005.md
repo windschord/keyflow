@@ -1,6 +1,6 @@
 # TASK-005: MusicXML Parser実装（.xml / .mxl対応）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 60分
 **依存**: TASK-004
 

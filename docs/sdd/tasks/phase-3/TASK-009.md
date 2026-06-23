@@ -1,6 +1,6 @@
 # TASK-009: IPC Bridge実装（Preload Script + 型付きAPI）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 20分
 **依存**: TASK-008
 

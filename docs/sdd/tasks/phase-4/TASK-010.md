@@ -1,6 +1,6 @@
 # TASK-010: Zustand Store定義（PracticeSessionState）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 30分
 **依存**: Phase 3
 

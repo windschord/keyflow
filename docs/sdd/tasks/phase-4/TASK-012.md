@@ -1,6 +1,6 @@
 # TASK-012: Piano Keyboard実装（Canvas 2D / 88鍵）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 50分
 **依存**: TASK-010
 

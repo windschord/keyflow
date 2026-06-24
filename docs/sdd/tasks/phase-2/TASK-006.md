@@ -1,6 +1,6 @@
 # TASK-006: Annotation Store実装（CRUD + JSON永続化）
 
-**ステータス**: TODO
+**ステータス**: REVIEW
 **推定工数**: 40分
 **依存**: TASK-004
 
@@ -64,3 +64,16 @@ Rendererは `window.electronAPI.file.read(path)` / `window.electronAPI.file.writ
 - [ ] テストが6件以上ありすべてパス
 
 **依存関係**: TASK-004
+
+---
+
+## 実行情報
+**実行方式**: Jules API
+**Jules Session ID**: 7338182110919231218
+**Jules ブランチ名**: feat/task-006-annotation-store-7338182110919231218
+**PR作成先**: feat/ipc-musicxml-parser-3598245982887663378
+**開始日時**: 2026-06-24 10:56
+**PR番号**: #12
+**PR URL**: https://github.com/windschord/keyflow/pull/12
+**PR作成日時**: 2026-06-24 11:14
+**CI状態**: 全ジョブ成功（Node Lint, Test Coverage, Build, Japanese Lint）

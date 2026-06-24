@@ -4,9 +4,10 @@ import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService, AppSettings } from './settings';
+import { MidiControllerService } from './midi-controller';
 import { IPC_CHANNELS } from './ipc-channels';
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -40,6 +41,8 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
+
+  return mainWindow;
 }
 
 // This method will be called when Electron has finished
@@ -134,12 +137,28 @@ app.whenReady().then(() => {
     settingsService.set(key, value as AppSettings[typeof key]);
   });
 
-  createWindow();
+  const win = createWindow();
+
+  const midiController = new MidiControllerService(win);
+  midiController.initialize();
+  ipcMain.handle(IPC_CHANNELS.MIDI_GET_DEVICES, () => midiController.listDevices());
+  ipcMain.on(IPC_CHANNELS.MIDI_SELECT_DEVICE, (_, index: unknown) => {
+    if (typeof index === 'number' && Number.isInteger(index) && index >= 0) {
+      midiController.selectDevice(index);
+    }
+  });
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      const newWin = createWindow();
+      midiController.setWindow(newWin);
+    }
+  });
+
+  app.on('window-all-closed', () => {
+    midiController.dispose();
   });
 });
 

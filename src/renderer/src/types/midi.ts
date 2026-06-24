@@ -8,4 +8,5 @@ export interface MidiNoteEvent {
   velocity: number;
   type: 'note-on' | 'note-off';
   timestamp: number;
+  channel?: number;
 }

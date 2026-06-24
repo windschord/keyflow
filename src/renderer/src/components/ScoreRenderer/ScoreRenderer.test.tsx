@@ -8,7 +8,7 @@ vi.mock('./osmd-controller', () => {
   return {
     OSMDController: vi.fn().mockImplementation(() => {
       return {
-        load: vi.fn(),
+        load: vi.fn().mockResolvedValue(undefined),
         moveCursor: vi.fn(),
         setPartOpacity: vi.fn(),
         drawLoopBracket: vi.fn(),
@@ -27,6 +27,7 @@ describe('ScoreRenderer', () => {
     render(
       <ScoreRenderer
         score={null}
+        musicXmlContent={null}
         currentNoteId={null}
         practiceMode="both"
         loopRange={null}
@@ -42,6 +43,7 @@ describe('ScoreRenderer', () => {
     render(
       <ScoreRenderer
         score={mockScore}
+        musicXmlContent="<score-partwise/>"
         currentNoteId={null}
         practiceMode="both"
         loopRange={null}

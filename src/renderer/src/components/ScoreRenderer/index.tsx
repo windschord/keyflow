@@ -4,6 +4,7 @@ import { OSMDController } from './osmd-controller';
 
 export interface ScoreRendererProps {
   score: Score | null;
+  musicXmlContent: string | null;
   currentNoteId: string | null;
   practiceMode: PracticeMode;
   loopRange: { start: number; end: number } | null;
@@ -13,6 +14,7 @@ export interface ScoreRendererProps {
 
 export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   score,
+  musicXmlContent,
   currentNoteId,
   practiceMode,
   loopRange,
@@ -30,15 +32,16 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   }, []);
 
   useEffect(() => {
-    if (score && osmdControllerRef.current) {
-      // In a real scenario, score or a separate musicXML path/string would be passed.
-      // Here we mock the loading since we just have the score model.
-      // osmdControllerRef.current.load(scoreXml);
-      setIsLoaded(true);
-    } else {
+    if (score && musicXmlContent && osmdControllerRef.current) {
+      setIsLoaded(false);
+      osmdControllerRef.current
+        .load(musicXmlContent)
+        .then(() => setIsLoaded(true))
+        .catch((err) => console.error('[ScoreRenderer] OSMD load failed:', err));
+    } else if (!score) {
       setIsLoaded(false);
     }
-  }, [score]);
+  }, [score, musicXmlContent]);
 
   useEffect(() => {
     if (osmdControllerRef.current && currentNoteId) {
@@ -75,7 +78,13 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
       )}
       <div
         ref={containerRef}
-        style={{ display: score ? 'block' : 'none', width: '100%', height: '100%' }}
+        style={{
+          display: score ? 'block' : 'none',
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#ffffff',
+          overflowY: 'auto',
+        }}
         data-testid="osmd-container"
       />
     </div>

@@ -1,4 +1,4 @@
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 
 // Custom APIs for renderer
@@ -12,11 +12,33 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron', electronAPI);
     contextBridge.exposeInMainWorld('api', api);
   } catch (error) {
-    console.error(error);
+    console.error('[preload] Failed to expose electron/api:', error);
+  }
+
+  try {
+    contextBridge.exposeInMainWorld('electronAPI', {
+      file: {
+        showOpenDialog: (): Promise<string | null> => ipcRenderer.invoke('file:show-open-dialog'),
+        read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
+        readBinary: (path: string): Promise<ArrayBuffer> =>
+          ipcRenderer.invoke('file:read-binary', path),
+      },
+    });
+  } catch (error) {
+    console.error('[preload] Failed to expose electronAPI:', error);
   }
 } else {
   // @ts-expect-error (define in dts)
   window.electron = electronAPI;
   // @ts-expect-error (define in dts)
   window.api = api;
+  // @ts-expect-error (define in dts)
+  window.electronAPI = {
+    file: {
+      showOpenDialog: (): Promise<string | null> => ipcRenderer.invoke('file:show-open-dialog'),
+      read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
+      readBinary: (path: string): Promise<ArrayBuffer> =>
+        ipcRenderer.invoke('file:read-binary', path),
+    },
+  };
 }

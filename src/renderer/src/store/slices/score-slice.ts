@@ -4,11 +4,14 @@ import { Score } from '../../types';
 export interface ScoreSlice {
   score: Score | null;
   musicXmlPath: string | null;
-  setScore: (score: Score, path: string) => void;
+  musicXmlContent: string | null;
+  setScore: (score: Score, path: string, xmlContent: string) => void;
 }
 
 export const createScoreSlice: StateCreator<ScoreSlice> = (set) => ({
   score: null,
   musicXmlPath: null,
-  setScore: (score, path) => set({ score, musicXmlPath: path }),
+  musicXmlContent: null,
+  setScore: (score, path, xmlContent) =>
+    set({ score, musicXmlPath: path, musicXmlContent: xmlContent }),
 });

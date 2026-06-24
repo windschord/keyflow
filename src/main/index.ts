@@ -1,19 +1,24 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron';
 import { join } from 'path';
+import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1280,
+    height: 800,
+    minWidth: 1024,
+    minHeight: 600,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
     },
   });
 
@@ -51,6 +56,28 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'));
+
+  ipcMain.handle('file:show-open-dialog', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'MusicXML', extensions: ['xml', 'mxl', 'musicxml'] }],
+    });
+    if (canceled || filePaths.length === 0) {
+      return null;
+    }
+    return filePaths[0];
+  });
+
+  ipcMain.handle('file:read', async (_, path: string) => {
+    const content = await fs.promises.readFile(path, 'utf-8');
+    return content;
+  });
+
+  ipcMain.handle('file:read-binary', async (_, path: string) => {
+    const content = await fs.promises.readFile(path);
+    // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換
+    return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
+  });
 
   createWindow();
 

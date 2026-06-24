@@ -10,7 +10,9 @@ describe('judgement', () => {
     ];
 
     const notes: Note[] = [
+      // @ts-expect-error 不完全なNoteオブジェクトのテスト用スタブ
       { id: '1', partId: 'P1', midiNumber: 60 } as Note,
+      // @ts-expect-error 不完全なNoteオブジェクトのテスト用スタブ
       { id: '2', partId: 'P2', midiNumber: 48 } as Note,
     ];
 
@@ -32,7 +34,12 @@ describe('judgement', () => {
   });
 
   describe('judgeChord', () => {
-    const expectedNotes: Note[] = [{ midiNumber: 60 } as Note, { midiNumber: 64 } as Note];
+    const expectedNotes: Note[] = [
+      // @ts-expect-error 不完全なNoteオブジェクトのテスト用スタブ
+      { midiNumber: 60 } as Note,
+      // @ts-expect-error 不完全なNoteオブジェクトのテスト用スタブ
+      { midiNumber: 64 } as Note,
+    ];
 
     it('returns correct when all keys match', () => {
       expect(judgeChord(new Set([60, 64]), expectedNotes)).toBe('correct');

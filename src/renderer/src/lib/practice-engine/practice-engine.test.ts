@@ -38,7 +38,6 @@ describe('PracticeEngineService', () => {
     },
   ];
 
-  // Fix: for a chord, noteIndex should be the same for all notes in the chord
   const mockChordNotes: Note[] = [
     {
       id: 'c1',
@@ -105,7 +104,9 @@ describe('PracticeEngineService', () => {
   beforeEach(() => {
     let currentState = {
       score: mockScore,
+      // @ts-expect-error 不完全なPracticeModeのテスト用スタブ
       practiceMode: 'both' as PracticeMode,
+      // @ts-expect-error 不完全なErrorModeのテスト用スタブ
       errorMode: 'wait' as ErrorMode,
       currentMeasure: 1,
       currentNoteIndex: 0,
@@ -117,6 +118,7 @@ describe('PracticeEngineService', () => {
     };
 
     mockStore = {
+      // @ts-expect-error 不完全なPracticeStoreのテスト用スタブ
       getState: () => currentState as PracticeStore,
       setState: vi.fn(
         (
@@ -127,6 +129,7 @@ describe('PracticeEngineService', () => {
           if (typeof newStateOrCallback === 'function') {
             currentState = {
               ...currentState,
+              // @ts-expect-error 不完全なPracticeStoreのテスト用スタブ
               ...newStateOrCallback(currentState as PracticeStore),
             };
           } else {
@@ -136,6 +139,7 @@ describe('PracticeEngineService', () => {
       ),
       subscribe: vi.fn(),
       destroy: vi.fn(),
+      // @ts-expect-error 不完全なStoreApiのテスト用スタブ
     } as unknown as StoreApi<PracticeStore>;
 
     engine = new PracticeEngineService(mockStore);

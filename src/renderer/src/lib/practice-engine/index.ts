@@ -73,51 +73,61 @@ export class PracticeEngineService {
 
     let { currentMeasure, currentNoteIndex } = state;
 
-    const measureData = state.score.measures.find((m) => m.number === currentMeasure);
-    if (!measureData) return;
+    // Find next position loop
+    while (true) {
+      const measureData = state.score.measures.find((m) => m.number === currentMeasure);
+      if (!measureData) break; // End of score
 
-    // Filter by mode
-    const modeNotes = filterNotesByMode(measureData.notes, state.practiceMode, state.score.parts);
-
-    // Group notes by index
-    const noteIndices = Array.from(new Set(modeNotes.map((n) => n.noteIndex))).sort(
-      (a, b) => a - b
-    );
-
-    const currentIndexInArray = noteIndices.indexOf(currentNoteIndex);
-
-    if (currentIndexInArray !== -1 && currentIndexInArray < noteIndices.length - 1) {
-      currentNoteIndex = noteIndices[currentIndexInArray + 1];
-    } else {
-      currentMeasure += 1;
-      // Loop Check
-      currentMeasure = checkLoopBoundary(
-        currentMeasure,
-        state.loopStart,
-        state.loopEnd,
-        state.loopEnabled
+      const modeNotes = filterNotesByMode(measureData.notes, state.practiceMode, state.score.parts);
+      const noteIndices = Array.from(new Set(modeNotes.map((n) => n.noteIndex))).sort(
+        (a, b) => a - b
       );
 
-      // Find the next measure data to set initial note index
-      const nextMeasureData = state.score.measures.find((m) => m.number === currentMeasure);
-      if (nextMeasureData) {
-        const nextModeNotes = filterNotesByMode(
-          nextMeasureData.notes,
-          state.practiceMode,
-          state.score.parts
-        );
-        if (nextModeNotes.length > 0) {
-          currentNoteIndex = Math.min(...nextModeNotes.map((n) => n.noteIndex));
-        } else {
-          currentNoteIndex = 0; // fallback
-        }
+      const currentIndexInArray = noteIndices.indexOf(currentNoteIndex);
+
+      if (currentIndexInArray !== -1 && currentIndexInArray < noteIndices.length - 1) {
+        currentNoteIndex = noteIndices[currentIndexInArray + 1];
+        break;
       } else {
-        currentNoteIndex = 0; // end of score
+        currentMeasure += 1;
+        // Loop Check
+        currentMeasure = checkLoopBoundary(
+          currentMeasure,
+          state.loopStart,
+          state.loopEnd,
+          state.loopEnabled
+        );
+
+        const nextMeasureData = state.score.measures.find((m) => m.number === currentMeasure);
+        if (nextMeasureData) {
+          const nextModeNotes = filterNotesByMode(
+            nextMeasureData.notes,
+            state.practiceMode,
+            state.score.parts
+          );
+          if (nextModeNotes.length > 0) {
+            currentNoteIndex = Math.min(...nextModeNotes.map((n) => n.noteIndex));
+            break;
+          } else {
+            // Next measure exists but has no target notes, so we need to check next measure
+            currentNoteIndex = 0;
+            continue;
+          }
+        } else {
+          // End of score
+          currentNoteIndex = 0;
+          break;
+        }
       }
     }
 
-    // Keep pressed keys but update position and clear incorrect keys
-    this.store.setState({ currentMeasure, currentNoteIndex, incorrectKeys: new Set() });
+    // Clear pressed keys and incorrect keys when advancing position
+    this.store.setState({
+      currentMeasure,
+      currentNoteIndex,
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+    });
   }
 
   resetToMeasure(measureNumber: number): void {
@@ -148,14 +158,11 @@ export class PracticeEngineService {
     return modeNotes.filter((n) => n.noteIndex === state.currentNoteIndex);
   }
 
-  // Changed to match the prompt's required return type boolean even though it's internal. Actually I will keep it NoteJudgement because it's what we need internally to distinguish 'partial' from 'incorrect' and handle advance. The user prompt said `private checkCorrectness(noteNumber: number, expectedNotes: Note[], practiceMode: PracticeMode): boolean;` but realistically we need NoteJudgement. Let me change it to boolean and do the judgement logic inline.
-  // Actually, I can just change the signature to boolean.
   private checkCorrectness(
     _noteNumber: number,
     expectedNotes: Note[],
     _practiceMode: PracticeMode
   ): NoteJudgement {
-    const state = this.store.getState();
     const latestState = this.store.getState();
     const chordStatus = judgeChord(latestState.pressedKeys, expectedNotes);
 

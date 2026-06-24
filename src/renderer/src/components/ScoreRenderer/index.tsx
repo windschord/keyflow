@@ -78,7 +78,13 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
       )}
       <div
         ref={containerRef}
-        style={{ display: score ? 'block' : 'none', width: '100%', height: '100%' }}
+        style={{
+          display: score ? 'block' : 'none',
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#ffffff',
+          overflowY: 'auto',
+        }}
         data-testid="osmd-container"
       />
     </div>

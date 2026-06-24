@@ -148,7 +148,7 @@ describe('App', () => {
 
     await waitFor(() => {
       expect(alertMock).toHaveBeenCalledWith(
-        'Failed to parse MusicXML file. Please check the file format.'
+        'MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。'
       );
     });
 
@@ -174,9 +174,7 @@ describe('App', () => {
     openFileBtn.click();
 
     await waitFor(() => {
-      expect(alertMock).toHaveBeenCalledWith(
-        'Failed to parse MusicXML file. Please check the file format.'
-      );
+      expect(alertMock).toHaveBeenCalledWith('ファイル選択ダイアログを開けませんでした。');
     });
 
     alertMock.mockRestore();

@@ -73,7 +73,8 @@ app.whenReady().then(() => {
 
   ipcMain.handle('file:read-binary', async (_, path: string) => {
     const content = await fs.promises.readFile(path);
-    return content;
+    // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換
+    return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
   });
 
   createWindow();

@@ -30,10 +30,23 @@ function App(): React.JSX.Element {
   );
 
   const handleOpenFile = async () => {
-    try {
-      const filePath = await window.electronAPI.file.showOpenDialog();
-      if (!filePath) return;
+    if (!window.electronAPI) {
+      alert('Electron API が利用できません。Electron アプリとして起動してください。');
+      return;
+    }
 
+    let filePath: string | null = null;
+    try {
+      filePath = await window.electronAPI.file.showOpenDialog();
+    } catch (error) {
+      console.error('Failed to open dialog:', error);
+      alert('ファイル選択ダイアログを開けませんでした。');
+      return;
+    }
+
+    if (!filePath) return;
+
+    try {
       let parsedScore;
       if (filePath.endsWith('.mxl')) {
         const buffer = await window.electronAPI.file.readBinary(filePath);
@@ -42,11 +55,10 @@ function App(): React.JSX.Element {
         const content = await window.electronAPI.file.read(filePath);
         parsedScore = parse(content);
       }
-
       setScore(parsedScore, filePath);
     } catch (error) {
-      console.error('Failed to open file:', error);
-      alert('Failed to parse MusicXML file. Please check the file format.');
+      console.error('Failed to parse file:', error);
+      alert('MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。');
     }
   };
 

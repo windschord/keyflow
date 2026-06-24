@@ -11,7 +11,11 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI);
     contextBridge.exposeInMainWorld('api', api);
+  } catch (error) {
+    console.error('[preload] Failed to expose electron/api:', error);
+  }
 
+  try {
     contextBridge.exposeInMainWorld('electronAPI', {
       file: {
         showOpenDialog: (): Promise<string | null> => ipcRenderer.invoke('file:show-open-dialog'),
@@ -21,7 +25,7 @@ if (process.contextIsolated) {
       },
     });
   } catch (error) {
-    console.error(error);
+    console.error('[preload] Failed to expose electronAPI:', error);
   }
 } else {
   // @ts-expect-error (define in dts)

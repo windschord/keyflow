@@ -1,5 +1,6 @@
 import midi from 'midi';
 import { BrowserWindow } from 'electron';
+import { IPC_CHANNELS } from './ipc-channels';
 import { MidiDevice, MidiNoteEvent } from '../renderer/src/types/midi';
 
 export class MidiControllerService {
@@ -84,7 +85,10 @@ export class MidiControllerService {
         timestamp: Date.now(), // Use current time as timestamp
       };
 
-      this.win.webContents.send(isNoteOn ? 'midi:note-on' : 'midi:note-off', event);
+      this.win.webContents.send(
+        isNoteOn ? IPC_CHANNELS.MIDI_NOTE_ON : IPC_CHANNELS.MIDI_NOTE_OFF,
+        event
+      );
     }
   }
 }

@@ -90,6 +90,10 @@ app.whenReady().then(() => {
     return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
   });
 
+  ipcMain.handle(IPC_CHANNELS.FILE_WRITE, async (_, path: string, content: string) => {
+    await fs.promises.writeFile(path, content, 'utf-8');
+  });
+
   const VALID_SETTINGS_KEYS: ReadonlySet<keyof AppSettings> = new Set([
     'recentFiles',
     'midi',

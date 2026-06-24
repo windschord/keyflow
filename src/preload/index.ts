@@ -24,6 +24,8 @@ if (process.contextIsolated) {
         read: (path: string): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.FILE_READ, path),
         readBinary: (path: string): Promise<ArrayBuffer> =>
           ipcRenderer.invoke(IPC_CHANNELS.FILE_READ_BINARY, path),
+        write: (path: string, content: string): Promise<void> =>
+          ipcRenderer.invoke(IPC_CHANNELS.FILE_WRITE, path, content),
       },
       settings: {
         get: (key: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET, key),
@@ -54,6 +56,8 @@ if (process.contextIsolated) {
       read: (path: string): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.FILE_READ, path),
       readBinary: (path: string): Promise<ArrayBuffer> =>
         ipcRenderer.invoke(IPC_CHANNELS.FILE_READ_BINARY, path),
+      write: (path: string, content: string): Promise<void> =>
+        ipcRenderer.invoke(IPC_CHANNELS.FILE_WRITE, path, content),
     },
     settings: {
       get: (key: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET, key),

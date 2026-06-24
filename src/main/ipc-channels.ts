@@ -3,6 +3,7 @@ export const IPC_CHANNELS = {
   FILE_SHOW_OPEN_DIALOG: 'file:show-open-dialog',
   FILE_READ: 'file:read',
   FILE_READ_BINARY: 'file:read-binary',
+  FILE_WRITE: 'file:write',
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
   MIDI_GET_DEVICES: 'midi:get-devices',

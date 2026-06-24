@@ -58,7 +58,7 @@ app.whenReady().then(() => {
   ipcMain.handle('file:show-open-dialog', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
-      filters: [{ name: 'MusicXML', extensions: ['xml', 'mxl'] }],
+      filters: [{ name: 'MusicXML', extensions: ['xml', 'mxl', 'musicxml'] }],
     });
     if (canceled || filePaths.length === 0) {
       return null;

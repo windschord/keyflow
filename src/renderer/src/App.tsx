@@ -48,7 +48,7 @@ function App(): React.JSX.Element {
 
     try {
       let parsedScore;
-      if (filePath.endsWith('.mxl')) {
+      if (filePath.endsWith('.mxl') || filePath.endsWith('.MXL')) {
         const buffer = await window.electronAPI.file.readBinary(filePath);
         parsedScore = parseMxl(buffer);
       } else {

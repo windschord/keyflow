@@ -155,6 +155,25 @@ describe('MusicXML Parser', () => {
     expect(score.parts[0].id).toBe('P1');
   });
 
+  it('parses part-name with print-object attribute (MuseScore format)', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list>
+    <score-part id="P1">
+      <part-name print-object="no">Piano Right</part-name>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    expect(score.parts[0].name).toBe('Piano Right');
+    expect(score.parts[0].hand).toBe('right');
+  });
+
   it('parseMxl throws MusicXMLParseError when no xml file found', () => {
     const zipped = zipSync({
       'readme.txt': new TextEncoder().encode('no xml here'),

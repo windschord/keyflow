@@ -65,7 +65,12 @@ export function parse(xmlContent: string): Score {
   (partsListArr as unknown[]).forEach((scorePart: unknown, index: number) => {
     const sp = scorePart as Record<string, unknown>;
     const partId = sp['@_id'] as string;
-    const partName = sp['part-name'] as string | undefined;
+    // part-nameはprint-object属性がある場合にオブジェクトとして返ることがある
+    const rawPartName = sp['part-name'];
+    const partName =
+      typeof rawPartName === 'object' && rawPartName !== null
+        ? ((rawPartName as Record<string, unknown>)['#text'] as string | undefined)
+        : (rawPartName as string | undefined);
 
     // Find the corresponding part data to look for a clef
     const partData = (rawParts as Record<string, unknown>[]).find(

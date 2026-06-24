@@ -14,31 +14,31 @@ vi.mock('tone', () => {
     cancel: vi.fn(),
   };
 
-  const synthInstanceMock = {
+  const createSynthInstanceMock = () => ({
     triggerAttackRelease: vi.fn(),
     dispose: vi.fn(),
     toDestination: vi.fn().mockReturnThis(),
-  };
+  });
 
-  const partInstanceMock = {
+  const createPartInstanceMock = () => ({
+    start: vi.fn().mockReturnThis(),
+    stop: vi.fn(),
+    dispose: vi.fn(),
+  });
+
+  const createSequenceInstanceMock = () => ({
     start: vi.fn(),
     stop: vi.fn(),
     dispose: vi.fn(),
-  };
-
-  const sequenceInstanceMock = {
-    start: vi.fn(),
-    stop: vi.fn(),
-    dispose: vi.fn(),
-  };
+  });
 
   return {
     getTransport: vi.fn(() => transportMock),
-    Synth: vi.fn(() => synthInstanceMock),
-    PolySynth: vi.fn(() => synthInstanceMock),
-    MembraneSynth: vi.fn(() => synthInstanceMock),
-    Part: vi.fn(() => partInstanceMock),
-    Sequence: vi.fn(() => sequenceInstanceMock),
+    Synth: vi.fn(() => createSynthInstanceMock()),
+    PolySynth: vi.fn(() => createSynthInstanceMock()),
+    MembraneSynth: vi.fn(() => createSynthInstanceMock()),
+    Part: vi.fn(() => createPartInstanceMock()),
+    Sequence: vi.fn(() => createSequenceInstanceMock()),
     start: vi.fn(),
     Frequency: vi.fn((val: number) => ({
       toNote: vi.fn(() => {
@@ -65,31 +65,48 @@ describe('AudioEngineService', () => {
 
   it('should enable and disable metronome', () => {
     service.setMetronomeEnabled(true);
-    // As Tone.js is mocked, we can check if the underlying sequence start/stop logic is called,
-    // or just assume the state changes. If Metronome uses Tone.Sequence, it should be called.
+    const mockSequenceInstance = (Tone.Sequence as unknown as ReturnType<typeof vi.fn>).mock
+      .results[0].value;
+    expect(mockSequenceInstance.start).toHaveBeenCalled();
     service.setMetronomeEnabled(false);
-    expect(Tone.Sequence).toHaveBeenCalled();
+    expect(mockSequenceInstance.stop).toHaveBeenCalled();
   });
 
   it('should play C4 when playNote(60) is called', () => {
     service.playNote(60);
     expect(Tone.Frequency).toHaveBeenCalledWith(60, 'midi');
     // It should trigger attack release on the internal synth
-    expect(Tone.Synth).toHaveBeenCalled();
+    const mockPolySynthInstance = (Tone.PolySynth as unknown as ReturnType<typeof vi.fn>).mock
+      .results[0].value;
+    expect(mockPolySynthInstance.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
   });
 
   it('should release resources when dispose is called', () => {
     service.dispose();
-    // We expect the synths created in the constructor to be disposed
-    // and Tone.getTransport().stop/cancel etc if applicable.
-    // The specifics depend on implementation, but calling dispose should not throw.
-    expect(true).toBe(true);
+    const transport = Tone.getTransport();
+    expect(transport.stop).toHaveBeenCalled();
+    expect(transport.cancel).toHaveBeenCalled();
+
+    // Check if dispose is called on synths
+    const mockPolySynthInstance = (Tone.PolySynth as unknown as ReturnType<typeof vi.fn>).mock
+      .results[0].value;
+    expect(mockPolySynthInstance.dispose).toHaveBeenCalled();
+
+    const mockCorrectSynthInstance = (Tone.Synth as unknown as ReturnType<typeof vi.fn>).mock
+      .results[0].value;
+    expect(mockCorrectSynthInstance.dispose).toHaveBeenCalled();
   });
 
   it('should play correct and incorrect sounds', () => {
     service.playCorrectSound();
+    const mockCorrectSynthInstance = (Tone.Synth as unknown as ReturnType<typeof vi.fn>).mock
+      .results[0].value;
+    expect(mockCorrectSynthInstance.triggerAttackRelease).toHaveBeenCalledWith('C5', '8n');
+
     service.playIncorrectSound();
-    expect(Tone.Synth).toHaveBeenCalled();
+    const mockIncorrectSynthInstance = (Tone.Synth as unknown as ReturnType<typeof vi.fn>).mock
+      .results[1].value;
+    expect(mockIncorrectSynthInstance.triggerAttackRelease).toHaveBeenCalledWith('G#3', '8n');
   });
 
   it('should handle accompaniment lifecycle', async () => {

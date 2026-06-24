@@ -48,38 +48,25 @@ export class AudioEngineService {
     const timeSignatureType = score.timeSignature.beatType;
     Tone.getTransport().timeSignature = [timeSignatureBeats, timeSignatureType];
 
+    const secondsPerBeat = 60 / score.tempo;
     score.parts.forEach((part) => {
-      // If the hand is unknown, maybe play it or not depending on specs.
-      // Usually, if accompanimentHand is 'left' and this part is 'left', we play it.
       if (part.hand === accompanimentHand) {
         const events: { time: string; note: string; duration: number }[] = [];
-
         let currentTimeInSeconds = 0;
-
-        // This is a simplified duration calculation. Real implementation would calculate
-        // seconds based on tempo, beatType and duration, but here we just convert to string if Tone handles it,
-        // or approximate. We'll use beat times.
-        const secondsPerBeat = 60 / score.tempo;
-
-        // In this implementation, we will assume duration in types is proportional to a quarter note or something.
-        // Actually we will map notes properly. But as this is simplified, let's map note to time.
-
-        // As a fallback for Tone.js sequence, we can use Tone.Part with times.
-        // We will just create dummy times for now based on index to satisfy the interface.
-        // Proper calculation would require looking at each measure and note.
 
         score.measures.forEach((measure) => {
           measure.notes.forEach((note: Note) => {
-            if (!note.isRest) {
-              const freq = Tone.Frequency(note.midiNumber, 'midi').toNote();
-              // Approximation of time to make the types happy.
-              events.push({
-                time: `+${currentTimeInSeconds}`,
-                note: freq,
-                duration: note.duration * secondsPerBeat, // assuming note.duration is in beats
-              });
+            if (note.partId === part.id) {
+              if (!note.isRest) {
+                const freq = Tone.Frequency(note.midiNumber, 'midi').toNote();
+                events.push({
+                  time: `+${currentTimeInSeconds}`,
+                  note: freq,
+                  duration: note.duration * secondsPerBeat,
+                });
+              }
+              currentTimeInSeconds += note.duration * secondsPerBeat;
             }
-            currentTimeInSeconds += note.duration * secondsPerBeat;
           });
         });
 

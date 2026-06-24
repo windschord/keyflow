@@ -65,8 +65,7 @@ describe('AudioEngineService', () => {
 
   it('should enable and disable metronome', () => {
     service.setMetronomeEnabled(true);
-    const mockSequenceInstance = (Tone.Sequence as unknown as ReturnType<typeof vi.fn>).mock
-      .results[0].value;
+    const mockSequenceInstance = vi.mocked(Tone.Sequence).mock.results[0].value;
     expect(mockSequenceInstance.start).toHaveBeenCalled();
     service.setMetronomeEnabled(false);
     expect(mockSequenceInstance.stop).toHaveBeenCalled();
@@ -76,8 +75,7 @@ describe('AudioEngineService', () => {
     service.playNote(60);
     expect(Tone.Frequency).toHaveBeenCalledWith(60, 'midi');
     // It should trigger attack release on the internal synth
-    const mockPolySynthInstance = (Tone.PolySynth as unknown as ReturnType<typeof vi.fn>).mock
-      .results[0].value;
+    const mockPolySynthInstance = vi.mocked(Tone.PolySynth).mock.results[0].value;
     expect(mockPolySynthInstance.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
   });
 
@@ -88,24 +86,20 @@ describe('AudioEngineService', () => {
     expect(transport.cancel).toHaveBeenCalled();
 
     // Check if dispose is called on synths
-    const mockPolySynthInstance = (Tone.PolySynth as unknown as ReturnType<typeof vi.fn>).mock
-      .results[0].value;
+    const mockPolySynthInstance = vi.mocked(Tone.PolySynth).mock.results[0].value;
     expect(mockPolySynthInstance.dispose).toHaveBeenCalled();
 
-    const mockCorrectSynthInstance = (Tone.Synth as unknown as ReturnType<typeof vi.fn>).mock
-      .results[0].value;
+    const mockCorrectSynthInstance = vi.mocked(Tone.Synth).mock.results[0].value;
     expect(mockCorrectSynthInstance.dispose).toHaveBeenCalled();
   });
 
   it('should play correct and incorrect sounds', () => {
     service.playCorrectSound();
-    const mockCorrectSynthInstance = (Tone.Synth as unknown as ReturnType<typeof vi.fn>).mock
-      .results[0].value;
+    const mockCorrectSynthInstance = vi.mocked(Tone.Synth).mock.results[0].value;
     expect(mockCorrectSynthInstance.triggerAttackRelease).toHaveBeenCalledWith('C5', '8n');
 
     service.playIncorrectSound();
-    const mockIncorrectSynthInstance = (Tone.Synth as unknown as ReturnType<typeof vi.fn>).mock
-      .results[1].value;
+    const mockIncorrectSynthInstance = vi.mocked(Tone.Synth).mock.results[1].value;
     expect(mockIncorrectSynthInstance.triggerAttackRelease).toHaveBeenCalledWith('G#3', '8n');
   });
 

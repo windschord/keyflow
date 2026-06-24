@@ -21,7 +21,7 @@ vi.mock('electron-store', () => {
           store = {};
         }),
       };
-    })
+    }),
   };
 });
 

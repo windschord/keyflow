@@ -40,7 +40,7 @@ export class SettingsService {
     const now = new Date().toISOString();
 
     // Remove if already exists
-    const filteredFiles = recentFiles.filter(file => file.path !== path);
+    const filteredFiles = recentFiles.filter((file) => file.path !== path);
 
     // Add to the beginning
     filteredFiles.unshift({ path, openedAt: now });

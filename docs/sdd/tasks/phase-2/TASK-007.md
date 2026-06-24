@@ -69,12 +69,19 @@ export class SettingsService {
 ---
 
 ## 実行情報
-**実行方式**: Jules API
-**Jules Session ID**: 1083058763392163111
-**Jules ブランチ名**: feat/task-007-app-settings-1083058763392163111
-**PR作成先**: feat/ipc-musicxml-parser-3598245982887663378
-**開始日時**: 2026-06-24 10:56
-**PR番号**: #11
-**PR URL**: https://github.com/windschord/keyflow/pull/11
-**PR作成日時**: 2026-06-24 11:10
-**CI状態**: 全ジョブ成功（Node Lint, Test Coverage, Build, Japanese Lint）
+
+<!-- textlint-disable -->
+
+| 項目 | 値 |
+|------|-----|
+| 実行方式 | Jules API |
+| Jules Session ID | 1083058763392163111 |
+| Jules ブランチ名 | feat/task-007-app-settings-1083058763392163111 |
+| PR作成先 | feat/ipc-musicxml-parser-3598245982887663378 |
+| 開始日時 | 2026-06-24 10:56 |
+| PR番号 | #11 |
+| PR URL | https://github.com/windschord/keyflow/pull/11 |
+| PR作成日時 | 2026-06-24 11:10 |
+| CI状態 | 全ジョブ成功 |
+
+<!-- textlint-enable -->

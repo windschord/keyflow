@@ -212,7 +212,7 @@ export function parse(xmlContent: string): Score {
   };
 }
 
-export function parseMxl(buffer: ArrayBuffer): Score {
+export function extractXmlFromMxl(buffer: ArrayBuffer): string {
   const files = unzipSync(new Uint8Array(buffer));
 
   // Find the root file from META-INF/container.xml
@@ -249,6 +249,10 @@ export function parseMxl(buffer: ArrayBuffer): Score {
     throw new MusicXMLParseError('Invalid MXL format: Could not find root MusicXML file');
   }
 
-  const xmlText = new TextDecoder().decode(files[rootFilePath]);
+  return new TextDecoder().decode(files[rootFilePath]);
+}
+
+export function parseMxl(buffer: ArrayBuffer): Score {
+  const xmlText = extractXmlFromMxl(buffer);
   return parse(xmlText);
 }

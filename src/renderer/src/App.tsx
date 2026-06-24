@@ -4,11 +4,12 @@ import { ScoreRenderer } from './components/ScoreRenderer';
 import { PianoKeyboard } from './components/PianoKeyboard';
 import { usePracticeStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
-import { parse, parseMxl } from './lib/musicxml-parser';
+import { parse, parseMxl, extractXmlFromMxl } from './lib/musicxml-parser';
 
 function App(): React.JSX.Element {
   const {
     score,
+    musicXmlContent,
     expectedNotes,
     pressedKeys,
     incorrectKeys,
@@ -19,6 +20,7 @@ function App(): React.JSX.Element {
   } = usePracticeStore(
     useShallow((s) => ({
       score: s.score,
+      musicXmlContent: s.musicXmlContent,
       expectedNotes: s.expectedNotes,
       pressedKeys: s.pressedKeys,
       incorrectKeys: s.incorrectKeys,
@@ -48,14 +50,16 @@ function App(): React.JSX.Element {
 
     try {
       let parsedScore;
+      let xmlContent: string;
       if (filePath.endsWith('.mxl') || filePath.endsWith('.MXL')) {
         const buffer = await window.electronAPI.file.readBinary(filePath);
-        parsedScore = parseMxl(buffer);
+        xmlContent = extractXmlFromMxl(buffer);
+        parsedScore = parse(xmlContent);
       } else {
-        const content = await window.electronAPI.file.read(filePath);
-        parsedScore = parse(content);
+        xmlContent = await window.electronAPI.file.read(filePath);
+        parsedScore = parse(xmlContent);
       }
-      setScore(parsedScore, filePath);
+      setScore(parsedScore, filePath, xmlContent);
     } catch (error) {
       console.error('Failed to parse file:', error);
       alert('MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。');
@@ -78,6 +82,7 @@ function App(): React.JSX.Element {
       <div style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
         <ScoreRenderer
           score={score}
+          musicXmlContent={musicXmlContent}
           currentNoteId={null}
           practiceMode={practiceMode}
           loopRange={null}

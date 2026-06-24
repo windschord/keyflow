@@ -9,6 +9,7 @@ describe('usePracticeStore', () => {
       ...store,
       score: null,
       musicXmlPath: null,
+      musicXmlContent: null,
       practiceMode: 'both',
       loopEnabled: false,
       loopStart: 1,
@@ -54,8 +55,9 @@ describe('usePracticeStore', () => {
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
     };
-    setScore(mockScore, 'path/to/file.xml');
+    setScore(mockScore, 'path/to/file.xml', '<score-partwise/>');
     expect(usePracticeStore.getState().score).toBe(mockScore);
     expect(usePracticeStore.getState().musicXmlPath).toBe('path/to/file.xml');
+    expect(usePracticeStore.getState().musicXmlContent).toBe('<score-partwise/>');
   });
 });

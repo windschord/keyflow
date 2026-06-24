@@ -103,7 +103,7 @@ export class AnnotationStoreService {
     if (!this.currentPath) return;
 
     const data: AnnotationFile = {
-      version: "1.0",
+      version: '1.0',
       annotations: this.getAllAnnotations(),
     };
 

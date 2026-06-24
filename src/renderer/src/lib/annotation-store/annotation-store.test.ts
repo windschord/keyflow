@@ -13,9 +13,9 @@ describe('AnnotationStoreService', () => {
       electronAPI: {
         file: {
           read: vi.fn(),
-          write: vi.fn()
-        }
-      }
+          write: vi.fn(),
+        },
+      },
     });
 
     service = new AnnotationStoreService();
@@ -59,7 +59,7 @@ describe('AnnotationStoreService', () => {
   it('applyAISuggestions should set isAISuggested to true and isApproved to false', () => {
     const assignments: FingerAssignment[] = [
       { noteId: 'note4', finger: 2, cost: 0 },
-      { noteId: 'note5', finger: 4, cost: 0 }
+      { noteId: 'note5', finger: 4, cost: 0 },
     ];
     service.applyAISuggestions(assignments);
 
@@ -86,10 +86,8 @@ describe('AnnotationStoreService', () => {
 
   it('load should fetch existing annotations correctly', async () => {
     const mockData = {
-      version: "1.0",
-      annotations: [
-        { noteId: 'note7', fingerNumber: 5, isAISuggested: false, isApproved: true }
-      ]
+      version: '1.0',
+      annotations: [{ noteId: 'note7', fingerNumber: 5, isAISuggested: false, isApproved: true }],
     };
 
     window.electronAPI.file.read = vi.fn().mockResolvedValue(JSON.stringify(mockData));

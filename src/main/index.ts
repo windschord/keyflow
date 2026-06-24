@@ -157,10 +157,6 @@ app.whenReady().then(() => {
     }
   });
 
-  app.on('window-all-closed', () => {
-    midiController.dispose();
-  });
-
   app.on('before-quit', () => {
     midiController.dispose();
   });

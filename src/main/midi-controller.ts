@@ -11,6 +11,10 @@ export class MidiControllerService {
     this.win = win;
   }
 
+  setWindow(win: BrowserWindow): void {
+    this.win = win;
+  }
+
   initialize(): void {
     if (!this.input) {
       this.input = new midi.Input();
@@ -49,10 +53,6 @@ export class MidiControllerService {
       this.input.closePort();
       this.input.openPort(index);
     }
-  }
-
-  setWindow(win: BrowserWindow): void {
-    this.win = win;
   }
 
   dispose(): void {

@@ -1,9 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PracticeModeSelector } from './PracticeModeSelector';
 import { TempoControl } from './TempoControl';
 import { LoopControl } from './LoopControl';
+import { SettingsDialog } from './SettingsDialog';
 
 export const Toolbar: React.FC = () => {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
@@ -28,13 +31,33 @@ export const Toolbar: React.FC = () => {
         borderBottom: '1px solid #ccc',
         backgroundColor: '#f5f5f5',
         flexWrap: 'wrap',
+        alignItems: 'center',
       }}
     >
       <PracticeModeSelector />
-      <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
+      <div style={{ width: '1px', alignSelf: 'stretch', backgroundColor: '#ccc' }}></div>
       <TempoControl />
-      <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
+      <div style={{ width: '1px', alignSelf: 'stretch', backgroundColor: '#ccc' }}></div>
       <LoopControl />
+      <div style={{ flexGrow: 1 }}></div>
+      <button
+        onClick={() => setIsSettingsOpen(true)}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '20px',
+          padding: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        title="Settings"
+      >
+        ⚙️
+      </button>
+
+      {isSettingsOpen && <SettingsDialog onClose={() => setIsSettingsOpen(false)} />}
     </div>
   );
 };

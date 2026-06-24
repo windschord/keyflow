@@ -3,6 +3,7 @@ import { join } from 'path';
 import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
+import { SettingsService } from './settings';
 
 function createWindow(): void {
   // Create the browser window.
@@ -77,6 +78,16 @@ app.whenReady().then(() => {
     const content = await fs.promises.readFile(path);
     // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換
     return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
+  });
+
+  const settingsService = new SettingsService();
+  ipcMain.handle('settings:get', (_, key: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return settingsService.get(key as any);
+  });
+  ipcMain.handle('settings:set', (_, key: string, value: unknown) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    settingsService.set(key as any, value as any);
   });
 
   createWindow();

@@ -23,6 +23,10 @@ if (process.contextIsolated) {
         readBinary: (path: string): Promise<ArrayBuffer> =>
           ipcRenderer.invoke('file:read-binary', path),
       },
+      settings: {
+        get: (key: string) => ipcRenderer.invoke('settings:get', key),
+        set: (key: string, value: unknown) => ipcRenderer.invoke('settings:set', key, value),
+      },
     });
   } catch (error) {
     console.error('[preload] Failed to expose electronAPI:', error);
@@ -39,6 +43,10 @@ if (process.contextIsolated) {
       read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
       readBinary: (path: string): Promise<ArrayBuffer> =>
         ipcRenderer.invoke('file:read-binary', path),
+    },
+    settings: {
+      get: (key: string) => ipcRenderer.invoke('settings:get', key),
+      set: (key: string, value: unknown) => ipcRenderer.invoke('settings:set', key, value),
     },
   };
 }

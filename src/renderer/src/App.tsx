@@ -8,7 +8,7 @@ import { parse, parseMxl, extractXmlFromMxl } from './lib/musicxml-parser';
 
 function App(): React.JSX.Element {
   useEffect(() => {
-    window.electronAPI?.settings.get('ui').then((ui) => {
+    window.electronAPI?.settings?.get('ui').then((ui) => {
       document.documentElement.setAttribute('data-theme', ui.theme ?? 'light');
     });
   }, []);

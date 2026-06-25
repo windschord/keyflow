@@ -95,9 +95,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose }) => {
         <h2 style={{ marginTop: 0 }}>Settings</h2>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-            Theme
-          </label>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Theme</label>
           <select
             value={settings.ui.theme}
             onChange={(e) => handleThemeChange(e.target.value)}

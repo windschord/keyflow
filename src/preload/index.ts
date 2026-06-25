@@ -32,8 +32,7 @@ if (process.contextIsolated) {
       },
       midi: {
         getDevices: () => ipcRenderer.invoke(IPC_CHANNELS.MIDI_GET_DEVICES),
-        selectDevice: (index: number) =>
-          ipcRenderer.send(IPC_CHANNELS.MIDI_SELECT_DEVICE, index),
+        selectDevice: (index: number) => ipcRenderer.send(IPC_CHANNELS.MIDI_SELECT_DEVICE, index),
         onDevicesChanged: (callback: (devices: { name: string; index: number }[]) => void) => {
           ipcRenderer.on(IPC_CHANNELS.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
         },
@@ -63,8 +62,7 @@ if (process.contextIsolated) {
     },
     midi: {
       getDevices: () => ipcRenderer.invoke(IPC_CHANNELS.MIDI_GET_DEVICES),
-      selectDevice: (index: number) =>
-        ipcRenderer.send(IPC_CHANNELS.MIDI_SELECT_DEVICE, index),
+      selectDevice: (index: number) => ipcRenderer.send(IPC_CHANNELS.MIDI_SELECT_DEVICE, index),
       onDevicesChanged: (callback: (devices: { name: string; index: number }[]) => void) => {
         ipcRenderer.on(IPC_CHANNELS.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
       },

@@ -1,4 +1,4 @@
-import midi from 'midi';
+import midi from '@julusian/midi';
 import { BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from './ipc-channels';
 import { MidiDevice, MidiNoteEvent } from '../renderer/src/types/midi';
@@ -22,8 +22,10 @@ export class MidiControllerService {
       // Ignore sysex, timing, and active sensing messages.
       this.input.ignoreTypes(true, true, true);
 
-      this.input.on('message', (_deltaTime: number, message: [number, number, number]) => {
-        this.onMessage(_deltaTime, message);
+      this.input.on('message', (_deltaTime: number, message: number[]) => {
+        if (message.length >= 3) {
+          this.onMessage(_deltaTime, message as [number, number, number]);
+        }
       });
     }
   }

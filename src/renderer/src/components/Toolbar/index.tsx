@@ -53,6 +53,7 @@ export const Toolbar: React.FC = () => {
           justifyContent: 'center',
         }}
         title="Settings"
+        aria-label="Settings"
       >
         ⚙️
       </button>

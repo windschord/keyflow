@@ -3,7 +3,8 @@ import { join } from 'path';
 import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
-import { SettingsService } from './settings';
+import { SettingsService, AppSettings } from './settings';
+import { IPC_CHANNELS } from './ipc-channels';
 
 function createWindow(): void {
   // Create the browser window.
@@ -56,9 +57,9 @@ app.whenReady().then(() => {
   });
 
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'));
+  ipcMain.on(IPC_CHANNELS.PING, () => console.log('pong'));
 
-  ipcMain.handle('file:show-open-dialog', async () => {
+  ipcMain.handle(IPC_CHANNELS.FILE_SHOW_OPEN_DIALOG, async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [{ name: 'MusicXML', extensions: ['xml', 'mxl', 'musicxml'] }],
@@ -69,25 +70,46 @@ app.whenReady().then(() => {
     return filePaths[0];
   });
 
-  ipcMain.handle('file:read', async (_, path: string) => {
+  ipcMain.handle(IPC_CHANNELS.FILE_READ, async (_, path: string) => {
     const content = await fs.promises.readFile(path, 'utf-8');
     return content;
   });
 
-  ipcMain.handle('file:read-binary', async (_, path: string) => {
+  ipcMain.handle(IPC_CHANNELS.FILE_READ_BINARY, async (_, path: string) => {
     const content = await fs.promises.readFile(path);
     // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換
     return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
   });
 
   const settingsService = new SettingsService();
-  ipcMain.handle('settings:get', (_, key: string) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return settingsService.get(key as any);
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, (_, key: string) => {
+    // Validate that the key is a valid AppSettings key
+    const validKeys: Array<keyof AppSettings> = [
+      'recentFiles',
+      'midi',
+      'handSettings',
+      'ui',
+      'practice',
+    ];
+    if (!validKeys.includes(key as keyof AppSettings)) {
+      throw new Error(`Invalid settings key: ${key}`);
+    }
+    return settingsService.get(key as keyof AppSettings);
   });
-  ipcMain.handle('settings:set', (_, key: string, value: unknown) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    settingsService.set(key as any, value as any);
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, key: string, value: unknown) => {
+    // Validate that the key is a valid AppSettings key
+    const validKeys: Array<keyof AppSettings> = [
+      'recentFiles',
+      'midi',
+      'handSettings',
+      'ui',
+      'practice',
+    ];
+    if (!validKeys.includes(key as keyof AppSettings)) {
+      throw new Error(`Invalid settings key: ${key}`);
+    }
+    // @ts-expect-error Value type cannot be validated at runtime but is checked by renderer
+    settingsService.set(key as keyof AppSettings, value);
   });
 
   createWindow();

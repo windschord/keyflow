@@ -3,6 +3,8 @@ import { join } from 'path';
 import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
+import { SettingsService, AppSettings } from './settings';
+import { IPC_CHANNELS } from './ipc-channels';
 
 function createWindow(): void {
   // Create the browser window.
@@ -55,9 +57,11 @@ app.whenReady().then(() => {
   });
 
   // IPC test
-  ipcMain.on('ping', () => console.log('pong'));
+  ipcMain.on(IPC_CHANNELS.PING, () => console.log('pong'));
 
-  ipcMain.handle('file:show-open-dialog', async () => {
+  const allowedPaths = new Set<string>();
+
+  ipcMain.handle(IPC_CHANNELS.FILE_SHOW_OPEN_DIALOG, async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [{ name: 'MusicXML', extensions: ['xml', 'mxl', 'musicxml'] }],
@@ -65,18 +69,51 @@ app.whenReady().then(() => {
     if (canceled || filePaths.length === 0) {
       return null;
     }
+    allowedPaths.add(filePaths[0]);
     return filePaths[0];
   });
 
-  ipcMain.handle('file:read', async (_, path: string) => {
+  ipcMain.handle(IPC_CHANNELS.FILE_READ, async (_, path: string) => {
+    if (!allowedPaths.has(path)) {
+      throw new Error(`Access denied: ${path}`);
+    }
     const content = await fs.promises.readFile(path, 'utf-8');
     return content;
   });
 
-  ipcMain.handle('file:read-binary', async (_, path: string) => {
+  ipcMain.handle(IPC_CHANNELS.FILE_READ_BINARY, async (_, path: string) => {
+    if (!allowedPaths.has(path)) {
+      throw new Error(`Access denied: ${path}`);
+    }
     const content = await fs.promises.readFile(path);
     // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換
     return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
+  });
+
+  const VALID_SETTINGS_KEYS: ReadonlySet<keyof AppSettings> = new Set([
+    'recentFiles',
+    'midi',
+    'handSettings',
+    'ui',
+    'practice',
+  ] as const);
+
+  function isValidSettingsKey(key: string): key is keyof AppSettings {
+    return VALID_SETTINGS_KEYS.has(key as keyof AppSettings);
+  }
+
+  const settingsService = new SettingsService();
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, (_, key: string) => {
+    if (!isValidSettingsKey(key)) {
+      throw new Error(`Invalid settings key: ${key}`);
+    }
+    return settingsService.get(key);
+  });
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, key: string, value: unknown) => {
+    if (!isValidSettingsKey(key)) {
+      throw new Error(`Invalid settings key: ${key}`);
+    }
+    settingsService.set(key, value as AppSettings[typeof key]);
   });
 
   createWindow();

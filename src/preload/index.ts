@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
+import { IPC_CHANNELS } from '../main/ipc-channels';
 
 // Custom APIs for renderer
 const api = {};
@@ -18,10 +19,23 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electronAPI', {
       file: {
-        showOpenDialog: (): Promise<string | null> => ipcRenderer.invoke('file:show-open-dialog'),
-        read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
+        showOpenDialog: (): Promise<string | null> =>
+          ipcRenderer.invoke(IPC_CHANNELS.FILE_SHOW_OPEN_DIALOG),
+        read: (path: string): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.FILE_READ, path),
         readBinary: (path: string): Promise<ArrayBuffer> =>
-          ipcRenderer.invoke('file:read-binary', path),
+          ipcRenderer.invoke(IPC_CHANNELS.FILE_READ_BINARY, path),
+      },
+      settings: {
+        get: (key: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET, key),
+        set: (key: string, value: unknown) =>
+          ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, key, value),
+      },
+      midi: {
+        getDevices: () => ipcRenderer.invoke(IPC_CHANNELS.MIDI_GET_DEVICES),
+        selectDevice: (index: number) => ipcRenderer.send(IPC_CHANNELS.MIDI_SELECT_DEVICE, index),
+        onDevicesChanged: (callback: (devices: { name: string; index: number }[]) => void) => {
+          ipcRenderer.on(IPC_CHANNELS.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
+        },
       },
     });
   } catch (error) {
@@ -35,10 +49,23 @@ if (process.contextIsolated) {
   // @ts-expect-error (define in dts)
   window.electronAPI = {
     file: {
-      showOpenDialog: (): Promise<string | null> => ipcRenderer.invoke('file:show-open-dialog'),
-      read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
+      showOpenDialog: (): Promise<string | null> =>
+        ipcRenderer.invoke(IPC_CHANNELS.FILE_SHOW_OPEN_DIALOG),
+      read: (path: string): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.FILE_READ, path),
       readBinary: (path: string): Promise<ArrayBuffer> =>
-        ipcRenderer.invoke('file:read-binary', path),
+        ipcRenderer.invoke(IPC_CHANNELS.FILE_READ_BINARY, path),
+    },
+    settings: {
+      get: (key: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET, key),
+      set: (key: string, value: unknown) =>
+        ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, key, value),
+    },
+    midi: {
+      getDevices: () => ipcRenderer.invoke(IPC_CHANNELS.MIDI_GET_DEVICES),
+      selectDevice: (index: number) => ipcRenderer.send(IPC_CHANNELS.MIDI_SELECT_DEVICE, index),
+      onDevicesChanged: (callback: (devices: { name: string; index: number }[]) => void) => {
+        ipcRenderer.on(IPC_CHANNELS.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
+      },
     },
   };
 }

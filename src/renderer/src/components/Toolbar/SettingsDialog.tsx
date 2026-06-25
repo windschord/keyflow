@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import type { AppSettings } from '../../types/settings';
-import type { MidiDevice } from '../../types/electron-api';
 
 interface SettingsDialogProps {
   onClose: () => void;
@@ -8,7 +7,6 @@ interface SettingsDialogProps {
 
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose }) => {
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [midiDevices, setMidiDevices] = useState<MidiDevice[]>([]);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -19,24 +17,16 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose }) => {
         window.electronAPI.settings.get('practice'),
         window.electronAPI.settings.get('recentFiles'),
       ]);
-      setSettings({ midi, ui, handSettings, practice, recentFiles });
-    };
 
-    const loadDevices = async () => {
-      try {
-        const devices = await window.electronAPI.midi.getDevices();
-        setMidiDevices(devices);
-      } catch {
-        setMidiDevices([]);
-      }
+      setSettings({
+        midi,
+        ui,
+        handSettings,
+        practice,
+        recentFiles,
+      });
     };
-
     loadSettings();
-    loadDevices();
-
-    window.electronAPI.midi.onDevicesChanged((devices) => {
-      setMidiDevices(devices);
-    });
   }, []);
 
   const handleChange = <K extends keyof AppSettings>(
@@ -47,21 +37,6 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose }) => {
     const newValue = updater(settings[key]);
     setSettings((prev) => (prev ? { ...prev, [key]: newValue } : null));
     window.electronAPI.settings.set(key, newValue);
-  };
-
-  const handleThemeChange = (theme: string) => {
-    document.documentElement.setAttribute('data-theme', theme);
-    handleChange('ui', (prev) => ({ ...prev, theme }));
-  };
-
-  const handleMidiDeviceChange = (selectedIndex: number) => {
-    const device = midiDevices.find((d) => d.index === selectedIndex) ?? null;
-    window.electronAPI.midi.selectDevice(selectedIndex);
-    handleChange('midi', (prev) => ({
-      ...prev,
-      selectedDeviceId: device?.name ?? null,
-      selectedDeviceIndex: selectedIndex,
-    }));
   };
 
   if (!settings) return null;
@@ -83,13 +58,13 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose }) => {
     >
       <div
         style={{
-          backgroundColor: 'var(--color-background)',
-          color: 'var(--color-text)',
+          backgroundColor: '#fff',
+          color: '#000',
           padding: '24px',
           borderRadius: '8px',
           width: '400px',
           maxWidth: '90%',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
         }}
       >
         <h2 style={{ marginTop: 0 }}>Settings</h2>
@@ -98,7 +73,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose }) => {
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Theme</label>
           <select
             value={settings.ui.theme}
-            onChange={(e) => handleThemeChange(e.target.value)}
+            onChange={(e) => handleChange('ui', (prev) => ({ ...prev, theme: e.target.value }))}
             style={{ width: '100%', padding: '8px' }}
           >
             <option value="light">Light</option>
@@ -111,22 +86,20 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose }) => {
             MIDI Device
           </label>
           <select
-            value={settings.midi.selectedDeviceIndex}
-            onChange={(e) => handleMidiDeviceChange(Number(e.target.value))}
+            value={settings.midi.selectedDeviceId || ''}
+            onChange={(e) =>
+              handleChange('midi', (prev) => ({
+                ...prev,
+                selectedDeviceId: e.target.value || null,
+              }))
+            }
             style={{ width: '100%', padding: '8px' }}
           >
-            <option value={-1}>None</option>
-            {midiDevices.map((device) => (
-              <option key={device.index} value={device.index}>
-                {device.name}
-              </option>
-            ))}
+            <option value="">None</option>
+            {/* Real implementation would load devices, placeholder for now */}
+            <option value="device-1">MIDI Device 1</option>
+            <option value="device-2">MIDI Device 2</option>
           </select>
-          {midiDevices.length === 0 && (
-            <p style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
-              No MIDI devices detected
-            </p>
-          )}
         </div>
 
         <div style={{ marginBottom: '24px' }}>

@@ -30,13 +30,6 @@ if (process.contextIsolated) {
         set: (key: string, value: unknown) =>
           ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, key, value),
       },
-      midi: {
-        getDevices: () => ipcRenderer.invoke(IPC_CHANNELS.MIDI_GET_DEVICES),
-        selectDevice: (index: number) => ipcRenderer.send(IPC_CHANNELS.MIDI_SELECT_DEVICE, index),
-        onDevicesChanged: (callback: (devices: { name: string; index: number }[]) => void) => {
-          ipcRenderer.on(IPC_CHANNELS.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
-        },
-      },
     });
   } catch (error) {
     console.error('[preload] Failed to expose electronAPI:', error);
@@ -59,13 +52,6 @@ if (process.contextIsolated) {
       get: (key: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET, key),
       set: (key: string, value: unknown) =>
         ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, key, value),
-    },
-    midi: {
-      getDevices: () => ipcRenderer.invoke(IPC_CHANNELS.MIDI_GET_DEVICES),
-      selectDevice: (index: number) => ipcRenderer.send(IPC_CHANNELS.MIDI_SELECT_DEVICE, index),
-      onDevicesChanged: (callback: (devices: { name: string; index: number }[]) => void) => {
-        ipcRenderer.on(IPC_CHANNELS.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
-      },
     },
   };
 }

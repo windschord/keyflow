@@ -5,7 +5,4 @@ export const IPC_CHANNELS = {
   FILE_READ_BINARY: 'file:read-binary',
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
-  MIDI_GET_DEVICES: 'midi:get-devices',
-  MIDI_SELECT_DEVICE: 'midi:select-device',
-  MIDI_DEVICES_CHANGED: 'midi:devices-changed',
 } as const;

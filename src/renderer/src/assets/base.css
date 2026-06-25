@@ -24,23 +24,11 @@
 }
 
 :root {
-  --color-background: var(--ev-c-white);
-  --color-background-soft: var(--ev-c-white-soft);
-  --color-background-mute: var(--ev-c-white-mute);
-
-  --color-text: var(--ev-c-black);
-  --color-border: #cccccc;
-  --color-toolbar-bg: #f5f5f5;
-}
-
-[data-theme='dark'] {
   --color-background: var(--ev-c-black);
   --color-background-soft: var(--ev-c-black-soft);
   --color-background-mute: var(--ev-c-black-mute);
 
   --color-text: var(--ev-c-text-1);
-  --color-border: #444444;
-  --color-toolbar-bg: #2a2a2a;
 }
 
 *,

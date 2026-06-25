@@ -22,7 +22,7 @@
     "postinstall": "node node_modules/electron/install.js"
   },
   "dependencies": {
-    "electron-store": "^8.2.0",
+    "electron-store": "^11.0.2",
     "fast-xml-parser": "^5.9.3",
     "fflate": "^0.8.3",
     "opensheetmusicdisplay": "^2.0.0",

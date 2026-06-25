@@ -20,7 +20,7 @@
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage --passWithNoTests",
     "postinstall": "node node_modules/electron/install.js",
-    "rebuild:native": "electron-rebuild -f -o @julusian/midi"
+    "rebuild:native": "npx @electron/rebuild -f -o @julusian/midi"
   },
   "dependencies": {
     "@julusian/midi": "^3.6.1",
@@ -38,7 +38,6 @@
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@electron-toolkit/utils": "^3.0.0",
-    "@electron/rebuild": "^3.0.0",
     "@eslint/js": "^9.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

@@ -22,11 +22,7 @@ export class AnnotationStoreService {
   }
 
   private getAnnotationPath(musicXmlPath: string): string {
-    const lastDotIndex = musicXmlPath.lastIndexOf('.');
-    if (lastDotIndex === -1) {
-      return `${musicXmlPath}.annotation.json`;
-    }
-    return `${musicXmlPath.substring(0, lastDotIndex)}.annotation.json`;
+    return `${musicXmlPath}.annotation.json`;
   }
 
   async load(musicXmlPath: string): Promise<void> {
@@ -43,7 +39,16 @@ export class AnnotationStoreService {
         }
       }
     } catch (error) {
-      // File not found or invalid format
+      // Distinguish between file not found and parse/corruption errors
+      if (error instanceof Error) {
+        if (error.message.includes('Access denied') || error.message.includes('not found')) {
+          // File not found - this is expected for new MusicXML files
+          return;
+        }
+        // JSON parse error or other unexpected error - log it
+        console.error('Failed to load annotations:', error.message);
+      }
+      // Return empty annotations on any error, but log unexpected ones
     }
   }
 

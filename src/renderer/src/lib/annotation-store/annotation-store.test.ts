@@ -5,7 +5,7 @@ import type { FingerAssignment } from '../../types/annotation';
 describe('AnnotationStoreService', () => {
   let service: AnnotationStoreService;
   const mockPath = '/path/to/test.musicxml';
-  const expectedAnnotationPath = '/path/to/test.annotation.json';
+  const expectedAnnotationPath = '/path/to/test.musicxml.annotation.json';
 
   beforeEach(() => {
     // Mock window.electronAPI

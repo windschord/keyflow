@@ -91,6 +91,20 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle(IPC_CHANNELS.FILE_WRITE, async (_, path: string, content: string) => {
+    // Validate path: must be an annotation file derived from an allowed MusicXML path
+    const isAnnotationPath = path.endsWith('.annotation.json');
+    if (!isAnnotationPath) {
+      throw new Error(`Access denied: Only annotation files can be written`);
+    }
+
+    // Extract the base MusicXML path by removing .annotation.json suffix
+    const basePath = path.slice(0, -'.annotation.json'.length);
+
+    // Check if the base path is in allowedPaths
+    if (!allowedPaths.has(basePath)) {
+      throw new Error(`Access denied: ${path} (base path not authorized)`);
+    }
+
     await fs.promises.writeFile(path, content, 'utf-8');
   });
 

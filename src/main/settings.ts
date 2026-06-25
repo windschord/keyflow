@@ -26,10 +26,12 @@ export class SettingsService {
   }
 
   get<K extends keyof AppSettings>(key: K): AppSettings[K] {
+    // @ts-expect-error Conf definition has get but electron-store wraps it
     return this.store.get(key, DEFAULT_SETTINGS[key]);
   }
 
   set<K extends keyof AppSettings>(key: K, value: AppSettings[K]): void {
+    // @ts-expect-error Conf definition has set but electron-store wraps it
     this.store.set(key, value);
   }
 

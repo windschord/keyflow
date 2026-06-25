@@ -59,6 +59,8 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on(IPC_CHANNELS.PING, () => console.log('pong'));
 
+  const allowedPaths = new Set<string>();
+
   ipcMain.handle(IPC_CHANNELS.FILE_SHOW_OPEN_DIALOG, async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
@@ -67,49 +69,51 @@ app.whenReady().then(() => {
     if (canceled || filePaths.length === 0) {
       return null;
     }
+    allowedPaths.add(filePaths[0]);
     return filePaths[0];
   });
 
   ipcMain.handle(IPC_CHANNELS.FILE_READ, async (_, path: string) => {
+    if (!allowedPaths.has(path)) {
+      throw new Error(`Access denied: ${path}`);
+    }
     const content = await fs.promises.readFile(path, 'utf-8');
     return content;
   });
 
   ipcMain.handle(IPC_CHANNELS.FILE_READ_BINARY, async (_, path: string) => {
+    if (!allowedPaths.has(path)) {
+      throw new Error(`Access denied: ${path}`);
+    }
     const content = await fs.promises.readFile(path);
     // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換
     return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
   });
 
+  const VALID_SETTINGS_KEYS: ReadonlySet<keyof AppSettings> = new Set([
+    'recentFiles',
+    'midi',
+    'handSettings',
+    'ui',
+    'practice',
+  ] as const);
+
+  function isValidSettingsKey(key: string): key is keyof AppSettings {
+    return VALID_SETTINGS_KEYS.has(key as keyof AppSettings);
+  }
+
   const settingsService = new SettingsService();
   ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, (_, key: string) => {
-    // Validate that the key is a valid AppSettings key
-    const validKeys: Array<keyof AppSettings> = [
-      'recentFiles',
-      'midi',
-      'handSettings',
-      'ui',
-      'practice',
-    ];
-    if (!validKeys.includes(key as keyof AppSettings)) {
+    if (!isValidSettingsKey(key)) {
       throw new Error(`Invalid settings key: ${key}`);
     }
-    return settingsService.get(key as keyof AppSettings);
+    return settingsService.get(key);
   });
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, key: string, value: unknown) => {
-    // Validate that the key is a valid AppSettings key
-    const validKeys: Array<keyof AppSettings> = [
-      'recentFiles',
-      'midi',
-      'handSettings',
-      'ui',
-      'practice',
-    ];
-    if (!validKeys.includes(key as keyof AppSettings)) {
+    if (!isValidSettingsKey(key)) {
       throw new Error(`Invalid settings key: ${key}`);
     }
-    // @ts-expect-error Value type cannot be validated at runtime but is checked by renderer
-    settingsService.set(key as keyof AppSettings, value);
+    settingsService.set(key, value as AppSettings[typeof key]);
   });
 
   createWindow();

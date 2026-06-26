@@ -1,6 +1,6 @@
 # TASK-007: App Settings実装（electron-store + ファイル履歴）
 
-**ステータス**: TODO
+**ステータス**: REVIEW
 **推定工数**: 20分
 **依存**: TASK-004
 
@@ -65,3 +65,7 @@ export class SettingsService {
 - [ ] アプリ再起動後も設定が保持される（electron-storeがファイルに保存）
 
 **依存関係**: TASK-004
+
+---
+
+## 実行情報

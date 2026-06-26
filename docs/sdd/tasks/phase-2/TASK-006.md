@@ -1,6 +1,6 @@
 # TASK-006: Annotation Store実装（CRUD + JSON永続化）
 
-**ステータス**: TODO
+**ステータス**: REVIEW
 **推定工数**: 40分
 **依存**: TASK-004
 
@@ -64,3 +64,7 @@ Rendererは `window.electronAPI.file.read(path)` / `window.electronAPI.file.writ
 - [ ] テストが6件以上ありすべてパス
 
 **依存関係**: TASK-004
+
+---
+
+## 実行情報

@@ -28,6 +28,7 @@
     "fast-xml-parser": "^5.9.3",
     "fflate": "^0.8.3",
     "opensheetmusicdisplay": "^2.0.0",
+    "tone": "^15.1.22",
     "zustand": "^4.5.7"
   },
   "overrides": {

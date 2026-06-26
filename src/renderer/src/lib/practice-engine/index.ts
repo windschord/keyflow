@@ -73,6 +73,9 @@ export class PracticeEngineService {
 
     let { currentMeasure, currentNoteIndex } = state;
 
+    // Track visited measures to prevent infinite loops when loop range has no target notes
+    const visitedMeasures = new Set<number>();
+
     // Find next position loop
     while (true) {
       const measureData = state.score.measures.find((m) => m.number === currentMeasure);
@@ -97,6 +100,13 @@ export class PracticeEngineService {
           state.loopEnd,
           state.loopEnabled
         );
+
+        // Guard against infinite loops: if we've visited this measure before, stop
+        if (visitedMeasures.has(currentMeasure)) {
+          // No playable notes found in the loop range, stay at current position
+          break;
+        }
+        visitedMeasures.add(currentMeasure);
 
         const nextMeasureData = state.score.measures.find((m) => m.number === currentMeasure);
         if (nextMeasureData) {
@@ -131,9 +141,26 @@ export class PracticeEngineService {
   }
 
   resetToMeasure(measureNumber: number): void {
+    const state = this.store.getState();
+    let firstPlayableNoteIndex = 0;
+
+    if (state.score) {
+      const measureData = state.score.measures.find((m) => m.number === measureNumber);
+      if (measureData) {
+        const modeNotes = filterNotesByMode(
+          measureData.notes,
+          state.practiceMode,
+          state.score.parts
+        );
+        if (modeNotes.length > 0) {
+          firstPlayableNoteIndex = Math.min(...modeNotes.map((n) => n.noteIndex));
+        }
+      }
+    }
+
     this.store.setState({
       currentMeasure: measureNumber,
-      currentNoteIndex: 0,
+      currentNoteIndex: firstPlayableNoteIndex,
       pressedKeys: new Set(),
       incorrectKeys: new Set(),
     });

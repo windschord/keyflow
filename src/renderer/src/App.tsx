@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Toolbar } from './components/Toolbar';
 import { ScoreRenderer } from './components/ScoreRenderer';
 import { PianoKeyboard } from './components/PianoKeyboard';
@@ -7,11 +7,6 @@ import { useShallow } from 'zustand/react/shallow';
 import { parse, parseMxl, extractXmlFromMxl } from './lib/musicxml-parser';
 
 function App(): React.JSX.Element {
-  useEffect(() => {
-    window.electronAPI?.settings?.get('ui').then((ui) => {
-      document.documentElement.setAttribute('data-theme', ui.theme ?? 'light');
-    });
-  }, []);
   const {
     score,
     musicXmlContent,

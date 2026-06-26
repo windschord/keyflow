@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, MockInstance } from 'vitest';
 import { MidiControllerService } from './midi-controller';
-import midi from '@julusian/midi';
+import midi from 'midi';
 import { BrowserWindow } from 'electron';
-import { IPC_CHANNELS } from './ipc-channels';
+import { IpcChannels } from './ipc-channels';
 
-vi.mock('@julusian/midi', () => {
+vi.mock('midi', () => {
   const Input = vi.fn().mockImplementation(() => ({
     getPortCount: vi.fn().mockReturnValue(2),
     getPortName: vi.fn().mockImplementation((index: number) => `Mock Device ${index}`),
@@ -98,7 +98,7 @@ describe('MidiControllerService', () => {
     messageHandler(0.5, [144, 60, 100]);
 
     expect(mockWebContents.send).toHaveBeenCalledWith(
-      IPC_CHANNELS.MIDI_NOTE_ON,
+      IpcChannels.MIDI_NOTE_ON,
       expect.objectContaining({
         midiNumber: 60,
         velocity: 100,
@@ -119,7 +119,7 @@ describe('MidiControllerService', () => {
     messageHandler(0.5, [128, 60, 0]);
 
     expect(mockWebContents.send).toHaveBeenCalledWith(
-      IPC_CHANNELS.MIDI_NOTE_OFF,
+      IpcChannels.MIDI_NOTE_OFF,
       expect.objectContaining({
         midiNumber: 60,
         velocity: 0,
@@ -139,7 +139,7 @@ describe('MidiControllerService', () => {
     messageHandler(0.5, [144, 62, 0]);
 
     expect(mockWebContents.send).toHaveBeenCalledWith(
-      IPC_CHANNELS.MIDI_NOTE_OFF,
+      IpcChannels.MIDI_NOTE_OFF,
       expect.objectContaining({
         midiNumber: 62,
         velocity: 0,

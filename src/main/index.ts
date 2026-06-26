@@ -3,9 +3,8 @@ import { join } from 'path';
 import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
-import { SettingsService, AppSettings } from './settings';
 import { MidiControllerService } from './midi-controller';
-import { IPC_CHANNELS } from './ipc-channels';
+import { IpcChannels } from './ipc-channels';
 
 function createWindow(): BrowserWindow {
   // Create the browser window.
@@ -60,11 +59,11 @@ app.whenReady().then(() => {
   });
 
   // IPC test
-  ipcMain.on(IPC_CHANNELS.PING, () => console.log('pong'));
+  ipcMain.on(IpcChannels.PING, () => console.log('pong'));
 
   const allowedPaths = new Set<string>();
 
-  ipcMain.handle(IPC_CHANNELS.FILE_SHOW_OPEN_DIALOG, async () => {
+  ipcMain.handle(IpcChannels.FILE_SHOW_OPEN_DIALOG, async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [{ name: 'MusicXML', extensions: ['xml', 'mxl', 'musicxml'] }],
@@ -76,73 +75,25 @@ app.whenReady().then(() => {
     return filePaths[0];
   });
 
-  ipcMain.handle(IPC_CHANNELS.FILE_READ, async (_, path: string) => {
-    if (!allowedPaths.has(path)) {
-      throw new Error(`Access denied: ${path}`);
-    }
+  ipcMain.handle(IpcChannels.FILE_READ, async (_, path: string) => {
+    if (!allowedPaths.has(path)) throw new Error('Unauthorized file read access');
     const content = await fs.promises.readFile(path, 'utf-8');
     return content;
   });
 
-  ipcMain.handle(IPC_CHANNELS.FILE_READ_BINARY, async (_, path: string) => {
-    if (!allowedPaths.has(path)) {
-      throw new Error(`Access denied: ${path}`);
-    }
+  ipcMain.handle(IpcChannels.FILE_READ_BINARY, async (_, path: string) => {
+    if (!allowedPaths.has(path)) throw new Error('Unauthorized file read access');
     const content = await fs.promises.readFile(path);
     // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換
     return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
-  });
-
-  ipcMain.handle(IPC_CHANNELS.FILE_WRITE, async (_, path: string, content: string) => {
-    // Validate path: must be an annotation file derived from an allowed MusicXML path
-    const isAnnotationPath = path.endsWith('.annotation.json');
-    if (!isAnnotationPath) {
-      throw new Error(`Access denied: Only annotation files can be written`);
-    }
-
-    // Extract the base MusicXML path by removing .annotation.json suffix
-    const basePath = path.slice(0, -'.annotation.json'.length);
-
-    // Check if the base path is in allowedPaths
-    if (!allowedPaths.has(basePath)) {
-      throw new Error(`Access denied: ${path} (base path not authorized)`);
-    }
-
-    await fs.promises.writeFile(path, content, 'utf-8');
-  });
-
-  const VALID_SETTINGS_KEYS: ReadonlySet<keyof AppSettings> = new Set([
-    'recentFiles',
-    'midi',
-    'handSettings',
-    'ui',
-    'practice',
-  ] as const);
-
-  function isValidSettingsKey(key: string): key is keyof AppSettings {
-    return VALID_SETTINGS_KEYS.has(key as keyof AppSettings);
-  }
-
-  const settingsService = new SettingsService();
-  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, (_, key: string) => {
-    if (!isValidSettingsKey(key)) {
-      throw new Error(`Invalid settings key: ${key}`);
-    }
-    return settingsService.get(key);
-  });
-  ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, key: string, value: unknown) => {
-    if (!isValidSettingsKey(key)) {
-      throw new Error(`Invalid settings key: ${key}`);
-    }
-    settingsService.set(key, value as AppSettings[typeof key]);
   });
 
   const win = createWindow();
 
   const midiController = new MidiControllerService(win);
   midiController.initialize();
-  ipcMain.handle(IPC_CHANNELS.MIDI_GET_DEVICES, () => midiController.listDevices());
-  ipcMain.on(IPC_CHANNELS.MIDI_SELECT_DEVICE, (_, index: unknown) => {
+  ipcMain.handle(IpcChannels.MIDI_GET_DEVICES, () => midiController.listDevices());
+  ipcMain.on(IpcChannels.MIDI_SELECT_DEVICE, (_, index: unknown) => {
     if (typeof index === 'number' && Number.isInteger(index) && index >= 0) {
       midiController.selectDevice(index);
     }

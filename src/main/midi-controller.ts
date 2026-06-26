@@ -1,6 +1,6 @@
-import midi from '@julusian/midi';
+import midi from 'midi';
 import { BrowserWindow } from 'electron';
-import { IPC_CHANNELS } from './ipc-channels';
+import { IpcChannels } from './ipc-channels';
 import { MidiDevice, MidiNoteEvent } from '../renderer/src/types/midi';
 
 export class MidiControllerService {
@@ -22,10 +22,8 @@ export class MidiControllerService {
       // Ignore sysex, timing, and active sensing messages.
       this.input.ignoreTypes(true, true, true);
 
-      this.input.on('message', (_deltaTime: number, message: number[]) => {
-        if (message.length >= 3) {
-          this.onMessage(_deltaTime, message as [number, number, number]);
-        }
+      this.input.on('message', (_deltaTime: number, message: [number, number, number]) => {
+        this.onMessage(_deltaTime, message);
       });
     }
   }
@@ -88,7 +86,7 @@ export class MidiControllerService {
       };
 
       this.win.webContents.send(
-        isNoteOn ? IPC_CHANNELS.MIDI_NOTE_ON : IPC_CHANNELS.MIDI_NOTE_OFF,
+        isNoteOn ? IpcChannels.MIDI_NOTE_ON : IpcChannels.MIDI_NOTE_OFF,
         event
       );
     }

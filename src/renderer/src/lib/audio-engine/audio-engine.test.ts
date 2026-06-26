@@ -63,16 +63,16 @@ describe('AudioEngineService', () => {
     expect(transport.bpm.value).toBe(120);
   });
 
-  it('should enable and disable metronome', async () => {
-    await service.setMetronomeEnabled(true);
+  it('should enable and disable metronome', () => {
+    service.setMetronomeEnabled(true);
     const mockSequenceInstance = vi.mocked(Tone.Sequence).mock.results[0].value;
     expect(mockSequenceInstance.start).toHaveBeenCalled();
-    await service.setMetronomeEnabled(false);
+    service.setMetronomeEnabled(false);
     expect(mockSequenceInstance.stop).toHaveBeenCalled();
   });
 
-  it('should play C4 when playNote(60) is called', async () => {
-    await service.playNote(60);
+  it('should play C4 when playNote(60) is called', () => {
+    service.playNote(60);
     expect(Tone.Frequency).toHaveBeenCalledWith(60, 'midi');
     // It should trigger attack release on the internal synth
     const mockPolySynthInstance = vi.mocked(Tone.PolySynth).mock.results[0].value;
@@ -93,12 +93,12 @@ describe('AudioEngineService', () => {
     expect(mockCorrectSynthInstance.dispose).toHaveBeenCalled();
   });
 
-  it('should play correct and incorrect sounds', async () => {
-    await service.playCorrectSound();
+  it('should play correct and incorrect sounds', () => {
+    service.playCorrectSound();
     const mockCorrectSynthInstance = vi.mocked(Tone.Synth).mock.results[0].value;
     expect(mockCorrectSynthInstance.triggerAttackRelease).toHaveBeenCalledWith('C5', '8n');
 
-    await service.playIncorrectSound();
+    service.playIncorrectSound();
     const mockIncorrectSynthInstance = vi.mocked(Tone.Synth).mock.results[1].value;
     expect(mockIncorrectSynthInstance.triggerAttackRelease).toHaveBeenCalledWith('G#3', '8n');
   });

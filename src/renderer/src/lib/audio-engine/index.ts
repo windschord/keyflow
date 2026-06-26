@@ -34,7 +34,8 @@ export class AudioEngineService {
     Tone.getTransport().bpm.value = bpm;
   }
 
-  public setMetronomeEnabled(enabled: boolean): void {
+  public async setMetronomeEnabled(enabled: boolean): Promise<void> {
+    await this.initializeTone();
     this.metronome.setEnabled(enabled);
   }
 
@@ -79,7 +80,8 @@ export class AudioEngineService {
     });
   }
 
-  public playAccompaniment(): void {
+  public async playAccompaniment(): Promise<void> {
+    await this.initializeTone();
     Tone.getTransport().start();
   }
 
@@ -92,15 +94,18 @@ export class AudioEngineService {
     Tone.getTransport().pause();
   }
 
-  public playCorrectSound(): void {
+  public async playCorrectSound(): Promise<void> {
+    await this.initializeTone();
     this.correctSynth.triggerAttackRelease('C5', '8n');
   }
 
-  public playIncorrectSound(): void {
+  public async playIncorrectSound(): Promise<void> {
+    await this.initializeTone();
     this.incorrectSynth.triggerAttackRelease('G#3', '8n');
   }
 
-  public playNote(midiNumber: number, duration: string = '8n'): void {
+  public async playNote(midiNumber: number, duration: string = '8n'): Promise<void> {
+    await this.initializeTone();
     const note = Tone.Frequency(midiNumber, 'midi').toNote();
     this.synth.triggerAttackRelease(note, duration);
   }

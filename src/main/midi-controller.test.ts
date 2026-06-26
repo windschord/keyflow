@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, MockInstance } from 'vitest';
 import { MidiControllerService } from './midi-controller';
-import midi from 'midi';
+import midi from '@julusian/midi';
 import { BrowserWindow } from 'electron';
 import { IpcChannels } from './ipc-channels';
 
-vi.mock('midi', () => {
+vi.mock('@julusian/midi', () => {
   const Input = vi.fn().mockImplementation(() => ({
     getPortCount: vi.fn().mockReturnValue(2),
     getPortName: vi.fn().mockImplementation((index: number) => `Mock Device ${index}`),

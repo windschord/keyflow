@@ -113,7 +113,7 @@ describe('AudioEngineService', () => {
       keySignature: 0,
     };
     await service.loadAccompaniment(dummyScore, 'left');
-    service.playAccompaniment();
+    await service.playAccompaniment();
     service.pauseAccompaniment();
     service.stopAccompaniment();
     expect(Tone.getTransport().start).toHaveBeenCalled();

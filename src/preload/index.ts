@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
-import { IPC_CHANNELS } from '../main/ipc-channels';
+import { IpcChannels } from '../main/ipc-channels';
 
 // Custom APIs for renderer
 const api = {};
@@ -20,23 +20,23 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electronAPI', {
       file: {
         showOpenDialog: (): Promise<string | null> =>
-          ipcRenderer.invoke(IPC_CHANNELS.FILE_SHOW_OPEN_DIALOG),
-        read: (path: string): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.FILE_READ, path),
+          ipcRenderer.invoke(IpcChannels.FILE_SHOW_OPEN_DIALOG),
+        read: (path: string): Promise<string> => ipcRenderer.invoke(IpcChannels.FILE_READ, path),
         readBinary: (path: string): Promise<ArrayBuffer> =>
-          ipcRenderer.invoke(IPC_CHANNELS.FILE_READ_BINARY, path),
+          ipcRenderer.invoke(IpcChannels.FILE_READ_BINARY, path),
         write: (path: string, content: string): Promise<void> =>
-          ipcRenderer.invoke(IPC_CHANNELS.FILE_WRITE, path, content),
+          ipcRenderer.invoke(IpcChannels.FILE_WRITE, path, content),
       },
       settings: {
-        get: (key: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET, key),
+        get: (key: string) => ipcRenderer.invoke(IpcChannels.SETTINGS_GET, key),
         set: (key: string, value: unknown) =>
-          ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, key, value),
+          ipcRenderer.invoke(IpcChannels.SETTINGS_SET, key, value),
       },
       midi: {
-        getDevices: () => ipcRenderer.invoke(IPC_CHANNELS.MIDI_GET_DEVICES),
-        selectDevice: (index: number) => ipcRenderer.send(IPC_CHANNELS.MIDI_SELECT_DEVICE, index),
+        getDevices: () => ipcRenderer.invoke(IpcChannels.MIDI_GET_DEVICES),
+        selectDevice: (index: number) => ipcRenderer.send(IpcChannels.MIDI_SELECT_DEVICE, index),
         onDevicesChanged: (callback: (devices: { name: string; index: number }[]) => void) => {
-          ipcRenderer.on(IPC_CHANNELS.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
+          ipcRenderer.on(IpcChannels.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
         },
       },
     });
@@ -52,23 +52,23 @@ if (process.contextIsolated) {
   window.electronAPI = {
     file: {
       showOpenDialog: (): Promise<string | null> =>
-        ipcRenderer.invoke(IPC_CHANNELS.FILE_SHOW_OPEN_DIALOG),
-      read: (path: string): Promise<string> => ipcRenderer.invoke(IPC_CHANNELS.FILE_READ, path),
+        ipcRenderer.invoke(IpcChannels.FILE_SHOW_OPEN_DIALOG),
+      read: (path: string): Promise<string> => ipcRenderer.invoke(IpcChannels.FILE_READ, path),
       readBinary: (path: string): Promise<ArrayBuffer> =>
-        ipcRenderer.invoke(IPC_CHANNELS.FILE_READ_BINARY, path),
+        ipcRenderer.invoke(IpcChannels.FILE_READ_BINARY, path),
       write: (path: string, content: string): Promise<void> =>
-        ipcRenderer.invoke(IPC_CHANNELS.FILE_WRITE, path, content),
+        ipcRenderer.invoke(IpcChannels.FILE_WRITE, path, content),
     },
     settings: {
-      get: (key: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET, key),
+      get: (key: string) => ipcRenderer.invoke(IpcChannels.SETTINGS_GET, key),
       set: (key: string, value: unknown) =>
-        ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, key, value),
+        ipcRenderer.invoke(IpcChannels.SETTINGS_SET, key, value),
     },
     midi: {
-      getDevices: () => ipcRenderer.invoke(IPC_CHANNELS.MIDI_GET_DEVICES),
-      selectDevice: (index: number) => ipcRenderer.send(IPC_CHANNELS.MIDI_SELECT_DEVICE, index),
+      getDevices: () => ipcRenderer.invoke(IpcChannels.MIDI_GET_DEVICES),
+      selectDevice: (index: number) => ipcRenderer.send(IpcChannels.MIDI_SELECT_DEVICE, index),
       onDevicesChanged: (callback: (devices: { name: string; index: number }[]) => void) => {
-        ipcRenderer.on(IPC_CHANNELS.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
+        ipcRenderer.on(IpcChannels.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
       },
     },
   };

@@ -12,20 +12,31 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose }) => {
 
   useEffect(() => {
     const loadSettings = async () => {
-      const [midi, ui, handSettings, practice, recentFiles] = await Promise.all([
-        window.electronAPI.settings.get('midi'),
-        window.electronAPI.settings.get('ui'),
-        window.electronAPI.settings.get('handSettings'),
-        window.electronAPI.settings.get('practice'),
-        window.electronAPI.settings.get('recentFiles'),
-      ]);
-      setSettings({ midi, ui, handSettings, practice, recentFiles });
+      try {
+        const [midi, ui, handSettings, practice, recentFiles] = await Promise.all([
+          window.electronAPI?.settings?.get('midi'),
+          window.electronAPI?.settings?.get('ui'),
+          window.electronAPI?.settings?.get('handSettings'),
+          window.electronAPI?.settings?.get('practice'),
+          window.electronAPI?.settings?.get('recentFiles'),
+        ]);
+        setSettings({ midi, ui, handSettings, practice, recentFiles });
+      } catch (err) {
+        console.error('[SettingsDialog] Failed to load settings:', err);
+        setSettings({
+          midi: { selectedDeviceId: null, selectedDeviceIndex: 0 },
+          ui: { theme: 'light', zoom: 1.0, pianoHeight: 120, language: 'ja' },
+          handSettings: { maxSpanSemitones: 14, leftHandScaleFactor: 1.0 },
+          practice: { defaultErrorMode: 'wait', metronomeEnabled: false },
+          recentFiles: [],
+        });
+      }
     };
 
     const loadDevices = async () => {
       try {
-        const devices = await window.electronAPI.midi.getDevices();
-        setMidiDevices(devices);
+        const devices = await window.electronAPI?.midi?.getDevices();
+        setMidiDevices(devices ?? []);
       } catch {
         setMidiDevices([]);
       }
@@ -34,7 +45,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ onClose }) => {
     loadSettings();
     loadDevices();
 
-    window.electronAPI.midi.onDevicesChanged((devices) => {
+    window.electronAPI?.midi?.onDevicesChanged((devices) => {
       setMidiDevices(devices);
     });
   }, []);

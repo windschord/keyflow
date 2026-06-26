@@ -1,5 +1,5 @@
 export interface MidiDevice {
-  id: string;
+  index: number;
   name: string;
 }
 
@@ -8,4 +8,5 @@ export interface MidiNoteEvent {
   velocity: number;
   type: 'note-on' | 'note-off';
   timestamp: number;
+  channel?: number;
 }

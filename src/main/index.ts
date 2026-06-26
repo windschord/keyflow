@@ -4,9 +4,10 @@ import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService, AppSettings } from './settings';
-import { IPC_CHANNELS } from './ipc-channels';
+import { MidiControllerService } from './midi-controller';
+import { IpcChannels } from './ipc-channels';
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -40,6 +41,8 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
+
+  return mainWindow;
 }
 
 // This method will be called when Electron has finished
@@ -57,11 +60,11 @@ app.whenReady().then(() => {
   });
 
   // IPC test
-  ipcMain.on(IPC_CHANNELS.PING, () => console.log('pong'));
+  ipcMain.on(IpcChannels.PING, () => console.log('pong'));
 
   const allowedPaths = new Set<string>();
 
-  ipcMain.handle(IPC_CHANNELS.FILE_SHOW_OPEN_DIALOG, async () => {
+  ipcMain.handle(IpcChannels.FILE_SHOW_OPEN_DIALOG, async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [{ name: 'MusicXML', extensions: ['xml', 'mxl', 'musicxml'] }],
@@ -73,24 +76,20 @@ app.whenReady().then(() => {
     return filePaths[0];
   });
 
-  ipcMain.handle(IPC_CHANNELS.FILE_READ, async (_, path: string) => {
-    if (!allowedPaths.has(path)) {
-      throw new Error(`Access denied: ${path}`);
-    }
+  ipcMain.handle(IpcChannels.FILE_READ, async (_, path: string) => {
+    if (!allowedPaths.has(path)) throw new Error('Unauthorized file read access');
     const content = await fs.promises.readFile(path, 'utf-8');
     return content;
   });
 
-  ipcMain.handle(IPC_CHANNELS.FILE_READ_BINARY, async (_, path: string) => {
-    if (!allowedPaths.has(path)) {
-      throw new Error(`Access denied: ${path}`);
-    }
+  ipcMain.handle(IpcChannels.FILE_READ_BINARY, async (_, path: string) => {
+    if (!allowedPaths.has(path)) throw new Error('Unauthorized file read access');
     const content = await fs.promises.readFile(path);
     // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換
     return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
   });
 
-  ipcMain.handle(IPC_CHANNELS.FILE_WRITE, async (_, path: string, content: string) => {
+  ipcMain.handle(IpcChannels.FILE_WRITE, async (_, path: string, content: string) => {
     // Validate path: must be an annotation file derived from an allowed MusicXML path
     const isAnnotationPath = path.endsWith('.annotation.json');
     if (!isAnnotationPath) {
@@ -121,25 +120,41 @@ app.whenReady().then(() => {
   }
 
   const settingsService = new SettingsService();
-  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, (_, key: string) => {
+  ipcMain.handle(IpcChannels.SETTINGS_GET, (_, key: string) => {
     if (!isValidSettingsKey(key)) {
       throw new Error(`Invalid settings key: ${key}`);
     }
     return settingsService.get(key);
   });
-  ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, (_, key: string, value: unknown) => {
+  ipcMain.handle(IpcChannels.SETTINGS_SET, (_, key: string, value: unknown) => {
     if (!isValidSettingsKey(key)) {
       throw new Error(`Invalid settings key: ${key}`);
     }
     settingsService.set(key, value as AppSettings[typeof key]);
   });
 
-  createWindow();
+  const win = createWindow();
+
+  const midiController = new MidiControllerService(win);
+  midiController.initialize();
+  ipcMain.handle(IpcChannels.MIDI_GET_DEVICES, () => midiController.listDevices());
+  ipcMain.on(IpcChannels.MIDI_SELECT_DEVICE, (_, index: unknown) => {
+    if (typeof index === 'number' && Number.isInteger(index) && index >= 0) {
+      midiController.selectDevice(index);
+    }
+  });
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      const newWin = createWindow();
+      midiController.setWindow(newWin);
+    }
+  });
+
+  app.on('before-quit', () => {
+    midiController.dispose();
   });
 });
 

@@ -38,7 +38,7 @@ export class MidiControllerService {
 
     for (let i = 0; i < portCount; i++) {
       devices.push({
-        id: i.toString(),
+        index: i,
         name: this.input.getPortName(i),
       });
     }

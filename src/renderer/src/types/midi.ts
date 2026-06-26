@@ -1,5 +1,5 @@
 export interface MidiDevice {
-  id: string;
+  index: number;
   name: string;
 }
 

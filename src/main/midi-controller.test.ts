@@ -57,15 +57,15 @@ describe('MidiControllerService', () => {
 
     const devices = freshService.listDevices();
     expect(devices).toHaveLength(2);
-    expect(devices[0]).toEqual({ id: '0', name: 'Mock Device 0' });
-    expect(devices[1]).toEqual({ id: '1', name: 'Mock Device 1' });
+    expect(devices[0]).toEqual({ index: 0, name: 'Mock Device 0' });
+    expect(devices[1]).toEqual({ index: 1, name: 'Mock Device 1' });
   });
 
   it('should list devices correctly', () => {
     const devices = service.listDevices();
     expect(devices).toHaveLength(2);
-    expect(devices[0]).toEqual({ id: '0', name: 'Mock Device 0' });
-    expect(devices[1]).toEqual({ id: '1', name: 'Mock Device 1' });
+    expect(devices[0]).toEqual({ index: 0, name: 'Mock Device 0' });
+    expect(devices[1]).toEqual({ index: 1, name: 'Mock Device 1' });
   });
 
   it('should handle device selection and open port', () => {

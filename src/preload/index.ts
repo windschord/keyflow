@@ -38,6 +38,12 @@ if (process.contextIsolated) {
         onDevicesChanged: (callback: (devices: { name: string; index: number }[]) => void) => {
           ipcRenderer.on(IpcChannels.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
         },
+        onNoteOn: (callback: (event: unknown) => void) => {
+          ipcRenderer.on(IpcChannels.MIDI_NOTE_ON, (_, event) => callback(event));
+        },
+        onNoteOff: (callback: (event: unknown) => void) => {
+          ipcRenderer.on(IpcChannels.MIDI_NOTE_OFF, (_, event) => callback(event));
+        },
       },
     });
   } catch (error) {
@@ -69,6 +75,12 @@ if (process.contextIsolated) {
       selectDevice: (index: number) => ipcRenderer.send(IpcChannels.MIDI_SELECT_DEVICE, index),
       onDevicesChanged: (callback: (devices: { name: string; index: number }[]) => void) => {
         ipcRenderer.on(IpcChannels.MIDI_DEVICES_CHANGED, (_, devices) => callback(devices));
+      },
+      onNoteOn: (callback: (event: unknown) => void) => {
+        ipcRenderer.on(IpcChannels.MIDI_NOTE_ON, (_, event) => callback(event));
+      },
+      onNoteOff: (callback: (event: unknown) => void) => {
+        ipcRenderer.on(IpcChannels.MIDI_NOTE_OFF, (_, event) => callback(event));
       },
     },
   };

@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { MidiControllerService } from './midi-controller';
+import { SettingsService } from './settings';
 
 function createWindow(): void {
   // Create the browser window.
@@ -119,6 +120,12 @@ app.whenReady().then(() => {
   midiController.initialize();
   ipcMain.handle('midi:get-devices', () => midiController.listDevices());
   ipcMain.on('midi:select-device', (_, index) => midiController.selectDevice(index));
+
+  const settingsService = new SettingsService();
+  ipcMain.handle('settings:get', (_, key) => settingsService.get(key));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ipcMain.handle('settings:set', (_, key, value) => settingsService.set(key, value as any));
+  ipcMain.handle('settings:get-recent-files', () => settingsService.getRecentFiles());
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

@@ -3,6 +3,7 @@ import { join } from 'path';
 import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
+import { MidiControllerService } from './midi-controller';
 
 function createWindow(): void {
   // Create the browser window.
@@ -79,7 +80,45 @@ app.whenReady().then(() => {
     return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
   });
 
-  createWindow();
+  ipcMain.handle('file:write', async (_, path: string, content: string) => {
+    await fs.promises.writeFile(path, content, 'utf-8');
+  });
+
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 1024,
+    minHeight: 600,
+    show: false,
+    autoHideMenuBar: true,
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  win.on('ready-to-show', () => {
+    win.show();
+  });
+
+  win.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url);
+    return { action: 'deny' };
+  });
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    win.loadURL(process.env['ELECTRON_RENDERER_URL']);
+  } else {
+    win.loadFile(join(__dirname, '../renderer/index.html'));
+  }
+
+  const midiController = new MidiControllerService(win);
+  midiController.initialize();
+  ipcMain.handle('midi:get-devices', () => midiController.listDevices());
+  ipcMain.on('midi:select-device', (_, index) => midiController.selectDevice(index));
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

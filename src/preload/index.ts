@@ -22,6 +22,8 @@ if (process.contextIsolated) {
         read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
         readBinary: (path: string): Promise<ArrayBuffer> =>
           ipcRenderer.invoke('file:read-binary', path),
+        write: (path: string, content: string): Promise<void> =>
+          ipcRenderer.invoke('file:write', path, content),
       },
     });
   } catch (error) {
@@ -39,6 +41,8 @@ if (process.contextIsolated) {
       read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
       readBinary: (path: string): Promise<ArrayBuffer> =>
         ipcRenderer.invoke('file:read-binary', path),
+      write: (path: string, content: string): Promise<void> =>
+        ipcRenderer.invoke('file:write', path, content),
     },
   };
 }

@@ -88,15 +88,15 @@
 |----------|---------|-----------|------|------|-----------|
 | TASK-004 | 内部データモデル型定義（Score/Note/Annotation等） | DONE | Phase 1 | 30min | [詳細](phase-2/TASK-004.md) @phase-2/TASK-004.md |
 | TASK-005 | MusicXML Parser実装（.xml/.mxl対応） | DONE | TASK-004 | 60min | [詳細](phase-2/TASK-005.md) @phase-2/TASK-005.md |
-| TASK-006 | Annotation Store実装（CRUD+JSON永続化） | TODO | TASK-004 | 40min | [詳細](phase-2/TASK-006.md) @phase-2/TASK-006.md |
-| TASK-007 | App Settings実装（electron-store+ファイル履歴） | TODO | TASK-004 | 20min | [詳細](phase-2/TASK-007.md) @phase-2/TASK-007.md |
+| TASK-006 | Annotation Store実装（CRUD+JSON永続化） | DONE | TASK-004 | 40min | [詳細](phase-2/TASK-006.md) @phase-2/TASK-006.md |
+| TASK-007 | App Settings実装（electron-store+ファイル履歴） | DONE | TASK-004 | 20min | [詳細](phase-2/TASK-007.md) @phase-2/TASK-007.md |
 
 ### Phase 3: MIDI & IPC（順次実行）
 *推定期間: 60min*
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-008 | MIDI Controller実装（node-midi + Main Process） | TODO | Phase 2 | 40min | [詳細](phase-3/TASK-008.md) @phase-3/TASK-008.md |
+| TASK-008 | MIDI Controller実装（node-midi + Main Process） | DONE | Phase 2 | 40min | [詳細](phase-3/TASK-008.md) @phase-3/TASK-008.md |
 | TASK-009 | IPC Bridge実装（Preload Script + 型付きAPI） | DONE | TASK-008 | 20min | [詳細](phase-3/TASK-009.md) @phase-3/TASK-009.md |
 
 ### Phase 4: UIコアコンポーネント
@@ -114,8 +114,8 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-014 | Practice Engine実装（正誤判定・ループ管理） | TODO | Phase 4 | 60min | [詳細](phase-5/TASK-014.md) @phase-5/TASK-014.md |
-| TASK-015 | Audio Engine実装（Tone.js伴奏・メトロノーム） | TODO | Phase 4 | 40min | [詳細](phase-5/TASK-015.md) @phase-5/TASK-015.md |
+| TASK-014 | Practice Engine実装（正誤判定・ループ管理） | DONE | Phase 4 | 60min | [詳細](phase-5/TASK-014.md) @phase-5/TASK-014.md |
+| TASK-015 | Audio Engine実装（Tone.js伴奏・メトロノーム） | DONE | Phase 4 | 40min | [詳細](phase-5/TASK-015.md) @phase-5/TASK-015.md |
 | TASK-016 | MIDI→PracticeEngine統合（IPC接続・フルフロー） | TODO | TASK-014, TASK-015 | 40min | [詳細](phase-5/TASK-016.md) @phase-5/TASK-016.md |
 
 ### Phase 6: 運指エンジン（Parncutt-Terzuolo DP）

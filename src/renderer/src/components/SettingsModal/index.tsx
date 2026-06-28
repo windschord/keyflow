@@ -29,9 +29,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             practice: practice || { defaultErrorMode: 'wait', metronomeEnabled: false },
           });
           setRecentFiles(files || []);
-
-          // Apply initial theme
-          applyTheme(finalUi.theme);
         } catch (error) {
           console.error('Failed to load settings:', error);
         }
@@ -42,21 +39,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   if (!isOpen || !settings) return null;
 
-  const applyTheme = (theme: string) => {
-    if (theme === 'dark') {
-      document.documentElement.className = 'dark';
-    } else if (theme === 'light') {
-      document.documentElement.className = '';
-    } else {
-      // system
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.className = 'dark';
-      } else {
-        document.documentElement.className = '';
-      }
-    }
-  };
-
   const updateUiSetting = async (
     key: keyof AppSettings['ui'],
     value: string | number
@@ -64,10 +46,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const updatedUi = { ...settings.ui, [key]: value };
     setSettings({ ...settings, ui: updatedUi });
     await window.electronAPI.settings.set('ui', updatedUi);
-
-    if (key === 'theme') {
-      applyTheme(value as string);
-    }
   };
 
   const updatePracticeSetting = async (
@@ -101,6 +79,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           left: '50%',
           transform: 'translate(-50%, -50%)',
           backgroundColor: '#fff',
+          color: '#111827',
           borderRadius: '8px',
           minWidth: '400px',
           maxHeight: '80vh',
@@ -145,70 +124,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
         {/* Content */}
         <div style={{ padding: '16px 24px', overflowY: 'auto', flex: 1 }}>
-          {/* UI Settings */}
-          <section style={{ marginBottom: '24px' }}>
-            <h3
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: '#6b7280',
-                textTransform: 'uppercase',
-                marginBottom: '12px',
-              }}
-            >
-              UI
-            </h3>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label
-                  htmlFor="theme"
-                  style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
-                >
-                  Theme
-                </label>
-                <select
-                  id="theme"
-                  value={settings.ui.theme}
-                  onChange={(e) => updateUiSetting('theme', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '4px',
-                    border: '1px solid #d1d5db',
-                  }}
-                >
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                  <option value="system">System</option>
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="language"
-                  style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
-                >
-                  Language
-                </label>
-                <select
-                  id="language"
-                  value={settings.ui.language}
-                  onChange={(e) => updateUiSetting('language', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '4px',
-                    border: '1px solid #d1d5db',
-                  }}
-                >
-                  <option value="ja">日本語</option>
-                  <option value="en">English</option>
-                </select>
-              </div>
-            </div>
-          </section>
-
           {/* Practice Settings */}
           <section style={{ marginBottom: '24px' }}>
             <h3

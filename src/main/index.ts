@@ -1,9 +1,8 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron';
 import { join } from 'path';
 import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
-import { MidiControllerService } from './midi-controller';
 import { SettingsService } from './settings';
 
 function createWindow(): void {
@@ -116,10 +115,13 @@ app.whenReady().then(() => {
     win.loadFile(join(__dirname, '../renderer/index.html'));
   }
 
-  const midiController = new MidiControllerService(win);
-  midiController.initialize();
-  ipcMain.handle('midi:get-devices', () => midiController.listDevices());
-  ipcMain.on('midi:select-device', (_, index) => midiController.selectDevice(index));
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (permission === 'midi' || permission === 'midiSysex') {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
 
   const settingsService = new SettingsService();
   ipcMain.handle('settings:get', (_, key) => settingsService.get(key));

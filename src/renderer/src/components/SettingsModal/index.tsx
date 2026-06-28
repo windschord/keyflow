@@ -22,12 +22,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           const practice = await window.electronAPI.settings.get('practice');
           const files = await window.electronAPI.settings.getRecentFiles();
 
+          const finalUi = ui || { theme: 'system', language: 'ja', zoom: 1.0, pianoHeight: 120 };
           // Apply defaults if necessary
           setSettings({
-            ui: ui || { theme: 'system', language: 'ja', zoom: 1.0, pianoHeight: 120 },
+            ui: finalUi,
             practice: practice || { defaultErrorMode: 'wait', metronomeEnabled: false },
           });
           setRecentFiles(files || []);
+
+          // Apply initial theme
+          applyTheme(finalUi.theme);
         } catch (error) {
           console.error('Failed to load settings:', error);
         }
@@ -38,6 +42,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   if (!isOpen || !settings) return null;
 
+  const applyTheme = (theme: string) => {
+    if (theme === 'dark') {
+      document.documentElement.className = 'dark';
+    } else if (theme === 'light') {
+      document.documentElement.className = '';
+    } else {
+      // system
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.className = 'dark';
+      } else {
+        document.documentElement.className = '';
+      }
+    }
+  };
+
   const updateUiSetting = async (
     key: keyof AppSettings['ui'],
     value: string | number
@@ -45,6 +64,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const updatedUi = { ...settings.ui, [key]: value };
     setSettings({ ...settings, ui: updatedUi });
     await window.electronAPI.settings.set('ui', updatedUi);
+
+    if (key === 'theme') {
+      applyTheme(value as string);
+    }
   };
 
   const updatePracticeSetting = async (
@@ -57,17 +80,59 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: '#fff',
+          borderRadius: '8px',
+          minWidth: '400px',
+          maxHeight: '80vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+        }}
+      >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h2>
+        <div
+          style={{
+            padding: '16px 24px',
+            borderBottom: '1px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>Settings</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-full"
             aria-label="Close"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px',
+              color: '#6b7280',
+            }}
           >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -79,18 +144,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Content */}
-        <div className="px-6 py-4 overflow-y-auto flex-1 space-y-6">
+        <div style={{ padding: '16px 24px', overflowY: 'auto', flex: 1 }}>
           {/* UI Settings */}
-          <section>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          <section style={{ marginBottom: '24px' }}>
+            <h3
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                marginBottom: '12px',
+              }}
+            >
               UI
             </h3>
 
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label
                   htmlFor="theme"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
                 >
                   Theme
                 </label>
@@ -98,7 +171,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   id="theme"
                   value={settings.ui.theme}
                   onChange={(e) => updateUiSetting('theme', e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #d1d5db',
+                  }}
                 >
                   <option value="light">Light</option>
                   <option value="dark">Dark</option>
@@ -109,7 +187,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               <div>
                 <label
                   htmlFor="language"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
                 >
                   Language
                 </label>
@@ -117,7 +195,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   id="language"
                   value={settings.ui.language}
                   onChange={(e) => updateUiSetting('language', e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #d1d5db',
+                  }}
                 >
                   <option value="ja">日本語</option>
                   <option value="en">English</option>
@@ -127,16 +210,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           </section>
 
           {/* Practice Settings */}
-          <section>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          <section style={{ marginBottom: '24px' }}>
+            <h3
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                marginBottom: '12px',
+              }}
+            >
               Practice
             </h3>
 
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label
                   htmlFor="errorMode"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
                 >
                   Default Error Mode
                 </label>
@@ -144,24 +235,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   id="errorMode"
                   value={settings.practice.defaultErrorMode}
                   onChange={(e) => updatePracticeSetting('defaultErrorMode', e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #d1d5db',
+                  }}
                 >
                   <option value="wait">Wait for correct note</option>
                   <option value="pass">Pass through on error</option>
                 </select>
               </div>
 
-              <div className="flex items-center">
+              <div style={{ display: 'flex', alignItems: 'center' }}>
                 <input
                   id="metronomeEnabled"
                   type="checkbox"
                   checked={settings.practice.metronomeEnabled}
                   onChange={(e) => updatePracticeSetting('metronomeEnabled', e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
+                  style={{ width: '16px', height: '16px' }}
                 />
                 <label
                   htmlFor="metronomeEnabled"
-                  className="ml-2 block text-sm text-gray-900 dark:text-gray-300"
+                  style={{ marginLeft: '8px', fontSize: '0.875rem' }}
                 >
                   Enable Metronome by Default
                 </label>
@@ -171,30 +267,80 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
           {/* Recent Files */}
           <section>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            <h3
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                marginBottom: '12px',
+              }}
+            >
               Recent Files
             </h3>
             {recentFiles.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">No recent files</p>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', fontStyle: 'italic' }}>
+                No recent files
+              </p>
             ) : (
-              <ul className="divide-y divide-gray-200 dark:divide-gray-700 border-t border-gray-200 dark:border-gray-700">
+              <ul
+                style={{
+                  listStyle: 'none',
+                  padding: 0,
+                  margin: 0,
+                  borderTop: '1px solid #e5e7eb',
+                }}
+              >
                 {recentFiles.map((file, idx) => {
-                  // Attempt to just show filename
                   const parts = file.path.split(/[\\/]/);
                   const filename = parts[parts.length - 1];
                   const date = new Date(file.openedAt).toLocaleDateString();
                   return (
-                    <li key={idx} className="py-3 flex justify-between items-center">
-                      <div className="flex flex-col truncate pr-4">
+                    <li
+                      key={idx}
+                      style={{
+                        padding: '12px 0',
+                        borderBottom: '1px solid #e5e7eb',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          overflow: 'hidden',
+                          paddingRight: '16px',
+                        }}
+                      >
                         <span
-                          className="text-sm font-medium text-gray-900 dark:text-white truncate"
+                          style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
                           title={file.path}
                         >
                           {filename}
                         </span>
-                        <span className="text-xs text-gray-500 truncate">{file.path}</span>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            color: '#6b7280',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {file.path}
+                        </span>
                       </div>
-                      <div className="text-xs text-gray-400 whitespace-nowrap">{date}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#9ca3af', whiteSpace: 'nowrap' }}>
+                        {date}
+                      </div>
                     </li>
                   );
                 })}
@@ -204,10 +350,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-end">
+        <div
+          style={{
+            padding: '16px 24px',
+            borderTop: '1px solid #e5e7eb',
+            backgroundColor: '#f9fafb',
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+        >
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm"
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 500,
+            }}
           >
             Done
           </button>

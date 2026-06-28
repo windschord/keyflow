@@ -48,17 +48,13 @@ export class AudioEngineService {
     );
 
     score.measures.forEach((measure) => {
-      let currentBeatOffset = 0;
       measure.notes.forEach((note) => {
         if (!note.isRest && targetPartIds.has(note.partId)) {
           events.push({
-            time: `${measureIndex}:${Math.floor(currentBeatOffset)}:${(currentBeatOffset % 1) * 4}`, // simplified time scheduling
+            time: `${measureIndex}:0:0`, // simplified time scheduling
             note: Tone.Frequency(note.midiNumber, 'midi').toNote(),
             duration: '4n', // simplified duration
           });
-        }
-        if (!note.isChord) {
-          currentBeatOffset += 1; // simple duration increment for stub
         }
       });
       measureIndex++;

@@ -22,25 +22,10 @@ export class MidiControllerService {
     this.input = new midi.Input();
   }
 
-  private pollingInterval: NodeJS.Timeout | null = null;
-  private lastDeviceCount: number = 0;
-
   initialize(): void {
     this.input.on('message', (deltaTime: number, message: [number, number, number]) => {
       this.onMessage(deltaTime, message);
     });
-
-    // Basic polling for hotplug events
-    this.lastDeviceCount = this.input.getPortCount();
-    this.pollingInterval = setInterval(() => {
-      const currentCount = this.input.getPortCount();
-      if (currentCount !== this.lastDeviceCount) {
-        this.lastDeviceCount = currentCount;
-        if (this.win) {
-          this.win.webContents.send('midi:devices-changed', this.listDevices());
-        }
-      }
-    }, 1000);
   }
 
   listDevices(): MidiDevice[] {
@@ -66,10 +51,6 @@ export class MidiControllerService {
   }
 
   dispose(): void {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = null;
-    }
     if (this.input.isPortOpen()) {
       this.input.closePort();
     }

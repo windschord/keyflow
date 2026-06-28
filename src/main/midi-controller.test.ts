@@ -30,7 +30,8 @@ vi.mock('midi', () => {
 
 describe('MidiControllerService', () => {
   let service: MidiControllerService;
-  let mockWin: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockWin: any;
 
   beforeEach(() => {
     mockWin = {
@@ -68,7 +69,6 @@ describe('MidiControllerService', () => {
     // @ts-expect-error accessing private and simulated
     service.input.simulateMessage(0, [0x90, 60, 100]);
 
-    // @ts-expect-error mock structure
     expect(mockWin.webContents.send).toHaveBeenCalledWith('midi:note-on', {
       noteNumber: 60,
       velocity: 100,
@@ -85,7 +85,6 @@ describe('MidiControllerService', () => {
     // @ts-expect-error accessing private and simulated
     service.input.simulateMessage(0, [0x80, 60, 0]);
 
-    // @ts-expect-error mock structure
     expect(mockWin.webContents.send).toHaveBeenCalledWith('midi:note-off', {
       noteNumber: 60,
       velocity: 0,
@@ -102,7 +101,6 @@ describe('MidiControllerService', () => {
     // @ts-expect-error accessing private and simulated
     service.input.simulateMessage(0, [0x90, 60, 0]);
 
-    // @ts-expect-error mock structure
     expect(mockWin.webContents.send).toHaveBeenCalledWith('midi:note-off', {
       noteNumber: 60,
       velocity: 0,

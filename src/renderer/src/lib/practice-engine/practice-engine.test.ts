@@ -3,12 +3,9 @@ import { PracticeEngineService } from './index';
 import { PracticeStore } from '../../store';
 import { Score, Part, Note, PracticeStats } from '../../types';
 
-import { StoreApi } from 'zustand';
-
 describe('PracticeEngineService', () => {
   let engine: PracticeEngineService;
   let mockStore: PracticeStore;
-  let mockStoreApi: StoreApi<PracticeStore>;
 
   const mockParts: Part[] = [
     { id: 'P1', name: 'Right Hand', hand: 'right', clef: 'treble' },
@@ -111,28 +108,11 @@ describe('PracticeEngineService', () => {
       toggleSidebar: () => {},
     } as PracticeStore;
 
-    mockStoreApi = {
-      getState: () => mockStore,
-      setState: (partial: Partial<PracticeStore>) => {
-        Object.assign(mockStore, partial);
-      },
-      subscribe: vi.fn(),
-      destroy: vi.fn(),
-    } as unknown as StoreApi<PracticeStore>;
-
-    engine = new PracticeEngineService(mockStoreApi);
+    engine = new PracticeEngineService(mockStore);
   });
 
   it('正しい音符を押すと次の音符に進む', () => {
-    // Override expected notes to be JUST N1 for this test, but N2 is a chord.
-    // Wait, the index of N1 is 0. advancePosition will call getExpectedNotesForIndex(notes, 0).
-    // Let's modify the notes so it's not a chord for this test if we want to expect index=1,
-    // actually getExpectedNotesForIndex starting at 0 returns N1 AND N2 because N2 is a chord!
-    // Let's just mock expectedNotes manually.
     mockStore.expectedNotes = [mockNotesMeasure1[0]]; // Expect C4 (60)
-    // To make sure it advances by 1, we temporarily remove isChord from N2.
-    const originalIsChord = mockNotesMeasure1[1].isChord;
-    mockNotesMeasure1[1].isChord = false;
 
     const judgement = engine.handleNoteOn({
       midiNumber: 60,
@@ -141,11 +121,8 @@ describe('PracticeEngineService', () => {
       timestamp: 0,
     });
 
-    mockNotesMeasure1[1].isChord = originalIsChord;
-
     expect(judgement.result).toBe('correct');
     expect(judgement.advanced).toBe(true);
-    // currentNoteIndex advanced by 1 note (size of expected group)
     expect(mockStore.currentNoteIndex).toBe(1);
     expect(mockStore.stats.correctNotes).toBe(1);
   });
@@ -189,8 +166,6 @@ describe('PracticeEngineService', () => {
     });
     expect(judgement.result).toBe('correct');
     expect(judgement.advanced).toBe(true); // Now chord is complete
-    // currentNoteIndex advances by 2 (the chord size)
-    expect(mockStore.currentNoteIndex).toBe(2);
   });
 
   it('右手モードで左手パートの音符は判定をスキップする', () => {

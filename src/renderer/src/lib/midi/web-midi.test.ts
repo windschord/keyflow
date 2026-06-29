@@ -1,20 +1,28 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { WebMidiService } from './web-midi';
 
+interface MockMIDIInput {
+  id: string;
+  name: string;
+  onmidimessage: ((event: MIDIMessageEvent) => void) | null;
+}
+
+interface MockMIDIAccess {
+  inputs: Map<string, MockMIDIInput>;
+  onstatechange: ((event: Event) => void) | null;
+}
+
 describe('WebMidiService', () => {
   let service: WebMidiService;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockInputs: Map<string, any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockAccess: any;
+  let mockInputs: Map<string, MockMIDIInput>;
+  let mockAccess: MockMIDIAccess;
 
   beforeEach(() => {
     mockInputs = new Map();
-    const mockInput = {
+    const mockInput: MockMIDIInput = {
       id: 'device-1',
       name: 'Test MIDI Keyboard',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      onmidimessage: null as any,
+      onmidimessage: null,
     };
     mockInputs.set('device-1', mockInput);
 
@@ -24,6 +32,7 @@ describe('WebMidiService', () => {
     };
 
     // Mock navigator.requestMIDIAccess
+    // @ts-expect-error - Mocking browser Web MIDI API for testing
     vi.stubGlobal('navigator', {
       requestMIDIAccess: vi.fn().mockResolvedValue(mockAccess),
     });
@@ -52,9 +61,10 @@ describe('WebMidiService', () => {
 
     const mockInput = mockInputs.get('device-1');
     // trigger Note On (command 0x90, note 60, velocity 100) -> channel 1
+    // @ts-expect-error - Minimal mock of MIDIMessageEvent for testing
     mockInput.onmidimessage({
       data: new Uint8Array([0x90, 60, 100]),
-    } as unknown as MIDIMessageEvent);
+    });
 
     expect(noteOnCb).toHaveBeenCalledWith(60, 100, 1);
   });
@@ -67,9 +77,10 @@ describe('WebMidiService', () => {
 
     const mockInput = mockInputs.get('device-1');
     // trigger Note Off (command 0x80, note 60, velocity 0) -> channel 1
+    // @ts-expect-error - Minimal mock of MIDIMessageEvent for testing
     mockInput.onmidimessage({
       data: new Uint8Array([0x80, 60, 0]),
-    } as unknown as MIDIMessageEvent);
+    });
 
     expect(noteOffCb).toHaveBeenCalledWith(60, 0, 1);
   });
@@ -82,9 +93,10 @@ describe('WebMidiService', () => {
 
     const mockInput = mockInputs.get('device-1');
     // trigger Note Off via NoteOn (command 0x90, note 64, velocity 0) -> channel 1
+    // @ts-expect-error - Minimal mock of MIDIMessageEvent for testing
     mockInput.onmidimessage({
       data: new Uint8Array([0x90, 64, 0]),
-    } as unknown as MIDIMessageEvent);
+    });
 
     expect(noteOffCb).toHaveBeenCalledWith(64, 0, 1);
   });

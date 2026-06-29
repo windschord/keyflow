@@ -6,12 +6,21 @@ interface SettingsModalProps {
 }
 
 interface AppSettings {
-  ui: { theme: 'light' | 'dark' | 'system'; language: string; zoom: number; pianoHeight: number };
+  ui: { theme: 'light' | 'dark'; language: string; zoom: number; pianoHeight: number };
   practice: { defaultErrorMode: 'wait' | 'pass'; metronomeEnabled: boolean };
 }
 
+const DEFAULT_SETTINGS: AppSettings = {
+  ui: { theme: 'light', language: 'ja', zoom: 1.0, pianoHeight: 120 },
+  practice: { defaultErrorMode: 'wait', metronomeEnabled: false },
+};
+
+function showSettingsError(message: string): void {
+  window.alert(message);
+}
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [recentFiles, setRecentFiles] = useState<Array<{ path: string; openedAt: string }>>([]);
 
   useEffect(() => {
@@ -22,39 +31,53 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           const practice = await window.electronAPI.settings.get('practice');
           const files = await window.electronAPI.settings.getRecentFiles();
 
-          const finalUi = ui || { theme: 'system', language: 'ja', zoom: 1.0, pianoHeight: 120 };
+          const finalUi = ui || DEFAULT_SETTINGS.ui;
           // Apply defaults if necessary
           setSettings({
             ui: finalUi,
-            practice: practice || { defaultErrorMode: 'wait', metronomeEnabled: false },
+            practice: practice || DEFAULT_SETTINGS.practice,
           });
           setRecentFiles(files || []);
-        } catch (error) {
-          console.error('Failed to load settings:', error);
+        } catch {
+          setSettings(DEFAULT_SETTINGS);
+          setRecentFiles([]);
+          showSettingsError('設定の読み込みに失敗しました。既定値で表示します。');
         }
       };
       loadSettings();
     }
   }, [isOpen]);
 
-  if (!isOpen || !settings) return null;
+  if (!isOpen) return null;
 
-  const updateUiSetting = async (
-    key: keyof AppSettings['ui'],
-    value: string | number
+  const updateUiSetting = async <K extends keyof AppSettings['ui']>(
+    key: K,
+    value: AppSettings['ui'][K]
   ): Promise<void> => {
+    const previousSettings = settings;
     const updatedUi = { ...settings.ui, [key]: value };
     setSettings({ ...settings, ui: updatedUi });
-    await window.electronAPI.settings.set('ui', updatedUi);
+    try {
+      await window.electronAPI.settings.set('ui', updatedUi);
+    } catch {
+      setSettings(previousSettings);
+      showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+    }
   };
 
-  const updatePracticeSetting = async (
-    key: keyof AppSettings['practice'],
-    value: string | boolean
+  const updatePracticeSetting = async <K extends keyof AppSettings['practice']>(
+    key: K,
+    value: AppSettings['practice'][K]
   ): Promise<void> => {
+    const previousSettings = settings;
     const updatedPractice = { ...settings.practice, [key]: value };
     setSettings({ ...settings, practice: updatedPractice });
-    await window.electronAPI.settings.set('practice', updatedPractice);
+    try {
+      await window.electronAPI.settings.set('practice', updatedPractice);
+    } catch {
+      setSettings(previousSettings);
+      showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+    }
   };
 
   return (
@@ -149,7 +172,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 <select
                   id="errorMode"
                   value={settings.practice.defaultErrorMode}
-                  onChange={(e) => updatePracticeSetting('defaultErrorMode', e.target.value)}
+                  onChange={(e) =>
+                    updatePracticeSetting(
+                      'defaultErrorMode',
+                      e.target.value as AppSettings['practice']['defaultErrorMode']
+                    )
+                  }
                   style={{
                     width: '100%',
                     padding: '8px 12px',

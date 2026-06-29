@@ -1,6 +1,27 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 
+interface ElectronAppSettings {
+  recentFiles: Array<{ path: string; openedAt: string }>;
+  midi: { selectedDeviceId: string | null; selectedDeviceIndex: number };
+  handSettings: { maxSpanSemitones: number; leftHandScaleFactor: number };
+  ui: { theme: 'light' | 'dark'; zoom: number; pianoHeight: number; language: string };
+  practice: { defaultErrorMode: 'wait' | 'pass'; metronomeEnabled: boolean };
+}
+
+const settingsApi = {
+  get: <K extends keyof ElectronAppSettings>(key: K): Promise<ElectronAppSettings[K]> =>
+    ipcRenderer.invoke('settings:get', key) as Promise<ElectronAppSettings[K]>,
+  set: <K extends keyof ElectronAppSettings>(
+    key: K,
+    value: ElectronAppSettings[K]
+  ): Promise<void> => ipcRenderer.invoke('settings:set', key, value) as Promise<void>,
+  getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
+    ipcRenderer.invoke('settings:get-recent-files') as Promise<
+      Array<{ path: string; openedAt: string }>
+    >,
+};
+
 // Custom APIs for renderer
 const api = {};
 
@@ -26,13 +47,7 @@ if (process.contextIsolated) {
           ipcRenderer.invoke('file:write', path, content),
       },
       settings: {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        get: (key: string): Promise<any> => ipcRenderer.invoke('settings:get', key),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        set: (key: string, value: any): Promise<void> =>
-          ipcRenderer.invoke('settings:set', key, value),
-        getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
-          ipcRenderer.invoke('settings:get-recent-files'),
+        ...settingsApi,
       },
     });
   } catch (error) {
@@ -54,13 +69,7 @@ if (process.contextIsolated) {
         ipcRenderer.invoke('file:write', path, content),
     },
     settings: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      get: (key: string): Promise<any> => ipcRenderer.invoke('settings:get', key),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      set: (key: string, value: any): Promise<void> =>
-        ipcRenderer.invoke('settings:set', key, value),
-      getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
-        ipcRenderer.invoke('settings:get-recent-files'),
+      ...settingsApi,
     },
   };
 }

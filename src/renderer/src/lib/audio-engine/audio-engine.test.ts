@@ -77,6 +77,76 @@ describe('AudioEngineService', () => {
     expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
   });
 
+  it('loadAccompaniment schedules events from score rhythm and tempo', async () => {
+    await service.loadAccompaniment(
+      {
+        title: 'Rhythm test',
+        parts: [{ id: 'P1', name: 'Right Hand', hand: 'right', clef: 'treble' }],
+        measures: [
+          {
+            number: 1,
+            notes: [
+              {
+                id: 'P1-M1-N0',
+                partId: 'P1',
+                measureNumber: 1,
+                noteIndex: 0,
+                pitch: { step: 'C', octave: 4 },
+                midiNumber: 60,
+                duration: 4,
+                isChord: false,
+                isRest: false,
+              },
+              {
+                id: 'P1-M1-N1',
+                partId: 'P1',
+                measureNumber: 1,
+                noteIndex: 1,
+                pitch: { step: 'D', octave: 4 },
+                midiNumber: 62,
+                duration: 2,
+                isChord: false,
+                isRest: false,
+              },
+              {
+                id: 'P1-M1-N2',
+                partId: 'P1',
+                measureNumber: 1,
+                noteIndex: 2,
+                pitch: { step: 'E', octave: 4 },
+                midiNumber: 64,
+                duration: 2,
+                isChord: false,
+                isRest: true,
+              },
+              {
+                id: 'P1-M1-N3',
+                partId: 'P1',
+                measureNumber: 1,
+                noteIndex: 3,
+                pitch: { step: 'E', octave: 4 },
+                midiNumber: 64,
+                duration: 6,
+                isChord: false,
+                isRest: false,
+              },
+            ],
+          },
+        ],
+        tempo: 120,
+        timeSignature: { beats: 4, beatType: 4 },
+        keySignature: 0,
+      },
+      'right'
+    );
+
+    expect(Tone.Part).toHaveBeenCalledWith(expect.any(Function), [
+      { time: 0, note: 'C4', duration: 0.5 },
+      { time: 0.5, note: 'A4', duration: 0.25 },
+      { time: 1, note: 'A4', duration: 0.75 },
+    ]);
+  });
+
   it('dispose() frees resources', () => {
     // @ts-expect-error private
     const synthSpy = vi.spyOn(service.clickSynth, 'dispose');

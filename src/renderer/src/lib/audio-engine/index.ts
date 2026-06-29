@@ -31,12 +31,9 @@ export class AudioEngineService {
       this.accompanimentPart = null;
     }
 
-    const events: { time: string; note: string; duration: string }[] = [];
-
-    // Filter parts based on accompanimentHand
-    // For now, this is a simplified stub. In a real scenario, we calculate absolute time based on tempo.
-    // Here we'll just push simple events as placeholders based on measures and notes.
-    let measureIndex = 0;
+    const secondsPerQuarterNote = 60 / score.tempo;
+    const quarterNotesPerMeasure = score.timeSignature.beats * (4 / score.timeSignature.beatType);
+    const events: { time: number; note: string; duration: number }[] = [];
 
     // Convert accompaniment hand string to actual hand filter for parts
     let targetHand: 'left' | 'right' | 'both' = 'both';
@@ -47,17 +44,29 @@ export class AudioEngineService {
       score.parts.filter((p) => targetHand === 'both' || p.hand === targetHand).map((p) => p.id)
     );
 
-    score.measures.forEach((measure) => {
+    score.measures.forEach((measure, measureIndex) => {
+      const measureStartQuarterNotes = measureIndex * quarterNotesPerMeasure;
+      let localQuarterNotes = 0;
+      let currentGroupStartQuarterNotes = measureStartQuarterNotes;
+
       measure.notes.forEach((note) => {
+        const durationInQuarterNotes = Math.max(note.duration / score.timeSignature.beatType, 0);
+        if (!note.isChord) {
+          currentGroupStartQuarterNotes = measureStartQuarterNotes + localQuarterNotes;
+        }
+
         if (!note.isRest && targetPartIds.has(note.partId)) {
           events.push({
-            time: `${measureIndex}:0:0`, // simplified time scheduling
+            time: currentGroupStartQuarterNotes * secondsPerQuarterNote,
             note: Tone.Frequency(note.midiNumber, 'midi').toNote(),
-            duration: '4n', // simplified duration
+            duration: durationInQuarterNotes * secondsPerQuarterNote,
           });
         }
+
+        if (!note.isChord) {
+          localQuarterNotes += durationInQuarterNotes;
+        }
       });
-      measureIndex++;
     });
 
     if (events.length > 0) {

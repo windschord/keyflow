@@ -1,23 +1,19 @@
-import { Note, PracticeMode } from '../../types';
+import { Note, Part, PracticeMode } from '../../types';
 
-export function filterNotesByMode(notes: Note[], practiceMode: PracticeMode): Note[] {
+export function filterNotesByMode(
+  notes: Note[],
+  practiceMode: PracticeMode,
+  parts: Part[] = []
+): Note[] {
   if (practiceMode === 'both') return notes;
 
-  const handMapping: Record<string, 'right' | 'left'> = {
-    right: 'right',
-    left: 'left',
-  };
+  const targetHand = practiceMode === 'right' || practiceMode === 'left' ? practiceMode : null;
+  if (!targetHand || parts.length === 0) return notes; // Fallback to all if unknown.
 
-  const targetHand = handMapping[practiceMode];
-  if (!targetHand) return notes; // Fallback to all if unknown
-
-  // Ensure note part hand matches the target practice mode hand
-  // Note: We'd need part hand info, but the Note object structure
-  // needs to be resolved to a part in a real scenario.
-  // Assuming the note has some reference to whether it is left or right,
-  // or we need to pass parts.
-  // Since Note in types doesn't directly have a `hand` property, but it has `partId`.
-  return notes; // We will handle actual filtering when we pass `parts` if available.
+  const targetPartIds = new Set(
+    parts.filter((part) => part.hand === targetHand).map((part) => part.id)
+  );
+  return notes.filter((note) => targetPartIds.has(note.partId));
 }
 
 export function judgeChord(

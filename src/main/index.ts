@@ -3,9 +3,10 @@ import { join } from 'path';
 import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
-import { SettingsService } from './settings';
+import { AppSettings, isSettingsKey, SettingsService, validateSettingsValue } from './settings';
+import { PathAllowlist } from './path-allowlist';
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -39,12 +40,33 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
+
+  return mainWindow;
+}
+
+function isTrustedAppOrigin(pageUrl: string): boolean {
+  const parsedUrl = new URL(pageUrl);
+  if (parsedUrl.protocol === 'file:') return true;
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    return parsedUrl.origin === new URL(process.env['ELECTRON_RENDERER_URL']).origin;
+  }
+  return false;
+}
+
+function isTrustedAppUrl(pageUrl: string): boolean {
+  try {
+    return isTrustedAppOrigin(pageUrl);
+  } catch {
+    return false;
+  }
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  const pathAllowlist = new PathAllowlist();
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
 
@@ -66,6 +88,7 @@ app.whenReady().then(() => {
     if (canceled || filePaths.length === 0) {
       return null;
     }
+    pathAllowlist.allowMusicXml(filePaths[0]);
     return filePaths[0];
   });
 
@@ -81,42 +104,14 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('file:write', async (_, path: string, content: string) => {
-    await fs.promises.writeFile(path, content, 'utf-8');
+    const allowedPath = pathAllowlist.assertAllowedAnnotationPath(path);
+    await fs.promises.writeFile(allowedPath, content, 'utf-8');
   });
 
-  const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 1024,
-    minHeight: 600,
-    show: false,
-    autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
+  createWindow();
 
-  win.on('ready-to-show', () => {
-    win.show();
-  });
-
-  win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
-    return { action: 'deny' };
-  });
-
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    win.loadURL(process.env['ELECTRON_RENDERER_URL']);
-  } else {
-    win.loadFile(join(__dirname, '../renderer/index.html'));
-  }
-
-  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if (permission === 'midi' || permission === 'midiSysex') {
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'midi' && isTrustedAppUrl(webContents.getURL())) {
       callback(true);
     } else {
       callback(false);
@@ -124,9 +119,19 @@ app.whenReady().then(() => {
   });
 
   const settingsService = new SettingsService();
-  ipcMain.handle('settings:get', (_, key) => settingsService.get(key));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ipcMain.handle('settings:set', (_, key, value) => settingsService.set(key, value as any));
+  ipcMain.handle('settings:get', (_, key: unknown) => {
+    if (!isSettingsKey(key)) {
+      throw new Error(`Invalid settings key: ${String(key)}`);
+    }
+    return settingsService.get(key);
+  });
+  ipcMain.handle('settings:set', (_, key: unknown, value: unknown) => {
+    if (!isSettingsKey(key)) {
+      throw new Error(`Invalid settings key: ${String(key)}`);
+    }
+    const validated = validateSettingsValue(key, value);
+    settingsService.set(key, validated as AppSettings[typeof key]);
+  });
   ipcMain.handle('settings:get-recent-files', () => settingsService.getRecentFiles());
 
   app.on('activate', function () {

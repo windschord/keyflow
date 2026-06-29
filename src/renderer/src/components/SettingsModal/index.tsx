@@ -6,7 +6,7 @@ interface SettingsModalProps {
 }
 
 interface AppSettings {
-  ui: { theme: 'light' | 'dark'; language: string; zoom: number; pianoHeight: number };
+  ui: { theme: 'light' | 'dark' | 'system'; language: string; zoom: number; pianoHeight: number };
   practice: { defaultErrorMode: 'wait' | 'pass'; metronomeEnabled: boolean };
 }
 
@@ -56,9 +56,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     value: AppSettings['ui'][K]
   ): Promise<void> => {
     const requestId = ++requestIdRef.current;
+
+    // Save the previous state to revert to if the API call fails
     const previousValue = settings.ui[key];
+
     const updatedUi = { ...settings.ui, [key]: value };
     setSettings({ ...settings, ui: updatedUi });
+
     try {
       await window.electronAPI.settings.set('ui', updatedUi);
     } catch {
@@ -78,9 +82,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     value: AppSettings['practice'][K]
   ): Promise<void> => {
     const requestId = ++requestIdRef.current;
+
+    // Save the previous state to revert to if the API call fails
     const previousValue = settings.practice[key];
+
     const updatedPractice = { ...settings.practice, [key]: value };
     setSettings({ ...settings, practice: updatedPractice });
+
     try {
       await window.electronAPI.settings.set('practice', updatedPractice);
     } catch {

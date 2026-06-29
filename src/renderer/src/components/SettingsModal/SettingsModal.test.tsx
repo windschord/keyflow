@@ -71,12 +71,16 @@ describe('SettingsModal', () => {
 
     render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-    const checkbox = await screen.findByLabelText('Enable Metronome by Default');
+    const checkbox = await screen.findByLabelText('Enable Metronome by Default') as HTMLInputElement;
+
+    // Check initial state
+    await waitFor(() => expect(checkbox.checked).toBe(false));
+
     fireEvent.click(checkbox);
 
     await waitFor(() =>
       expect(window.alert).toHaveBeenCalledWith('設定の保存に失敗しました。変更を元に戻しました。')
     );
-    expect(checkbox).not.toBeChecked();
+    expect(checkbox.checked).toBe(false);
   });
 });

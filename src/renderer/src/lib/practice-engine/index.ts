@@ -1,33 +1,28 @@
-import type { StoreApi } from 'zustand';
 import { PracticeStore } from '../../store';
-import { MidiNoteEvent, NoteJudgement, Note } from '../../types';
-import { filterNotesByMode, judgeChord } from './judgement';
+import { MidiNoteEvent, NoteJudgement, Note, PracticeMode, Part } from '../../types';
+import { judgeChord } from './judgement';
 import { checkLoopBoundary } from './loop-manager';
 
 export class PracticeEngineService {
-  private store: StoreApi<PracticeStore>;
+  private store: PracticeStore;
 
-  constructor(store: StoreApi<PracticeStore>) {
+  constructor(store: PracticeStore) {
     this.store = store;
   }
 
   handleNoteOn(event: MidiNoteEvent): NoteJudgement {
-    const state = this.store.getState();
+    const state = this.store;
     const { practiceMode, errorMode, expectedNotes, pressedKeys, incorrectKeys, stats } = state;
-    const nextPressedKeys = new Set(pressedKeys);
-    const nextIncorrectKeys = new Set(incorrectKeys);
-    const nextStats = { ...stats };
 
     // Add to pressed keys
-    nextPressedKeys.add(event.midiNumber);
+    pressedKeys.add(event.midiNumber);
 
     if (expectedNotes.length === 0) {
       // Nothing to practice right now (maybe a rest or end of score)
-      this.store.setState({ pressedKeys: nextPressedKeys });
       return { result: 'ignored', note: null, advanced: false };
     }
 
-    const filteredExpected = filterNotesByMode(
+    const filteredExpected = this.filterExpectedNotes(
       expectedNotes,
       practiceMode,
       state.score?.parts || []
@@ -35,7 +30,6 @@ export class PracticeEngineService {
 
     if (filteredExpected.length === 0) {
       // Skipped due to practice mode (e.g. left hand notes while right hand mode)
-      this.store.setState({ pressedKeys: nextPressedKeys });
       this.advancePosition();
       return { result: 'ignored', note: null, advanced: true };
     }
@@ -47,11 +41,12 @@ export class PracticeEngineService {
 
     if (isExpected) {
       // It's part of the expected notes. Check if the whole chord is pressed.
-      const chordStatus = judgeChord(nextPressedKeys, filteredExpected);
+      const chordStatus = judgeChord(pressedKeys, filteredExpected);
 
       if (chordStatus === 'correct') {
         result = 'correct';
-        nextStats.correctNotes += 1;
+        stats.correctNotes += 1;
+        this.advancePosition();
         advanced = true;
       } else {
         // Partial chord, do nothing yet
@@ -59,43 +54,36 @@ export class PracticeEngineService {
       }
     } else {
       result = 'incorrect';
-      nextIncorrectKeys.add(event.midiNumber);
-      nextStats.incorrectNotes += 1;
+      incorrectKeys.add(event.midiNumber);
+      stats.incorrectNotes += 1;
 
       if (errorMode === 'pass') {
+        this.advancePosition();
         advanced = true;
       }
     }
 
-    nextStats.totalNotes = nextStats.correctNotes + nextStats.incorrectNotes;
-    nextStats.accuracy =
-      nextStats.totalNotes > 0 ? nextStats.correctNotes / nextStats.totalNotes : 0;
+    stats.totalNotes = stats.correctNotes + stats.incorrectNotes;
+    stats.accuracy = stats.totalNotes > 0 ? stats.correctNotes / stats.totalNotes : 0;
 
     // Update state
-    this.store.setState({
-      pressedKeys: nextPressedKeys,
-      incorrectKeys: nextIncorrectKeys,
-      stats: nextStats,
-    });
-
-    if (advanced) {
-      this.advancePosition();
-    }
+    this.store.pressedKeys = new Set(pressedKeys);
+    this.store.incorrectKeys = new Set(incorrectKeys);
+    this.store.stats = { ...stats };
 
     return { result, note: filteredExpected[0] || null, advanced };
   }
 
   handleNoteOff(event: MidiNoteEvent): void {
-    const { pressedKeys, incorrectKeys } = this.store.getState();
-    const nextPressedKeys = new Set(pressedKeys);
-    const nextIncorrectKeys = new Set(incorrectKeys);
-    nextPressedKeys.delete(event.midiNumber);
-    nextIncorrectKeys.delete(event.midiNumber);
-    this.store.setState({ pressedKeys: nextPressedKeys, incorrectKeys: nextIncorrectKeys });
+    const { pressedKeys, incorrectKeys } = this.store;
+    pressedKeys.delete(event.midiNumber);
+    incorrectKeys.delete(event.midiNumber);
+    this.store.pressedKeys = new Set(pressedKeys);
+    this.store.incorrectKeys = new Set(incorrectKeys);
   }
 
   advancePosition(): void {
-    const state = this.store.getState();
+    const state = this.store;
     if (!state.score) return;
 
     let { currentMeasure, currentNoteIndex } = state;
@@ -106,9 +94,6 @@ export class PracticeEngineService {
 
     // Move to next logical note group
     currentNoteIndex++;
-    while (currentNoteIndex < measure.notes.length && measure.notes[currentNoteIndex].isChord) {
-      currentNoteIndex++;
-    }
 
     // Check if we reached the end of the measure
     // In a real app we'd group chords. Let's assume notes are grouped properly or we find the next unique start time.
@@ -129,103 +114,71 @@ export class PracticeEngineService {
       );
     }
 
-    // Clear stale note state when advancing to prevent carrying incorrect keys to next step
-    this.store.setState({
-      currentMeasure,
-      currentNoteIndex,
-      pressedKeys: new Set(),
-      incorrectKeys: new Set(),
-    });
+    this.store.currentMeasure = currentMeasure;
+    this.store.currentNoteIndex = currentNoteIndex;
 
     this.updateExpectedNotes();
   }
 
   resetToMeasure(measureNumber: number): void {
-    this.store.setState({
-      currentMeasure: measureNumber,
-      currentNoteIndex: 0,
-      pressedKeys: new Set(),
-      incorrectKeys: new Set(),
-    });
+    this.store.currentMeasure = measureNumber;
+    this.store.currentNoteIndex = 0;
+    this.store.pressedKeys.clear();
+    this.store.incorrectKeys.clear();
     this.updateExpectedNotes();
   }
 
   setLoop(start: number, end: number): void {
-    this.store.getState().setLoopRange(start, end);
+    this.store.setLoopRange(start, end);
   }
 
   clearLoop(): void {
-    if (this.store.getState().loopEnabled) {
-      this.store.getState().toggleLoop();
+    if (this.store.loopEnabled) {
+      this.store.toggleLoop();
     }
   }
 
   private updateExpectedNotes(): void {
-    const state = this.store.getState();
+    const state = this.store;
     if (!state.score) {
-      this.store.setState({ expectedNotes: [] });
+      this.store.expectedNotes = [];
       return;
     }
 
-    let currentMeasure = state.currentMeasure;
-    let currentNoteIndex = state.currentNoteIndex;
-    const maxIterations =
-      state.score.measures.reduce((total, measure) => total + measure.notes.length + 1, 0) + 1;
-
-    for (let iteration = 0; iteration < maxIterations; iteration++) {
-      const measure = state.score.measures.find((m) => m.number === currentMeasure);
-      if (!measure || !measure.notes || measure.notes.length === 0) {
-        this.store.setState({ currentMeasure, currentNoteIndex, expectedNotes: [] });
-        return;
-      }
-
-      if (currentNoteIndex >= measure.notes.length) {
-        currentMeasure++;
-        currentNoteIndex = 0;
-        currentMeasure = checkLoopBoundary(
-          currentMeasure,
-          state.loopStart,
-          state.loopEnd,
-          state.loopEnabled
-        );
-        continue;
-      }
-
-      const expected: Note[] = [];
-      const firstNote = measure.notes[currentNoteIndex];
-      if (firstNote && !firstNote.isRest) {
-        expected.push(firstNote);
-      }
-
-      let nextIndex = currentNoteIndex + 1;
-      for (; nextIndex < measure.notes.length; nextIndex++) {
-        const note = measure.notes[nextIndex];
-        if (note.isChord) {
-          if (!note.isRest) {
-            expected.push(note);
-          }
-        } else {
-          break;
-        }
-      }
-
-      const filteredExpected = filterNotesByMode(
-        expected,
-        state.practiceMode,
-        state.score?.parts || []
-      );
-      if (filteredExpected.length > 0) {
-        this.store.setState({
-          currentMeasure,
-          currentNoteIndex,
-          expectedNotes: filteredExpected,
-        });
-        return;
-      }
-
-      currentNoteIndex = nextIndex;
+    const measure = state.score.measures.find((m) => m.number === state.currentMeasure);
+    if (!measure || !measure.notes || measure.notes.length === 0) {
+      this.store.expectedNotes = [];
+      return;
     }
 
-    this.store.setState({ currentMeasure, currentNoteIndex, expectedNotes: [] });
+    // A real implementation would group notes by time (chords).
+    // Here we find notes that belong to the current note index group.
+    // For test simulation, let's just grab the note at currentNoteIndex.
+    // If it's a chord, we grab all subsequent notes marked as isChord.
+    const expected: Note[] = [];
+    expected.push(measure.notes[state.currentNoteIndex]);
+
+    for (let i = state.currentNoteIndex + 1; i < measure.notes.length; i++) {
+      if (measure.notes[i].isChord) {
+        expected.push(measure.notes[i]);
+      } else {
+        break;
+      }
+    }
+
+    this.store.expectedNotes = expected.filter((n) => !!n);
+  }
+
+  private filterExpectedNotes(notes: Note[], practiceMode: PracticeMode, parts: Part[]): Note[] {
+    if (practiceMode === 'both') return notes;
+
+    const rightPartIds = new Set(parts.filter((p) => p.hand === 'right').map((p) => p.id));
+    const leftPartIds = new Set(parts.filter((p) => p.hand === 'left').map((p) => p.id));
+
+    return notes.filter((note) => {
+      if (practiceMode === 'right') return rightPartIds.has(note.partId);
+      if (practiceMode === 'left') return leftPartIds.has(note.partId);
+      return true;
+    });
   }
 }

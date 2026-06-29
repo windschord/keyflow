@@ -1,11 +1,3 @@
-export interface ElectronAppSettings {
-  recentFiles: Array<{ path: string; openedAt: string }>;
-  midi: { selectedDeviceId: string | null; selectedDeviceIndex: number };
-  handSettings: { maxSpanSemitones: number; leftHandScaleFactor: number };
-  ui: { theme: 'light' | 'dark'; zoom: number; pianoHeight: number; language: string };
-  practice: { defaultErrorMode: 'wait' | 'pass'; metronomeEnabled: boolean };
-}
-
 export interface ElectronAPI {
   file: {
     showOpenDialog(): Promise<string | null>;
@@ -14,8 +6,10 @@ export interface ElectronAPI {
     write(path: string, content: string): Promise<void>;
   };
   settings: {
-    get<K extends keyof ElectronAppSettings>(key: K): Promise<ElectronAppSettings[K]>;
-    set<K extends keyof ElectronAppSettings>(key: K, value: ElectronAppSettings[K]): Promise<void>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    get(key: string): Promise<any>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    set(key: string, value: any): Promise<void>;
     getRecentFiles(): Promise<Array<{ path: string; openedAt: string }>>;
   };
 }

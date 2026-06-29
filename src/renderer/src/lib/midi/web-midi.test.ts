@@ -3,24 +3,19 @@ import { WebMidiService } from './web-midi';
 
 describe('WebMidiService', () => {
   let service: WebMidiService;
-  type MockMidiInput = Pick<MIDIInput, 'id' | 'name' | 'onmidimessage'>;
-  type MockMidiAccess = {
-    inputs: Map<string, MockMidiInput>;
-    onstatechange: MIDIAccess['onstatechange'];
-  };
-  let mockInputs: Map<string, MockMidiInput>;
-  let mockAccess: MockMidiAccess;
-
-  const createMidiMessageEvent = (data: Uint8Array): MIDIMessageEvent =>
-    ({ data }) as MIDIMessageEvent;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockInputs: Map<string, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockAccess: any;
 
   beforeEach(() => {
     mockInputs = new Map();
     const mockInput = {
       id: 'device-1',
       name: 'Test MIDI Keyboard',
-      onmidimessage: null,
-    } satisfies MockMidiInput;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onmidimessage: null as any,
+    };
     mockInputs.set('device-1', mockInput);
 
     mockAccess = {
@@ -30,7 +25,7 @@ describe('WebMidiService', () => {
 
     // Mock navigator.requestMIDIAccess
     vi.stubGlobal('navigator', {
-      requestMIDIAccess: vi.fn().mockResolvedValue(mockAccess as MIDIAccess),
+      requestMIDIAccess: vi.fn().mockResolvedValue(mockAccess),
     });
 
     service = new WebMidiService();
@@ -57,7 +52,9 @@ describe('WebMidiService', () => {
 
     const mockInput = mockInputs.get('device-1');
     // trigger Note On (command 0x90, note 60, velocity 100) -> channel 1
-    mockInput?.onmidimessage?.(createMidiMessageEvent(new Uint8Array([0x90, 60, 100])));
+    mockInput.onmidimessage({
+      data: new Uint8Array([0x90, 60, 100]),
+    } as unknown as MIDIMessageEvent);
 
     expect(noteOnCb).toHaveBeenCalledWith(60, 100, 1);
   });
@@ -70,7 +67,9 @@ describe('WebMidiService', () => {
 
     const mockInput = mockInputs.get('device-1');
     // trigger Note Off (command 0x80, note 60, velocity 0) -> channel 1
-    mockInput?.onmidimessage?.(createMidiMessageEvent(new Uint8Array([0x80, 60, 0])));
+    mockInput.onmidimessage({
+      data: new Uint8Array([0x80, 60, 0]),
+    } as unknown as MIDIMessageEvent);
 
     expect(noteOffCb).toHaveBeenCalledWith(60, 0, 1);
   });
@@ -83,7 +82,9 @@ describe('WebMidiService', () => {
 
     const mockInput = mockInputs.get('device-1');
     // trigger Note Off via NoteOn (command 0x90, note 64, velocity 0) -> channel 1
-    mockInput?.onmidimessage?.(createMidiMessageEvent(new Uint8Array([0x90, 64, 0])));
+    mockInput.onmidimessage({
+      data: new Uint8Array([0x90, 64, 0]),
+    } as unknown as MIDIMessageEvent);
 
     expect(noteOffCb).toHaveBeenCalledWith(64, 0, 1);
   });

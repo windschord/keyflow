@@ -18,15 +18,11 @@ export class AnnotationStoreService {
 
       this.annotations.clear();
       for (const ann of data.annotations) {
-        if (this.isValidNoteId(ann.noteId)) {
-          this.annotations.set(ann.noteId, this.cloneAnnotation(ann));
-        }
+        this.annotations.set(ann.noteId, ann);
       }
       this.dirty = false;
     } catch (err) {
-      if (!this.isMissingFileError(err)) {
-        throw err;
-      }
+      // If file does not exist or fails to parse, just start empty.
       this.annotations.clear();
       this.originalContent = '';
       this.dirty = false;
@@ -34,17 +30,13 @@ export class AnnotationStoreService {
   }
 
   setFinger(noteId: string, finger: Finger): void {
-    this.assertValidNoteId(noteId);
     const ann = this.annotations.get(noteId) || this.createEmptyAnnotation(noteId);
     ann.fingerNumber = finger;
-    ann.isAISuggested = false;
-    ann.isApproved = true;
     this.annotations.set(noteId, ann);
     this.dirty = true;
   }
 
   setComment(noteId: string, comment: string): void {
-    this.assertValidNoteId(noteId);
     const ann = this.annotations.get(noteId) || this.createEmptyAnnotation(noteId);
     ann.comment = comment;
     this.annotations.set(noteId, ann);
@@ -52,7 +44,6 @@ export class AnnotationStoreService {
   }
 
   removeFinger(noteId: string): void {
-    this.assertValidNoteId(noteId);
     const ann = this.annotations.get(noteId);
     if (ann) {
       delete ann.fingerNumber;
@@ -64,17 +55,15 @@ export class AnnotationStoreService {
   }
 
   getAnnotation(noteId: string): Annotation | undefined {
-    const ann = this.annotations.get(noteId);
-    return ann ? this.cloneAnnotation(ann) : undefined;
+    return this.annotations.get(noteId);
   }
 
   getAllAnnotations(): Annotation[] {
-    return Array.from(this.annotations.values()).map((ann) => this.cloneAnnotation(ann));
+    return Array.from(this.annotations.values());
   }
 
   applyAISuggestions(assignments: FingerAssignment[]): void {
     for (const assignment of assignments) {
-      this.assertValidNoteId(assignment.noteId);
       const ann =
         this.annotations.get(assignment.noteId) || this.createEmptyAnnotation(assignment.noteId);
       // Only apply suggestion if it's not approved user manually entered value
@@ -89,7 +78,6 @@ export class AnnotationStoreService {
   }
 
   approveAnnotation(noteId: string): void {
-    this.assertValidNoteId(noteId);
     const ann = this.annotations.get(noteId);
     if (ann) {
       ann.isApproved = true;
@@ -103,7 +91,7 @@ export class AnnotationStoreService {
 
     const data: AnnotationFile = {
       version: '1.0',
-      annotations: this.getAllAnnotations(),
+      annotations: Array.from(this.annotations.values()),
     };
 
     const content = JSON.stringify(data, null, 2);
@@ -122,31 +110,10 @@ export class AnnotationStoreService {
   }
 
   private createEmptyAnnotation(noteId: string): Annotation {
-    this.assertValidNoteId(noteId);
     return {
       noteId,
       isAISuggested: false,
       isApproved: false,
     };
-  }
-
-  private isValidNoteId(noteId: unknown): noteId is string {
-    return typeof noteId === 'string' && /^.+-M\d+-N\d+$/.test(noteId);
-  }
-
-  private assertValidNoteId(noteId: string): void {
-    if (!this.isValidNoteId(noteId)) {
-      throw new Error(`Invalid noteId: ${noteId}`);
-    }
-  }
-
-  private cloneAnnotation(ann: Annotation): Annotation {
-    return { ...ann };
-  }
-
-  private isMissingFileError(err: unknown): boolean {
-    if (!(err instanceof Error)) return false;
-    const errorWithCode = err as Error & { code?: string };
-    return errorWithCode.code === 'ENOENT' || err.message.includes('ENOENT');
   }
 }

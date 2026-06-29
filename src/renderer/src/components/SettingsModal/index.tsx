@@ -56,6 +56,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     value: AppSettings['ui'][K]
   ): Promise<void> => {
     const requestId = ++requestIdRef.current;
+    const previousValue = settings.ui[key];
     const updatedUi = { ...settings.ui, [key]: value };
     setSettings({ ...settings, ui: updatedUi });
     try {
@@ -65,7 +66,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
       if (requestId === requestIdRef.current) {
         setSettings((currentSettings) => ({
           ...currentSettings,
-          ui: { ...currentSettings.ui, [key]: currentSettings.ui[key] },
+          ui: { ...currentSettings.ui, [key]: previousValue },
         }));
         showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
       }
@@ -77,6 +78,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     value: AppSettings['practice'][K]
   ): Promise<void> => {
     const requestId = ++requestIdRef.current;
+    const previousValue = settings.practice[key];
     const updatedPractice = { ...settings.practice, [key]: value };
     setSettings({ ...settings, practice: updatedPractice });
     try {
@@ -86,7 +88,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
       if (requestId === requestIdRef.current) {
         setSettings((currentSettings) => ({
           ...currentSettings,
-          practice: { ...currentSettings.practice, [key]: currentSettings.practice[key] },
+          practice: { ...currentSettings.practice, [key]: previousValue },
         }));
         showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
       }

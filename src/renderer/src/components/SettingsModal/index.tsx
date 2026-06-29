@@ -22,6 +22,7 @@ function showSettingsError(message: string): void {
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [recentFiles, setRecentFiles] = useState<Array<{ path: string; openedAt: string }>>([]);
+  const requestIdRef = React.useRef<number>(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -54,14 +55,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     key: K,
     value: AppSettings['ui'][K]
   ): Promise<void> => {
-    const previousSettings = settings;
+    const requestId = ++requestIdRef.current;
     const updatedUi = { ...settings.ui, [key]: value };
     setSettings({ ...settings, ui: updatedUi });
     try {
       await window.electronAPI.settings.set('ui', updatedUi);
     } catch {
-      setSettings(previousSettings);
-      showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+      // Only rollback if this is still the latest request
+      if (requestId === requestIdRef.current) {
+        setSettings((currentSettings) => ({
+          ...currentSettings,
+          ui: { ...currentSettings.ui, [key]: currentSettings.ui[key] },
+        }));
+        showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+      }
     }
   };
 
@@ -69,14 +76,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     key: K,
     value: AppSettings['practice'][K]
   ): Promise<void> => {
-    const previousSettings = settings;
+    const requestId = ++requestIdRef.current;
     const updatedPractice = { ...settings.practice, [key]: value };
     setSettings({ ...settings, practice: updatedPractice });
     try {
       await window.electronAPI.settings.set('practice', updatedPractice);
     } catch {
-      setSettings(previousSettings);
-      showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+      // Only rollback if this is still the latest request
+      if (requestId === requestIdRef.current) {
+        setSettings((currentSettings) => ({
+          ...currentSettings,
+          practice: { ...currentSettings.practice, [key]: currentSettings.practice[key] },
+        }));
+        showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+      }
     }
   };
 

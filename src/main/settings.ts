@@ -174,12 +174,42 @@ export function normalizeSettings(value: unknown): AppSettings {
   };
 }
 
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null || a === undefined || b === undefined) return false;
+  if (typeof a !== typeof b) return false;
+
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  if (typeof a === 'object' && typeof b === 'object') {
+    const aObj = a as Record<string, unknown>;
+    const bObj = b as Record<string, unknown>;
+    const aKeys = Object.keys(aObj).sort();
+    const bKeys = Object.keys(bObj).sort();
+
+    if (aKeys.length !== bKeys.length) return false;
+    for (let i = 0; i < aKeys.length; i++) {
+      if (aKeys[i] !== bKeys[i]) return false;
+      if (!deepEqual(aObj[aKeys[i]], bObj[bKeys[i]])) return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
 export function validateSettingsValue<K extends keyof AppSettings>(
   key: K,
   value: unknown
 ): AppSettings[K] {
   const normalized = normalizeSettings({ ...DEFAULT_SETTINGS, [key]: value })[key];
-  if (JSON.stringify(normalized) !== JSON.stringify(value)) {
+  if (!deepEqual(normalized, value)) {
     throw new Error(`Invalid settings value for ${key}`);
   }
   return normalized;

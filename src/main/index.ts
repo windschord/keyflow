@@ -6,6 +6,8 @@ import icon from '../../resources/icon.png?asset';
 import { AppSettings, isSettingsKey, SettingsService, validateSettingsValue } from './settings';
 import { PathAllowlist } from './path-allowlist';
 
+let mainWindowWebContents: Electron.WebContents | null = null;
+
 function createWindow(): BrowserWindow {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -41,24 +43,19 @@ function createWindow(): BrowserWindow {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
 
+  // Store reference to trusted webContents
+  mainWindowWebContents = mainWindow.webContents;
+
+  mainWindow.on('closed', () => {
+    mainWindowWebContents = null;
+  });
+
   return mainWindow;
 }
 
-function isTrustedAppOrigin(pageUrl: string): boolean {
-  const parsedUrl = new URL(pageUrl);
-  if (parsedUrl.protocol === 'file:') return true;
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    return parsedUrl.origin === new URL(process.env['ELECTRON_RENDERER_URL']).origin;
-  }
-  return false;
-}
-
-function isTrustedAppUrl(pageUrl: string): boolean {
-  try {
-    return isTrustedAppOrigin(pageUrl);
-  } catch {
-    return false;
-  }
+function isTrustedAppWebContents(webContents: Electron.WebContents): boolean {
+  // Only trust the specific webContents of our main window
+  return mainWindowWebContents !== null && webContents.id === mainWindowWebContents.id;
 }
 
 // This method will be called when Electron has finished
@@ -111,7 +108,7 @@ app.whenReady().then(() => {
   createWindow();
 
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    if (permission === 'midi' && isTrustedAppUrl(webContents.getURL())) {
+    if (permission === 'midi' && isTrustedAppWebContents(webContents)) {
       callback(true);
     } else {
       callback(false);

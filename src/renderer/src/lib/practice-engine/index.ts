@@ -129,7 +129,13 @@ export class PracticeEngineService {
       );
     }
 
-    this.store.setState({ currentMeasure, currentNoteIndex });
+    // Clear stale note state when advancing to prevent carrying incorrect keys to next step
+    this.store.setState({
+      currentMeasure,
+      currentNoteIndex,
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+    });
 
     this.updateExpectedNotes();
   }

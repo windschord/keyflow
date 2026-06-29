@@ -115,31 +115,12 @@ app.whenReady().then(() => {
     win.loadFile(join(__dirname, '../renderer/index.html'));
   }
 
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    // Only allow midi permissions from our own renderer process
-    const requestingURL = webContents.getURL();
-    const isOwnRenderer =
-      requestingURL.startsWith('file://') ||
-      (is.dev && process.env['ELECTRON_RENDERER_URL'] && requestingURL.startsWith(process.env['ELECTRON_RENDERER_URL']));
-
-    if (!isOwnRenderer) {
-      callback(false);
-      return;
-    }
-
-    // Allow basic MIDI access for practice mode
-    if (permission === 'midi') {
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (permission === 'midi' || permission === 'midiSysex') {
       callback(true);
-      return;
-    }
-
-    // Deny midiSysex (system exclusive messages) - not needed for standard note input
-    if (permission === 'midiSysex') {
+    } else {
       callback(false);
-      return;
     }
-
-    callback(false);
   });
 
   const settingsService = new SettingsService();

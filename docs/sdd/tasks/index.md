@@ -32,11 +32,11 @@
 | Phase 2: データ層・型定義 | 2 | 0 | 2 | 0 | [詳細](phase-2/) @phase-2/ |
 | Phase 3: MIDI & IPC | 1 | 0 | 1 | 0 | [詳細](phase-3/) @phase-3/ |
 | Phase 4: UIコアコンポーネント | 4 | 0 | 0 | 0 | [詳細](phase-4/) @phase-4/ |
-| Phase 5: 練習エンジン統合 | 0 | 0 | 3 | 0 | [詳細](phase-5/) @phase-5/ |
+| Phase 5: 練習エンジン統合 | 0 | 0 | 4 | 0 | [詳細](phase-5/) @phase-5/ |
 | Phase 6: 運指エンジン（DP） | 0 | 0 | 4 | 0 | [詳細](phase-6/) @phase-6/ |
 | Phase 7: パッケージング・QA | 0 | 0 | 2 | 0 | [詳細](phase-7/) @phase-7/ |
 
-**合計**: 22タスク / 推定合計: 約820分（AIエージェント作業時間）
+**合計**: 23タスク / 推定合計: 約870分（AIエージェント作業時間）
 
 ---
 
@@ -61,6 +61,7 @@
 |--------|-------------|------|
 | TASK-014 | src/lib/practice-engine/** | Phase 4 |
 | TASK-015 | src/lib/audio-engine/** | Phase 4 |
+| TASK-021 | src/components/ScoreRenderer/** | TASK-011, TASK-016 |
 
 ### グループD: Phase 6（TASK-017完了後に並列実行可能）
 | タスク | 対象ファイル | 依存 |
@@ -117,6 +118,7 @@
 | TASK-014 | Practice Engine実装（正誤判定・ループ管理） | TODO | Phase 4 | 60min | [詳細](phase-5/TASK-014.md) @phase-5/TASK-014.md |
 | TASK-015 | Audio Engine実装（Tone.js伴奏・メトロノーム） | TODO | Phase 4 | 40min | [詳細](phase-5/TASK-015.md) @phase-5/TASK-015.md |
 | TASK-016 | MIDI→PracticeEngine統合（IPC接続・フルフロー） | TODO | TASK-014, TASK-015 | 40min | [詳細](phase-5/TASK-016.md) @phase-5/TASK-016.md |
+| TASK-021 | 楽譜の自動スクロール・カーソル追従実装（OSMD連携） | TODO | TASK-011, TASK-016 | 50min | [詳細](phase-5/TASK-021.md) @phase-5/TASK-021.md |
 
 ### Phase 6: 運指エンジン（Parncutt-Terzuolo DP）
 *推定期間: 160min（TASK-017後、018〜019は並列可）*

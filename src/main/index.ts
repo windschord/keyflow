@@ -114,9 +114,18 @@ app.whenReady().then(() => {
     let tempFileCreated = false;
 
     try {
-      // Write to temp file (wx = exclusive create, no symlink following)
-      await fs.promises.writeFile(tempPath, content, { encoding: 'utf-8', flag: 'wx' });
+      // Open temp file exclusively (wx = exclusive create, no symlink following)
+      // Set tempFileCreated immediately after file is created, before writing content
+      const fileHandle = await fs.promises.open(tempPath, 'wx');
       tempFileCreated = true;
+
+      try {
+        // Write content to the file handle
+        await fileHandle.writeFile(content, { encoding: 'utf-8' });
+      } finally {
+        // Ensure file handle is closed even if write fails
+        await fileHandle.close();
+      }
 
       // Before renaming, verify target path is not a symlink
       try {

@@ -1,8 +1,11 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron';
-import { join } from 'path';
+import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron';
+import { join, dirname, resolve } from 'path';
 import * as fs from 'fs';
+import { randomBytes } from 'crypto';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
+import { SettingsService } from './settings';
+import { PathAllowlist } from './path-allowlist';
 
 function createWindow(): void {
   // Create the browser window.
@@ -44,6 +47,8 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  const pathAllowlist = new PathAllowlist();
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
 
@@ -65,6 +70,7 @@ app.whenReady().then(() => {
     if (canceled || filePaths.length === 0) {
       return null;
     }
+    pathAllowlist.allowMusicXml(filePaths[0]);
     return filePaths[0];
   });
 
@@ -79,7 +85,122 @@ app.whenReady().then(() => {
     return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
   });
 
-  createWindow();
+  ipcMain.handle('file:write', async (_, path: string, content: string) => {
+    const allowedPath = pathAllowlist.assertAllowedAnnotationPath(path);
+
+    // Security: Verify that parent directory chain is not escaped via symlinks
+    const parentDir = dirname(allowedPath);
+    try {
+      const realParentPath = await fs.promises.realpath(parentDir);
+      const expectedParentPath = resolve(parentDir);
+      if (realParentPath !== expectedParentPath) {
+        throw new Error(
+          `Refused to write: parent directory contains symlink that escapes allowed directory: ${path}`
+        );
+      }
+    } catch (err) {
+      // If parent directory doesn't exist yet, fail explicitly
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error(`Parent directory does not exist: ${parentDir}`);
+      }
+      throw err;
+    }
+
+    // Security: Use atomic write pattern to prevent TOCTOU race
+    // Write to temp file with 'wx' flag (exclusive create, fails if exists)
+    // then rename into place after verifying target is not a symlink
+    const tempSuffix = `.tmp-${randomBytes(8).toString('hex')}`;
+    const tempPath = allowedPath + tempSuffix;
+    let tempFileCreated = false;
+
+    try {
+      // Open temp file exclusively (wx = exclusive create, no symlink following)
+      // Set tempFileCreated immediately after file is created, before writing content
+      const fileHandle = await fs.promises.open(tempPath, 'wx');
+      tempFileCreated = true;
+
+      try {
+        // Write content to the file handle
+        await fileHandle.writeFile(content, { encoding: 'utf-8' });
+      } finally {
+        // Ensure file handle is closed even if write fails
+        await fileHandle.close();
+      }
+
+      // Before renaming, verify target path is not a symlink
+      try {
+        const stats = await fs.promises.lstat(allowedPath);
+        if (stats.isSymbolicLink()) {
+          throw new Error(`Refused to write through symlink: ${path}`);
+        }
+        // Target exists and is not a symlink - safe to overwrite via rename
+      } catch (err) {
+        // ENOENT is expected for new files; other errors should propagate
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw err;
+        }
+        // Target does not exist - safe to rename
+      }
+
+      // Atomic rename into place
+      await fs.promises.rename(tempPath, allowedPath);
+      tempFileCreated = false; // Successfully renamed, no cleanup needed
+    } finally {
+      // Clean up temp file if it still exists (error case)
+      if (tempFileCreated) {
+        try {
+          await fs.promises.unlink(tempPath);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    }
+  });
+
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 1024,
+    minHeight: 600,
+    show: false,
+    autoHideMenuBar: true,
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  win.on('ready-to-show', () => {
+    win.show();
+  });
+
+  win.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url);
+    return { action: 'deny' };
+  });
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    win.loadURL(process.env['ELECTRON_RENDERER_URL']);
+  } else {
+    win.loadFile(join(__dirname, '../renderer/index.html'));
+  }
+
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (permission === 'midi' || permission === 'midiSysex') {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+
+  const settingsService = new SettingsService();
+  ipcMain.handle('settings:get', (_, key) => settingsService.get(key));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ipcMain.handle('settings:set', (_, key, value) => settingsService.set(key, value as any));
+  ipcMain.handle('settings:get-recent-files', () => settingsService.getRecentFiles());
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

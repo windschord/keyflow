@@ -95,7 +95,7 @@ app.whenReady().then(() => {
       const expectedParentPath = resolve(parentDir);
       if (realParentPath !== expectedParentPath) {
         throw new Error(
-          `Refused to write: parent directory contains symlink that escapes allowed directory: ${path}`,
+          `Refused to write: parent directory contains symlink that escapes allowed directory: ${path}`
         );
       }
     } catch (err) {

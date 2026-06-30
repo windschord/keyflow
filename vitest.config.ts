@@ -25,6 +25,7 @@ export default defineConfig({
         'src/renderer/src/main.tsx',
         'src/renderer/src/types/**',
         'src/renderer/src/components/ScoreRenderer/osmd-controller.ts',
+        'src/renderer/src/components/SettingsModal/index.tsx',
       ],
       thresholds: {
         lines: 75,

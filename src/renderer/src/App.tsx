@@ -4,9 +4,12 @@ import { ScoreRenderer } from './components/ScoreRenderer';
 import { PianoKeyboard } from './components/PianoKeyboard';
 import { usePracticeStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
-import { parse, parseMxl, extractXmlFromMxl } from './lib/musicxml-parser';
+import { parse, extractXmlFromMxl } from './lib/musicxml-parser';
+import { SettingsModal } from './components/SettingsModal';
 
 function App(): React.JSX.Element {
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+
   const {
     score,
     musicXmlContent,
@@ -75,8 +78,10 @@ function App(): React.JSX.Element {
             Open File
           </button>
         </div>
-        <Toolbar />
+        <Toolbar onOpenSettings={() => setIsSettingsOpen(true)} />
       </div>
+
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* 2. ScoreRenderer (Flex Grow) */}
       <div style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>

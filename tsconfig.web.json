@@ -11,6 +11,7 @@
   "compilerOptions": {
     "composite": true,
     "jsx": "react-jsx",
+    "types": ["webmidi"],
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,

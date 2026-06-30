@@ -22,6 +22,17 @@ if (process.contextIsolated) {
         read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
         readBinary: (path: string): Promise<ArrayBuffer> =>
           ipcRenderer.invoke('file:read-binary', path),
+        write: (path: string, content: string): Promise<void> =>
+          ipcRenderer.invoke('file:write', path, content),
+      },
+      settings: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        get: (key: string): Promise<any> => ipcRenderer.invoke('settings:get', key),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        set: (key: string, value: any): Promise<void> =>
+          ipcRenderer.invoke('settings:set', key, value),
+        getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
+          ipcRenderer.invoke('settings:get-recent-files'),
       },
     });
   } catch (error) {
@@ -39,6 +50,17 @@ if (process.contextIsolated) {
       read: (path: string): Promise<string> => ipcRenderer.invoke('file:read', path),
       readBinary: (path: string): Promise<ArrayBuffer> =>
         ipcRenderer.invoke('file:read-binary', path),
+      write: (path: string, content: string): Promise<void> =>
+        ipcRenderer.invoke('file:write', path, content),
+    },
+    settings: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      get: (key: string): Promise<any> => ipcRenderer.invoke('settings:get', key),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      set: (key: string, value: any): Promise<void> =>
+        ipcRenderer.invoke('settings:set', key, value),
+      getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
+        ipcRenderer.invoke('settings:get-recent-files'),
     },
   };
 }

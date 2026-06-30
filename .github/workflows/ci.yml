@@ -22,6 +22,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
       - name: Install dependencies
         run: npm install
 
@@ -42,6 +45,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
       - name: Install dependencies
         run: npm install
@@ -64,6 +70,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
       - name: Install dependencies
         run: npm install
 
@@ -81,6 +90,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
       - name: Install dependencies
         run: npm install

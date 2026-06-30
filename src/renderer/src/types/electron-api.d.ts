@@ -5,6 +5,7 @@ export interface ElectronAPI {
     showOpenDialog(): Promise<string | null>;
     read(path: string): Promise<string>;
     readBinary(path: string): Promise<ArrayBuffer>;
+    /** Writes only to main-process approved targets such as `{MusicXMLPath}.annotation.json`. */
     write(path: string, content: string): Promise<void>;
   };
   settings: {

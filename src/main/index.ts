@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
+import { PathAllowlist } from './path-allowlist';
 
 function createWindow(): void {
   // Create the browser window.
@@ -45,6 +46,8 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  const pathAllowlist = new PathAllowlist();
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
 
@@ -66,6 +69,7 @@ app.whenReady().then(() => {
     if (canceled || filePaths.length === 0) {
       return null;
     }
+    pathAllowlist.allowMusicXml(filePaths[0]);
     return filePaths[0];
   });
 
@@ -81,7 +85,8 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('file:write', async (_, path: string, content: string) => {
-    await fs.promises.writeFile(path, content, 'utf-8');
+    const allowedPath = pathAllowlist.assertAllowedAnnotationPath(path);
+    await fs.promises.writeFile(allowedPath, content, 'utf-8');
   });
 
   const win = new BrowserWindow({

@@ -86,6 +86,21 @@ app.whenReady().then(() => {
 
   ipcMain.handle('file:write', async (_, path: string, content: string) => {
     const allowedPath = pathAllowlist.assertAllowedAnnotationPath(path);
+
+    // Security: Check if the target path or any component is a symlink
+    // to prevent writes through symlinks that could bypass the allowlist
+    try {
+      const stats = await fs.promises.lstat(allowedPath);
+      if (stats.isSymbolicLink()) {
+        throw new Error(`Refused to write through symlink: ${path}`);
+      }
+    } catch (err) {
+      // ENOENT is expected for new files; other errors should propagate
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
+
     await fs.promises.writeFile(allowedPath, content, 'utf-8');
   });
 

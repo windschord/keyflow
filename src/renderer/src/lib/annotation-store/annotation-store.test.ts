@@ -85,6 +85,37 @@ describe('AnnotationStoreService', () => {
     expect(ann?.isAISuggested).toBe(false);
   });
 
+  it('isDirty works correctly', async () => {
+    // Initial state
+    expect(store.isDirty()).toBe(false);
+
+    // After setting a finger
+    store.setFinger('N1', 3);
+    expect(store.isDirty()).toBe(true);
+
+    // Mock load to set a valid path for saving
+    const mockData = {
+      schemaVersion: '1.0',
+      musicXmlPath: '/test.xml',
+      updatedAt: '2026-06-21T12:00:00Z',
+      annotations: [],
+    };
+    // @ts-expect-error test mock
+    vi.mocked(window.electronAPI.file.read).mockResolvedValue(JSON.stringify(mockData));
+    await store.load('/test.xml');
+
+    // Load resets dirty state
+    expect(store.isDirty()).toBe(false);
+
+    // Set finger again to make dirty
+    store.setFinger('N1', 3);
+    expect(store.isDirty()).toBe(true);
+
+    // After save
+    await store.save();
+    expect(store.isDirty()).toBe(false);
+  });
+
   it('save and load interact with IPC', async () => {
     const mockData = {
       schemaVersion: '1.0',

@@ -168,6 +168,26 @@ describe('PracticeEngineService', () => {
     expect(judgement.advanced).toBe(true); // Now chord is complete
   });
 
+  it('コード演奏中に余分な鍵が押されている場合はincorrectとして扱う', () => {
+    mockStore.expectedNotes = [mockNotesMeasure1[0], mockNotesMeasure1[1]]; // C4 (60), E4 (64)
+    mockStore.pressedKeys = new Set([61]); // Extra key
+
+    const judgement = engine.handleNoteOn({
+      midiNumber: 60,
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+
+    expect(judgement.result).toBe('incorrect');
+    expect(judgement.advanced).toBe(false);
+    expect(mockStore.currentNoteIndex).toBe(0);
+    expect(mockStore.stats.correctNotes).toBe(0);
+    expect(mockStore.stats.incorrectNotes).toBe(1);
+    expect(mockStore.incorrectKeys.has(61)).toBe(true);
+    expect(mockStore.incorrectKeys.has(60)).toBe(false);
+  });
+
   it('右手モードで左手パートの音符は判定をスキップする', () => {
     mockStore.practiceMode = 'right';
     mockStore.expectedNotes = [mockNotesMeasure1[2]]; // C3 (48) from Left Hand (P2)

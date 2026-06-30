@@ -61,7 +61,11 @@
 |--------|-------------|------|
 | TASK-014 | src/lib/practice-engine/** | Phase 4 |
 | TASK-015 | src/lib/audio-engine/** | Phase 4 |
-| TASK-021 | src/components/ScoreRenderer/** | TASK-011, TASK-016 |
+
+### グループC-2: Phase 5（TASK-016完了後に実行）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-023 | src/components/ScoreRenderer/** | TASK-011, TASK-016 |
 
 ### グループD: Phase 6（TASK-017完了後に並列実行可能）
 | タスク | 対象ファイル | 依存 |
@@ -118,7 +122,7 @@
 | TASK-014 | Practice Engine実装（正誤判定・ループ管理） | TODO | Phase 4 | 60min | [詳細](phase-5/TASK-014.md) @phase-5/TASK-014.md |
 | TASK-015 | Audio Engine実装（Tone.js伴奏・メトロノーム） | TODO | Phase 4 | 40min | [詳細](phase-5/TASK-015.md) @phase-5/TASK-015.md |
 | TASK-016 | MIDI→PracticeEngine統合（IPC接続・フルフロー） | TODO | TASK-014, TASK-015 | 40min | [詳細](phase-5/TASK-016.md) @phase-5/TASK-016.md |
-| TASK-021 | 楽譜の自動スクロール・カーソル追従実装（OSMD連携） | TODO | TASK-011, TASK-016 | 50min | [詳細](phase-5/TASK-021.md) @phase-5/TASK-021.md |
+| TASK-023 | 楽譜の自動スクロール・カーソル追従実装（OSMD連携） | TODO | TASK-011, TASK-016 | 50min | [詳細](phase-5/TASK-023.md) @phase-5/TASK-023.md |
 
 ### Phase 6: 運指エンジン（Parncutt-Terzuolo DP）
 *推定期間: 160min（TASK-017後、018〜019は並列可）*

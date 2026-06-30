@@ -48,9 +48,18 @@ export class PracticeEngineService {
         stats.correctNotes += 1;
         this.advancePosition();
         advanced = true;
-      } else {
+      } else if (chordStatus === 'partial') {
         // Partial chord, do nothing yet
         result = 'correct'; // But don't advance
+      } else {
+        result = 'incorrect';
+        const expectedMidiNumbers = new Set(filteredExpected.map((note) => note.midiNumber));
+        for (const key of pressedKeys) {
+          if (!expectedMidiNumbers.has(key)) {
+            incorrectKeys.add(key);
+          }
+        }
+        stats.incorrectNotes += 1;
       }
     } else {
       result = 'incorrect';

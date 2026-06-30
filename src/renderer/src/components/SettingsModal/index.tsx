@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { AppSettings } from '../../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface AppSettings {
-  ui: { theme: 'light' | 'dark' | 'system'; language: string; zoom: number; pianoHeight: number };
-  practice: { defaultErrorMode: 'wait' | 'pass'; metronomeEnabled: boolean };
-}
+type SettingsModalState = Pick<AppSettings, 'ui' | 'practice'>;
 
-const DEFAULT_SETTINGS: AppSettings = {
+const DEFAULT_SETTINGS: SettingsModalState = {
   ui: { theme: 'light', language: 'ja', zoom: 1.0, pianoHeight: 120 },
   practice: { defaultErrorMode: 'wait', metronomeEnabled: false },
 };
@@ -20,7 +18,7 @@ function showSettingsError(message: string): void {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<SettingsModalState>(DEFAULT_SETTINGS);
   const [recentFiles, setRecentFiles] = useState<Array<{ path: string; openedAt: string }>>([]);
   const requestIdRef = React.useRef<number>(0);
 

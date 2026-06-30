@@ -1,3 +1,5 @@
+import { AppSettings } from './settings';
+
 export interface ElectronAPI {
   file: {
     showOpenDialog(): Promise<string | null>;
@@ -6,10 +8,8 @@ export interface ElectronAPI {
     write(path: string, content: string): Promise<void>;
   };
   settings: {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    get(key: string): Promise<any>;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    set(key: string, value: any): Promise<void>;
+    get<K extends keyof AppSettings>(key: K): Promise<AppSettings[K]>;
+    set<K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void>;
     getRecentFiles(): Promise<Array<{ path: string; openedAt: string }>>;
   };
 }

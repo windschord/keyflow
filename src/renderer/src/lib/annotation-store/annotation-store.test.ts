@@ -87,7 +87,9 @@ describe('AnnotationStoreService', () => {
 
   it('save and load interact with IPC', async () => {
     const mockData = {
-      version: '1.0',
+      schemaVersion: '1.0',
+      musicXmlPath: '/test.xml',
+      updatedAt: '2026-06-21T12:00:00Z',
       annotations: [{ noteId: 'N1', fingerNumber: 1, isAISuggested: false, isApproved: true }],
     };
 
@@ -112,6 +114,9 @@ describe('AnnotationStoreService', () => {
     const writeArg = vi.mocked(window.electronAPI.file.write).mock.calls[0][1] as string;
     const writtenData = JSON.parse(writeArg);
 
+    expect(writtenData.schemaVersion).toBe('1.0');
+    expect(writtenData.musicXmlPath).toBe('/test.xml');
+    expect(writtenData.updatedAt).toBeDefined();
     expect(writtenData.annotations).toHaveLength(2);
     expect(store.isDirty()).toBe(false);
   });

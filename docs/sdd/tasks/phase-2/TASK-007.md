@@ -1,6 +1,6 @@
 # TASK-007: App Settings実装（electron-store + ファイル履歴）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 20分
 **依存**: TASK-004
 

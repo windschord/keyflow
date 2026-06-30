@@ -89,8 +89,12 @@ export class AnnotationStoreService {
   async save(): Promise<void> {
     if (!this.currentFilePath) return;
 
+    const musicXmlPath = this.currentFilePath.replace(/\.annotation\.json$/, '');
+
     const data: AnnotationFile = {
-      version: '1.0',
+      schemaVersion: '1.0',
+      musicXmlPath,
+      updatedAt: new Date().toISOString(),
       annotations: Array.from(this.annotations.values()),
     };
 

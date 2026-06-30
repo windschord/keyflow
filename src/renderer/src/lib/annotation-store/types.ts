@@ -1,6 +1,8 @@
 import { Annotation } from '../../types';
 
 export interface AnnotationFile {
-  version: string;
+  schemaVersion: string;
+  musicXmlPath: string;
+  updatedAt: string;
   annotations: Annotation[];
 }

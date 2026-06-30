@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron';
-import { join } from 'path';
+import { join, dirname, resolve } from 'path';
 import * as fs from 'fs';
+import { randomBytes } from 'crypto';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
@@ -87,21 +88,64 @@ app.whenReady().then(() => {
   ipcMain.handle('file:write', async (_, path: string, content: string) => {
     const allowedPath = pathAllowlist.assertAllowedAnnotationPath(path);
 
-    // Security: Check if the target path or any component is a symlink
-    // to prevent writes through symlinks that could bypass the allowlist
+    // Security: Verify that parent directory chain is not escaped via symlinks
+    const parentDir = dirname(allowedPath);
     try {
-      const stats = await fs.promises.lstat(allowedPath);
-      if (stats.isSymbolicLink()) {
-        throw new Error(`Refused to write through symlink: ${path}`);
+      const realParentPath = await fs.promises.realpath(parentDir);
+      const expectedParentPath = resolve(parentDir);
+      if (realParentPath !== expectedParentPath) {
+        throw new Error(
+          `Refused to write: parent directory contains symlink that escapes allowed directory: ${path}`,
+        );
       }
     } catch (err) {
-      // ENOENT is expected for new files; other errors should propagate
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw err;
+      // If parent directory doesn't exist yet, fail explicitly
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error(`Parent directory does not exist: ${parentDir}`);
       }
+      throw err;
     }
 
-    await fs.promises.writeFile(allowedPath, content, 'utf-8');
+    // Security: Use atomic write pattern to prevent TOCTOU race
+    // Write to temp file with 'wx' flag (exclusive create, fails if exists)
+    // then rename into place after verifying target is not a symlink
+    const tempSuffix = `.tmp-${randomBytes(8).toString('hex')}`;
+    const tempPath = allowedPath + tempSuffix;
+    let tempFileCreated = false;
+
+    try {
+      // Write to temp file (wx = exclusive create, no symlink following)
+      await fs.promises.writeFile(tempPath, content, { encoding: 'utf-8', flag: 'wx' });
+      tempFileCreated = true;
+
+      // Before renaming, verify target path is not a symlink
+      try {
+        const stats = await fs.promises.lstat(allowedPath);
+        if (stats.isSymbolicLink()) {
+          throw new Error(`Refused to write through symlink: ${path}`);
+        }
+        // Target exists and is not a symlink - safe to overwrite via rename
+      } catch (err) {
+        // ENOENT is expected for new files; other errors should propagate
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw err;
+        }
+        // Target does not exist - safe to rename
+      }
+
+      // Atomic rename into place
+      await fs.promises.rename(tempPath, allowedPath);
+      tempFileCreated = false; // Successfully renamed, no cleanup needed
+    } finally {
+      // Clean up temp file if it still exists (error case)
+      if (tempFileCreated) {
+        try {
+          await fs.promises.unlink(tempPath);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+    }
   });
 
   const win = new BrowserWindow({

@@ -1,6 +1,6 @@
 # TASK-016: MIDI→PracticeEngine統合（IPC接続・フルフロー）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 40分
 **依存**: TASK-014, TASK-015
 

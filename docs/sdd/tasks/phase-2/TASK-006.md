@@ -1,6 +1,6 @@
 # TASK-006: Annotation Store実装（CRUD + JSON永続化）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 40分
 **依存**: TASK-004
 

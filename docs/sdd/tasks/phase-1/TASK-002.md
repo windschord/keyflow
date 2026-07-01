@@ -1,6 +1,6 @@
 # TASK-002: 開発ツール設定（ESLint/Prettier/Vitest/TypeScript strict）
 
-**ステータス**: REVIEW
+**ステータス**: DONE
 **推定工数**: 20分
 **依存**: TASK-001
 

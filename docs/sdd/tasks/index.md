@@ -28,11 +28,11 @@
 
 | フェーズ | 完了 | 進行中 | 未着手 | ブロック | 詳細 |
 |---------|------|--------|--------|----------|------|
-| Phase 1: 開発環境構築 | 0 | 0 | 3 | 0 | [詳細](phase-1/) @phase-1/ |
-| Phase 2: データ層・型定義 | 2 | 0 | 2 | 0 | [詳細](phase-2/) @phase-2/ |
-| Phase 3: MIDI & IPC | 1 | 0 | 1 | 0 | [詳細](phase-3/) @phase-3/ |
+| Phase 1: 開発環境構築 | 2 | 0 | 1 | 0 | [詳細](phase-1/) @phase-1/ |
+| Phase 2: データ層・型定義 | 4 | 0 | 0 | 0 | [詳細](phase-2/) @phase-2/ |
+| Phase 3: MIDI & IPC | 2 | 0 | 0 | 0 | [詳細](phase-3/) @phase-3/ |
 | Phase 4: UIコアコンポーネント | 4 | 0 | 0 | 0 | [詳細](phase-4/) @phase-4/ |
-| Phase 5: 練習エンジン統合 | 0 | 0 | 4 | 0 | [詳細](phase-5/) @phase-5/ |
+| Phase 5: 練習エンジン統合 | 3 | 0 | 1 | 0 | [詳細](phase-5/) @phase-5/ |
 | Phase 6: 運指エンジン（DP） | 0 | 0 | 4 | 0 | [詳細](phase-6/) @phase-6/ |
 | Phase 7: パッケージング・QA | 0 | 0 | 2 | 0 | [詳細](phase-7/) @phase-7/ |
 
@@ -82,8 +82,8 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-001 | Electronプロジェクト初期化（Vite+React+TS） | TODO | - | 30min | [詳細](phase-1/TASK-001.md) @phase-1/TASK-001.md |
-| TASK-002 | 開発ツール設定（ESLint/Prettier/Vitest/strict） | TODO | TASK-001 | 20min | [詳細](phase-1/TASK-002.md) @phase-1/TASK-002.md |
+| TASK-001 | Electronプロジェクト初期化（Vite+React+TS） | DONE | - | 30min | [詳細](phase-1/TASK-001.md) @phase-1/TASK-001.md |
+| TASK-002 | 開発ツール設定（ESLint/Prettier/Vitest/strict） | DONE | TASK-001 | 20min | [詳細](phase-1/TASK-002.md) @phase-1/TASK-002.md |
 | TASK-003 | electron-builder + node-midi ビルド設定 | TODO | TASK-002 | 40min | [詳細](phase-1/TASK-003.md) @phase-1/TASK-003.md |
 
 ### Phase 2: データ層・型定義
@@ -93,15 +93,15 @@
 |----------|---------|-----------|------|------|-----------|
 | TASK-004 | 内部データモデル型定義（Score/Note/Annotation等） | DONE | Phase 1 | 30min | [詳細](phase-2/TASK-004.md) @phase-2/TASK-004.md |
 | TASK-005 | MusicXML Parser実装（.xml/.mxl対応） | DONE | TASK-004 | 60min | [詳細](phase-2/TASK-005.md) @phase-2/TASK-005.md |
-| TASK-006 | Annotation Store実装（CRUD+JSON永続化） | TODO | TASK-004 | 40min | [詳細](phase-2/TASK-006.md) @phase-2/TASK-006.md |
-| TASK-007 | App Settings実装（electron-store+ファイル履歴） | TODO | TASK-004 | 20min | [詳細](phase-2/TASK-007.md) @phase-2/TASK-007.md |
+| TASK-006 | Annotation Store実装（CRUD+JSON永続化） | DONE | TASK-004 | 40min | [詳細](phase-2/TASK-006.md) @phase-2/TASK-006.md |
+| TASK-007 | App Settings実装（electron-store+ファイル履歴） | DONE | TASK-004 | 20min | [詳細](phase-2/TASK-007.md) @phase-2/TASK-007.md |
 
 ### Phase 3: MIDI & IPC（順次実行）
 *推定期間: 60min*
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-008 | MIDI Controller実装（node-midi + Main Process） | TODO | Phase 2 | 40min | [詳細](phase-3/TASK-008.md) @phase-3/TASK-008.md |
+| TASK-008 | MIDI Controller実装（Web MIDI API・設計変更済） | DONE | Phase 2 | 40min | [詳細](phase-3/TASK-008.md) @phase-3/TASK-008.md |
 | TASK-009 | IPC Bridge実装（Preload Script + 型付きAPI） | DONE | TASK-008 | 20min | [詳細](phase-3/TASK-009.md) @phase-3/TASK-009.md |
 
 ### Phase 4: UIコアコンポーネント
@@ -119,8 +119,8 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-014 | Practice Engine実装（正誤判定・ループ管理） | TODO | Phase 4 | 60min | [詳細](phase-5/TASK-014.md) @phase-5/TASK-014.md |
-| TASK-015 | Audio Engine実装（Tone.js伴奏・メトロノーム） | TODO | Phase 4 | 40min | [詳細](phase-5/TASK-015.md) @phase-5/TASK-015.md |
+| TASK-014 | Practice Engine実装（正誤判定・ループ管理） | DONE | Phase 4 | 60min | [詳細](phase-5/TASK-014.md) @phase-5/TASK-014.md |
+| TASK-015 | Audio Engine実装（Tone.js伴奏・メトロノーム） | DONE | Phase 4 | 40min | [詳細](phase-5/TASK-015.md) @phase-5/TASK-015.md |
 | TASK-016 | MIDI→PracticeEngine統合（IPC接続・フルフロー） | DONE | TASK-014, TASK-015 | 40min | [詳細](phase-5/TASK-016.md) @phase-5/TASK-016.md |
 | TASK-023 | 楽譜の自動スクロール・カーソル追従実装（OSMD連携） | TODO | TASK-011, TASK-016 | 50min | [詳細](phase-5/TASK-023.md) @phase-5/TASK-023.md |
 

@@ -16,6 +16,11 @@ Renderer側はこのAPIのみを通じてMain Processと通信する（`nodeInte
 - `src/preload/index.ts` — contextBridge API定義
 - `src/renderer/src/types/electron-api.d.ts` — Renderer側の型宣言
 
+## 実装メモ（MIDI IPC部分について）
+
+TASK-008の設計変更（node-midi → Web MIDI API）に伴い、`midi:note-on` / `midi:note-off` のIPCチャンネルは不要となった。
+実際の `src/preload/index.ts` には file/settings APIのみが実装されており、midi IPC部分は含まれていない。
+
 ## 実装すべきAPI
 
 ```typescript

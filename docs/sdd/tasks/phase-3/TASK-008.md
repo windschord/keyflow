@@ -22,87 +22,19 @@ IPC通信のオーバーヘッドがなく、レイテンシも低い。
 
 ---
 
-## 説明（当初設計）
+## 実装概要
 
-Electron Main Process上でnode-midiを使ってMIDIデバイスを管理し、
-ノートオン/オフイベントをIPCでRenderer Processへ転送する。
-
-## 対象ファイル（実際の実装）
-
-- `src/renderer/src/lib/midi/web-midi.ts` — Web MIDI APIラッパー（実装済）
-
-## 参照設計
-
-- [design/components/midi-controller.md](../../design/components/midi-controller.md)
-- [design/decisions/DEC-004.md](../../design/decisions/DEC-004.md)
-
-## 実装すべきインターフェース
-
-```typescript
-import midi from 'midi';
-import { BrowserWindow } from 'electron';
-
-export class MidiControllerService {
-  private input: midi.Input;
-  private win: BrowserWindow | null;
-
-  constructor(win: BrowserWindow);
-  initialize(): void;
-  listDevices(): MidiDevice[];
-  selectDevice(index: number): void;
-  dispose(): void;
-
-  private onMessage(deltaTime: number, message: [number, number, number]): void;
-  // message[0] & 0xF0 === 0x90 → NoteOn
-  // message[0] & 0xF0 === 0x80 → NoteOff
-}
-```
-
-## IPCイベント
-
-```typescript
-// Main → Renderer（Renderer側でlistenする）
-win.webContents.send('midi:note-on', {
-  noteNumber: message[1],
-  velocity: message[2],
-  channel: (message[0] & 0x0F) + 1,
-  timestamp: Date.now(),
-} satisfies MidiNoteEvent);
-
-win.webContents.send('midi:note-off', { ... });
-win.webContents.send('midi:devices-changed', devices);
-```
-
-## Main Process への組み込み
-
-```typescript
-// src/main/index.ts
-app.whenReady().then(() => {
-  const win = createWindow();
-  const midiController = new MidiControllerService(win);
-  midiController.initialize();
-
-  // IPCハンドラー（Rendererからのデバイス一覧取得リクエスト）
-  ipcMain.handle('midi:get-devices', () => midiController.listDevices());
-  ipcMain.on('midi:select-device', (_, index) => midiController.selectDevice(index));
-});
-```
-
-## 実装手順（TDD）
-
-1. `midi-controller.test.ts` を作成（node-midiをモックしてテスト）:
-   - `listDevices()` が正しいデバイス名の配列を返す
-   - NoteOnメッセージ(0x90)が `midi:note-on` IPCイベントとして送信される
-   - デバイス未接続時に `listDevices()` が空配列を返す
-2. `MidiControllerService` を実装
-3. `src/main/index.ts` に組み込み
-
-## 受入基準
-
-- [ ] `listDevices()` が接続デバイスの配列を返す
-- [ ] NoteOnイベントが正しいnoteNumber/velocityで転送される
-- [ ] デバイス未接続でもアプリがクラッシュしない
-- [ ] `dispose()` がMIDI入力をクローズする
-- [ ] テストが4件以上ありすべてパス
+`src/renderer/src/lib/midi/web-midi.ts` に Web MIDI API ラッパーとして実装済み。
+`navigator.requestMIDIAccess()` でデバイス一覧を取得し、NoteOn/NoteOff イベントをコールバックで通知する。
 
 **依存関係**: Phase 2完了
+
+---
+
+## 廃止済み設計（参考）
+
+> 以下は当初の node-midi + IPC 方式の設計仕様。設計変更により実装されていない。
+
+当初の設計ではElectron Main Process上でnode-midiを使いMIDIデバイスを管理し、
+`MidiControllerService` → `ipcMain` → `win.webContents.send()` で
+ノートオン/オフイベントをRenderer Processへ転送する予定だった。

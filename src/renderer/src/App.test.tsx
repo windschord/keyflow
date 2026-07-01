@@ -2,6 +2,45 @@ import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import { vi } from 'vitest';
 
+// Mock Tone.js globally to avoid AudioContext errors during testing
+vi.mock('tone', () => {
+  const mockTransport = {
+    bpm: { value: 120 },
+    start: vi.fn(),
+    stop: vi.fn(),
+    pause: vi.fn(),
+  };
+
+  return {
+    getTransport: vi.fn(() => mockTransport),
+    Synth: vi.fn().mockImplementation(() => ({
+      toDestination: vi.fn().mockReturnThis(),
+      triggerAttackRelease: vi.fn(),
+      dispose: vi.fn(),
+    })),
+    PolySynth: vi.fn().mockImplementation(() => ({
+      toDestination: vi.fn().mockReturnThis(),
+      triggerAttackRelease: vi.fn(),
+      dispose: vi.fn(),
+    })),
+    Sequence: vi.fn().mockImplementation(() => ({
+      start: vi.fn(),
+      stop: vi.fn(),
+      dispose: vi.fn(),
+    })),
+    Part: vi.fn().mockImplementation(() => ({
+      start: vi.fn().mockReturnThis(),
+      dispose: vi.fn(),
+    })),
+    Frequency: vi.fn((midiNumber) => ({
+      toNote: () => {
+        if (midiNumber === 60) return 'C4';
+        return 'A4'; // default
+      },
+    })),
+  };
+});
+
 vi.mock('./components/ScoreRenderer', () => ({
   ScoreRenderer: () => <div data-testid="mock-score-renderer">ScoreRenderer</div>,
 }));

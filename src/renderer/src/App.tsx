@@ -6,9 +6,12 @@ import { usePracticeStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { parse, extractXmlFromMxl } from './lib/musicxml-parser';
 import { SettingsModal } from './components/SettingsModal';
+import { usePractice } from './hooks/usePractice';
 
 function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+
+  const { practiceEngine } = usePractice();
 
   const {
     score,
@@ -20,6 +23,8 @@ function App(): React.JSX.Element {
     zoom,
     pianoHeight,
     setScore,
+    currentMeasure,
+    currentNoteIndex,
   } = usePracticeStore(
     useShallow((s) => ({
       score: s.score,
@@ -31,8 +36,13 @@ function App(): React.JSX.Element {
       zoom: s.zoom,
       pianoHeight: s.pianoHeight,
       setScore: s.setScore,
+      currentMeasure: s.currentMeasure,
+      currentNoteIndex: s.currentNoteIndex,
     }))
   );
+
+  const currentNoteId =
+    score?.measures.find((m) => m.number === currentMeasure)?.notes[currentNoteIndex]?.id || null;
 
   const handleOpenFile = async () => {
     if (!window.electronAPI) {
@@ -88,7 +98,7 @@ function App(): React.JSX.Element {
         <ScoreRenderer
           score={score}
           musicXmlContent={musicXmlContent}
-          currentNoteId={null}
+          currentNoteId={currentNoteId}
           practiceMode={practiceMode}
           loopRange={null}
           zoom={zoom}
@@ -104,7 +114,22 @@ function App(): React.JSX.Element {
           incorrectKeys={incorrectKeys}
           annotations={[]}
           practiceMode={practiceMode}
-          onKeyClick={() => {}}
+          onKeyClick={(midiNumber) => {
+            practiceEngine.handleNoteOn({
+              midiNumber,
+              velocity: 100,
+              type: 'note-on',
+              timestamp: Date.now(),
+            });
+            setTimeout(() => {
+              practiceEngine.handleNoteOff({
+                midiNumber,
+                velocity: 0,
+                type: 'note-off',
+                timestamp: Date.now(),
+              });
+            }, 200); // Simulate momentary click
+          }}
           height={pianoHeight}
         />
       </div>

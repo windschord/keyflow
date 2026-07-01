@@ -121,7 +121,7 @@
 |----------|---------|-----------|------|------|-----------|
 | TASK-014 | Practice Engine実装（正誤判定・ループ管理） | TODO | Phase 4 | 60min | [詳細](phase-5/TASK-014.md) @phase-5/TASK-014.md |
 | TASK-015 | Audio Engine実装（Tone.js伴奏・メトロノーム） | TODO | Phase 4 | 40min | [詳細](phase-5/TASK-015.md) @phase-5/TASK-015.md |
-| TASK-016 | MIDI→PracticeEngine統合（IPC接続・フルフロー） | TODO | TASK-014, TASK-015 | 40min | [詳細](phase-5/TASK-016.md) @phase-5/TASK-016.md |
+| TASK-016 | MIDI→PracticeEngine統合（IPC接続・フルフロー） | DONE | TASK-014, TASK-015 | 40min | [詳細](phase-5/TASK-016.md) @phase-5/TASK-016.md |
 | TASK-023 | 楽譜の自動スクロール・カーソル追従実装（OSMD連携） | TODO | TASK-011, TASK-016 | 50min | [詳細](phase-5/TASK-023.md) @phase-5/TASK-023.md |
 
 ### Phase 6: 運指エンジン（Parncutt-Terzuolo DP）

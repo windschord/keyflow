@@ -3,15 +3,17 @@ import { MidiNoteEvent, NoteJudgement, Note, PracticeMode, Part } from '../../ty
 import { judgeChord } from './judgement';
 import { checkLoopBoundary } from './loop-manager';
 
-export class PracticeEngineService {
-  private store: PracticeStore;
+import { StoreApi } from 'zustand';
 
-  constructor(store: PracticeStore) {
+export class PracticeEngineService {
+  private store: StoreApi<PracticeStore>;
+
+  constructor(store: StoreApi<PracticeStore>) {
     this.store = store;
   }
 
   handleNoteOn(event: MidiNoteEvent): NoteJudgement {
-    const state = this.store;
+    const state = this.store.getState();
     const { practiceMode, errorMode, expectedNotes, pressedKeys, incorrectKeys, stats } = state;
 
     // Add to pressed keys
@@ -76,23 +78,27 @@ export class PracticeEngineService {
     stats.accuracy = stats.totalNotes > 0 ? stats.correctNotes / stats.totalNotes : 0;
 
     // Update state
-    this.store.pressedKeys = new Set(pressedKeys);
-    this.store.incorrectKeys = new Set(incorrectKeys);
-    this.store.stats = { ...stats };
+    this.store.setState({
+      pressedKeys: new Set(pressedKeys),
+      incorrectKeys: new Set(incorrectKeys),
+      stats: { ...stats },
+    });
 
     return { result, note: filteredExpected[0] || null, advanced };
   }
 
   handleNoteOff(event: MidiNoteEvent): void {
-    const { pressedKeys, incorrectKeys } = this.store;
+    const { pressedKeys, incorrectKeys } = this.store.getState();
     pressedKeys.delete(event.midiNumber);
     incorrectKeys.delete(event.midiNumber);
-    this.store.pressedKeys = new Set(pressedKeys);
-    this.store.incorrectKeys = new Set(incorrectKeys);
+    this.store.setState({
+      pressedKeys: new Set(pressedKeys),
+      incorrectKeys: new Set(incorrectKeys),
+    });
   }
 
   advancePosition(): void {
-    const state = this.store;
+    const state = this.store.getState();
     if (!state.score) return;
 
     let { currentMeasure, currentNoteIndex } = state;
@@ -123,40 +129,45 @@ export class PracticeEngineService {
       );
     }
 
-    this.store.currentMeasure = currentMeasure;
-    this.store.currentNoteIndex = currentNoteIndex;
+    this.store.setState({
+      currentMeasure,
+      currentNoteIndex,
+    });
 
     this.updateExpectedNotes();
   }
 
   resetToMeasure(measureNumber: number): void {
-    this.store.currentMeasure = measureNumber;
-    this.store.currentNoteIndex = 0;
-    this.store.pressedKeys.clear();
-    this.store.incorrectKeys.clear();
+    this.store.setState({
+      currentMeasure: measureNumber,
+      currentNoteIndex: 0,
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+    });
     this.updateExpectedNotes();
   }
 
   setLoop(start: number, end: number): void {
-    this.store.setLoopRange(start, end);
+    this.store.getState().setLoopRange(start, end);
   }
 
   clearLoop(): void {
-    if (this.store.loopEnabled) {
-      this.store.toggleLoop();
+    const state = this.store.getState();
+    if (state.loopEnabled) {
+      state.toggleLoop();
     }
   }
 
   private updateExpectedNotes(): void {
-    const state = this.store;
+    const state = this.store.getState();
     if (!state.score) {
-      this.store.expectedNotes = [];
+      this.store.setState({ expectedNotes: [] });
       return;
     }
 
     const measure = state.score.measures.find((m) => m.number === state.currentMeasure);
     if (!measure || !measure.notes || measure.notes.length === 0) {
-      this.store.expectedNotes = [];
+      this.store.setState({ expectedNotes: [] });
       return;
     }
 
@@ -175,7 +186,7 @@ export class PracticeEngineService {
       }
     }
 
-    this.store.expectedNotes = expected.filter((n) => !!n);
+    this.store.setState({ expectedNotes: expected.filter((n) => !!n) });
   }
 
   private filterExpectedNotes(notes: Note[], practiceMode: PracticeMode, parts: Part[]): Note[] {

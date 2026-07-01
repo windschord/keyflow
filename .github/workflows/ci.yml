@@ -26,7 +26,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: ESLint
         run: npm run lint
@@ -50,7 +50,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: textlint (Markdown)
         run: npm run lint:jp:md
@@ -74,7 +74,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: Run tests with coverage
         run: npm run test:coverage
@@ -95,7 +95,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: Build
         run: npm run build

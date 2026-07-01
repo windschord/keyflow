@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron';
 import { join, dirname, resolve } from 'path';
+import midi from 'midi';
 import * as fs from 'fs';
 import { randomBytes } from 'crypto';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
@@ -198,6 +199,9 @@ app.whenReady().then(() => {
 
   const settingsService = new SettingsService();
   ipcMain.handle('settings:get', (_, key) => settingsService.get(key));
+
+  // Verify midi is available
+  console.log('Midi available:', !!midi);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ipcMain.handle('settings:set', (_, key, value) => settingsService.set(key, value as any));
   ipcMain.handle('settings:get-recent-files', () => settingsService.getRecentFiles());

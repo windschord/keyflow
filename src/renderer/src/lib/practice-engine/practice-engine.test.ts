@@ -87,12 +87,16 @@ describe('PracticeEngineService', () => {
       loopStart: 1,
       loopEnd: 2,
       stats: { totalNotes: 0, correctNotes: 0, incorrectNotes: 0, accuracy: 0 },
-      setPracticeMode: (m) => (mockStore.practiceMode = m),
+      setPracticeMode: (m) => {
+        mockStore.practiceMode = m;
+      },
       setLoopRange: (start, end) => {
         mockStore.loopStart = start;
         mockStore.loopEnd = end;
       },
-      toggleLoop: () => (mockStore.loopEnabled = !mockStore.loopEnabled),
+      toggleLoop: () => {
+        mockStore.loopEnabled = !mockStore.loopEnabled;
+      },
       score: mockScore,
       musicXmlPath: null,
       musicXmlContent: null,
@@ -108,7 +112,15 @@ describe('PracticeEngineService', () => {
       toggleSidebar: () => {},
     } as PracticeStore;
 
-    engine = new PracticeEngineService(mockStore);
+    const storeApiMock = {
+      getState: () => mockStore,
+      setState: (partial: Partial<PracticeStore>) => {
+        Object.assign(mockStore, partial);
+      },
+    };
+
+    // @ts-expect-error Mocking StoreApi specifically for this test
+    engine = new PracticeEngineService(storeApiMock);
   });
 
   it('正しい音符を押すと次の音符に進む', () => {

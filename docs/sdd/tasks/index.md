@@ -28,11 +28,11 @@
 
 | フェーズ | 完了 | 進行中 | 未着手 | ブロック | 詳細 |
 |---------|------|--------|--------|----------|------|
-| Phase 1: 開発環境構築 | 0 | 0 | 3 | 0 | [詳細](phase-1/) @phase-1/ |
-| Phase 2: データ層・型定義 | 2 | 0 | 2 | 0 | [詳細](phase-2/) @phase-2/ |
-| Phase 3: MIDI & IPC | 1 | 0 | 1 | 0 | [詳細](phase-3/) @phase-3/ |
+| Phase 1: 開発環境構築 | 2 | 0 | 1 | 0 | [詳細](phase-1/) @phase-1/ |
+| Phase 2: データ層・型定義 | 4 | 0 | 0 | 0 | [詳細](phase-2/) @phase-2/ |
+| Phase 3: MIDI & IPC | 2 | 0 | 0 | 0 | [詳細](phase-3/) @phase-3/ |
 | Phase 4: UIコアコンポーネント | 4 | 0 | 0 | 0 | [詳細](phase-4/) @phase-4/ |
-| Phase 5: 練習エンジン統合 | 0 | 0 | 4 | 0 | [詳細](phase-5/) @phase-5/ |
+| Phase 5: 練習エンジン統合 | 3 | 0 | 1 | 0 | [詳細](phase-5/) @phase-5/ |
 | Phase 6: 運指エンジン（DP） | 0 | 0 | 4 | 0 | [詳細](phase-6/) @phase-6/ |
 | Phase 7: パッケージング・QA | 0 | 0 | 2 | 0 | [詳細](phase-7/) @phase-7/ |
 
@@ -82,8 +82,8 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-001 | Electronプロジェクト初期化（Vite+React+TS） | TODO | - | 30min | [詳細](phase-1/TASK-001.md) @phase-1/TASK-001.md |
-| TASK-002 | 開発ツール設定（ESLint/Prettier/Vitest/strict） | TODO | TASK-001 | 20min | [詳細](phase-1/TASK-002.md) @phase-1/TASK-002.md |
+| TASK-001 | Electronプロジェクト初期化（Vite+React+TS） | DONE | - | 30min | [詳細](phase-1/TASK-001.md) @phase-1/TASK-001.md |
+| TASK-002 | 開発ツール設定（ESLint/Prettier/Vitest/strict） | DONE | TASK-001 | 20min | [詳細](phase-1/TASK-002.md) @phase-1/TASK-002.md |
 | TASK-003 | electron-builder + node-midi ビルド設定 | TODO | TASK-002 | 40min | [詳細](phase-1/TASK-003.md) @phase-1/TASK-003.md |
 
 ### Phase 2: データ層・型定義
@@ -101,7 +101,7 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-008 | MIDI Controller実装（node-midi + Main Process） | DONE | Phase 2 | 40min | [詳細](phase-3/TASK-008.md) @phase-3/TASK-008.md |
+| TASK-008 | MIDI Controller実装（Web MIDI API・設計変更済） | DONE | Phase 2 | 40min | [詳細](phase-3/TASK-008.md) @phase-3/TASK-008.md |
 | TASK-009 | IPC Bridge実装（Preload Script + 型付きAPI） | DONE | TASK-008 | 20min | [詳細](phase-3/TASK-009.md) @phase-3/TASK-009.md |
 
 ### Phase 4: UIコアコンポーネント

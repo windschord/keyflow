@@ -1,20 +1,35 @@
-# TASK-008: MIDI Controller実装（node-midi + Main Process）
+# TASK-008: MIDI Controller実装（Web MIDI API）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 40分
 **依存**: Phase 2
 
 ---
 
-## 説明
+## 設計変更メモ
+
+当初の設計では node-midi を使った Main Process での実装を想定していたが、
+実装時に Renderer Process での Web MIDI API 方式に変更した。
+
+**変更内容:**
+- 実装箇所: `src/renderer/src/lib/midi/web-midi.ts`（Renderer Process）
+- 使用API: Web MIDI API（`navigator.requestMIDIAccess()`）
+- `src/main/midi-controller.ts` は作成せず
+
+**変更理由:** Web MIDI APIはChromiumで標準サポートされており、
+node-midi（electron-rebuildが必要なNativeModule）を避けることができる。
+IPC通信のオーバーヘッドがなく、レイテンシも低い。
+
+---
+
+## 説明（当初設計）
 
 Electron Main Process上でnode-midiを使ってMIDIデバイスを管理し、
 ノートオン/オフイベントをIPCでRenderer Processへ転送する。
 
-## 対象ファイル
+## 対象ファイル（実際の実装）
 
-- `src/main/midi-controller.ts` — MidiControllerService
-- `src/main/index.ts` — MidiControllerServiceの初期化と組み込み
+- `src/renderer/src/lib/midi/web-midi.ts` — Web MIDI APIラッパー（実装済）
 
 ## 参照設計
 

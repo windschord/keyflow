@@ -1,6 +1,6 @@
 # TASK-001: Electronプロジェクト初期化（Vite + React + TypeScript）
 
-**ステータス**: REVIEW
+**ステータス**: DONE
 **推定工数**: 30分
 **依存**: なし
 

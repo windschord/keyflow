@@ -1,6 +1,6 @@
 # TASK-015: Audio Engine実装（Tone.js伴奏・メトロノーム）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 40分
 **依存**: Phase 4
 

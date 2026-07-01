@@ -35,6 +35,5 @@ IPC通信のオーバーヘッドがなく、レイテンシも低い。
 
 > 以下は当初の node-midi + IPC 方式の設計仕様。設計変更により実装されていない。
 
-当初の設計ではElectron Main Process上でnode-midiを使いMIDIデバイスを管理し、
-`MidiControllerService` → `ipcMain` → `win.webContents.send()` で
-ノートオン/オフイベントをRenderer Processへ転送する予定だった。
+当初の設計では、Electron Main Process上でnode-midiを使いMIDIデバイスを管理する予定だった。
+`MidiControllerService` が NoteOn/NoteOff を検知し、`ipcMain` 経由でRenderer Processへ転送する設計だった。

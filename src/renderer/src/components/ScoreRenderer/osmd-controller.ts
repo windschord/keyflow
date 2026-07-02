@@ -3,6 +3,7 @@ import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 export class OSMDController {
   private osmd: OpenSheetMusicDisplay;
   private loaded = false;
+  private currentIteratorIndex = 0;
 
   constructor(container: HTMLDivElement) {
     this.osmd = new OpenSheetMusicDisplay(container, {
@@ -31,11 +32,20 @@ export class OSMDController {
     const state = this.noteIdToCursorState.get(noteId);
 
     if (state) {
-      // We can reset and step forward iteratorIndex times
-      this.osmd.cursor.reset();
-      for (let i = 0; i < state.iteratorIndex; i++) {
-        if (this.osmd.cursor.iterator.EndReached) break;
+      // Move incrementally from current position to target to avoid O(n²)
+      const targetIndex = state.iteratorIndex;
+
+      if (targetIndex < this.currentIteratorIndex) {
+        // Target is before current position, reset to start
+        this.osmd.cursor.reset();
+        this.currentIteratorIndex = 0;
+      }
+
+      // Move forward incrementally from currentIteratorIndex to targetIndex
+      while (this.currentIteratorIndex < targetIndex) {
+        if (this.osmd.cursor.Iterator.EndReached) break;
         this.osmd.cursor.next();
+        this.currentIteratorIndex++;
       }
     } else {
       // Fallback: Just try to jump to measure using parsing
@@ -44,15 +54,17 @@ export class OSMDController {
         const targetMeasureNumber = parseInt(match[1], 10);
         const targetMeasureIndex = targetMeasureNumber - 1; // OSMD is 0-indexed
 
-        if (this.osmd.cursor.iterator.CurrentMeasureIndex > targetMeasureIndex) {
+        if (this.osmd.cursor.Iterator.CurrentMeasureIndex > targetMeasureIndex) {
           this.osmd.cursor.reset();
+          this.currentIteratorIndex = 0;
         }
 
         while (
-          !this.osmd.cursor.iterator.EndReached &&
-          this.osmd.cursor.iterator.CurrentMeasureIndex < targetMeasureIndex
+          !this.osmd.cursor.Iterator.EndReached &&
+          this.osmd.cursor.Iterator.CurrentMeasureIndex < targetMeasureIndex
         ) {
           this.osmd.cursor.next();
+          this.currentIteratorIndex++;
         }
       }
     }
@@ -98,44 +110,56 @@ export class OSMDController {
     if (!this.osmd.cursor || !this.loaded) return this.noteIdToCursorState;
 
     this.osmd.cursor.reset();
+    this.currentIteratorIndex = 0;
     let iteratorIndex = 0;
 
-    // We assume parts are P1, P2, etc. Since we just need to map MusicXML note IDs
-    // to cursor iteration indexes, we can track the measure number and note indices.
     // OSMD's cursor traverses timestamps (VoiceEntries). A timestamp might have multiple notes (e.g. chords).
-    // We will map based on measure number and VoiceEntry order.
+    // We will map based on measure number, part ID from VoiceEntry.ParentVoice.Parent.IdString, and VoiceEntry order.
     let currentMeasure = -1;
-    let noteIndexInMeasure = 0;
+    // Track note index per part (not globally) to match musicxml-parser behavior
+    const noteIndexInMeasurePerPart = new Map<string, number>();
 
-    while (!this.osmd.cursor.iterator.EndReached) {
-      const measureIndex = this.osmd.cursor.iterator.CurrentMeasureIndex;
+    while (!this.osmd.cursor.Iterator.EndReached) {
+      const measureIndex = this.osmd.cursor.Iterator.CurrentMeasureIndex;
       if (measureIndex !== currentMeasure) {
         currentMeasure = measureIndex;
-        noteIndexInMeasure = 0;
+        noteIndexInMeasurePerPart.clear();
       }
 
-      const voiceEntries = this.osmd.cursor.iterator.CurrentVoiceEntries;
+      const voiceEntries = this.osmd.cursor.Iterator.CurrentVoiceEntries;
       if (voiceEntries) {
-        // Find how many notes are at this cursor state to increment noteIndexInMeasure correctly
-        // But for mapping, we can simply say that any note in this measure corresponding
-        // to this VoiceEntry gets this iteratorIndex.
-        // For simplicity, we just map P1-M{measure}-N{noteIndexInMeasure}... up to the count.
-        let notesCountAtTimestamp = 0;
+        const measureNumber = measureIndex + 1;
+
         voiceEntries.forEach((ve) => {
           if (ve && ve.Notes) {
-            notesCountAtTimestamp += ve.Notes.length;
+            // Derive partId from VoiceEntry.ParentVoice.Parent.IdString
+            // Use type-safe access with fallback to 'P1'
+            let partId = 'P1'; // default fallback
+            try {
+              const parentVoice = ve.ParentVoice;
+              if (parentVoice) {
+                const parent = parentVoice.Parent;
+                if (parent && parent.IdString) {
+                  partId = parent.IdString;
+                }
+              }
+            } catch (e) {
+              // Fallback to 'P1' if chain is unavailable
+            }
+
+            // Get or initialize note index for this part
+            const currentNoteIndex = noteIndexInMeasurePerPart.get(partId) ?? 0;
+
+            // Map each note in this VoiceEntry
+            for (let i = 0; i < ve.Notes.length; i++) {
+              const noteId = `${partId}-M${measureNumber}-N${currentNoteIndex + i}`;
+              this.noteIdToCursorState.set(noteId, { iteratorIndex });
+            }
+
+            // Update note index for this part
+            noteIndexInMeasurePerPart.set(partId, currentNoteIndex + ve.Notes.length);
           }
         });
-
-        const measureNumber = measureIndex + 1;
-        // In a realistic app, we'd inspect the actual Pitch or Staff to match `partId`.
-        // Here we map sequentially to P1 for UI purposes, as the engine provides noteId.
-        // A single timestamp can have multiple notes.
-        for (let i = 0; i < notesCountAtTimestamp; i++) {
-          const noteId = `P1-M${measureNumber}-N${noteIndexInMeasure + i}`;
-          this.noteIdToCursorState.set(noteId, { iteratorIndex });
-        }
-        noteIndexInMeasure += notesCountAtTimestamp;
       }
 
       this.osmd.cursor.next();
@@ -143,6 +167,7 @@ export class OSMDController {
     }
 
     this.osmd.cursor.reset();
+    this.currentIteratorIndex = 0;
     return this.noteIdToCursorState;
   }
 }

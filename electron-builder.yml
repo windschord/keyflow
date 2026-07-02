@@ -1,0 +1,14 @@
+appId: com.musicxml.piano-practice
+productName: MusicXML Piano Practice
+directories:
+  output: dist-electron
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+files:
+  - dist/**/*
+  - node_modules/midi/**/*
+asarUnpack:
+  - node_modules/midi/**/*

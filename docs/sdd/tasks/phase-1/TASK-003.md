@@ -69,14 +69,14 @@
 
 ## 実行情報
 
-**実行方式**: Jules API
-**Jules Session ID**: 17031731207446201803
-**Jules ブランチ名**: feat/TASK-003-electron-builder-node-midi-17031731207446201803
-**PR作成先**: main
-**開始日時**: 2026-07-02 08:17
-**PR番号**: #20
-**PR URL**: https://github.com/windschord/keyflow/pull/20
-**PR作成日時**: 2026-07-02 08:40
+- **実行方式**: Jules API
+- **Jules Session ID**: 17031731207446201803
+- **Jules ブランチ名**: feat/TASK-003-electron-builder-node-midi-17031731207446201803
+- **PR作成先**: main
+- **開始日時**: 2026-07-02 08:17
+- **PR番号**: #20
+- **PR URL**: https://github.com/windschord/keyflow/pull/20
+- **PR作成日時**: 2026-07-02 08:40
 
 ## レビュー対応履歴
 

@@ -121,7 +121,7 @@ export class OSMDController {
         // to this VoiceEntry gets this iteratorIndex.
         // For simplicity, we just map P1-M{measure}-N{noteIndexInMeasure}... up to the count.
         let notesCountAtTimestamp = 0;
-        voiceEntries.forEach(ve => {
+        voiceEntries.forEach((ve) => {
           if (ve && ve.Notes) {
             notesCountAtTimestamp += ve.Notes.length;
           }

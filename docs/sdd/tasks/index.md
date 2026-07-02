@@ -32,7 +32,7 @@
 | Phase 2: データ層・型定義 | 4 | 0 | 0 | 0 | [詳細](phase-2/) @phase-2/ |
 | Phase 3: MIDI & IPC | 2 | 0 | 0 | 0 | [詳細](phase-3/) @phase-3/ |
 | Phase 4: UIコアコンポーネント | 4 | 0 | 0 | 0 | [詳細](phase-4/) @phase-4/ |
-| Phase 5: 練習エンジン統合 | 3 | 0 | 1 | 0 | [詳細](phase-5/) @phase-5/ |
+| Phase 5: 練習エンジン統合 | 4 | 0 | 0 | 0 | [詳細](phase-5/) @phase-5/ |
 | Phase 6: 運指エンジン（DP） | 0 | 0 | 4 | 0 | [詳細](phase-6/) @phase-6/ |
 | Phase 7: パッケージング・QA | 0 | 0 | 2 | 0 | [詳細](phase-7/) @phase-7/ |
 
@@ -122,7 +122,7 @@
 | TASK-014 | Practice Engine実装（正誤判定・ループ管理） | DONE | Phase 4 | 60min | [詳細](phase-5/TASK-014.md) @phase-5/TASK-014.md |
 | TASK-015 | Audio Engine実装（Tone.js伴奏・メトロノーム） | DONE | Phase 4 | 40min | [詳細](phase-5/TASK-015.md) @phase-5/TASK-015.md |
 | TASK-016 | MIDI→PracticeEngine統合（IPC接続・フルフロー） | DONE | TASK-014, TASK-015 | 40min | [詳細](phase-5/TASK-016.md) @phase-5/TASK-016.md |
-| TASK-023 | 楽譜の自動スクロール・カーソル追従実装（OSMD連携） | TODO | TASK-011, TASK-016 | 50min | [詳細](phase-5/TASK-023.md) @phase-5/TASK-023.md |
+| TASK-023 | 楽譜の自動スクロール・カーソル追従実装（OSMD連携） | DONE | TASK-011, TASK-016 | 50min | [詳細](phase-5/TASK-023.md) @phase-5/TASK-023.md |
 
 ### Phase 6: 運指エンジン（Parncutt-Terzuolo DP）
 *推定期間: 160min（TASK-017後、018〜019は並列可）*

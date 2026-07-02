@@ -14,6 +14,7 @@ vi.mock('./osmd-controller', () => {
         drawLoopBracket: vi.fn(),
         setZoom: vi.fn(),
         highlightNote: vi.fn(),
+        buildNoteIdMap: vi.fn(),
       };
     }),
   };

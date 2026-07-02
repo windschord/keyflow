@@ -36,7 +36,10 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
       setIsLoaded(false);
       osmdControllerRef.current
         .load(musicXmlContent)
-        .then(() => setIsLoaded(true))
+        .then(() => {
+          setIsLoaded(true);
+          osmdControllerRef.current?.buildNoteIdMap();
+        })
         .catch((err) => console.error('[ScoreRenderer] OSMD load failed:', err));
     } else if (!score) {
       setIsLoaded(false);
@@ -44,10 +47,10 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   }, [score, musicXmlContent]);
 
   useEffect(() => {
-    if (osmdControllerRef.current && currentNoteId) {
+    if (isLoaded && osmdControllerRef.current && currentNoteId) {
       osmdControllerRef.current.moveCursor(currentNoteId);
     }
-  }, [currentNoteId]);
+  }, [currentNoteId, isLoaded]);
 
   useEffect(() => {
     if (osmdControllerRef.current) {

@@ -1,5 +1,5 @@
 declare module 'midi' {
-  export class Input {
+  class Input {
     constructor();
     getPortCount(): number;
     getPortName(port: number): string;
@@ -10,7 +10,7 @@ declare module 'midi' {
     on(event: 'message', callback: (deltaTime: number, message: number[]) => void): void;
   }
 
-  export class Output {
+  class Output {
     constructor();
     getPortCount(): number;
     getPortName(port: number): string;
@@ -19,4 +19,6 @@ declare module 'midi' {
     openVirtualPort(name: string): void;
     sendMessage(message: number[]): void;
   }
+
+  export = { Input, Output };
 }

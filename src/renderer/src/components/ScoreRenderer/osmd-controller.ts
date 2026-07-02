@@ -3,6 +3,7 @@ import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 export class OSMDController {
   private osmd: OpenSheetMusicDisplay;
   private loaded = false;
+  private currentIteratorIndex = 0;
 
   constructor(container: HTMLDivElement) {
     this.osmd = new OpenSheetMusicDisplay(container, {
@@ -19,16 +20,69 @@ export class OSMDController {
     this.loaded = true;
   }
 
+  private noteIdToCursorState = new Map<string, { iteratorIndex: number }>();
+
   moveCursor(noteId: string): void {
-    // Basic implementation for cursor
-    // The cursor needs to be enabled to be moved
-    if (this.osmd.cursor) {
-      if (this.osmd.cursor.Hidden) {
-        this.osmd.cursor.show();
+    if (!this.osmd.cursor || !this.loaded) return;
+
+    if (this.osmd.cursor.Hidden) {
+      this.osmd.cursor.show();
+    }
+
+    const state = this.noteIdToCursorState.get(noteId);
+
+    if (state) {
+      // Move incrementally from current position to target to avoid O(n²)
+      const targetIndex = state.iteratorIndex;
+
+      if (targetIndex < this.currentIteratorIndex) {
+        // Target is before current position, reset to start
+        this.osmd.cursor.reset();
+        this.currentIteratorIndex = 0;
       }
-      // Actually mapping noteId to OSMD Note requires osmd internal mapping.
-      // For UI mock purposes, we will just move to next for now if not hidden.
-      // This will be expanded later.
+
+      // Move forward incrementally from currentIteratorIndex to targetIndex
+      while (this.currentIteratorIndex < targetIndex) {
+        if (this.osmd.cursor.Iterator.EndReached) break;
+        this.osmd.cursor.next();
+        this.currentIteratorIndex++;
+      }
+    } else {
+      // Fallback: Just try to jump to measure using parsing
+      const match = noteId.match(/-M(\d+)-/);
+      if (match) {
+        const targetMeasureNumber = parseInt(match[1], 10);
+        const targetMeasureIndex = targetMeasureNumber - 1; // OSMD is 0-indexed
+
+        if (this.osmd.cursor.Iterator.CurrentMeasureIndex > targetMeasureIndex) {
+          this.osmd.cursor.reset();
+          this.currentIteratorIndex = 0;
+        }
+
+        while (
+          !this.osmd.cursor.Iterator.EndReached &&
+          this.osmd.cursor.Iterator.CurrentMeasureIndex < targetMeasureIndex
+        ) {
+          this.osmd.cursor.next();
+          this.currentIteratorIndex++;
+        }
+      }
+    }
+
+    // To scroll the cursor into view
+    try {
+      // Use bracket notation without ts-expect-error if it's considered valid by TypeScript
+      // or explicitly typed as any by user configuration,
+      // but to satisfy "strict: true" and "any 禁止", we will treat this.osmd.cursor as unknown first.
+      const cursorObj = this.osmd.cursor as unknown as {
+        cursorElement?: { scrollIntoView: (options: object) => void };
+      };
+      const cursorElement = cursorObj.cursorElement;
+      if (cursorElement && typeof cursorElement.scrollIntoView === 'function') {
+        cursorElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+    } catch (e) {
+      console.warn('Could not scroll to cursor element', e);
     }
   }
 
@@ -51,7 +105,69 @@ export class OSMDController {
     // Dummy implementation
   }
 
-  buildNoteIdMap(): Map<string, object> {
-    return new Map();
+  buildNoteIdMap(): Map<string, { iteratorIndex: number }> {
+    this.noteIdToCursorState.clear();
+    if (!this.osmd.cursor || !this.loaded) return this.noteIdToCursorState;
+
+    this.osmd.cursor.reset();
+    this.currentIteratorIndex = 0;
+    let iteratorIndex = 0;
+
+    // OSMD's cursor traverses timestamps (VoiceEntries). A timestamp might have multiple notes (e.g. chords).
+    // We will map based on measure number, part ID from VoiceEntry.ParentVoice.Parent.IdString, and VoiceEntry order.
+    let currentMeasure = -1;
+    // Track note index per part (not globally) to match musicxml-parser behavior
+    const noteIndexInMeasurePerPart = new Map<string, number>();
+
+    while (!this.osmd.cursor.Iterator.EndReached) {
+      const measureIndex = this.osmd.cursor.Iterator.CurrentMeasureIndex;
+      if (measureIndex !== currentMeasure) {
+        currentMeasure = measureIndex;
+        noteIndexInMeasurePerPart.clear();
+      }
+
+      const voiceEntries = this.osmd.cursor.Iterator.CurrentVoiceEntries;
+      if (voiceEntries) {
+        const measureNumber = measureIndex + 1;
+
+        voiceEntries.forEach((ve) => {
+          if (ve && ve.Notes) {
+            // Derive partId from VoiceEntry.ParentVoice.Parent.IdString
+            // Use type-safe access with fallback to 'P1'
+            let partId = 'P1'; // default fallback
+            try {
+              const parentVoice = ve.ParentVoice;
+              if (parentVoice) {
+                const parent = parentVoice.Parent;
+                if (parent && parent.IdString) {
+                  partId = parent.IdString;
+                }
+              }
+            } catch (e) {
+              // Fallback to 'P1' if chain is unavailable
+            }
+
+            // Get or initialize note index for this part
+            const currentNoteIndex = noteIndexInMeasurePerPart.get(partId) ?? 0;
+
+            // Map each note in this VoiceEntry
+            for (let i = 0; i < ve.Notes.length; i++) {
+              const noteId = `${partId}-M${measureNumber}-N${currentNoteIndex + i}`;
+              this.noteIdToCursorState.set(noteId, { iteratorIndex });
+            }
+
+            // Update note index for this part
+            noteIndexInMeasurePerPart.set(partId, currentNoteIndex + ve.Notes.length);
+          }
+        });
+      }
+
+      this.osmd.cursor.next();
+      iteratorIndex++;
+    }
+
+    this.osmd.cursor.reset();
+    this.currentIteratorIndex = 0;
+    return this.noteIdToCursorState;
   }
 }

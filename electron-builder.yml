@@ -10,3 +10,5 @@ nsis:
 files:
   - dist/**/*
   - node_modules/midi/**/*
+asarUnpack:
+  - node_modules/midi/**/*

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "MusicXML対応ピアノ練習アプリ",
   "main": "out/main/index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",

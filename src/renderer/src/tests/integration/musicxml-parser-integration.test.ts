@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse, MusicXMLParseError } from '../../lib/musicxml-parser/parser';
+import type { Score } from '../../types';
 
 const TWO_PART_XML = `<?xml version="1.0"?>
 <score-partwise>
@@ -36,17 +37,19 @@ const TWO_PART_XML = `<?xml version="1.0"?>
 </score-partwise>`;
 
 describe('MusicXMLパーサー統合テスト', () => {
-  it('2パートのMusicXMLを正しくパースする', () => {
-    const score = parse(TWO_PART_XML);
+  let score: Score;
 
+  beforeEach(() => {
+    score = parse(TWO_PART_XML);
+  });
+
+  it('2パートのMusicXMLを正しくパースする', () => {
     expect(score.title).toBe('Integration Test Score');
     expect(score.parts).toHaveLength(2);
     expect(score.measures).toHaveLength(2);
   });
 
   it('パートの手の種別が正しく検出される', () => {
-    const score = parse(TWO_PART_XML);
-
     const rightPart = score.parts.find((p) => p.id === 'P1');
     const leftPart = score.parts.find((p) => p.id === 'P2');
 
@@ -57,29 +60,25 @@ describe('MusicXMLパーサー統合テスト', () => {
   });
 
   it('コード音符が正しくパースされる', () => {
-    const score = parse(TWO_PART_XML);
     const measure1 = score.measures.find((m) => m.number === 1);
-
     const chordNotes = measure1?.notes.filter((n) => n.partId === 'P1');
-    expect(chordNotes?.length).toBeGreaterThanOrEqual(2);
+
+    expect(chordNotes).toHaveLength(2);
 
     const secondNote = chordNotes?.find((n) => n.midiNumber === 64);
     expect(secondNote?.isChord).toBe(true);
   });
 
   it('休符が正しくパースされる', () => {
-    const score = parse(TWO_PART_XML);
     const measure1 = score.measures.find((m) => m.number === 1);
-
     const restNote = measure1?.notes.find((n) => n.partId === 'P2');
+
     expect(restNote?.isRest).toBe(true);
     expect(restNote?.midiNumber).toBe(0);
   });
 
   it('音符のMIDI番号が正しく計算される', () => {
-    const score = parse(TWO_PART_XML);
     const measure1 = score.measures.find((m) => m.number === 1);
-
     const c4 = measure1?.notes.find((n) => n.partId === 'P1' && !n.isChord);
     expect(c4?.midiNumber).toBe(60);
 
@@ -89,8 +88,6 @@ describe('MusicXMLパーサー統合テスト', () => {
   });
 
   it('拍子記号とキー情報が正しくパースされる', () => {
-    const score = parse(TWO_PART_XML);
-
     expect(score.timeSignature.beats).toBe(4);
     expect(score.timeSignature.beatType).toBe(4);
     expect(score.keySignature).toBe(0);
@@ -102,7 +99,6 @@ describe('MusicXMLパーサー統合テスト', () => {
   });
 
   it('noteIdが正しいフォーマットで付与される', () => {
-    const score = parse(TWO_PART_XML);
     const measure1 = score.measures.find((m) => m.number === 1);
     const firstNote = measure1?.notes[0];
 

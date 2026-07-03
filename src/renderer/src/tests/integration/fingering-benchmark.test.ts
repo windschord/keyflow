@@ -32,16 +32,16 @@ function generate800Notes(): Note[] {
 }
 
 describe('運指計算パフォーマンステスト', () => {
-  it('800音符の運指計算が30秒以内に完了する', () => {
+  it('800音符の運指計算が2秒以内に完了する', () => {
     const notes = generate800Notes();
     const start = performance.now();
     const result = computeFingering(notes, 'right', DEFAULT_SETTINGS);
     const elapsed = performance.now() - start;
 
-    expect(elapsed).toBeLessThan(30_000);
+    expect(elapsed).toBeLessThan(2_000);
     expect(result.assignments).toHaveLength(800);
     expect(result.totalCost).toBeGreaterThanOrEqual(0);
-  }, 35_000);
+  }, 5_000);
 
   it('空の音符列は空の運指結果を返す', () => {
     const result = computeFingering([], 'right', DEFAULT_SETTINGS);

@@ -18,6 +18,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
+  multiLanguageInstaller: true
   installerLanguages: [Japanese, English]
 
 files:

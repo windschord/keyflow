@@ -12,6 +12,7 @@ import { AnnotationStoreService } from './lib/annotation-store';
 
 function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [isLoadingAnnotations, setIsLoadingAnnotations] = React.useState(false);
 
   const { practiceEngine } = usePractice();
 
@@ -67,6 +68,7 @@ function App(): React.JSX.Element {
 
     if (!filePath) return;
 
+    setIsLoadingAnnotations(true);
     try {
       let parsedScore;
       let xmlContent: string;
@@ -83,12 +85,14 @@ function App(): React.JSX.Element {
     } catch (error) {
       console.error('Failed to parse file:', error);
       alert('MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。');
+    } finally {
+      setIsLoadingAnnotations(false);
     }
   };
 
   const handleFingering = React.useCallback(
     async (assignments: import('./types').FingerAssignment[]) => {
-      if (!musicXmlPath) return;
+      if (!musicXmlPath || isLoadingAnnotations) return;
       try {
         annotationStore.current.applyAISuggestions(assignments);
         await annotationStore.current.save();
@@ -97,7 +101,7 @@ function App(): React.JSX.Element {
         alert('運指アノテーションの保存に失敗しました。');
       }
     },
-    [musicXmlPath]
+    [musicXmlPath, isLoadingAnnotations]
   );
 
   return (
@@ -116,7 +120,11 @@ function App(): React.JSX.Element {
 
       {/* 2. FingeringPanel */}
       <div style={{ flexShrink: 0 }}>
-        <FingeringPanel score={score} onSuggested={handleFingering} />
+        <FingeringPanel
+          score={score}
+          onSuggested={handleFingering}
+          disabled={isLoadingAnnotations}
+        />
       </div>
 
       {/* 3. ScoreRenderer (Flex Grow) */}

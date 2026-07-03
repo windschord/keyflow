@@ -6,9 +6,10 @@ import type { FingeringHand } from '../../workers/fingering/types';
 interface FingeringPanelProps {
   score: Score | null;
   onSuggested: (assignments: FingerAssignment[]) => void;
+  disabled?: boolean;
 }
 
-export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggested }) => {
+export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggested, disabled }) => {
   const [computing, setComputing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +83,7 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
           id="hand-select"
           value={hand}
           onChange={(e) => setHand(e.target.value as FingeringHand)}
-          disabled={computing}
+          disabled={computing || disabled}
           className="border p-1 rounded"
         >
           <option value="right">右手</option>
@@ -92,7 +93,7 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
 
       <button
         onClick={handleCompute}
-        disabled={computing || !score}
+        disabled={computing || !score || disabled}
         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
       >
         {computing ? '計算中...' : '運指提案'}

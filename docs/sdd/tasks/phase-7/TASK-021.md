@@ -1,6 +1,6 @@
 # TASK-021: electron-builder設定（Windows NSISインストーラー）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 30分
 **依存**: Phase 6
 

@@ -1,6 +1,6 @@
 # TASK-020: FingeringEngineService + 運指UI統合
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 40分
 **依存**: TASK-018, TASK-019
 

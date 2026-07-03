@@ -1,14 +1,34 @@
 appId: com.musicxml.piano-practice
 productName: MusicXML Piano Practice
+copyright: Copyright © 2026
+
 directories:
   output: dist-electron
+  buildResources: build
+
 win:
-  target: nsis
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  requestedExecutionLevel: asInvoker
+
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  installerLanguages: [Japanese, English]
+
 files:
   - dist/**/*
-  - node_modules/midi/**/*
-asarUnpack:
-  - node_modules/midi/**/*
+  - node_modules/midi/build/Release/midi.node
+  - '!node_modules/**/{CHANGELOG.md,README.md,readme.md}'
+  - '!node_modules/**/*.{ts,map}'
+
+extraResources:
+  - from: 'node_modules/midi/build/Release/'
+    to: 'midi/build/Release/'
+    filter: ['**/*.node']
+
+publish: null

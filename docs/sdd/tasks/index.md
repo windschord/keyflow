@@ -34,7 +34,7 @@
 | Phase 4: UIコアコンポーネント | 4 | 0 | 0 | 0 | [詳細](phase-4/) @phase-4/ |
 | Phase 5: 練習エンジン統合 | 4 | 0 | 0 | 0 | [詳細](phase-5/) @phase-5/ |
 | Phase 6: 運指エンジン（DP） | 4 | 0 | 0 | 0 | [詳細](phase-6/) @phase-6/ |
-| Phase 7: パッケージング・QA | 0 | 0 | 2 | 0 | [詳細](phase-7/) @phase-7/ |
+| Phase 7: パッケージング・QA | 2 | 0 | 0 | 0 | [詳細](phase-7/) @phase-7/ |
 
 **合計**: 23タスク / 推定合計: 約870分（AIエージェント作業時間）
 
@@ -139,8 +139,8 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-021 | electron-builder設定（Windows NSISインストーラー） | TODO | Phase 6 | 30min | [詳細](phase-7/TASK-021.md) @phase-7/TASK-021.md |
-| TASK-022 | 統合テスト・E2Eシナリオ整備 | TODO | TASK-021 | 50min | [詳細](phase-7/TASK-022.md) @phase-7/TASK-022.md |
+| TASK-021 | electron-builder設定（Windows NSISインストーラー） | DONE | Phase 6 | 30min | [詳細](phase-7/TASK-021.md) @phase-7/TASK-021.md |
+| TASK-022 | 統合テスト・E2Eシナリオ整備 | DONE | TASK-021 | 50min | [詳細](phase-7/TASK-022.md) @phase-7/TASK-022.md |
 
 ---
 

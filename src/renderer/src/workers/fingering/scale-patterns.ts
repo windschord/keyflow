@@ -13,40 +13,47 @@ export interface ScalePattern {
 const MAJOR_INTERVALS = [2, 2, 1, 2, 2, 2, 1];
 const MINOR_INTERVALS = [2, 1, 2, 2, 1, 2, 2];
 
-const MAJORS = [
-  { key: 'C_MAJOR', startMidi: 0, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
-  { key: 'G_MAJOR', startMidi: 7, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
-  { key: 'D_MAJOR', startMidi: 2, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
-  { key: 'A_MAJOR', startMidi: 9, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
-  { key: 'E_MAJOR', startMidi: 4, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
-  { key: 'B_MAJOR', startMidi: 11, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [4, 3, 2, 1, 4, 3, 2, 1] },
-  { key: 'F#_MAJOR', startMidi: 6, r: [2, 3, 1, 2, 3, 4, 1, 2], l: [4, 3, 2, 1, 3, 2, 1, 4] },
-  { key: 'Db_MAJOR', startMidi: 1, r: [2, 3, 1, 2, 3, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
-  { key: 'Ab_MAJOR', startMidi: 8, r: [3, 4, 1, 2, 3, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
-  { key: 'Eb_MAJOR', startMidi: 3, r: [3, 1, 2, 3, 4, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
-  { key: 'Bb_MAJOR', startMidi: 10, r: [4, 1, 2, 3, 1, 2, 3, 4], l: [3, 2, 1, 4, 3, 2, 1, 3] },
-  { key: 'F_MAJOR', startMidi: 5, r: [1, 2, 3, 4, 1, 2, 3, 4], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+interface ScaleData {
+  key: string;
+  startMidi: number;
+  r: Finger[];
+  l: Finger[];
+}
+
+const MAJORS: ScaleData[] = [
+  { key: 'C_MAJOR', startMidi: 0, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
+  { key: 'G_MAJOR', startMidi: 7, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
+  { key: 'D_MAJOR', startMidi: 2, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
+  { key: 'A_MAJOR', startMidi: 9, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
+  { key: 'E_MAJOR', startMidi: 4, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
+  { key: 'B_MAJOR', startMidi: 11, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [4, 3, 2, 1, 4, 3, 2, 1] as Finger[] },
+  { key: 'F#_MAJOR', startMidi: 6, r: [2, 3, 1, 2, 3, 4, 1, 2] as Finger[], l: [4, 3, 2, 1, 3, 2, 1, 4] as Finger[] },
+  { key: 'Db_MAJOR', startMidi: 1, r: [2, 3, 1, 2, 3, 1, 2, 3] as Finger[], l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[] },
+  { key: 'Ab_MAJOR', startMidi: 8, r: [3, 4, 1, 2, 3, 1, 2, 3] as Finger[], l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[] },
+  { key: 'Eb_MAJOR', startMidi: 3, r: [3, 1, 2, 3, 4, 1, 2, 3] as Finger[], l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[] },
+  { key: 'Bb_MAJOR', startMidi: 10, r: [4, 1, 2, 3, 1, 2, 3, 4] as Finger[], l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[] },
+  { key: 'F_MAJOR', startMidi: 5, r: [1, 2, 3, 4, 1, 2, 3, 4] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
 ];
 
-const MINORS = [
-  { key: 'A_MINOR', startMidi: 9, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
-  { key: 'E_MINOR', startMidi: 4, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
-  { key: 'B_MINOR', startMidi: 11, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [4, 3, 2, 1, 4, 3, 2, 1] },
-  { key: 'F#_MINOR', startMidi: 6, r: [2, 3, 1, 2, 3, 4, 1, 2], l: [4, 3, 2, 1, 3, 2, 1, 4] },
-  { key: 'C#_MINOR', startMidi: 1, r: [3, 1, 2, 3, 4, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
-  { key: 'G#_MINOR', startMidi: 8, r: [3, 4, 1, 2, 3, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
-  { key: 'D#_MINOR', startMidi: 3, r: [3, 1, 2, 3, 4, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
-  { key: 'Bb_MINOR', startMidi: 10, r: [4, 1, 2, 3, 1, 2, 3, 4], l: [3, 2, 1, 4, 3, 2, 1, 3] },
-  { key: 'F_MINOR', startMidi: 5, r: [1, 2, 3, 4, 1, 2, 3, 4], l: [5, 4, 3, 2, 1, 3, 2, 1] },
-  { key: 'C_MINOR', startMidi: 0, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
-  { key: 'G_MINOR', startMidi: 7, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
-  { key: 'D_MINOR', startMidi: 2, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+const MINORS: ScaleData[] = [
+  { key: 'A_MINOR', startMidi: 9, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
+  { key: 'E_MINOR', startMidi: 4, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
+  { key: 'B_MINOR', startMidi: 11, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [4, 3, 2, 1, 4, 3, 2, 1] as Finger[] },
+  { key: 'F#_MINOR', startMidi: 6, r: [2, 3, 1, 2, 3, 4, 1, 2] as Finger[], l: [4, 3, 2, 1, 3, 2, 1, 4] as Finger[] },
+  { key: 'C#_MINOR', startMidi: 1, r: [3, 1, 2, 3, 4, 1, 2, 3] as Finger[], l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[] },
+  { key: 'G#_MINOR', startMidi: 8, r: [3, 4, 1, 2, 3, 1, 2, 3] as Finger[], l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[] },
+  { key: 'D#_MINOR', startMidi: 3, r: [3, 1, 2, 3, 4, 1, 2, 3] as Finger[], l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[] },
+  { key: 'Bb_MINOR', startMidi: 10, r: [4, 1, 2, 3, 1, 2, 3, 4] as Finger[], l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[] },
+  { key: 'F_MINOR', startMidi: 5, r: [1, 2, 3, 4, 1, 2, 3, 4] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
+  { key: 'C_MINOR', startMidi: 0, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
+  { key: 'G_MINOR', startMidi: 7, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
+  { key: 'D_MINOR', startMidi: 2, r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[], l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[] },
 ];
 
 function generatePatterns(): ScalePattern[] {
   const patterns: ScalePattern[] = [];
 
-  const add = (list: typeof MAJORS, intervals: number[]) => {
+  const add = (list: ScaleData[], intervals: number[]) => {
     for (const item of list) {
       const pitchClasses = [item.startMidi];
       let current = item.startMidi;
@@ -58,14 +65,15 @@ function generatePatterns(): ScalePattern[] {
       patterns.push({
         key: item.key,
         startMidi: item.startMidi,
-        right: item.r as Finger[],
-        left: item.l as Finger[],
+        right: item.r,
+        left: item.l,
         isAscending: true,
         pitchClasses,
       });
       patterns.push({
         key: item.key + '_DESCENDING',
         startMidi: item.startMidi,
+        // Array.reverse() preserves element types but TypeScript needs explicit assertion
         right: [...item.r].reverse() as Finger[],
         left: [...item.l].reverse() as Finger[],
         isAscending: false,

@@ -6,6 +6,7 @@ import type {
   FingeringResponse,
   FingeringHand,
 } from '../../workers/fingering/types';
+import FingeringWorker from '../../workers/fingering/fingering.worker?worker';
 
 export class FingeringEngineService {
   private worker: Worker;
@@ -20,10 +21,7 @@ export class FingeringEngineService {
   >();
 
   constructor() {
-    this.worker = new Worker(
-      new URL('../../workers/fingering/fingering.worker.ts', import.meta.url),
-      { type: 'module' }
-    );
+    this.worker = new FingeringWorker();
     this.worker.onmessage = (e: MessageEvent<FingeringResponse>) => {
       const { type, requestId, result, progress, error } = e.data;
       const pending = this.pendingRequests.get(requestId);
@@ -71,8 +69,13 @@ export class FingeringEngineService {
   }
 
   dispose(): void {
-    this.worker.terminate();
+    // Reject all pending requests before terminating
+    this.pendingRequests.forEach((pending) => {
+      clearTimeout(pending.timeoutId);
+      pending.reject(new Error('FingeringEngine disposed'));
+    });
     this.pendingRequests.clear();
+    this.worker.terminate();
   }
 }
 

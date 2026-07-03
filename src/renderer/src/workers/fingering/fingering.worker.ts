@@ -4,14 +4,22 @@ import { computeFingering } from './dp-solver';
 self.onmessage = (e: MessageEvent<FingeringRequest>) => {
   if (e.data.type === 'COMPUTE') {
     try {
-      const result = computeFingering(e.data.notes, e.data.hand, e.data.settings, (progress) => {
-        const progressMsg: FingeringResponse = {
-          type: 'PROGRESS',
-          requestId: e.data.requestId,
-          progress,
-        };
-        self.postMessage(progressMsg);
-      });
+      // Set 60-second deadline for computation
+      const deadline = Date.now() + 60000;
+      const result = computeFingering(
+        e.data.notes,
+        e.data.hand,
+        e.data.settings,
+        (progress) => {
+          const progressMsg: FingeringResponse = {
+            type: 'PROGRESS',
+            requestId: e.data.requestId,
+            progress,
+          };
+          self.postMessage(progressMsg);
+        },
+        deadline
+      );
       const resultMsg: FingeringResponse = {
         type: 'RESULT',
         requestId: e.data.requestId,

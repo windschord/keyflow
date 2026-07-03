@@ -2,19 +2,24 @@ import React from 'react';
 import { Toolbar } from './components/Toolbar';
 import { ScoreRenderer } from './components/ScoreRenderer';
 import { PianoKeyboard } from './components/PianoKeyboard';
+import { FingeringPanel } from './components/FingeringPanel';
 import { usePracticeStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { parse, extractXmlFromMxl } from './lib/musicxml-parser';
 import { SettingsModal } from './components/SettingsModal';
 import { usePractice } from './hooks/usePractice';
+import { AnnotationStoreService } from './lib/annotation-store';
 
 function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
   const { practiceEngine } = usePractice();
 
+  const annotationStore = React.useRef(new AnnotationStoreService());
+
   const {
     score,
+    musicXmlPath,
     musicXmlContent,
     expectedNotes,
     pressedKeys,
@@ -28,6 +33,7 @@ function App(): React.JSX.Element {
   } = usePracticeStore(
     useShallow((s) => ({
       score: s.score,
+      musicXmlPath: s.musicXmlPath,
       musicXmlContent: s.musicXmlContent,
       expectedNotes: s.expectedNotes,
       pressedKeys: s.pressedKeys,
@@ -73,11 +79,21 @@ function App(): React.JSX.Element {
         parsedScore = parse(xmlContent);
       }
       setScore(parsedScore, filePath, xmlContent);
+      await annotationStore.current.load(filePath);
     } catch (error) {
       console.error('Failed to parse file:', error);
       alert('MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。');
     }
   };
+
+  const handleFingering = React.useCallback(
+    async (assignments: import('./types').FingerAssignment[]) => {
+      if (!musicXmlPath) return;
+      annotationStore.current.applyAISuggestions(assignments);
+      await annotationStore.current.save();
+    },
+    [musicXmlPath]
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -93,7 +109,12 @@ function App(): React.JSX.Element {
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
-      {/* 2. ScoreRenderer (Flex Grow) */}
+      {/* 2. FingeringPanel */}
+      <div style={{ flexShrink: 0 }}>
+        <FingeringPanel score={score} onSuggested={handleFingering} />
+      </div>
+
+      {/* 3. ScoreRenderer (Flex Grow) */}
       <div style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
         <ScoreRenderer
           score={score}

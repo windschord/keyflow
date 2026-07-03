@@ -89,8 +89,13 @@ function App(): React.JSX.Element {
   const handleFingering = React.useCallback(
     async (assignments: import('./types').FingerAssignment[]) => {
       if (!musicXmlPath) return;
-      annotationStore.current.applyAISuggestions(assignments);
-      await annotationStore.current.save();
+      try {
+        annotationStore.current.applyAISuggestions(assignments);
+        await annotationStore.current.save();
+      } catch (error) {
+        console.error('Failed to save fingering annotations:', error);
+        alert('運指アノテーションの保存に失敗しました。');
+      }
     },
     [musicXmlPath]
   );

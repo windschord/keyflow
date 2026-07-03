@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Score, PracticeMode, Note } from '../../types';
+import { Score, PracticeMode, Note, FingerAssignment } from '../../types';
 import { OSMDController } from './osmd-controller';
 
 export interface ScoreRendererProps {
@@ -10,6 +10,7 @@ export interface ScoreRendererProps {
   loopRange: { start: number; end: number } | null;
   zoom: number;
   onNoteClick: (note: Note) => void;
+  annotations?: FingerAssignment[];
 }
 
 export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
@@ -20,6 +21,7 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   loopRange,
   zoom,
   onNoteClick,
+  annotations,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdControllerRef = useRef<OSMDController | null>(null);
@@ -57,6 +59,17 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
       osmdControllerRef.current.setZoom(zoom);
     }
   }, [zoom]);
+
+  useEffect(() => {
+    if (!osmdControllerRef.current) return;
+    if (isLoaded && annotations && annotations.length > 0) {
+      osmdControllerRef.current.showFingerings(
+        annotations.map((a) => ({ noteId: a.noteId, finger: a.finger, isApproved: false }))
+      );
+    } else {
+      osmdControllerRef.current.clearFingerings();
+    }
+  }, [annotations, isLoaded]);
 
   useEffect(() => {
     if (osmdControllerRef.current && score) {

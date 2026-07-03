@@ -2,10 +2,13 @@ import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 
 export class OSMDController {
   private osmd: OpenSheetMusicDisplay;
+  private container: HTMLDivElement;
   private loaded = false;
   private currentIteratorIndex = 0;
+  private noteIdToSvgCoord = new Map<string, { x: number; y: number }>();
 
   constructor(container: HTMLDivElement) {
+    this.container = container;
     this.osmd = new OpenSheetMusicDisplay(container, {
       autoResize: true,
       backend: 'svg',
@@ -105,8 +108,58 @@ export class OSMDController {
     // Dummy implementation
   }
 
+  private getCursorSvgCoord(): { x: number; y: number } | null {
+    const svg = this.container.querySelector('svg') as SVGSVGElement | null;
+    // @ts-expect-error OSMD internal API: CursorElement is not in public type definitions
+    const cursorEl = this.osmd.cursor?.CursorElement as SVGElement | undefined;
+    if (!svg || !cursorEl) return null;
+    try {
+      const pt = svg.createSVGPoint();
+      const rect = cursorEl.getBoundingClientRect();
+      pt.x = rect.left + rect.width / 2;
+      pt.y = rect.top;
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return null;
+      const svgPt = pt.matrixTransform(ctm.inverse());
+      return { x: svgPt.x, y: svgPt.y };
+    } catch {
+      return null;
+    }
+  }
+
+  showFingerings(assignments: Array<{ noteId: string; finger: number; isApproved: boolean }>): void {
+    this.clearFingerings();
+    const svg = this.container.querySelector('svg');
+    if (!svg) return;
+
+    const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    layer.setAttribute('id', 'fingering-layer');
+
+    for (const { noteId, finger, isApproved } of assignments) {
+      const coord = this.noteIdToSvgCoord.get(noteId);
+      if (!coord) continue;
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', String(coord.x));
+      text.setAttribute('y', String(coord.y - 4));
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('font-size', '8');
+      // Approved: solid blue; suggested: light blue
+      text.setAttribute('fill', isApproved ? '#2563eb' : '#93c5fd');
+      text.setAttribute('pointer-events', 'none');
+      text.textContent = String(finger);
+      layer.appendChild(text);
+    }
+
+    svg.appendChild(layer);
+  }
+
+  clearFingerings(): void {
+    this.container.querySelector('#fingering-layer')?.remove();
+  }
+
   buildNoteIdMap(): Map<string, { iteratorIndex: number }> {
     this.noteIdToCursorState.clear();
+    this.noteIdToSvgCoord.clear();
     if (!this.osmd.cursor || !this.loaded) return this.noteIdToCursorState;
 
     this.osmd.cursor.reset();
@@ -120,6 +173,7 @@ export class OSMDController {
     const noteIndexInMeasurePerPart = new Map<string, number>();
 
     while (!this.osmd.cursor.Iterator.EndReached) {
+      const coord = this.getCursorSvgCoord();
       const measureIndex = this.osmd.cursor.Iterator.CurrentMeasureIndex;
       if (measureIndex !== currentMeasure) {
         currentMeasure = measureIndex;
@@ -154,6 +208,7 @@ export class OSMDController {
             for (let i = 0; i < ve.Notes.length; i++) {
               const noteId = `${partId}-M${measureNumber}-N${currentNoteIndex + i}`;
               this.noteIdToCursorState.set(noteId, { iteratorIndex });
+              if (coord) this.noteIdToSvgCoord.set(noteId, coord);
             }
 
             // Update note index for this part

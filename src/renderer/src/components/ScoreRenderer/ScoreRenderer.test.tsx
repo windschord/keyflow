@@ -15,6 +15,8 @@ vi.mock('./osmd-controller', () => {
         setZoom: vi.fn(),
         highlightNote: vi.fn(),
         buildNoteIdMap: vi.fn(),
+        showFingerings: vi.fn(),
+        clearFingerings: vi.fn(),
       };
     }),
   };

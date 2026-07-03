@@ -13,6 +13,9 @@ import { AnnotationStoreService } from './lib/annotation-store';
 function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = React.useState(false);
+  const [fingeringAnnotations, setFingeringAnnotations] = React.useState<
+    import('./types').FingerAssignment[]
+  >([]);
 
   const { practiceEngine } = usePractice();
 
@@ -81,6 +84,7 @@ function App(): React.JSX.Element {
         parsedScore = parse(xmlContent);
       }
       setScore(parsedScore, filePath, xmlContent);
+      setFingeringAnnotations([]);
       await annotationStore.current.load(filePath);
     } catch (error) {
       console.error('Failed to parse file:', error);
@@ -96,6 +100,7 @@ function App(): React.JSX.Element {
       try {
         annotationStore.current.applyAISuggestions(assignments);
         await annotationStore.current.save();
+        setFingeringAnnotations(assignments);
       } catch (error) {
         console.error('Failed to save fingering annotations:', error);
         alert('運指アノテーションの保存に失敗しました。');
@@ -137,6 +142,7 @@ function App(): React.JSX.Element {
           loopRange={null}
           zoom={zoom}
           onNoteClick={() => {}}
+          annotations={fingeringAnnotations}
         />
       </div>
 

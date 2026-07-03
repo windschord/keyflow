@@ -162,6 +162,10 @@ export class OSMDController {
     this.noteIdToSvgCoord.clear();
     if (!this.osmd.cursor || !this.loaded) return this.noteIdToCursorState;
 
+    // Show cursor temporarily so CursorElement is in the DOM for coordinate sampling
+    const wasHidden = this.osmd.cursor.Hidden;
+    if (wasHidden) this.osmd.cursor.show();
+
     this.osmd.cursor.reset();
     this.currentIteratorIndex = 0;
     let iteratorIndex = 0;
@@ -223,6 +227,10 @@ export class OSMDController {
 
     this.osmd.cursor.reset();
     this.currentIteratorIndex = 0;
+
+    // Restore cursor visibility
+    if (wasHidden) this.osmd.cursor.hide();
+
     return this.noteIdToCursorState;
   }
 }

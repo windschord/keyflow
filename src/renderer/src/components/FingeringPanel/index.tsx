@@ -75,7 +75,9 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
       <h3 className="text-lg font-bold mb-4">運指提案</h3>
 
       <div className="mb-4">
-        <label htmlFor="hand-select" className="mr-2 font-medium">対象手:</label>
+        <label htmlFor="hand-select" className="mr-2 font-medium">
+          対象手:
+        </label>
         <select
           id="hand-select"
           value={hand}

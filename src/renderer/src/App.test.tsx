@@ -53,6 +53,10 @@ vi.mock('./components/Toolbar', () => ({
   Toolbar: () => <div data-testid="mock-toolbar">Toolbar</div>,
 }));
 
+vi.mock('./components/FingeringPanel', () => ({
+  FingeringPanel: () => <div data-testid="mock-fingering-panel">FingeringPanel</div>,
+}));
+
 describe('App', () => {
   it('renders correctly with layout components', () => {
     render(<App />);

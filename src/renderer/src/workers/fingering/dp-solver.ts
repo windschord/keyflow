@@ -13,9 +13,11 @@ export function computeFingering(
   const n = notes.length;
   if (n === 0) return { assignments: [], totalCost: 0 };
 
-  // dp[i][f] = 音符iに指fを割り当てた最小コスト状態
+  // 動的計画法の配列、音符と指のインデックスで最小コスト状態を保持
   const dp: DPState[][] = Array.from({ length: n }, () =>
-    Array(6).fill(null).map(() => ({ cost: Infinity, prevFinger: null }))
+    Array(6)
+      .fill(null)
+      .map(() => ({ cost: Infinity, prevFinger: null }))
   );
 
   // 初期化（最初の音符は weakFingerCost のみ）

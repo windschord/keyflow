@@ -31,7 +31,7 @@ export function spanCost(
     // spanCost=9-7=2（comfortable超過分）となる。なので以下の式とする。
     // = (span - comfortable) + (span > max ? (span - max) * 10 : 0)
     // テストのコメントにある通り
-    return (span - comfortable) + (span - max) * 10;
+    return span - comfortable + (span - max) * 10;
   }
 }
 
@@ -45,22 +45,24 @@ const isBlackKey = (midiNumber: number): boolean => {
   return mod === 1 || mod === 3 || mod === 6 || mod === 8 || mod === 10;
 };
 
-// f===1 かつ 黒鍵（midiNumber % 12 が 1,3,6,8,10）: +4
+// 親指 かつ 黒鍵: +4
 export function thumbOnBlackCost(f: Finger, note: Note): number {
   return f === 1 && isBlackKey(note.midiNumber) ? 4 : 0;
 }
 
-// f===5 かつ黒鍵: +3
+// 小指 かつ黒鍵: +3
 export function fiveOnBlackCost(f: Finger, note: Note): number {
   return f === 5 && isBlackKey(note.midiNumber) ? 3 : 0;
 }
 
-// 親指くぐり（上行時 f1=1, f2=2 or 3）または指越え（下行時 f1=2 or 3, f2=1）: +1
+// 親指くぐり（上行時 親指から人差し指または中指）または指越え（下行時 人差し指または中指から親指）: +1
 export function thumbPassingCost(f1: Finger, f2: Finger, n1: Note, n2: Note): number {
   const diff = n2.midiNumber - n1.midiNumber;
-  if (diff > 0) { // 上行時
+  if (diff > 0) {
+    // 上行時
     if (f1 === 1 && (f2 === 2 || f2 === 3)) return 1;
-  } else if (diff < 0) { // 下行時
+  } else if (diff < 0) {
+    // 下行時
     if ((f1 === 2 || f1 === 3) && f2 === 1) return 1;
   }
   return 0;
@@ -82,7 +84,7 @@ export function totalTransitionCost(
 ): number {
   return (
     spanCost(f1, f2, n1, n2, hand, settings) +
-    weakFingerCost(f2) + // Only cost for f2 since f1 was paid before? Wait, the spec doesn't specify if it's f2, but normally in transition we add f2's cost, f1 is paid when f1 is chosen.
+    weakFingerCost(f2) + // 遷移先の指のコストのみ加算する
     thumbOnBlackCost(f2, n2) +
     fiveOnBlackCost(f2, n2) +
     thumbPassingCost(f1, f2, n1, n2) +

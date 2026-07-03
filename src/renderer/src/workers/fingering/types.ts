@@ -7,8 +7,8 @@ export type { Finger, FingerAssignment, Note };
 export type FingeringHand = 'right' | 'left';
 
 export interface HandSettings {
-  maxSpanSemitones: number;  // デフォルト 14
-  scaleFactorLeft: number;   // デフォルト 1.0
+  maxSpanSemitones: number; // デフォルト 14
+  scaleFactorLeft: number; // デフォルト 1.0
 }
 
 export interface FingeringRequest {

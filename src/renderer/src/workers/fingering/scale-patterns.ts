@@ -14,33 +14,33 @@ const MAJOR_INTERVALS = [2, 2, 1, 2, 2, 2, 1];
 const MINOR_INTERVALS = [2, 1, 2, 2, 1, 2, 2];
 
 const MAJORS = [
-  { key: 'C_MAJOR', startMidi: 0, r: [1,2,3,1,2,3,4,5], l: [5,4,3,2,1,3,2,1] },
-  { key: 'G_MAJOR', startMidi: 7, r: [1,2,3,1,2,3,4,5], l: [5,4,3,2,1,3,2,1] },
-  { key: 'D_MAJOR', startMidi: 2, r: [1,2,3,1,2,3,4,5], l: [5,4,3,2,1,3,2,1] },
-  { key: 'A_MAJOR', startMidi: 9, r: [1,2,3,1,2,3,4,5], l: [5,4,3,2,1,3,2,1] },
-  { key: 'E_MAJOR', startMidi: 4, r: [1,2,3,1,2,3,4,5], l: [5,4,3,2,1,3,2,1] },
-  { key: 'B_MAJOR', startMidi: 11, r: [1,2,3,1,2,3,4,5], l: [4,3,2,1,4,3,2,1] },
-  { key: 'F#_MAJOR', startMidi: 6, r: [2,3,1,2,3,4,1,2], l: [4,3,2,1,3,2,1,4] },
-  { key: 'Db_MAJOR', startMidi: 1, r: [2,3,1,2,3,1,2,3], l: [3,2,1,4,3,2,1,3] },
-  { key: 'Ab_MAJOR', startMidi: 8, r: [3,4,1,2,3,1,2,3], l: [3,2,1,4,3,2,1,3] },
-  { key: 'Eb_MAJOR', startMidi: 3, r: [3,1,2,3,4,1,2,3], l: [3,2,1,4,3,2,1,3] },
-  { key: 'Bb_MAJOR', startMidi: 10, r: [4,1,2,3,1,2,3,4], l: [3,2,1,4,3,2,1,3] },
-  { key: 'F_MAJOR', startMidi: 5, r: [1,2,3,4,1,2,3,4], l: [5,4,3,2,1,3,2,1] },
+  { key: 'C_MAJOR', startMidi: 0, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+  { key: 'G_MAJOR', startMidi: 7, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+  { key: 'D_MAJOR', startMidi: 2, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+  { key: 'A_MAJOR', startMidi: 9, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+  { key: 'E_MAJOR', startMidi: 4, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+  { key: 'B_MAJOR', startMidi: 11, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [4, 3, 2, 1, 4, 3, 2, 1] },
+  { key: 'F#_MAJOR', startMidi: 6, r: [2, 3, 1, 2, 3, 4, 1, 2], l: [4, 3, 2, 1, 3, 2, 1, 4] },
+  { key: 'Db_MAJOR', startMidi: 1, r: [2, 3, 1, 2, 3, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
+  { key: 'Ab_MAJOR', startMidi: 8, r: [3, 4, 1, 2, 3, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
+  { key: 'Eb_MAJOR', startMidi: 3, r: [3, 1, 2, 3, 4, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
+  { key: 'Bb_MAJOR', startMidi: 10, r: [4, 1, 2, 3, 1, 2, 3, 4], l: [3, 2, 1, 4, 3, 2, 1, 3] },
+  { key: 'F_MAJOR', startMidi: 5, r: [1, 2, 3, 4, 1, 2, 3, 4], l: [5, 4, 3, 2, 1, 3, 2, 1] },
 ];
 
 const MINORS = [
-  { key: 'A_MINOR', startMidi: 9, r: [1,2,3,1,2,3,4,5], l: [5,4,3,2,1,3,2,1] },
-  { key: 'E_MINOR', startMidi: 4, r: [1,2,3,1,2,3,4,5], l: [5,4,3,2,1,3,2,1] },
-  { key: 'B_MINOR', startMidi: 11, r: [1,2,3,1,2,3,4,5], l: [4,3,2,1,4,3,2,1] },
-  { key: 'F#_MINOR', startMidi: 6, r: [2,3,1,2,3,4,1,2], l: [4,3,2,1,3,2,1,4] },
-  { key: 'C#_MINOR', startMidi: 1, r: [3,1,2,3,4,1,2,3], l: [3,2,1,4,3,2,1,3] },
-  { key: 'G#_MINOR', startMidi: 8, r: [3,4,1,2,3,1,2,3], l: [3,2,1,4,3,2,1,3] },
-  { key: 'D#_MINOR', startMidi: 3, r: [3,1,2,3,4,1,2,3], l: [3,2,1,4,3,2,1,3] },
-  { key: 'Bb_MINOR', startMidi: 10, r: [4,1,2,3,1,2,3,4], l: [3,2,1,4,3,2,1,3] },
-  { key: 'F_MINOR', startMidi: 5, r: [1,2,3,4,1,2,3,4], l: [5,4,3,2,1,3,2,1] },
-  { key: 'C_MINOR', startMidi: 0, r: [1,2,3,1,2,3,4,5], l: [5,4,3,2,1,3,2,1] },
-  { key: 'G_MINOR', startMidi: 7, r: [1,2,3,1,2,3,4,5], l: [5,4,3,2,1,3,2,1] },
-  { key: 'D_MINOR', startMidi: 2, r: [1,2,3,1,2,3,4,5], l: [5,4,3,2,1,3,2,1] },
+  { key: 'A_MINOR', startMidi: 9, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+  { key: 'E_MINOR', startMidi: 4, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+  { key: 'B_MINOR', startMidi: 11, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [4, 3, 2, 1, 4, 3, 2, 1] },
+  { key: 'F#_MINOR', startMidi: 6, r: [2, 3, 1, 2, 3, 4, 1, 2], l: [4, 3, 2, 1, 3, 2, 1, 4] },
+  { key: 'C#_MINOR', startMidi: 1, r: [3, 1, 2, 3, 4, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
+  { key: 'G#_MINOR', startMidi: 8, r: [3, 4, 1, 2, 3, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
+  { key: 'D#_MINOR', startMidi: 3, r: [3, 1, 2, 3, 4, 1, 2, 3], l: [3, 2, 1, 4, 3, 2, 1, 3] },
+  { key: 'Bb_MINOR', startMidi: 10, r: [4, 1, 2, 3, 1, 2, 3, 4], l: [3, 2, 1, 4, 3, 2, 1, 3] },
+  { key: 'F_MINOR', startMidi: 5, r: [1, 2, 3, 4, 1, 2, 3, 4], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+  { key: 'C_MINOR', startMidi: 0, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+  { key: 'G_MINOR', startMidi: 7, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
+  { key: 'D_MINOR', startMidi: 2, r: [1, 2, 3, 1, 2, 3, 4, 5], l: [5, 4, 3, 2, 1, 3, 2, 1] },
 ];
 
 function generatePatterns(): ScalePattern[] {
@@ -61,7 +61,7 @@ function generatePatterns(): ScalePattern[] {
         right: item.r as Finger[],
         left: item.l as Finger[],
         isAscending: true,
-        pitchClasses
+        pitchClasses,
       });
       patterns.push({
         key: item.key + '_DESCENDING',
@@ -69,7 +69,7 @@ function generatePatterns(): ScalePattern[] {
         right: [...item.r].reverse() as Finger[],
         left: [...item.l].reverse() as Finger[],
         isAscending: false,
-        pitchClasses: [...pitchClasses].reverse()
+        pitchClasses: [...pitchClasses].reverse(),
       });
     }
   };
@@ -91,7 +91,7 @@ export function detectScalePattern(notes: Note[]): ScalePattern | null {
 
   // Note: we also need to ensure notes are strictly ascending or strictly descending
   for (let i = 1; i < 8; i++) {
-    const step = notes[i].midiNumber - notes[i-1].midiNumber;
+    const step = notes[i].midiNumber - notes[i - 1].midiNumber;
     if (isAscending && step <= 0) return null;
     if (!isAscending && step >= 0) return null;
   }
@@ -124,6 +124,6 @@ export function applyScalePattern(notes: Note[], hand: FingeringHand): FingerAss
   return notes.map((n, i) => ({
     noteId: n.id,
     finger: fingers[i],
-    cost: 0
+    cost: 0,
   }));
 }

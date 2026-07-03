@@ -98,10 +98,7 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
       {computing && (
         <div className="mt-4">
           <div className="w-full bg-gray-200 rounded h-2">
-            <div
-              className="bg-blue-500 h-2 rounded"
-              style={{ width: `${progress * 100}%` }}
-            />
+            <div className="bg-blue-500 h-2 rounded" style={{ width: `${progress * 100}%` }} />
           </div>
           <p className="text-sm text-gray-600 mt-1">{Math.round(progress * 100)}%</p>
         </div>

@@ -1,7 +1,7 @@
 import type { Finger } from '../../types';
 import type { FingeringHand, HandSettings } from './types';
 
-// [f1][f2] -> { comfortable: semitones, max: semitones }
+// 指1と指2のペア -> { comfortable: semitones, max: semitones }
 export const SPAN_TABLE: Record<number, Record<number, { comfortable: number; max: number }>> = {
   1: {
     2: { comfortable: 2, max: 9 },

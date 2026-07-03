@@ -28,7 +28,7 @@ describe('dp-solver', () => {
     // TASK-019 のスケール定型パターンを使わない純粋なDPでは 1-2-3-1-2-3-4-5 とは限らない。
     // 親指（1）が含まれていること、また音符数が正しいことを確認する。
     // （テスト要件: 「おおよそ 1-2-3-1-2-3-4-5 の運指が得られる... 厳密なパターンではなく、thumb crossingが含まれることを確認」）
-    const fingers = result.assignments.map(a => a.finger);
+    const fingers = result.assignments.map((a) => a.finger);
     expect(fingers).toContain(1);
     expect(result.totalCost).toBeGreaterThanOrEqual(0);
   });

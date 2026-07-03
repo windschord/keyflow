@@ -32,7 +32,10 @@ describe('FingeringEngineService', () => {
 
   it('computeFingering が RESULT メッセージで resolve する', async () => {
     const service = new FingeringEngineService();
-    const promise = service.computeFingering([], 'right', { maxSpanSemitones: 14, scaleFactorLeft: 1 });
+    const promise = service.computeFingering([], 'right', {
+      maxSpanSemitones: 14,
+      scaleFactorLeft: 1,
+    });
 
     // Ensure mockWorker.postMessage was called with right data
     expect(mockWorker.postMessage).toHaveBeenCalled();
@@ -53,7 +56,12 @@ describe('FingeringEngineService', () => {
   it('PROGRESS メッセージで onProgress が呼ばれる', async () => {
     const service = new FingeringEngineService();
     const onProgress = vi.fn();
-    const promise = service.computeFingering([], 'right', { maxSpanSemitones: 14, scaleFactorLeft: 1 }, onProgress);
+    const promise = service.computeFingering(
+      [],
+      'right',
+      { maxSpanSemitones: 14, scaleFactorLeft: 1 },
+      onProgress
+    );
 
     const req = mockWorker.postMessage.mock.calls[0][0];
 
@@ -76,7 +84,10 @@ describe('FingeringEngineService', () => {
   it('60秒タイムアウトで reject する', async () => {
     vi.useFakeTimers();
     const service = new FingeringEngineService();
-    const promise = service.computeFingering([], 'right', { maxSpanSemitones: 14, scaleFactorLeft: 1 });
+    const promise = service.computeFingering([], 'right', {
+      maxSpanSemitones: 14,
+      scaleFactorLeft: 1,
+    });
 
     vi.advanceTimersByTime(60001);
 
@@ -86,7 +97,10 @@ describe('FingeringEngineService', () => {
 
   it('ERROR メッセージで reject する', async () => {
     const service = new FingeringEngineService();
-    const promise = service.computeFingering([], 'right', { maxSpanSemitones: 14, scaleFactorLeft: 1 });
+    const promise = service.computeFingering([], 'right', {
+      maxSpanSemitones: 14,
+      scaleFactorLeft: 1,
+    });
 
     const req = mockWorker.postMessage.mock.calls[0][0];
 

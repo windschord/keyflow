@@ -110,18 +110,29 @@ export class OSMDController {
 
   private getCursorSvgCoord(): { x: number; y: number } | null {
     const svg = this.container.querySelector('svg') as SVGSVGElement | null;
-    // @ts-expect-error OSMD internal API: CursorElement is not in public type definitions
-    const cursorEl = this.osmd.cursor?.CursorElement as SVGElement | undefined;
+    // cursorElement is an internal OSMD property not exposed in the public type definitions
+    const cursorEl = (this.osmd.cursor as unknown as { cursorElement?: HTMLElement })?.cursorElement;
     if (!svg || !cursorEl) return null;
     try {
-      const pt = svg.createSVGPoint();
-      const rect = cursorEl.getBoundingClientRect();
-      pt.x = rect.left + rect.width / 2;
-      pt.y = rect.top;
-      const ctm = svg.getScreenCTM();
-      if (!ctm) return null;
-      const svgPt = pt.matrixTransform(ctm.inverse());
-      return { x: svgPt.x, y: svgPt.y };
+      const svgRect = svg.getBoundingClientRect();
+      const cursorRect = cursorEl.getBoundingClientRect();
+      if (svgRect.width === 0) return null;
+
+      // Convert screen coords to SVG internal coords via viewBox ratio
+      const vb = svg.viewBox.baseVal;
+      if (vb && vb.width > 0) {
+        const scaleX = vb.width / svgRect.width;
+        const scaleY = vb.height / svgRect.height;
+        return {
+          x: (cursorRect.left - svgRect.left + cursorRect.width / 2) * scaleX + vb.x,
+          y: (cursorRect.top - svgRect.top) * scaleY + vb.y,
+        };
+      }
+      // Fallback when no viewBox
+      return {
+        x: cursorRect.left - svgRect.left + cursorRect.width / 2,
+        y: cursorRect.top - svgRect.top,
+      };
     } catch {
       return null;
     }

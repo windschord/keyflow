@@ -6,6 +6,8 @@ export class OSMDController {
   private loaded = false;
   private currentIteratorIndex = 0;
   private noteIdToSvgCoord = new Map<string, { x: number; y: number }>();
+  private lastFingeringAssignments: Array<{ noteId: string; finger: number; isApproved: boolean }> =
+    [];
 
   constructor(container: HTMLDivElement) {
     this.container = container;
@@ -101,6 +103,8 @@ export class OSMDController {
     this.osmd.zoom = factor;
     if (this.loaded) {
       this.osmd.render();
+      // Re-render fingering layer after OSMD redraws (render() removes the SVG child nodes)
+      this.renderFingeringLayer();
     }
   }
 
@@ -142,14 +146,19 @@ export class OSMDController {
   showFingerings(
     assignments: Array<{ noteId: string; finger: number; isApproved: boolean }>
   ): void {
-    this.clearFingerings();
+    this.lastFingeringAssignments = assignments;
+    this.renderFingeringLayer();
+  }
+
+  private renderFingeringLayer(): void {
+    this.container.querySelector('#fingering-layer')?.remove();
     const svg = this.container.querySelector('svg');
-    if (!svg) return;
+    if (!svg || this.lastFingeringAssignments.length === 0) return;
 
     const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     layer.setAttribute('id', 'fingering-layer');
 
-    for (const { noteId, finger, isApproved } of assignments) {
+    for (const { noteId, finger, isApproved } of this.lastFingeringAssignments) {
       const coord = this.noteIdToSvgCoord.get(noteId);
       if (!coord) continue;
       const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -168,6 +177,7 @@ export class OSMDController {
   }
 
   clearFingerings(): void {
+    this.lastFingeringAssignments = [];
     this.container.querySelector('#fingering-layer')?.remove();
   }
 

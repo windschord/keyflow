@@ -9,13 +9,12 @@ import { parse, extractXmlFromMxl } from './lib/musicxml-parser';
 import { SettingsModal } from './components/SettingsModal';
 import { usePractice } from './hooks/usePractice';
 import { AnnotationStoreService } from './lib/annotation-store';
+import type { FingerAssignment } from './types';
 
 function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = React.useState(false);
-  const [fingeringAnnotations, setFingeringAnnotations] = React.useState<
-    import('./types').FingerAssignment[]
-  >([]);
+  const [fingeringAnnotations, setFingeringAnnotations] = React.useState<FingerAssignment[]>([]);
 
   const { practiceEngine } = usePractice();
 
@@ -95,7 +94,7 @@ function App(): React.JSX.Element {
   };
 
   const handleFingering = React.useCallback(
-    async (assignments: import('./types').FingerAssignment[]) => {
+    async (assignments: FingerAssignment[]) => {
       if (!musicXmlPath || isLoadingAnnotations) return;
       try {
         annotationStore.current.applyAISuggestions(assignments);

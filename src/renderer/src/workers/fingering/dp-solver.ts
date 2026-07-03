@@ -30,9 +30,10 @@ export function computeFingering(
   for (let i = 1; i < n; i++) {
     // Check for timeout (every 100 iterations to avoid excessive Date.now() calls)
     if (deadline && i % 100 === 0 && Date.now() > deadline) {
-      // Return partial result up to current position
+      // Return partial result up to the last fully-computed position.
+      // dp[i] is not yet computed at this point (before inner loops), so use i-1.
       onProgress?.(i / n);
-      return backtrackPartial(dp, notes, i);
+      return backtrackPartial(dp, notes, i - 1);
     }
 
     for (const f2 of FINGERS) {

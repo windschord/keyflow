@@ -16,82 +16,83 @@ const MINOR_INTERVALS = [2, 1, 2, 2, 1, 2, 2];
 interface ScaleData {
   key: string;
   startMidi: number;
-  r: Finger[];
-  l: Finger[];
+  // number[] avoids per-element `as Finger[]` casts; values are validated to be 1-5 by construction
+  r: number[];
+  l: number[];
 }
 
 const MAJORS: ScaleData[] = [
   {
     key: 'C_MAJOR',
     startMidi: 0,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
   {
     key: 'G_MAJOR',
     startMidi: 7,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
   {
     key: 'D_MAJOR',
     startMidi: 2,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
   {
     key: 'A_MAJOR',
     startMidi: 9,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
   {
     key: 'E_MAJOR',
     startMidi: 4,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
   {
     key: 'B_MAJOR',
     startMidi: 11,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [4, 3, 2, 1, 4, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [4, 3, 2, 1, 4, 3, 2, 1],
   },
   {
     key: 'F#_MAJOR',
     startMidi: 6,
-    r: [2, 3, 1, 2, 3, 4, 1, 2] as Finger[],
-    l: [4, 3, 2, 1, 3, 2, 1, 4] as Finger[],
+    r: [2, 3, 1, 2, 3, 4, 1, 2],
+    l: [4, 3, 2, 1, 3, 2, 1, 4],
   },
   {
     key: 'Db_MAJOR',
     startMidi: 1,
-    r: [2, 3, 1, 2, 3, 1, 2, 3] as Finger[],
-    l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[],
+    r: [2, 3, 1, 2, 3, 1, 2, 3],
+    l: [3, 2, 1, 4, 3, 2, 1, 3],
   },
   {
     key: 'Ab_MAJOR',
     startMidi: 8,
-    r: [3, 4, 1, 2, 3, 1, 2, 3] as Finger[],
-    l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[],
+    r: [3, 4, 1, 2, 3, 1, 2, 3],
+    l: [3, 2, 1, 4, 3, 2, 1, 3],
   },
   {
     key: 'Eb_MAJOR',
     startMidi: 3,
-    r: [3, 1, 2, 3, 4, 1, 2, 3] as Finger[],
-    l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[],
+    r: [3, 1, 2, 3, 4, 1, 2, 3],
+    l: [3, 2, 1, 4, 3, 2, 1, 3],
   },
   {
     key: 'Bb_MAJOR',
     startMidi: 10,
-    r: [4, 1, 2, 3, 1, 2, 3, 4] as Finger[],
-    l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[],
+    r: [4, 1, 2, 3, 1, 2, 3, 4],
+    l: [3, 2, 1, 4, 3, 2, 1, 3],
   },
   {
     key: 'F_MAJOR',
     startMidi: 5,
-    r: [1, 2, 3, 4, 1, 2, 3, 4] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 4, 1, 2, 3, 4],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
 ];
 
@@ -99,74 +100,74 @@ const MINORS: ScaleData[] = [
   {
     key: 'A_MINOR',
     startMidi: 9,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
   {
     key: 'E_MINOR',
     startMidi: 4,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
   {
     key: 'B_MINOR',
     startMidi: 11,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [4, 3, 2, 1, 4, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [4, 3, 2, 1, 4, 3, 2, 1],
   },
   {
     key: 'F#_MINOR',
     startMidi: 6,
-    r: [2, 3, 1, 2, 3, 4, 1, 2] as Finger[],
-    l: [4, 3, 2, 1, 3, 2, 1, 4] as Finger[],
+    r: [2, 3, 1, 2, 3, 4, 1, 2],
+    l: [4, 3, 2, 1, 3, 2, 1, 4],
   },
   {
     key: 'C#_MINOR',
     startMidi: 1,
-    r: [3, 1, 2, 3, 4, 1, 2, 3] as Finger[],
-    l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[],
+    r: [3, 1, 2, 3, 4, 1, 2, 3],
+    l: [3, 2, 1, 4, 3, 2, 1, 3],
   },
   {
     key: 'G#_MINOR',
     startMidi: 8,
-    r: [3, 4, 1, 2, 3, 1, 2, 3] as Finger[],
-    l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[],
+    r: [3, 4, 1, 2, 3, 1, 2, 3],
+    l: [3, 2, 1, 4, 3, 2, 1, 3],
   },
   {
     key: 'D#_MINOR',
     startMidi: 3,
-    r: [3, 1, 2, 3, 4, 1, 2, 3] as Finger[],
-    l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[],
+    r: [3, 1, 2, 3, 4, 1, 2, 3],
+    l: [3, 2, 1, 4, 3, 2, 1, 3],
   },
   {
     key: 'Bb_MINOR',
     startMidi: 10,
-    r: [4, 1, 2, 3, 1, 2, 3, 4] as Finger[],
-    l: [3, 2, 1, 4, 3, 2, 1, 3] as Finger[],
+    r: [4, 1, 2, 3, 1, 2, 3, 4],
+    l: [3, 2, 1, 4, 3, 2, 1, 3],
   },
   {
     key: 'F_MINOR',
     startMidi: 5,
-    r: [1, 2, 3, 4, 1, 2, 3, 4] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 4, 1, 2, 3, 4],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
   {
     key: 'C_MINOR',
     startMidi: 0,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
   {
     key: 'G_MINOR',
     startMidi: 7,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
   {
     key: 'D_MINOR',
     startMidi: 2,
-    r: [1, 2, 3, 1, 2, 3, 4, 5] as Finger[],
-    l: [5, 4, 3, 2, 1, 3, 2, 1] as Finger[],
+    r: [1, 2, 3, 1, 2, 3, 4, 5],
+    l: [5, 4, 3, 2, 1, 3, 2, 1],
   },
 ];
 
@@ -182,20 +183,23 @@ function generatePatterns(): ScalePattern[] {
         pitchClasses.push(current);
       }
 
+      // All values in r/l are 1-5 by construction, matching the Finger union type.
+      // The cast consolidates type-narrowing in one place rather than per array literal.
+      const right = item.r as Finger[];
+      const left = item.l as Finger[];
       patterns.push({
         key: item.key,
         startMidi: item.startMidi,
-        right: item.r,
-        left: item.l,
+        right,
+        left,
         isAscending: true,
         pitchClasses,
       });
       patterns.push({
         key: item.key + '_DESCENDING',
         startMidi: item.startMidi,
-        // Array.reverse() preserves element types but TypeScript needs explicit assertion
-        right: [...item.r].reverse() as Finger[],
-        left: [...item.l].reverse() as Finger[],
+        right: [...right].reverse() as Finger[],
+        left: [...left].reverse() as Finger[],
         isAscending: false,
         pitchClasses: [...pitchClasses].reverse(),
       });

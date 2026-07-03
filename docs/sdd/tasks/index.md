@@ -33,7 +33,7 @@
 | Phase 3: MIDI & IPC | 2 | 0 | 0 | 0 | [詳細](phase-3/) @phase-3/ |
 | Phase 4: UIコアコンポーネント | 4 | 0 | 0 | 0 | [詳細](phase-4/) @phase-4/ |
 | Phase 5: 練習エンジン統合 | 4 | 0 | 0 | 0 | [詳細](phase-5/) @phase-5/ |
-| Phase 6: 運指エンジン（DP） | 0 | 0 | 4 | 0 | [詳細](phase-6/) @phase-6/ |
+| Phase 6: 運指エンジン（DP） | 4 | 0 | 0 | 0 | [詳細](phase-6/) @phase-6/ |
 | Phase 7: パッケージング・QA | 0 | 0 | 2 | 0 | [詳細](phase-7/) @phase-7/ |
 
 **合計**: 23タスク / 推定合計: 約870分（AIエージェント作業時間）
@@ -129,10 +129,10 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-017 | フィンガリングWeb Worker基盤・型定義・コスト関数 | TODO | Phase 5 | 40min | [詳細](phase-6/TASK-017.md) @phase-6/TASK-017.md |
-| TASK-018 | DPソルバー実装（Parncutt-Terzuoloモデル） | TODO | TASK-017 | 60min | [詳細](phase-6/TASK-018.md) @phase-6/TASK-018.md |
-| TASK-019 | スケール定型パターン実装（全24調） | TODO | TASK-017 | 30min | [詳細](phase-6/TASK-019.md) @phase-6/TASK-019.md |
-| TASK-020 | FingeringEngineService + 運指UI統合 | TODO | TASK-018, TASK-019 | 40min | [詳細](phase-6/TASK-020.md) @phase-6/TASK-020.md |
+| TASK-017 | フィンガリングWeb Worker基盤・型定義・コスト関数 | DONE | Phase 5 | 40min | [詳細](phase-6/TASK-017.md) @phase-6/TASK-017.md |
+| TASK-018 | DPソルバー実装（Parncutt-Terzuoloモデル） | DONE | TASK-017 | 60min | [詳細](phase-6/TASK-018.md) @phase-6/TASK-018.md |
+| TASK-019 | スケール定型パターン実装（全24調） | DONE | TASK-017 | 30min | [詳細](phase-6/TASK-019.md) @phase-6/TASK-019.md |
+| TASK-020 | FingeringEngineService + 運指UI統合 | DONE | TASK-018, TASK-019 | 40min | [詳細](phase-6/TASK-020.md) @phase-6/TASK-020.md |
 
 ### Phase 7: パッケージング・QA
 *推定期間: 80min*

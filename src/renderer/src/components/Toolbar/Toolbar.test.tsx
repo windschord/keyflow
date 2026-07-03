@@ -52,7 +52,7 @@ describe('Toolbar UI', () => {
     fireEvent.change(endInput, { target: { value: '3' } });
     fireEvent.blur(endInput);
 
-    expect(screen.getByText('Start must be < End')).toBeInTheDocument();
+    expect(screen.getByText('開始 < 終了')).toBeInTheDocument();
 
     // Store should not be updated due to error
     expect(usePracticeStore.getState().loopStart).toBe(1);

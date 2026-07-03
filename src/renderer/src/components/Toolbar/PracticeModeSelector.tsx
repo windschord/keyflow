@@ -1,6 +1,23 @@
 import React, { useEffect } from 'react';
 import { usePracticeStore } from '../../store';
 
+const BTN_STYLE: React.CSSProperties = {
+  height: '44px',
+  padding: '0 14px',
+  fontSize: '15px',
+  borderRadius: '6px',
+  border: '1px solid #9ca3af',
+  backgroundColor: 'white',
+  cursor: 'pointer',
+};
+
+const BTN_ACTIVE_STYLE: React.CSSProperties = {
+  ...BTN_STYLE,
+  fontWeight: 'bold',
+  backgroundColor: '#dbeafe',
+  borderColor: '#3b82f6',
+};
+
 export const PracticeModeSelector: React.FC = () => {
   const { practiceMode, setPracticeMode } = usePracticeStore();
 
@@ -32,25 +49,24 @@ export const PracticeModeSelector: React.FC = () => {
   }, [setPracticeMode]);
 
   return (
-    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-      <label>Mode:</label>
+    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
       <button
         data-testid="mode-left"
-        style={{ fontWeight: practiceMode === 'left' ? 'bold' : 'normal' }}
+        style={practiceMode === 'left' ? BTN_ACTIVE_STYLE : BTN_STYLE}
         onClick={() => setPracticeMode('left')}
       >
         Left (L)
       </button>
       <button
         data-testid="mode-right"
-        style={{ fontWeight: practiceMode === 'right' ? 'bold' : 'normal' }}
+        style={practiceMode === 'right' ? BTN_ACTIVE_STYLE : BTN_STYLE}
         onClick={() => setPracticeMode('right')}
       >
         Right (R)
       </button>
       <button
         data-testid="mode-both"
-        style={{ fontWeight: practiceMode === 'both' ? 'bold' : 'normal' }}
+        style={practiceMode === 'both' ? BTN_ACTIVE_STYLE : BTN_STYLE}
         onClick={() => setPracticeMode('both')}
       >
         Both (B)

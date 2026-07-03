@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { usePracticeStore } from '../../store';
 
+const INPUT_STYLE: React.CSSProperties = {
+  height: '44px',
+  fontSize: '16px',
+  padding: '0 8px',
+  borderRadius: '6px',
+  border: '1px solid #d1d5db',
+  boxSizing: 'border-box',
+};
+
 export const TempoControl: React.FC = () => {
   const { bpm, originalBpm, setBpm, metronomeEnabled, setMetronomeEnabled } = usePracticeStore();
   const [inputValue, setInputValue] = useState(bpm.toString());
@@ -34,13 +43,13 @@ export const TempoControl: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-      <label>Tempo:</label>
       <input
         type="range"
         min="20"
         max="200"
         value={currentRatio}
         onChange={handleSliderChange}
+        style={{ height: '44px', cursor: 'pointer' }}
         data-testid="tempo-slider"
       />
       <input
@@ -50,16 +59,38 @@ export const TempoControl: React.FC = () => {
         value={inputValue}
         onChange={handleInputChange}
         onBlur={handleInputBlur}
-        style={{ width: '60px' }}
+        style={{ ...INPUT_STYLE, width: '72px' }}
         data-testid="tempo-input"
       />
-      <span>BPM</span>
-      <button onClick={() => setBpm(originalBpm)}>Reset</button>
-      <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <button
+        onClick={() => setBpm(originalBpm)}
+        style={{
+          height: '44px',
+          padding: '0 12px',
+          fontSize: '15px',
+          borderRadius: '6px',
+          border: '1px solid #9ca3af',
+          backgroundColor: 'white',
+          cursor: 'pointer',
+        }}
+      >
+        Reset
+      </button>
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          height: '44px',
+          cursor: 'pointer',
+          fontSize: '15px',
+        }}
+      >
         <input
           type="checkbox"
           checked={metronomeEnabled}
           onChange={(e) => setMetronomeEnabled(e.target.checked)}
+          style={{ width: '20px', height: '20px', cursor: 'pointer' }}
         />
         Metronome
       </label>

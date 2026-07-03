@@ -111,28 +111,46 @@ function App(): React.JSX.Element {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      {/* 1. Toolbar (Fixed Header) */}
+      {/* 1. Header bar: Open File + FingeringPanel */}
       <div style={{ flexShrink: 0 }}>
-        <div style={{ padding: '8px', backgroundColor: '#e0e0e0', display: 'flex', gap: '8px' }}>
-          <button onClick={handleOpenFile} style={{ padding: '4px 12px', cursor: 'pointer' }}>
+        <div
+          style={{
+            padding: '6px 12px',
+            backgroundColor: '#e0e0e0',
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <button
+            onClick={handleOpenFile}
+            style={{
+              height: '44px',
+              padding: '0 16px',
+              fontSize: '16px',
+              borderRadius: '6px',
+              border: '1px solid #9ca3af',
+              backgroundColor: 'white',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
             Open File
           </button>
+          <div style={{ width: '1px', height: '28px', backgroundColor: '#bbb' }} />
+          <FingeringPanel
+            score={score}
+            onSuggested={handleFingering}
+            disabled={isLoadingAnnotations}
+          />
         </div>
         <Toolbar onOpenSettings={() => setIsSettingsOpen(true)} />
       </div>
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
-      {/* 2. FingeringPanel */}
-      <div style={{ flexShrink: 0 }}>
-        <FingeringPanel
-          score={score}
-          onSuggested={handleFingering}
-          disabled={isLoadingAnnotations}
-        />
-      </div>
-
-      {/* 3. ScoreRenderer (Flex Grow) */}
+      {/* 2. ScoreRenderer (Flex Grow) */}
       <div style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
         <ScoreRenderer
           score={score}

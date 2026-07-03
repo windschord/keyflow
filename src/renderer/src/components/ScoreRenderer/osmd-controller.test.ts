@@ -8,6 +8,7 @@ describe('OSMDController moveCursor and buildNoteIdMap', () => {
     const mockCursor = {
       Hidden: true,
       show: vi.fn(),
+      hide: vi.fn(),
       reset: vi.fn().mockImplementation(() => {
         iteratorIdx = 0;
         mockCursor.Iterator.EndReached = false;

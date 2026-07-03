@@ -2,10 +2,15 @@ import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 
 export class OSMDController {
   private osmd: OpenSheetMusicDisplay;
+  private container: HTMLDivElement;
   private loaded = false;
   private currentIteratorIndex = 0;
+  private noteIdToSvgCoord = new Map<string, { x: number; y: number }>();
+  private lastFingeringAssignments: Array<{ noteId: string; finger: number; isApproved: boolean }> =
+    [];
 
   constructor(container: HTMLDivElement) {
+    this.container = container;
     this.osmd = new OpenSheetMusicDisplay(container, {
       autoResize: true,
       backend: 'svg',
@@ -98,6 +103,8 @@ export class OSMDController {
     this.osmd.zoom = factor;
     if (this.loaded) {
       this.osmd.render();
+      // Re-render fingering layer after OSMD redraws (render() removes the SVG child nodes)
+      this.renderFingeringLayer();
     }
   }
 
@@ -105,9 +112,83 @@ export class OSMDController {
     // Dummy implementation
   }
 
+  private getCursorSvgCoord(): { x: number; y: number } | null {
+    const svg = this.container.querySelector('svg') as SVGSVGElement | null;
+    // cursorElement is an internal OSMD property not exposed in the public type definitions
+    const cursorEl = (this.osmd.cursor as unknown as { cursorElement?: HTMLElement })
+      ?.cursorElement;
+    if (!svg || !cursorEl) return null;
+    try {
+      const svgRect = svg.getBoundingClientRect();
+      const cursorRect = cursorEl.getBoundingClientRect();
+      if (svgRect.width === 0) return null;
+
+      // Convert screen coords to SVG internal coords via viewBox ratio
+      const vb = svg.viewBox.baseVal;
+      if (vb && vb.width > 0) {
+        const scaleX = vb.width / svgRect.width;
+        const scaleY = vb.height / svgRect.height;
+        return {
+          x: (cursorRect.left - svgRect.left + cursorRect.width / 2) * scaleX + vb.x,
+          y: (cursorRect.top - svgRect.top) * scaleY + vb.y,
+        };
+      }
+      // Fallback when no viewBox
+      return {
+        x: cursorRect.left - svgRect.left + cursorRect.width / 2,
+        y: cursorRect.top - svgRect.top,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  showFingerings(
+    assignments: Array<{ noteId: string; finger: number; isApproved: boolean }>
+  ): void {
+    this.lastFingeringAssignments = assignments;
+    this.renderFingeringLayer();
+  }
+
+  private renderFingeringLayer(): void {
+    this.container.querySelector('#fingering-layer')?.remove();
+    const svg = this.container.querySelector('svg');
+    if (!svg || this.lastFingeringAssignments.length === 0) return;
+
+    const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    layer.setAttribute('id', 'fingering-layer');
+
+    for (const { noteId, finger, isApproved } of this.lastFingeringAssignments) {
+      const coord = this.noteIdToSvgCoord.get(noteId);
+      if (!coord) continue;
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', String(coord.x));
+      text.setAttribute('y', String(coord.y - 4));
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('font-size', '8');
+      // Approved: solid blue; suggested: light blue
+      text.setAttribute('fill', isApproved ? '#2563eb' : '#93c5fd');
+      text.setAttribute('pointer-events', 'none');
+      text.textContent = String(finger);
+      layer.appendChild(text);
+    }
+
+    svg.appendChild(layer);
+  }
+
+  clearFingerings(): void {
+    this.lastFingeringAssignments = [];
+    this.container.querySelector('#fingering-layer')?.remove();
+  }
+
   buildNoteIdMap(): Map<string, { iteratorIndex: number }> {
     this.noteIdToCursorState.clear();
+    this.noteIdToSvgCoord.clear();
     if (!this.osmd.cursor || !this.loaded) return this.noteIdToCursorState;
+
+    // Show cursor temporarily so CursorElement is in the DOM for coordinate sampling
+    const wasHidden = this.osmd.cursor.Hidden;
+    if (wasHidden) this.osmd.cursor.show();
 
     this.osmd.cursor.reset();
     this.currentIteratorIndex = 0;
@@ -120,6 +201,7 @@ export class OSMDController {
     const noteIndexInMeasurePerPart = new Map<string, number>();
 
     while (!this.osmd.cursor.Iterator.EndReached) {
+      const coord = this.getCursorSvgCoord();
       const measureIndex = this.osmd.cursor.Iterator.CurrentMeasureIndex;
       if (measureIndex !== currentMeasure) {
         currentMeasure = measureIndex;
@@ -154,6 +236,7 @@ export class OSMDController {
             for (let i = 0; i < ve.Notes.length; i++) {
               const noteId = `${partId}-M${measureNumber}-N${currentNoteIndex + i}`;
               this.noteIdToCursorState.set(noteId, { iteratorIndex });
+              if (coord) this.noteIdToSvgCoord.set(noteId, coord);
             }
 
             // Update note index for this part
@@ -168,6 +251,10 @@ export class OSMDController {
 
     this.osmd.cursor.reset();
     this.currentIteratorIndex = 0;
+
+    // Restore cursor visibility
+    if (wasHidden) this.osmd.cursor.hide();
+
     return this.noteIdToCursorState;
   }
 }

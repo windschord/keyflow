@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { usePracticeStore } from '../../store';
 
+const INPUT_STYLE: React.CSSProperties = {
+  height: '44px',
+  width: '64px',
+  fontSize: '16px',
+  padding: '0 8px',
+  borderRadius: '6px',
+  border: '1px solid #d1d5db',
+  boxSizing: 'border-box',
+  textAlign: 'center',
+};
+
 export const LoopControl: React.FC = () => {
   const { loopStart, loopEnd, setLoopRange, loopEnabled, toggleLoop } = usePracticeStore();
   const [startInput, setStartInput] = useState(loopStart.toString());
@@ -17,12 +28,12 @@ export const LoopControl: React.FC = () => {
     const end = parseInt(endInput, 10);
 
     if (isNaN(start) || isNaN(end) || start < 1 || end < 1) {
-      setError('Invalid values');
+      setError('無効な値');
       return;
     }
 
     if (start >= end) {
-      setError('Start must be < End');
+      setError('開始 < 終了');
       return;
     }
 
@@ -32,8 +43,22 @@ export const LoopControl: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <input type="checkbox" checked={loopEnabled} onChange={toggleLoop} />
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          height: '44px',
+          cursor: 'pointer',
+          fontSize: '15px',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={loopEnabled}
+          onChange={toggleLoop}
+          style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+        />
         Loop
       </label>
       <input
@@ -41,20 +66,19 @@ export const LoopControl: React.FC = () => {
         value={startInput}
         onChange={(e) => setStartInput(e.target.value)}
         onBlur={handleBlur}
-        style={{ width: '50px' }}
+        style={INPUT_STYLE}
         data-testid="loop-start"
       />
-      <span>-</span>
+      <span style={{ fontSize: '15px' }}>–</span>
       <input
         type="number"
         value={endInput}
         onChange={(e) => setEndInput(e.target.value)}
         onBlur={handleBlur}
-        style={{ width: '50px' }}
+        style={INPUT_STYLE}
         data-testid="loop-end"
       />
-      {error && <span style={{ color: 'red', fontSize: '12px' }}>{error}</span>}
-      <span style={{ fontSize: '12px', color: '#666' }}>Count: 0</span>
+      {error && <span style={{ color: '#ef4444', fontSize: '13px' }}>{error}</span>}
     </div>
   );
 };

@@ -111,7 +111,8 @@ export class OSMDController {
   private getCursorSvgCoord(): { x: number; y: number } | null {
     const svg = this.container.querySelector('svg') as SVGSVGElement | null;
     // cursorElement is an internal OSMD property not exposed in the public type definitions
-    const cursorEl = (this.osmd.cursor as unknown as { cursorElement?: HTMLElement })?.cursorElement;
+    const cursorEl = (this.osmd.cursor as unknown as { cursorElement?: HTMLElement })
+      ?.cursorElement;
     if (!svg || !cursorEl) return null;
     try {
       const svgRect = svg.getBoundingClientRect();
@@ -138,7 +139,9 @@ export class OSMDController {
     }
   }
 
-  showFingerings(assignments: Array<{ noteId: string; finger: number; isApproved: boolean }>): void {
+  showFingerings(
+    assignments: Array<{ noteId: string; finger: number; isApproved: boolean }>
+  ): void {
     this.clearFingerings();
     const svg = this.container.querySelector('svg');
     if (!svg) return;

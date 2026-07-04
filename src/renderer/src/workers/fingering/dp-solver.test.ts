@@ -23,19 +23,56 @@ const makeNote = (id: string, midiNumber: number): Note => ({
 const DEFAULT_SETTINGS: HandSettings = { maxSpanSemitones: 14, scaleFactorLeft: 1.0 };
 
 describe('dp-solver', () => {
-  it('Cメジャースケール8音（右手）でおおよそ親指が使われるか、thumb crossingが含まれることを確認', () => {
+  it('Cメジャースケール8音（右手）で運指が 1-2-3-1-2-3-4-5 になる（REQ-009-A06: 定型パターン優先適用）', () => {
     // C4, D4, E4, F4, G4, A4, B4, C5
     const midiNumbers = [60, 62, 64, 65, 67, 69, 71, 72];
     const notes = midiNumbers.map((m, i) => makeNote(`n${i}`, m));
     const result = computeFingering(notes, 'right', DEFAULT_SETTINGS);
 
     expect(result.assignments).toHaveLength(8);
-    // TASK-019 のスケール定型パターンを使わない純粋なDPでは 1-2-3-1-2-3-4-5 とは限らない。
-    // 親指（1）が含まれていること、また音符数が正しいことを確認する。
-    // （テスト要件: 「おおよそ 1-2-3-1-2-3-4-5 の運指が得られる... 厳密なパターンではなく、thumb crossingが含まれることを確認」）
     const fingers = result.assignments.map((a) => a.finger);
-    expect(fingers).toContain(1);
-    expect(result.totalCost).toBeGreaterThanOrEqual(0);
+    expect(fingers).toEqual([1, 2, 3, 1, 2, 3, 4, 5]);
+    expect(result.totalCost).toBe(0);
+  });
+
+  it('Gメジャースケール8音（左手）で定型運指 5-4-3-2-1-3-2-1 が優先適用される（REQ-009-A06）', () => {
+    // G3, A3, B3, C4, D4, E4, F#4, G4
+    const midiNumbers = [55, 57, 59, 60, 62, 64, 66, 67];
+    const notes = midiNumbers.map((m, i) => makeNote(`n${i}`, m));
+    const result = computeFingering(notes, 'left', DEFAULT_SETTINGS);
+
+    expect(result.assignments).toHaveLength(8);
+    const fingers = result.assignments.map((a) => a.finger);
+    expect(fingers).toEqual([5, 4, 3, 2, 1, 3, 2, 1]);
+    expect(result.totalCost).toBe(0);
+  });
+
+  it('Cメジャースケール下降8音（右手）で定型運指 5-4-3-2-1-3-2-1 が優先適用される（REQ-009-A06）', () => {
+    // C5, B4, A4, G4, F4, E4, D4, C4
+    const midiNumbers = [72, 71, 69, 67, 65, 64, 62, 60];
+    const notes = midiNumbers.map((m, i) => makeNote(`n${i}`, m));
+    const result = computeFingering(notes, 'right', DEFAULT_SETTINGS);
+
+    expect(result.assignments).toHaveLength(8);
+    const fingers = result.assignments.map((a) => a.finger);
+    expect(fingers).toEqual([5, 4, 3, 2, 1, 3, 2, 1]);
+    expect(result.totalCost).toBe(0);
+  });
+
+  it('スケールに該当しない8音の旋律では定型パターンが適用されず従来のDP結果が維持される（回帰）', () => {
+    // 60,61,63,65,67,69,71,72 は1オクターブ差だがメジャー/マイナースケールの音程パターンに一致しない
+    // （detectScalePatternはnullを返すため、統合後もDPの最適解がそのまま採用される）
+    const midiNumbers = [60, 61, 63, 65, 67, 69, 71, 72];
+    const notes = midiNumbers.map((m, i) => makeNote(`n${i}`, m));
+    const result = computeFingering(notes, 'right', DEFAULT_SETTINGS);
+
+    expect(result.assignments).toHaveLength(8);
+    // 定型パターン適用時の固定運指（1,2,3,1,2,3,4,5 または 5,4,3,2,1,3,2,1）とは一致しない、
+    // 純粋なDPが導いた最適解であることを確認する
+    const fingers = result.assignments.map((a) => a.finger);
+    expect(fingers).not.toEqual([1, 2, 3, 1, 2, 3, 4, 5]);
+    expect(fingers).not.toEqual([5, 4, 3, 2, 1, 3, 2, 1]);
+    expect(result.totalCost).toBe(0);
   });
 
   it('単音列（[C4]のみ）では assignments[0].finger が 1〜5 の範囲内', () => {

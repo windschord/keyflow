@@ -214,7 +214,7 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-039 | [BugFix] ファイル履歴の結線 | TODO | - | 30min | [詳細](phase-11/TASK-039.md) @phase-11/TASK-039.md |
+| TASK-039 | [BugFix] ファイル履歴の結線 | DONE | - | 30min | [詳細](phase-11/TASK-039.md) @phase-11/TASK-039.md |
 | TASK-040 | [BugFix] エラーモード設定の結線 | TODO | - | 30min | [詳細](phase-11/TASK-040.md) @phase-11/TASK-040.md |
 | TASK-041 | [BugFix] 鍵盤ガイドの左右色分け修正 | TODO | - | 30min | [詳細](phase-11/TASK-041.md) @phase-11/TASK-041.md |
 | TASK-042 | [BugFix] メトロノームのTransport起動/停止の非対称修正 | IN_PROGRESS | - | 30min | [詳細](phase-11/TASK-042.md) @phase-11/TASK-042.md |

@@ -3,6 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsModal } from './index';
 import { usePracticeStore } from '../../store';
 
+// 本ファイルは window.electronAPI をモックした「UI表示層のみ」の検証である。
+// settingsApi.getRecentFiles はモック応答を返すため、Main プロセス側で
+// SettingsService.addRecentFile が実際に呼ばれ、electron-store の recentFiles に
+// 反映されるという本番経路の結線（REQ-001-006）はここでは検証できない。
+// その結線検証は src/main/file-handlers.test.ts
+// （createShowOpenDialogHandler が addRecentFile を呼ぶことの検証）が担う。
 describe('SettingsModal', () => {
   const settingsApi = {
     get: vi.fn(),
@@ -25,7 +31,7 @@ describe('SettingsModal', () => {
     usePracticeStore.setState({ metronomeEnabled: false });
   });
 
-  it('loads settings and recent files through preload API', async () => {
+  it('renders recent files returned by the preload API (UI display only, mocked data)', async () => {
     settingsApi.get.mockImplementation((key: string) => {
       if (key === 'ui')
         return Promise.resolve({ theme: 'light', language: 'ja', zoom: 1, pianoHeight: 120 });

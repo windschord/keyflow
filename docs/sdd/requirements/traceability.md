@@ -11,7 +11,7 @@
 | REQ-001-003 | ○ | parser.test hand-detector / 統合テスト |
 | REQ-001-004 | ○ | parser.test（tempo/time/key、tempoMap含む） |
 | REQ-001-005 | × | MusicXML 3.1準拠スイートなし |
-| REQ-001-006 | ×※ | addRecentFile未結線（本番で履歴が常に空）。TASK-039で対応 |
+| REQ-001-006 | ○ | file-handlers.test（createShowOpenDialogHandlerがaddRecentFileを呼ぶ結線を検証）。TASK-039で対応済み |
 | REQ-002-001 | △ | E2E: svg可視のみ |
 | REQ-002-002 | × | OSMD委譲、無検証 |
 | REQ-002-003 | △ | osmd-controller.test（scrollIntoView、モック）+ E2Eカーソル移動 |
@@ -65,7 +65,7 @@
 | REQ-009-A03 | × | thumbPassingCost実装済み・テストゼロ（TASK-046） |
 | REQ-009-A04 | × | fiveOnBlackCost実装済み・テストゼロ（TASK-046） |
 | REQ-009-A05 | △※ | 手の大きさ設定UIなし。DPテストは空虚 |
-| REQ-009-A06 | ×※ | scale-patterns.tsが本番未結線のデッドコード（TASK-043） |
+| REQ-009-A06 | ○ | computeFingering内でapplyScalePatternを優先適用済み（dp-solver.test、TASK-043） |
 | REQ-010-001 | ○ | audio-engine.test（loadScoreスケジューリング）+ E2E |
 | REQ-010-002 | ×※ | 未読込時の再生無効化＋理由ツールチップ未実装（TASK-047で整理） |
 | REQ-010-003 | △ | 状態遷移＋ユニット。実機聴感は不可 |

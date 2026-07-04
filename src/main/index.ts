@@ -6,6 +6,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
 import { PathAllowlist } from './path-allowlist';
+import { createShowOpenDialogHandler } from './file-handlers';
 
 function createWindow(): void {
   // Create the browser window.
@@ -48,6 +49,9 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   const pathAllowlist = new PathAllowlist();
+  // settings系IPCハンドラ（settings:get 等）と同一インスタンスを共有するため、
+  // file:show-open-dialog ハンドラ登録より前に生成する（TASK-039）。
+  const settingsService = new SettingsService();
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
@@ -62,17 +66,10 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'));
 
-  ipcMain.handle('file:show-open-dialog', async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      filters: [{ name: 'MusicXML', extensions: ['xml', 'mxl', 'musicxml'] }],
-    });
-    if (canceled || filePaths.length === 0) {
-      return null;
-    }
-    pathAllowlist.allowMusicXml(filePaths[0]);
-    return filePaths[0];
-  });
+  ipcMain.handle(
+    'file:show-open-dialog',
+    createShowOpenDialogHandler(dialog, pathAllowlist, settingsService)
+  );
 
   ipcMain.handle('file:read', async (_, path: string) => {
     const content = await fs.promises.readFile(path, 'utf-8');
@@ -196,7 +193,6 @@ app.whenReady().then(() => {
     }
   });
 
-  const settingsService = new SettingsService();
   ipcMain.handle('settings:get', (_, key) => settingsService.get(key));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ipcMain.handle('settings:set', (_, key, value) => settingsService.set(key, value as any));

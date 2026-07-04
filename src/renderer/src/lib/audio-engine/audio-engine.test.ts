@@ -138,19 +138,21 @@ describe('AudioEngineService', () => {
     expect(Tone.getTransport().bpm.value).toBe(120);
   });
 
-  it('setMetronomeEnabled(true) starts metronome sequence', () => {
+  it('setMetronomeEnabled(true) starts metronome sequence without starting Transport', () => {
     service.setMetronomeEnabled(true);
-    // metronome start triggers sequence start
+    // metronome start triggers sequence start, but must not start the shared Transport
+    // (TASK-042: Transport lifecycle belongs to playback controls only).
     // @ts-expect-error private
     expect(service.metronome.sequence.start).toHaveBeenCalledWith(0);
-    expect(Tone.getTransport().start).toHaveBeenCalled();
+    expect(Tone.getTransport().start).not.toHaveBeenCalled();
   });
 
-  it('setMetronomeEnabled(false) stops metronome sequence', () => {
+  it('setMetronomeEnabled(false) stops metronome sequence without stopping Transport', () => {
     service.setMetronomeEnabled(true);
     service.setMetronomeEnabled(false);
     // @ts-expect-error private
     expect(service.metronome.sequence.stop).toHaveBeenCalled();
+    expect(Tone.getTransport().stop).not.toHaveBeenCalled();
   });
 
   it('playNote(60) correctly plays C4 on playSynth', () => {
@@ -317,6 +319,44 @@ describe('AudioEngineService', () => {
 
       expect(Tone.getTransport().stop).toHaveBeenCalled();
       expect(onStop).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('metronome/Transport lifecycle decoupling (TASK-042, REQ-006-005)', () => {
+    it('does not start playback when enabling the metronome while stopped (playbackState stays "stopped")', () => {
+      service.setMetronomeEnabled(true);
+
+      expect(Tone.getTransport().start).not.toHaveBeenCalled();
+    });
+
+    it('schedules the click without an extra Transport.start call when enabling the metronome during playback', () => {
+      service.playAccompaniment();
+      (Tone.getTransport().start as Mock).mockClear();
+
+      service.setMetronomeEnabled(true);
+
+      // @ts-expect-error private
+      expect(service.metronome.sequence.start).toHaveBeenCalledWith(0);
+      expect(Tone.getTransport().start).not.toHaveBeenCalled();
+    });
+
+    it('stops only the click (not the Transport/accompaniment) when disabling the metronome during playback', () => {
+      service.playAccompaniment();
+      service.setMetronomeEnabled(true);
+
+      service.setMetronomeEnabled(false);
+
+      // @ts-expect-error private
+      expect(service.metronome.sequence.stop).toHaveBeenCalled();
+      expect(Tone.getTransport().stop).not.toHaveBeenCalled();
+    });
+
+    it('does not resume playback when disabling the metronome while stopped (playbackState stays "stopped")', () => {
+      service.setMetronomeEnabled(true);
+      service.setMetronomeEnabled(false);
+
+      expect(Tone.getTransport().start).not.toHaveBeenCalled();
+      expect(Tone.getTransport().stop).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,7 +1,61 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import { parse } from '../../lib/musicxml-parser/parser';
 import { usePracticeStore } from '../../store';
 import { PracticeEngineService } from '../../lib/practice-engine';
+import App from '../../App';
+
+// Mock Tone.js globally to avoid AudioContext errors during App rendering in tests.
+vi.mock('tone', () => {
+  const mockTransport = {
+    bpm: { value: 120 },
+    start: vi.fn(),
+    stop: vi.fn(),
+    pause: vi.fn(),
+  };
+
+  return {
+    getTransport: vi.fn(() => mockTransport),
+    Synth: vi.fn().mockImplementation(() => ({
+      toDestination: vi.fn().mockReturnThis(),
+      triggerAttackRelease: vi.fn(),
+      dispose: vi.fn(),
+    })),
+    PolySynth: vi.fn().mockImplementation(() => ({
+      toDestination: vi.fn().mockReturnThis(),
+      triggerAttackRelease: vi.fn(),
+      dispose: vi.fn(),
+    })),
+    Sequence: vi.fn().mockImplementation(() => ({
+      start: vi.fn(),
+      stop: vi.fn(),
+      dispose: vi.fn(),
+    })),
+    Part: vi.fn().mockImplementation(() => ({
+      start: vi.fn().mockReturnThis(),
+      dispose: vi.fn(),
+    })),
+    Frequency: vi.fn(() => ({
+      toNote: () => 'A4',
+    })),
+  };
+});
+
+vi.mock('../../components/ScoreRenderer', () => ({
+  ScoreRenderer: () => null,
+}));
+
+vi.mock('../../components/PianoKeyboard', () => ({
+  PianoKeyboard: () => null,
+}));
+
+vi.mock('../../components/Toolbar', () => ({
+  Toolbar: () => null,
+}));
+
+vi.mock('../../components/FingeringPanel', () => ({
+  FingeringPanel: () => null,
+}));
 
 const SAMPLE_MUSICXML_2PARTS = `<?xml version="1.0"?>
 <score-partwise>
@@ -37,6 +91,19 @@ const LOOP_TEST_XML = `<?xml version="1.0"?>
   </part>
 </score-partwise>`;
 
+const TEMPO_MUSICXML_90 = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list>
+    <score-part id="P1"><part-name>Piano Right</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <direction><sound tempo="90"/></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
 function resetStore() {
   usePracticeStore.setState({
     score: null,
@@ -53,6 +120,8 @@ function resetStore() {
     loopStart: 1,
     loopEnd: 1,
     stats: { totalNotes: 0, correctNotes: 0, incorrectNotes: 0, accuracy: 0 },
+    bpm: 120,
+    originalBpm: 120,
   });
 }
 
@@ -130,5 +199,74 @@ describe('練習フロー統合テスト', () => {
     }
 
     expect(loopCount).toBe(3);
+  });
+});
+
+describe('アプリ経路の初期化（スコア読み込み→練習セッション初期化）', () => {
+  beforeEach(() => {
+    resetStore();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+  });
+
+  it('Open FileでMusicXMLを読み込むと、テスト側でresetToMeasureを呼ばなくてもexpectedNotesが初期化される', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('/test/sample.xml');
+    const readMock = vi.fn().mockResolvedValue(SAMPLE_MUSICXML_2PARTS);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: showOpenDialogMock, read: readMock },
+    };
+
+    render(<App />);
+    screen.getByText('Open File').click();
+
+    await waitFor(() => {
+      expect(usePracticeStore.getState().score).not.toBeNull();
+    });
+
+    // PracticeEngineService.resetToMeasure はテスト側から一切呼び出していない。
+    await waitFor(() => {
+      expect(usePracticeStore.getState().expectedNotes.length).toBeGreaterThan(0);
+    });
+    expect(usePracticeStore.getState().currentMeasure).toBe(1);
+    expect(usePracticeStore.getState().currentNoteIndex).toBe(0);
+  });
+
+  it('テンポ指定ありのMusicXMLを読み込むと、originalBpm/bpmが楽譜のテンポになる', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('/test/tempo.xml');
+    const readMock = vi.fn().mockResolvedValue(TEMPO_MUSICXML_90);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: showOpenDialogMock, read: readMock },
+    };
+
+    render(<App />);
+    screen.getByText('Open File').click();
+
+    await waitFor(() => {
+      expect(usePracticeStore.getState().score).not.toBeNull();
+    });
+
+    expect(usePracticeStore.getState().originalBpm).toBe(90);
+    expect(usePracticeStore.getState().bpm).toBe(90);
+  });
+
+  it('テンポ指定なしのMusicXMLを読み込むと、originalBpm/bpmはパーサーのデフォルト値(120)になる', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('/test/sample.xml');
+    const readMock = vi.fn().mockResolvedValue(SAMPLE_MUSICXML_2PARTS);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: showOpenDialogMock, read: readMock },
+    };
+
+    render(<App />);
+    screen.getByText('Open File').click();
+
+    await waitFor(() => {
+      expect(usePracticeStore.getState().score).not.toBeNull();
+    });
+
+    expect(usePracticeStore.getState().originalBpm).toBe(120);
+    expect(usePracticeStore.getState().bpm).toBe(120);
   });
 });

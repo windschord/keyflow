@@ -1,6 +1,6 @@
 # TASK-018: DPソルバー実装（Parncutt-Terzuoloモデル）
 
-**ステータス**: TODO
+**ステータス**: DONE
 **推定工数**: 60分
 **依存**: TASK-017
 

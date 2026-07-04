@@ -92,7 +92,11 @@ graph TB
 
 ## データモデル
 
-### 中心データ構造
+> **改訂（2026-07-04）**: 両手同時判定・曲再生（US-010）対応のため、時刻ベースモデル（v2）へ移行する。
+> v2の型定義・tick算出規則・判定グループ仕様は [data-model-v2.md](components/data-model-v2.md) を正とする（決定: [DEC-005](decisions/DEC-005.md)）。
+> 以下はv1（時刻なし）の構造であり、TASK-031/032完了後にv2へ置き換わる。
+
+### 中心データ構造（v1）
 
 ```typescript
 // 楽譜全体
@@ -163,6 +167,7 @@ interface Annotation {
 | DEC-002 | MusicXML描画にOSMDを採用 | 承認済 | [詳細](decisions/DEC-002.md) @decisions/DEC-002.md |
 | DEC-003 | 運指エンジンをTypeScriptで独自実装（Python不採用） | 承認済 | [詳細](decisions/DEC-003.md) @decisions/DEC-003.md |
 | DEC-004 | MIDI入力をMain Processのnode-midiで処理 | 承認済 | [詳細](decisions/DEC-004.md) @decisions/DEC-004.md |
+| DEC-005 | 時刻ベースデータモデル（PPQ480絶対tick）とnoteIdパート毎連番の採用 | 承認済 | [詳細](decisions/DEC-005.md) @decisions/DEC-005.md |
 
 ---
 
@@ -219,12 +224,14 @@ docs/sdd/design/
 │   ├── fingering-engine.md        # 運指提案エンジン（DP）
 │   ├── piano-keyboard.md          # 88鍵盤UI
 │   ├── audio-engine.md            # 音声再生（Tone.js）
-│   └── annotation-store.md        # アノテーション永続化
+│   ├── annotation-store.md        # アノテーション永続化
+│   └── data-model-v2.md           # 時刻ベースデータモデル（v2）
 ├── database/
 │   └── schema.md                  # データスキーマ
 └── decisions/
     ├── DEC-001.md                  # Electron採用
     ├── DEC-002.md                  # OSMD採用
     ├── DEC-003.md                  # TypeScript運指エンジン
-    └── DEC-004.md                  # node-midi採用
+    ├── DEC-004.md                  # node-midi採用
+    └── DEC-005.md                  # 時刻ベースデータモデル・noteId統一
 ```

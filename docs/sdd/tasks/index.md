@@ -38,7 +38,7 @@
 | Phase 8: 結線修正・UX改善（フェーズA） | 5 | 0 | 0 | 0 | [詳細](phase-8/) @phase-8/ |
 | Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 7 | 0 | 0 | 0 | [詳細](phase-9/) @phase-9/ |
 | Phase 10: QA・プロセス改善（フェーズC） | 3 | 0 | 0 | 0 | [詳細](phase-10/) @phase-10/ |
-| Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 4 | 0 | 5 | 0 | [詳細](phase-11/) @phase-11/ |
+| Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 5 | 0 | 4 | 0 | [詳細](phase-11/) @phase-11/ |
 
 **合計**: 47タスク / 推定合計: 約1940分（AIエージェント作業時間）
 
@@ -216,7 +216,7 @@
 |----------|---------|-----------|------|------|-----------|
 | TASK-039 | [BugFix] ファイル履歴の結線 | DONE | - | 30min | [詳細](phase-11/TASK-039.md) @phase-11/TASK-039.md |
 | TASK-040 | [BugFix] エラーモード設定の結線 | DONE | - | 30min | [詳細](phase-11/TASK-040.md) @phase-11/TASK-040.md |
-| TASK-041 | [BugFix] 鍵盤ガイドの左右色分け修正 | TODO | - | 30min | [詳細](phase-11/TASK-041.md) @phase-11/TASK-041.md |
+| TASK-041 | [BugFix] 鍵盤ガイドの左右色分け修正 | DONE | - | 30min | [詳細](phase-11/TASK-041.md) @phase-11/TASK-041.md |
 | TASK-042 | [BugFix] メトロノームのTransport起動/停止の非対称修正 | DONE | - | 30min | [詳細](phase-11/TASK-042.md) @phase-11/TASK-042.md |
 | TASK-043 | 運指エンジンへのscale-patterns統合 | DONE | - | 50min | [詳細](phase-11/TASK-043.md) @phase-11/TASK-043.md |
 | TASK-044 | US-008 運指メモ手動編集UIの実装 | TODO | TASK-041 | 90min | [詳細](phase-11/TASK-044.md) @phase-11/TASK-044.md |

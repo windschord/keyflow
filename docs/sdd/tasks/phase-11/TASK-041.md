@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-041 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 30分 |
 | 依存タスク | なし |
@@ -66,21 +66,45 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] 両手モードで、右手パート（hand: 'right'）の期待ノーツが右手色、左手パート（hand: 'left'）が左手色で描画される
-- [ ] 実際のpartId形式（`P1`/`P2`）でテストされており、`'right'` を含む合成partIdに依存したテストがない
-- [ ] `keyboard-renderer.ts` から `partId.includes('right')` ヒューリスティックが削除されている
-- [ ] 片手練習モードでも色は `Part.hand` に基づく
-- [ ] `docs/sdd/requirements/traceability.md` の REQ-005-001/002 行が更新されている
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] 両手モードで、右手パート（hand: 'right'）の期待ノーツが右手色、左手パート（hand: 'left'）が左手色で描画される
+- [x] 実際のpartId形式（`P1`/`P2`）でテストされており、`'right'` を含む合成partIdに依存したテストがない
+- [x] `keyboard-renderer.ts` から `partId.includes('right')` ヒューリスティックが削除されている
+- [x] 片手練習モードでも色は `Part.hand` に基づく
+- [x] `docs/sdd/requirements/traceability.md` の REQ-005-001/002 行が更新されている
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規・描画）`P1`（右手）の期待ノーツ→ `guidRight` 色（白鍵・黒鍵両方）
-- [ ] （新規・描画）`P2`（左手）の期待ノーツ→ `guidLeft` 色
-- [ ] （新規・描画）手情報が引けないpartId→フォールバック色（挙動固定）
-- [ ] （回帰）押鍵中（correct）・誤答（incorrect）の色が従来どおり優先される
-- [ ] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規・描画）`P1`（右手）の期待ノーツ→ `guidRight` 色（白鍵・黒鍵両方）
+- [x] （新規・描画）`P2`（左手）の期待ノーツ→ `guidLeft` 色
+- [x] （新規・描画）手情報が引けないpartId→フォールバック色（挙動固定）
+- [x] （回帰）押鍵中（correct）・誤答（incorrect）の色が従来どおり優先される
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 完了サマリー
+
+- `src/renderer/src/components/PianoKeyboard/keyboard-renderer.ts`: `RenderOptions` に
+  `parts?: Part[]`（parser算出済み `Score.parts`）を追加。`expectedNote.partId.toLowerCase()
+  .includes('right') || practiceMode === 'right'` ヒューリスティックを削除し、
+  `parts` から構築した `partId → Hand` のマップ（`handByPartId`）を参照して
+  `hand === 'right'` で判定するよう修正。`practiceMode` は判定に使用しなくなった
+  （破壊的変更を避けるため `RenderOptions` 自体からは削除せず、関数内で未使用）。
+  partIdがマップに存在しない場合は左手色にフォールバック（挙動をテストで固定）。
+- `src/renderer/src/components/PianoKeyboard/index.tsx`: `PianoKeyboardProps` に
+  `parts?: Part[]`（デフォルト `[]`）を追加し、`renderKeyboard`呼び出しとuseEffectの
+  依存配列に伝搬。
+- `src/renderer/src/App.tsx`: `<PianoKeyboard>` に `parts={score?.parts ?? []}` を追加。
+- `src/renderer/src/components/PianoKeyboard/PianoKeyboard.test.tsx`: 実際のpartId形式
+  （`P1`=hand:right、`P2`=hand:left）を用いた色分けテストを追加（TDD Red→Green）。
+  `fillRect` 呼び出し時点の `ctx.fillStyle` を記録する `createColorTrackingCtx` ヘルパーで、
+  白鍵・黒鍵それぞれの `guidRight`/`guidLeft`、partsに存在しないpartIdのフォールバック
+  （`guidLeft`）、片手練習モード（`practiceMode: 'right'`）でも左手パートは`guidLeft`の
+  ままであること、押鍵中（correct）・誤答（incorrect）の色がガイド色より優先されることを検証。
+  既存の指番号描画テスト（9件）は変更なしで全てグリーン。
+- `docs/sdd/requirements/traceability.md` の REQ-005-001/002 行を `×※` から `○` に更新。
+- 確認結果: `npm run test`（32ファイル / 243テスト 全通過）、`npm run typecheck`、
+  `npm run lint` すべてパス。
 
 ## 情報の明確性
 

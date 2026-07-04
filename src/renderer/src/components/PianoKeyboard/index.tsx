@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, MouseEvent } from 'react';
-import { PracticeMode, Note, Annotation } from '../../types';
+import { PracticeMode, Note, Annotation, Part } from '../../types';
 import { renderKeyboard } from './keyboard-renderer';
 import { WHITE_KEY_WIDTH, getNotePosition, MIDI_MIN, MIDI_MAX } from './key-layout';
 
@@ -11,6 +11,12 @@ export interface PianoKeyboardProps {
   practiceMode: PracticeMode;
   onKeyClick: (midiNumber: number) => void;
   height: number;
+  /**
+   * parser算出済みのScore.parts（Part.hand、REQ-001-003）。
+   * 鍵盤ガイドの右手=青/左手=緑の色分け（REQ-005-002）に使用する。
+   * scoreが未ロードの場合は省略可（空配列扱い、フォールバック色になる）。
+   */
+  parts?: Part[];
 }
 
 export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
@@ -21,6 +27,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
   practiceMode,
   onKeyClick,
   height,
+  parts = [],
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const totalWidth = 52 * WHITE_KEY_WIDTH; // 52 white keys for 88 key piano
@@ -36,10 +43,11 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
           incorrectKeys,
           annotations,
           practiceMode,
+          parts,
         });
       }
     }
-  }, [expectedNotes, pressedKeys, incorrectKeys, annotations, practiceMode, height]);
+  }, [expectedNotes, pressedKeys, incorrectKeys, annotations, practiceMode, height, parts]);
 
   const handleCanvasClick = (e: MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;

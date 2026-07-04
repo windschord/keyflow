@@ -30,7 +30,7 @@
 | REQ-004-006 | ○ | practice-slice.test（setErrorMode）+ SettingsModal.test（変更即時反映・ロールバック）+ App.test（起動時ロード）+ practice-flow.test（SettingsModal→store→practice-engineのUI→store→engine結線）。TASK-040で対応済み |
 | REQ-004-007 | △ | handleKeyClick（モック経由）。座標→MIDI変換未検証 |
 | REQ-004-008 | ×※ | MIDIデバイス選択UIなし。TASK-045で対応 |
-| REQ-005-001/002 | ×※ | 鍵盤ハイライトの色検証なし。左右色分けはpartId判定バグで機能せず（TASK-041） |
+| REQ-005-001/002 | ○ | PianoKeyboard.test（keyboard-renderer.tsのfillStyleアサーション）。Part.hand（parser算出済み）に基づきguidRight/guidLeft色を検証。partId文字列ヒューリスティックのバグを修正（TASK-041） |
 | REQ-005-003/004 | △ | ロジックは○、鍵盤描画は× |
 | REQ-005-005 | △ | getNotePosition範囲外throwのみ |
 | REQ-005-006 | △※ | 「その音を再生」が未実装（TASK-047で整理） |

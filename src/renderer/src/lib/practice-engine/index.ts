@@ -1,9 +1,24 @@
 import { PracticeStore } from '../../store';
-import { MidiNoteEvent, NoteJudgement, Note, PracticeMode, Part } from '../../types';
+import { MidiNoteEvent, NoteJudgement, Measure, PracticeMode, Part } from '../../types';
 import { judgeChord } from './judgement';
 import { checkLoopBoundary } from './loop-manager';
+import { groupNotesByStartTick, filterNotesByPracticeMode } from './note-grouping';
 
 import { StoreApi } from 'zustand';
+
+/**
+ * 判定グループ単位の位置解決結果。
+ *
+ * `found: false` は、スコア末尾に到達した（あるいはフィルタ後に
+ * 演奏可能なグループが見つからなかった）ことを示す。この場合
+ * `measure`/`groupIndex` は探索を終えた最終地点を表す。
+ */
+interface ResolvedPosition {
+  measure: number;
+  groupIndex: number;
+  loopJumped: boolean;
+  found: boolean;
+}
 
 export class PracticeEngineService {
   private store: StoreApi<PracticeStore>;
@@ -24,14 +39,17 @@ export class PracticeEngineService {
       return { result: 'ignored', note: null, advanced: false };
     }
 
-    const filteredExpected = this.filterExpectedNotes(
+    const filteredExpected = filterNotesByPracticeMode(
       expectedNotes,
       practiceMode,
       state.score?.parts || []
     );
 
     if (filteredExpected.length === 0) {
-      // Skipped due to practice mode (e.g. left hand notes while right hand mode)
+      // Skipped due to practice mode (e.g. left hand notes while right hand mode).
+      // In the normal flow this should already have been skipped proactively by
+      // advancePosition()/resetToMeasure(), but this branch is kept as a defensive
+      // fallback (e.g. when expectedNotes is set directly, as in some tests).
       this.advancePosition();
       return { result: 'ignored', note: null, advanced: true };
     }
@@ -42,7 +60,7 @@ export class PracticeEngineService {
     let result: 'correct' | 'incorrect' = 'incorrect';
 
     if (isExpected) {
-      // It's part of the expected notes. Check if the whole chord is pressed.
+      // It's part of the expected notes. Check if the whole chord/group is pressed.
       const chordStatus = judgeChord(pressedKeys, filteredExpected);
 
       if (chordStatus === 'correct') {
@@ -77,10 +95,14 @@ export class PracticeEngineService {
     stats.totalNotes = stats.correctNotes + stats.incorrectNotes;
     stats.accuracy = stats.totalNotes > 0 ? stats.correctNotes / stats.totalNotes : 0;
 
-    // Update state
+    // Re-read pressedKeys/incorrectKeys from the store rather than relying on the
+    // local variables captured above: advancePosition() may have replaced them with
+    // fresh (cleared) Set instances when a loop boundary/measure jump occurred, and
+    // we must not clobber that reset with the stale pre-advance references.
+    const latest = this.store.getState();
     this.store.setState({
-      pressedKeys: new Set(pressedKeys),
-      incorrectKeys: new Set(incorrectKeys),
+      pressedKeys: new Set(latest.pressedKeys),
+      incorrectKeys: new Set(latest.incorrectKeys),
       stats: { ...stats },
     });
 
@@ -101,49 +123,55 @@ export class PracticeEngineService {
     const state = this.store.getState();
     if (!state.score) return;
 
-    let { currentMeasure, currentNoteIndex } = state;
-    const measures = state.score.measures;
+    const { currentMeasure, currentNoteIndex } = state;
 
-    const measure = measures.find((m) => m.number === currentMeasure);
-    if (!measure) return;
-
-    // Move to next logical note group
-    currentNoteIndex++;
-
-    // Check if we reached the end of the measure
-    // In a real app we'd group chords. Let's assume notes are grouped properly or we find the next unique start time.
-    // For simplicity of this task, let's just bounds check against notes array length.
-    // In true MusicXML we group by time.
-
-    // Simplification for the test:
-    if (currentNoteIndex >= measure.notes.length) {
-      currentMeasure++;
-      currentNoteIndex = 0;
-
-      // Loop check
-      currentMeasure = checkLoopBoundary(
-        currentMeasure,
-        state.loopStart,
-        state.loopEnd,
-        state.loopEnabled
-      );
-    }
-
-    this.store.setState({
+    const resolved = this.resolvePosition(
+      state.score.measures,
+      state.practiceMode,
+      state.score.parts,
+      state.loopStart,
+      state.loopEnd,
+      state.loopEnabled,
       currentMeasure,
-      currentNoteIndex,
-    });
+      currentNoteIndex + 1
+    );
 
+    this.applyResolvedPosition(resolved);
     this.updateExpectedNotes();
   }
 
   resetToMeasure(measureNumber: number): void {
+    const state = this.store.getState();
+
+    if (!state.score) {
+      this.store.setState({
+        currentMeasure: measureNumber,
+        currentNoteIndex: 0,
+        pressedKeys: new Set(),
+        incorrectKeys: new Set(),
+      });
+      this.updateExpectedNotes();
+      return;
+    }
+
+    const resolved = this.resolvePosition(
+      state.score.measures,
+      state.practiceMode,
+      state.score.parts,
+      state.loopStart,
+      state.loopEnd,
+      state.loopEnabled,
+      measureNumber,
+      0
+    );
+
     this.store.setState({
-      currentMeasure: measureNumber,
-      currentNoteIndex: 0,
+      currentMeasure: resolved.measure,
+      currentNoteIndex: resolved.groupIndex,
       pressedKeys: new Set(),
       incorrectKeys: new Set(),
     });
+
     this.updateExpectedNotes();
   }
 
@@ -156,6 +184,89 @@ export class PracticeEngineService {
     if (state.loopEnabled) {
       state.toggleLoop();
     }
+  }
+
+  /**
+   * `(fromMeasure, fromGroupIndex)` を起点に、練習モードでフィルタした際に
+   * 空にならない次の判定グループを探索する。
+   *
+   * - グループ内の全ノーツがフィルタで除外される（空になる）場合は
+   *   自動的に次のグループへスキップする（データモデルv2設計書「和音・
+   *   両手同時押下の判定仕様」2番）。
+   * - 小節内の最後のグループを超えたら次の小節へ進み、ループ範囲が
+   *   有効な場合は `checkLoopBoundary` に従いループ先頭へ戻る。
+   * - スコア終端に到達し、これ以上演奏可能なグループが見つからない場合は
+   *   `found: false` を返す。
+   */
+  private resolvePosition(
+    measures: Measure[],
+    practiceMode: PracticeMode,
+    parts: Part[],
+    loopStart: number,
+    loopEnd: number,
+    loopEnabled: boolean,
+    fromMeasure: number,
+    fromGroupIndex: number
+  ): ResolvedPosition {
+    let measure = fromMeasure;
+    let groupIndex = fromGroupIndex;
+    let loopJumped = false;
+
+    // Upper bound on iterations to guarantee termination even in pathological
+    // cases (e.g. an entire loop range has no notes matching the current
+    // practice mode filter).
+    const totalGroupSlots = measures.reduce(
+      (sum, m) => sum + Math.max(groupNotesByStartTick(m.notes).length, 1),
+      0
+    );
+    const maxIterations = totalGroupSlots + measures.length + 1;
+
+    for (let i = 0; i < maxIterations; i++) {
+      const measureData = measures.find((m) => m.number === measure);
+      if (!measureData) {
+        return { measure, groupIndex: 0, loopJumped, found: false };
+      }
+
+      const groups = groupNotesByStartTick(measureData.notes);
+
+      if (groupIndex >= groups.length) {
+        const nextMeasure = measure + 1;
+        const loopedMeasure = checkLoopBoundary(nextMeasure, loopStart, loopEnd, loopEnabled);
+        if (loopedMeasure !== nextMeasure) {
+          loopJumped = true;
+        }
+        measure = loopedMeasure;
+        groupIndex = 0;
+        continue;
+      }
+
+      const filtered = filterNotesByPracticeMode(groups[groupIndex].notes, practiceMode, parts);
+      if (filtered.length === 0) {
+        groupIndex += 1;
+        continue;
+      }
+
+      return { measure, groupIndex, loopJumped, found: true };
+    }
+
+    return { measure, groupIndex: 0, loopJumped, found: false };
+  }
+
+  private applyResolvedPosition(resolved: ResolvedPosition): void {
+    const update: Partial<PracticeStore> = {
+      currentMeasure: resolved.measure,
+      currentNoteIndex: resolved.groupIndex,
+    };
+
+    if (resolved.loopJumped) {
+      // Loop boundary/measure jump crossed before the previous group's partial
+      // key-press state was ever meant to carry over: discard it (data-model-v2
+      // design doc, judgement spec item 5).
+      update.pressedKeys = new Set();
+      update.incorrectKeys = new Set();
+    }
+
+    this.store.setState(update);
   }
 
   private updateExpectedNotes(): void {
@@ -171,34 +282,14 @@ export class PracticeEngineService {
       return;
     }
 
-    // A real implementation would group notes by time (chords).
-    // Here we find notes that belong to the current note index group.
-    // For test simulation, let's just grab the note at currentNoteIndex.
-    // If it's a chord, we grab all subsequent notes marked as isChord.
-    const expected: Note[] = [];
-    expected.push(measure.notes[state.currentNoteIndex]);
+    // expectedNotes holds the *unfiltered* judgement group (all notes sharing the
+    // current startTick) so that the on-screen keyboard guide can show the full
+    // picture of both hands (data-model-v2 design doc: 鍵盤ガイドは現在グループの
+    // 全ノーツ). Practice-mode filtering is applied at judgement time in
+    // handleNoteOn() via filterNotesByPracticeMode().
+    const groups = groupNotesByStartTick(measure.notes);
+    const currentGroup = groups[state.currentNoteIndex];
 
-    for (let i = state.currentNoteIndex + 1; i < measure.notes.length; i++) {
-      if (measure.notes[i].isChord) {
-        expected.push(measure.notes[i]);
-      } else {
-        break;
-      }
-    }
-
-    this.store.setState({ expectedNotes: expected.filter((n) => !!n) });
-  }
-
-  private filterExpectedNotes(notes: Note[], practiceMode: PracticeMode, parts: Part[]): Note[] {
-    if (practiceMode === 'both') return notes;
-
-    const rightPartIds = new Set(parts.filter((p) => p.hand === 'right').map((p) => p.id));
-    const leftPartIds = new Set(parts.filter((p) => p.hand === 'left').map((p) => p.id));
-
-    return notes.filter((note) => {
-      if (practiceMode === 'right') return rightPartIds.has(note.partId);
-      if (practiceMode === 'left') return leftPartIds.has(note.partId);
-      return true;
-    });
+    this.store.setState({ expectedNotes: currentGroup ? currentGroup.notes : [] });
   }
 }

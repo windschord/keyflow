@@ -36,7 +36,7 @@
 | Phase 6: 運指エンジン（DP） | 4 | 0 | 0 | 0 | [詳細](phase-6/) @phase-6/ |
 | Phase 7: パッケージング・QA | 2 | 0 | 0 | 0 | [詳細](phase-7/) @phase-7/ |
 | Phase 8: 結線修正・UX改善（フェーズA） | 5 | 0 | 0 | 0 | [詳細](phase-8/) @phase-8/ |
-| Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 3 | 0 | 2 | 0 | [詳細](phase-9/) @phase-9/ |
+| Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 4 | 0 | 1 | 0 | [詳細](phase-9/) @phase-9/ |
 | Phase 10: QA・プロセス改善（フェーズC） | 0 | 0 | 3 | 0 | [詳細](phase-10/) @phase-10/ |
 
 **合計**: 36タスク / 推定合計: 約1420分（AIエージェント作業時間）
@@ -180,7 +180,7 @@
 | TASK-029 | 要件定義追加: US-010 曲の再生（お手本演奏） | DONE | TASK-026 | 30min | [詳細](phase-9/TASK-029.md) @phase-9/TASK-029.md |
 | TASK-030 | 設計: 時刻ベースデータモデルへの再設計 | DONE | TASK-029 | 60min | [詳細](phase-9/TASK-030.md) @phase-9/TASK-030.md |
 | TASK-031 | パーサーの時刻付与・noteId統一実装 | DONE | TASK-030 | 60min | [詳細](phase-9/TASK-031.md) @phase-9/TASK-031.md |
-| TASK-032 | practice-engineの両手・和音同時判定対応 | TODO | TASK-031 | 60min | [詳細](phase-9/TASK-032.md) @phase-9/TASK-032.md |
+| TASK-032 | practice-engineの両手・和音同時判定対応 | DONE | TASK-031 | 60min | [詳細](phase-9/TASK-032.md) @phase-9/TASK-032.md |
 | TASK-033 | 楽譜上の視覚フィードバック実装（osmd-controller空実装の解消） | TODO | TASK-032 | 50min | [詳細](phase-9/TASK-033.md) @phase-9/TASK-033.md |
 
 ### Phase 10: QA・プロセス改善（フェーズC）

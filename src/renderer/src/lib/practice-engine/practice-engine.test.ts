@@ -1,7 +1,28 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PracticeEngineService } from './index';
 import { PracticeStore } from '../../store';
-import { Score, Part, Note, PracticeStats } from '../../types';
+import { Score, Part, Note } from '../../types';
+
+/**
+ * `startTick`/`durationTicks`/`startSeconds`/`durationSeconds`/`voice` の
+ * デフォルト値を補完してテスト用ノートを簡潔に生成するヘルパー。
+ */
+function makeNote(overrides: Partial<Note> & Pick<Note, 'id' | 'partId' | 'midiNumber'>): Note {
+  return {
+    measureNumber: 1,
+    noteIndex: 0,
+    pitch: { step: 'C', octave: 4 },
+    duration: 1,
+    startTick: 0,
+    durationTicks: 480,
+    startSeconds: 0,
+    durationSeconds: 0.5,
+    voice: 1,
+    isChord: false,
+    isRest: false,
+    ...overrides,
+  };
+}
 
 describe('PracticeEngineService', () => {
   let engine: PracticeEngineService;
@@ -12,82 +33,62 @@ describe('PracticeEngineService', () => {
     { id: 'P2', name: 'Left Hand', hand: 'left', clef: 'bass' },
   ];
 
-  const mockNotesMeasure1: Note[] = [
-    {
-      id: 'N1',
-      partId: 'P1',
-      measureNumber: 1,
-      noteIndex: 0,
-      pitch: { step: 'C', octave: 4 },
-      midiNumber: 60,
-      duration: 1,
-      startTick: 0,
-      durationTicks: 480,
-      startSeconds: 0,
-      durationSeconds: 0.5,
-      voice: 1,
-      isChord: false,
-      isRest: false,
-    },
-    {
-      id: 'N2',
-      partId: 'P1',
-      measureNumber: 1,
-      noteIndex: 1,
-      pitch: { step: 'E', octave: 4 },
-      midiNumber: 64,
-      duration: 1,
-      startTick: 0,
-      durationTicks: 480,
-      startSeconds: 0,
-      durationSeconds: 0.5,
-      voice: 1,
-      isChord: true,
-      isRest: false,
-    },
-    {
-      id: 'N3',
-      partId: 'P2',
-      measureNumber: 1,
-      noteIndex: 2,
-      pitch: { step: 'C', octave: 3 },
-      midiNumber: 48,
-      duration: 1,
-      startTick: 0,
-      durationTicks: 480,
-      startSeconds: 0,
-      durationSeconds: 0.5,
-      voice: 1,
-      isChord: false,
-      isRest: false,
-    },
-  ];
+  // Measure 1:
+  //   group@tick0:   P1 C4(60) + P1 E4(64, chord) [right hand chord]  + P2 C3(48) [left hand]
+  //   group@tick480: P1 D4(62) [right hand only]
+  const chordC4: Note = makeNote({
+    id: 'P1-M1-N0',
+    partId: 'P1',
+    midiNumber: 60,
+    noteIndex: 0,
+    startTick: 0,
+  });
+  const chordE4: Note = makeNote({
+    id: 'P1-M1-N1',
+    partId: 'P1',
+    midiNumber: 64,
+    pitch: { step: 'E', octave: 4 },
+    noteIndex: 1,
+    startTick: 0,
+    isChord: true,
+  });
+  const leftC3: Note = makeNote({
+    id: 'P2-M1-N0',
+    partId: 'P2',
+    midiNumber: 48,
+    pitch: { step: 'C', octave: 3 },
+    noteIndex: 0,
+    startTick: 0,
+  });
+  const rightD4: Note = makeNote({
+    id: 'P1-M1-N2',
+    partId: 'P1',
+    midiNumber: 62,
+    pitch: { step: 'D', octave: 4 },
+    noteIndex: 2,
+    startTick: 480,
+  });
 
-  const mockNotesMeasure2: Note[] = [
-    {
-      id: 'N4',
-      partId: 'P1',
-      measureNumber: 2,
-      noteIndex: 0,
-      pitch: { step: 'D', octave: 4 },
-      midiNumber: 62,
-      duration: 1,
-      startTick: 480,
-      durationTicks: 480,
-      startSeconds: 0.5,
-      durationSeconds: 0.5,
-      voice: 1,
-      isChord: false,
-      isRest: false,
-    },
-  ];
+  const mockNotesMeasure1: Note[] = [chordC4, chordE4, leftC3, rightD4];
+
+  // Measure 2: single group@tick960: P1 D5(74)
+  const measure2Note: Note = makeNote({
+    id: 'P1-M2-N0',
+    partId: 'P1',
+    midiNumber: 74,
+    pitch: { step: 'D', octave: 5 },
+    measureNumber: 2,
+    noteIndex: 0,
+    startTick: 960,
+  });
+  const mockNotesMeasure2: Note[] = [measure2Note];
 
   const mockScore: Score = {
     title: 'Test Score',
     parts: mockParts,
     measures: [
       { number: 1, startTick: 0, notes: mockNotesMeasure1 },
-      { number: 2, startTick: 480, notes: mockNotesMeasure2 },
+      { number: 2, startTick: 960, notes: mockNotesMeasure2 },
     ],
     tempo: 120,
     ticksPerQuarter: 480,
@@ -102,7 +103,7 @@ describe('PracticeEngineService', () => {
       errorMode: 'wait',
       currentMeasure: 1,
       currentNoteIndex: 0,
-      expectedNotes: [mockNotesMeasure1[0], mockNotesMeasure1[1]], // chord of C4 and E4
+      expectedNotes: [chordC4, chordE4, leftC3], // group@tick0
       pressedKeys: new Set(),
       incorrectKeys: new Set(),
       loopEnabled: false,
@@ -146,10 +147,12 @@ describe('PracticeEngineService', () => {
   });
 
   it('正しい音符を押すと次の音符に進む', () => {
-    mockStore.expectedNotes = [mockNotesMeasure1[0]]; // Expect C4 (60)
+    mockStore.expectedNotes = [rightD4];
+    mockStore.currentMeasure = 1;
+    mockStore.currentNoteIndex = 1; // group@tick480 (single note)
 
     const judgement = engine.handleNoteOn({
-      midiNumber: 60,
+      midiNumber: 62,
       velocity: 100,
       type: 'note-on',
       timestamp: 0,
@@ -157,12 +160,16 @@ describe('PracticeEngineService', () => {
 
     expect(judgement.result).toBe('correct');
     expect(judgement.advanced).toBe(true);
-    expect(mockStore.currentNoteIndex).toBe(1);
+    // measure1 only has 2 groups (index 0, 1); advancing past the last one moves to measure2 group0
+    expect(mockStore.currentMeasure).toBe(2);
+    expect(mockStore.currentNoteIndex).toBe(0);
     expect(mockStore.stats.correctNotes).toBe(1);
   });
 
   it('誤った音符を押すとwaitモードで位置が進まない', () => {
-    mockStore.expectedNotes = [mockNotesMeasure1[0]]; // Expect C4 (60)
+    mockStore.expectedNotes = [rightD4];
+    mockStore.currentMeasure = 1;
+    mockStore.currentNoteIndex = 1;
     mockStore.errorMode = 'wait';
 
     const judgement = engine.handleNoteOn({
@@ -174,12 +181,13 @@ describe('PracticeEngineService', () => {
 
     expect(judgement.result).toBe('incorrect');
     expect(judgement.advanced).toBe(false);
-    expect(mockStore.currentNoteIndex).toBe(0); // Did not advance
+    expect(mockStore.currentMeasure).toBe(1);
+    expect(mockStore.currentNoteIndex).toBe(1); // Did not advance
     expect(mockStore.stats.incorrectNotes).toBe(1);
   });
 
-  it('コードは全音符が揃ったら正解になる', () => {
-    mockStore.expectedNotes = [mockNotesMeasure1[0], mockNotesMeasure1[1]]; // C4 (60), E4 (64)
+  it('単一パートの和音は全音符が揃ったら正解になる（回帰なし）', () => {
+    mockStore.expectedNotes = [chordC4, chordE4]; // right-hand-only chord, C4(60) + E4(64)
 
     // Press C4
     let judgement = engine.handleNoteOn({
@@ -203,7 +211,7 @@ describe('PracticeEngineService', () => {
   });
 
   it('コード演奏中に余分な鍵が押されている場合はincorrectとして扱う', () => {
-    mockStore.expectedNotes = [mockNotesMeasure1[0], mockNotesMeasure1[1]]; // C4 (60), E4 (64)
+    mockStore.expectedNotes = [chordC4, chordE4]; // C4 (60), E4 (64)
     mockStore.pressedKeys = new Set([61]); // Extra key
 
     const judgement = engine.handleNoteOn({
@@ -222,37 +230,156 @@ describe('PracticeEngineService', () => {
     expect(mockStore.incorrectKeys.has(60)).toBe(false);
   });
 
-  it('右手モードで左手パートの音符は判定をスキップする', () => {
-    mockStore.practiceMode = 'right';
-    mockStore.expectedNotes = [mockNotesMeasure1[2]]; // C3 (48) from Left Hand (P2)
+  it('両手同時和音（右手2音＋左手1音）は全3音揃うまで進行しない', () => {
+    mockStore.expectedNotes = [chordC4, chordE4, leftC3]; // group@tick0, both mode
 
-    // Even if we press something completely different
+    let judgement = engine.handleNoteOn({
+      midiNumber: 60, // C4 (right)
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+    expect(judgement.result).toBe('correct');
+    expect(judgement.advanced).toBe(false);
+
+    judgement = engine.handleNoteOn({
+      midiNumber: 64, // E4 (right)
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+    expect(judgement.result).toBe('correct');
+    expect(judgement.advanced).toBe(false); // Left hand note still missing
+
+    judgement = engine.handleNoteOn({
+      midiNumber: 48, // C3 (left)
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+    expect(judgement.result).toBe('correct');
+    expect(judgement.advanced).toBe(true); // All 3 notes across both hands now pressed
+  });
+
+  it('Bothモードで両手同時和音が揃った瞬間に次グループへ進行する', () => {
+    mockStore.expectedNotes = [chordC4, chordE4, leftC3];
+
+    engine.handleNoteOn({ midiNumber: 60, velocity: 100, type: 'note-on', timestamp: 0 });
+    engine.handleNoteOn({ midiNumber: 64, velocity: 100, type: 'note-on', timestamp: 0 });
     const judgement = engine.handleNoteOn({
-      midiNumber: 72,
+      midiNumber: 48,
       velocity: 100,
       type: 'note-on',
       timestamp: 0,
     });
 
-    expect(judgement.result).toBe('ignored');
-    expect(judgement.advanced).toBe(true); // Advanced because it was skipped
+    expect(judgement.advanced).toBe(true);
+    expect(mockStore.currentMeasure).toBe(1);
+    expect(mockStore.currentNoteIndex).toBe(1); // group@tick480 (rightD4)
+    // updateExpectedNotes() should have refreshed expectedNotes to the raw next group
+    expect(mockStore.expectedNotes).toEqual([rightD4]);
   });
 
-  it('ループ終端で先頭に戻る', () => {
-    mockStore.expectedNotes = [mockNotesMeasure2[0]]; // D4 (62) in Measure 2
+  it('Rightモードで両手同時グループのうち右手音のみ判定され、左手音は無視される', () => {
+    mockStore.practiceMode = 'right';
+    mockStore.currentMeasure = 1;
+    mockStore.currentNoteIndex = 0;
+    // expectedNotes holds the raw (unfiltered) group, per data-model-v2 design
+    mockStore.expectedNotes = [chordC4, chordE4, leftC3];
+
+    let judgement = engine.handleNoteOn({
+      midiNumber: 60, // C4 (right)
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+    expect(judgement.result).toBe('correct');
+    expect(judgement.advanced).toBe(false);
+
+    judgement = engine.handleNoteOn({
+      midiNumber: 64, // E4 (right) - completes the right-hand-filtered group
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+    expect(judgement.result).toBe('correct');
+    expect(judgement.advanced).toBe(true); // Left hand note (C3) was never required
+    expect(mockStore.currentMeasure).toBe(1);
+    expect(mockStore.currentNoteIndex).toBe(1);
+  });
+
+  it('右手モードでは左手パートのみの判定グループが自動的にスキップされる', () => {
+    // A measure with 3 distinct-time groups: right-only, left-only, right-only.
+    const rOnly1 = makeNote({ id: 'P1-M1-N0', partId: 'P1', midiNumber: 60, startTick: 0 });
+    const lOnly = makeNote({ id: 'P2-M1-N0', partId: 'P2', midiNumber: 48, startTick: 480 });
+    const rOnly2 = makeNote({ id: 'P1-M1-N1', partId: 'P1', midiNumber: 62, startTick: 960 });
+
+    const scoreWithSkippableGroup: Score = {
+      ...mockScore,
+      measures: [{ number: 1, startTick: 0, notes: [rOnly1, lOnly, rOnly2] }],
+    };
+
+    mockStore.score = scoreWithSkippableGroup;
+    mockStore.practiceMode = 'right';
+    mockStore.currentMeasure = 1;
+    mockStore.currentNoteIndex = 0;
+    mockStore.expectedNotes = [rOnly1];
+
+    const judgement = engine.handleNoteOn({
+      midiNumber: 60,
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+
+    expect(judgement.result).toBe('correct');
+    expect(judgement.advanced).toBe(true);
+    // The left-only group (index 1) must be skipped automatically; position lands on index 2
+    expect(mockStore.currentMeasure).toBe(1);
+    expect(mockStore.currentNoteIndex).toBe(2);
+    expect(mockStore.expectedNotes).toEqual([rOnly2]);
+  });
+
+  it('フィルタでグループが空になった場合にresetToMeasureで自動的に非空グループへ進む', () => {
+    const lOnly = makeNote({ id: 'P2-M1-N0', partId: 'P2', midiNumber: 48, startTick: 0 });
+    const rOnly = makeNote({ id: 'P1-M1-N0', partId: 'P1', midiNumber: 60, startTick: 480 });
+
+    const scoreLeftFirst: Score = {
+      ...mockScore,
+      measures: [{ number: 1, startTick: 0, notes: [lOnly, rOnly] }],
+    };
+
+    mockStore.score = scoreLeftFirst;
+    mockStore.practiceMode = 'right';
+
+    engine.resetToMeasure(1);
+
+    expect(mockStore.currentMeasure).toBe(1);
+    expect(mockStore.currentNoteIndex).toBe(1); // skipped the left-only group@tick0
+    expect(mockStore.expectedNotes).toEqual([rOnly]);
+  });
+
+  it('ループ終端で先頭に戻り、部分押下状態が破棄される', () => {
+    mockStore.expectedNotes = [measure2Note];
     mockStore.currentMeasure = 2;
-    mockStore.currentNoteIndex = 0; // last note of measure 2 (last measure)
+    mockStore.currentNoteIndex = 0; // only group of measure 2 (last measure)
     mockStore.loopEnabled = true;
     mockStore.loopStart = 1;
     mockStore.loopEnd = 2;
+    mockStore.incorrectKeys = new Set([99]); // stale incorrect key from before the loop wrap
 
-    engine.handleNoteOn({ midiNumber: 62, velocity: 100, type: 'note-on', timestamp: 0 });
+    engine.handleNoteOn({ midiNumber: 74, velocity: 100, type: 'note-on', timestamp: 0 });
 
     expect(mockStore.currentMeasure).toBe(1); // looped back to 1
+    expect(mockStore.currentNoteIndex).toBe(0);
+    expect(mockStore.incorrectKeys.has(99)).toBe(false); // discarded on loop boundary
+    expect(mockStore.expectedNotes).toEqual([chordC4, chordE4, leftC3]);
   });
 
-  it('passモードでは誤りでも次に進む', () => {
-    mockStore.expectedNotes = [mockNotesMeasure1[0]]; // Expect C4 (60)
+  it('passモードでは誤りでもグループ単位で次に進む', () => {
+    mockStore.expectedNotes = [rightD4];
+    mockStore.currentMeasure = 1;
+    mockStore.currentNoteIndex = 1;
     mockStore.errorMode = 'pass';
 
     const judgement = engine.handleNoteOn({
@@ -264,5 +391,7 @@ describe('PracticeEngineService', () => {
 
     expect(judgement.result).toBe('incorrect');
     expect(judgement.advanced).toBe(true); // Advanced despite incorrect
+    expect(mockStore.currentMeasure).toBe(2);
+    expect(mockStore.currentNoteIndex).toBe(0);
   });
 });

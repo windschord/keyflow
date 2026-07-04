@@ -9,6 +9,7 @@ import { parse, extractXmlFromMxl } from './lib/musicxml-parser';
 import { SettingsModal } from './components/SettingsModal';
 import { usePractice } from './hooks/usePractice';
 import { AnnotationStoreService } from './lib/annotation-store';
+import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
 import type { FingerAssignment, Hand, PracticeMode, Score } from './types';
 
 /**
@@ -79,8 +80,15 @@ function App(): React.JSX.Element {
   // （osmd-controller.ts の drawLoopBracket / clearLoopBracket）。
   const loopRange = loopEnabled ? { start: loopStart, end: loopEnd } : null;
 
-  const currentNoteId =
-    score?.measures.find((m) => m.number === currentMeasure)?.notes[currentNoteIndex]?.id || null;
+  // currentNoteIndex は小節内の「判定グループ」インデックス（同一startTickの
+  // 発音ノーツ集合の並び順）を指す（TASK-032: データモデルv2の判定グループ
+  // 仕様）。カーソル位置は現在の判定グループのstartTickなので、その代表として
+  // グループ内の先頭ノートのidを使う（同一時刻のノートはどれでもカーソル位置は
+  // 一致する）。
+  const currentMeasureData = score?.measures.find((m) => m.number === currentMeasure);
+  const currentNoteId = currentMeasureData
+    ? (groupNotesByStartTick(currentMeasureData.notes)[currentNoteIndex]?.notes[0]?.id ?? null)
+    : null;
 
   // アプリ起動時に、SettingsModal（electron-store）で設定された
   // 「Enable Metronome by Default」の既定値を ui-slice の metronomeEnabled へ反映する。

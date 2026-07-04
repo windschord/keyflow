@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-032 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 60分 |
 | 依存タスク | TASK-031 |
@@ -60,23 +60,33 @@
 
 ## 受入基準
 
-- [ ] 小節内ノーツが `startTick` で時刻グループ化され、`advancePosition` がグループ単位で進行する
-- [ ] 右手＋左手が同時刻に鳴る和音（両手同時）で、両方揃うまで進行しない
-- [ ] 右手モードで両手同時刻グループのうち左手ノーツのみを無視し、右手ノーツが揃えば進行する
-- [ ] 単一パート内の和音（既存仕様）が引き続き正しく判定される（回帰なし）
-- [ ] フィルタ適用でグループが空になった場合に自動進行する
-- [ ] 既存のテスト（TASK-014記載6件）が全パス
-- [ ] 新規テストが追加されている（両手同時判定・パートまたぎフィルタの組み合わせ）
-- [ ] `npm run typecheck` / `npm run lint` がパスする
+- [x] 小節内ノーツが `startTick` で時刻グループ化され、`advancePosition` がグループ単位で進行する
+- [x] 右手＋左手が同時刻に鳴る和音（両手同時）で、両方揃うまで進行しない
+- [x] 右手モードで両手同時刻グループのうち左手ノーツのみを無視し、右手ノーツが揃えば進行する
+- [x] 単一パート内の和音（既存仕様）が引き続き正しく判定される（回帰なし）
+- [x] フィルタ適用でグループが空になった場合に自動進行する
+- [x] 既存のテスト（TASK-014記載6件）が全パス（新仕様に合わせて期待値を更新した上でパス）
+- [x] 新規テストが追加されている（両手同時判定・パートまたぎフィルタの組み合わせ）
+- [x] `npm run typecheck` / `npm run lint` がパスする
 
 ## テスト項目
 
-- [ ] 両手同時和音（右手2音＋左手1音、同startTick）が全3音揃うまで進行しない
-- [ ] Bothモードで両手同時和音が揃った瞬間に次グループへ進行する
-- [ ] Rightモードで両手同時グループのうち右手音のみ判定され、左手音は無視される
-- [ ] 単一パートの和音判定（既存テスト「コードは全音符が揃ったら正解になる」）が回帰しない
-- [ ] ループ終端到達時、時刻グループ化後もloopStartへ正しく戻る
-- [ ] passモードで誤打鍵時、グループ単位で次に進む
+- [x] 両手同時和音（右手2音＋左手1音、同startTick）が全3音揃うまで進行しない
+- [x] Bothモードで両手同時和音が揃った瞬間に次グループへ進行する
+- [x] Rightモードで両手同時グループのうち右手音のみ判定され、左手音は無視される
+- [x] 単一パートの和音判定（既存テスト「コードは全音符が揃ったら正解になる」）が回帰しない
+- [x] ループ終端到達時、時刻グループ化後もloopStartへ正しく戻る
+- [x] passモードで誤打鍵時、グループ単位で次に進む
+
+## 完了サマリー（2026-07-04）
+
+- `src/renderer/src/lib/practice-engine/note-grouping.ts` を新設し、`groupNotesByStartTick`（休符除外・startTick昇順の判定グループ導出）と `filterNotesByPracticeMode`（Left/Right/Bothフィルタ）を実装した。
+- `src/renderer/src/lib/practice-engine/index.ts` の `advancePosition`/`resetToMeasure` を、`currentNoteIndex` を「小節内の判定グループインデックス」として扱う `resolvePosition`（旧 `advanceGroupPosition` 相当）に置換。フィルタ後に空になったグループは自動スキップし、ループ境界を跨いだ場合は `pressedKeys`/`incorrectKeys`（部分押下状態）を破棄するようにした。
+- `handleNoteOn` は `expectedNotes`（現在グループの全ノーツ、フィルタ前）を保持したまま、判定時のみ `filterNotesByPracticeMode` でフィルタする設計とし、鍵盤ガイドが両手分のノーツを表示できるようにした。`advancePosition` 呼び出し後に `pressedKeys`/`incorrectKeys` を `getState()` から再取得するよう修正し、ループジャンプ時のクリアが呼び出し元の古い参照で上書きされないようにした。
+- `judgement.ts` の未使用スタブ `filterNotesByMode` を削除し、`judgeChord` はパート横断の判定グループにもそのまま対応できることをコメントで明記した。
+- `App.tsx` の `currentNoteId`（OSMDカーソル制御用）を、`currentNoteIndex` の意味変更に合わせて `groupNotesByStartTick` 経由でグループ先頭ノートのidを使うよう修正した。
+- `practice-engine.test.ts` を新仕様のフィクスチャ（両手同時和音・パートをまたぐグループ・左手のみグループの自動スキップ等）で全面的に書き直し、11件のテスト（既存6件の意図を踏襲したもの含む）を追加・更新した。
+- `npm run test`（50ファイル/266件、既存の `practice-flow.test.tsx` 統合テスト含め全パス）・`npm run typecheck`・`npm run lint` を実行し、いずれも成功を確認した。
 
 ## 情報の明確性
 

@@ -37,7 +37,7 @@
 | Phase 7: パッケージング・QA | 2 | 0 | 0 | 0 | [詳細](phase-7/) @phase-7/ |
 | Phase 8: 結線修正・UX改善（フェーズA） | 5 | 0 | 0 | 0 | [詳細](phase-8/) @phase-8/ |
 | Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 5 | 0 | 1 | 0 | [詳細](phase-9/) @phase-9/ |
-| Phase 10: QA・プロセス改善（フェーズC） | 2 | 0 | 1 | 0 | [詳細](phase-10/) @phase-10/ |
+| Phase 10: QA・プロセス改善（フェーズC） | 3 | 0 | 0 | 0 | [詳細](phase-10/) @phase-10/ |
 
 **合計**: 37タスク / 推定合計: 約1450分（AIエージェント作業時間）
 
@@ -191,7 +191,7 @@
 |----------|---------|-----------|------|------|-----------|
 | TASK-034 | 実起動E2Eテストの導入（Playwright for Electron） | DONE | TASK-028 | 60min | [詳細](phase-10/TASK-034.md) @phase-10/TASK-034.md |
 | TASK-035 | macOSパッケージングの追加 | DONE | TASK-028 | 30min | [詳細](phase-10/TASK-035.md) @phase-10/TASK-035.md |
-| TASK-036 | ドキュメントの実態同期とQA運用是正 | TODO | - | 30min | [詳細](phase-10/TASK-036.md) @phase-10/TASK-036.md |
+| TASK-036 | ドキュメントの実態同期とQA運用是正 | DONE | - | 30min | [詳細](phase-10/TASK-036.md) @phase-10/TASK-036.md |
 
 ---
 
@@ -210,6 +210,16 @@
 - `BLOCKED` — ブロック中
 - `REVIEW` — レビュー待ち
 - `DONE` — 完了
+
+### 運用ルール（TASK-036で追加）
+
+受入基準のチェックボックスが全て`[x]`になるまで、ステータスを`DONE`にしてはならない。
+未達の受入基準がある場合は`REVIEW`または`BLOCKED`とし、対応する後続タスクへの参照を明記すること。
+
+過去に受入基準未チェックのままDONE化されていた事例（[phase-7/TASK-021.md](phase-7/TASK-021.md)、
+[phase-7/TASK-022.md](phase-7/TASK-022.md)）が判明したため、
+[docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md](../troubleshooting/2026-07-04-app-unusable/analysis.md)
+の是正方針に基づき本ルールを明文化した（[phase-10/TASK-036.md](phase-10/TASK-036.md)）。
 
 ---
 

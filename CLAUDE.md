@@ -18,7 +18,7 @@ MIDI入力の正誤判定・運指提案・A-Bループ練習を備え、Synthes
 | デスクトップフレームワーク | Electron v29+ |
 | UI | React 18 + TypeScript 5 + Vite (electron-vite) |
 | 楽譜レンダリング | OpenSheetMusicDisplay (OSMD) |
-| MIDI入力 | node-midi（Main Process） |
+| MIDI入力 | Web MIDI API（Renderer Process直接利用、`src/renderer/src/lib/midi/web-midi.ts`） |
 | 音声合成 | Tone.js |
 | 状態管理 | Zustand v4 |
 | 運指エンジン | 独自実装 TypeScript（Web Worker）Parncutt-Terzuolo DPモデル |
@@ -37,7 +37,7 @@ docs/sdd/
 │   └── nfr/               # 非機能要件（performance, usability, compatibility）
 ├── design/                # 技術設計書
 │   ├── index.md           # アーキテクチャ概要・データモデル
-│   ├── components/        # コンポーネント設計（8件）
+│   ├── components/        # コンポーネント設計（9件）
 │   ├── database/          # スキーマ定義
 │   └── decisions/         # 技術的決定事項 DEC-001〜004
 └── tasks/                 # 実装タスク計画
@@ -58,10 +58,14 @@ docs/sdd/
 ```
 src/
 ├── main/                  # Electron Main Process
-│   ├── index.ts           # エントリーポイント
-│   ├── midi-controller.ts # node-midi ラッパー
-│   ├── ipc-handler.ts     # IPCチャンネル登録
-│   └── preload.ts         # contextBridge 定義
+│   ├── index.ts           # エントリーポイント（ファイルダイアログ・file:read/write・settings系IPCハンドラを実装）
+│   ├── midi-controller.ts # node-midiラッパー（未使用・未結線。src/main/index.tsから参照されていない残存コード。
+│   │                       #   MIDI入力は設計変更によりRendererのWeb MIDI API直接利用に切り替え済み。
+│   │                       #   将来ネイティブMIDI実装へ戻す可能性がある場合の参考実装として残置。削除判断は未確定）
+│   ├── settings.ts        # electron-store ラッパー（アプリ設定・最近使ったファイル）
+│   └── path-allowlist.ts  # ファイル書き込み許可パスの検証
+├── preload/
+│   └── index.ts           # contextBridge 定義（file/settings系APIのみ公開。MIDI関連IPCは公開していない）
 └── renderer/
     └── src/
         ├── lib/
@@ -69,6 +73,7 @@ src/
         │   ├── practice-engine/   # 正誤判定・ループ管理
         │   ├── annotation-store/  # 運指メモCRUD
         │   ├── audio-engine/      # Tone.js ラッパー
+        │   ├── midi/              # Web MIDI API直接利用（web-midi.ts）。navigator.requestMIDIAccess()をRendererで呼び出す
         │   └── fingering-engine/  # FingeringEngineService（Workerクライアント）
         ├── workers/
         │   └── fingering/
@@ -115,24 +120,33 @@ npm run lint
 
 # Windowsインストーラービルド
 npm run build:win
+
+# macOSパッケージビルド（dmg/zip、arm64+x64。TASK-035）
+npm run build:mac
 ```
 
 ## アーキテクチャ上の重要事項
 
 ### Electronセキュリティ設定
 - `contextIsolation: true` / `nodeIntegration: false` を必ず維持すること
-- Main↔Renderer通信はすべて `preload.ts` の `contextBridge` 経由のみ
-- IPCチャンネル名は `src/main/ipc-channels.ts` で型付き定数として管理
+- Main↔Renderer通信はすべて `src/preload/index.ts` の `contextBridge` 経由のみ
+- IPCチャンネル名は各ハンドラ実装箇所（`src/main/index.ts`）に文字列リテラルで直接記述している。
+  型付き定数ファイル（`src/main/ipc-channels.ts`）は存在しない
 
 ### IPCチャンネル一覧
+> MIDI入力はRendererのWeb MIDI API（`src/renderer/src/lib/midi/web-midi.ts`）で直接処理しており、
+> MIDI関連のIPCチャンネル（`midi:note-on`等）は使用していない。設計変更済みであり、詳細は
+> `docs/sdd/tasks/phase-3/TASK-008.md`を参照。当初の設計であるnode-midi＋IPC構成からの変更が
+> 本ファイルに未反映のまま残っていたため、本節で是正した。
+
 | チャンネル | 方向 | 用途 |
 |-----------|------|------|
-| `midi:note-on` | Main→Renderer | MIDI NoteOn イベント |
-| `midi:note-off` | Main→Renderer | MIDI NoteOff イベント |
-| `midi:devices-changed` | Main→Renderer | MIDIデバイス一覧更新 |
-| `file:open-musicxml` | Renderer→Main | ファイル選択ダイアログ |
-| `file:read` | Renderer→Main | ファイル読み込み |
+| `file:show-open-dialog` | Renderer→Main | ファイル選択ダイアログ |
+| `file:read` | Renderer→Main | テキストファイル読み込み（.xml/.musicxml） |
+| `file:read-binary` | Renderer→Main | バイナリファイル読み込み（.mxl） |
 | `file:write` | Renderer→Main | アノテーションJSON書き込み |
+| `settings:get` / `settings:set` | Renderer→Main | アプリ設定の取得・保存（electron-store） |
+| `settings:get-recent-files` | Renderer→Main | 最近使ったファイル一覧の取得 |
 
 ### Web Worker（運指エンジン）
 - `fingering.worker.ts` は Vite の `?worker` インポートで読み込む

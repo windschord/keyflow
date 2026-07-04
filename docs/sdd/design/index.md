@@ -87,6 +87,7 @@ graph TB
 | Piano Keyboard | Renderer (UI) | 88鍵盤の視覚的ガイド表示 | [詳細](components/piano-keyboard.md) @components/piano-keyboard.md |
 | Audio Engine | Renderer | Tone.jsによる伴奏・メトロノーム再生 | [詳細](components/audio-engine.md) @components/audio-engine.md |
 | Annotation Store | Renderer + Main | 運指・コメントのJSON永続化 | [詳細](components/annotation-store.md) @components/annotation-store.md |
+| Toolbar | Renderer (UI) | ファイルを開く・再生・練習対象・テンポ・ループ・運指提案・統計表示の操作群 | [詳細](components/toolbar.md) @components/toolbar.md |
 
 ---
 
@@ -166,7 +167,7 @@ interface Annotation {
 | DEC-001 | Electronを採用（TauriやFlutter不採用） | 承認済 | [詳細](decisions/DEC-001.md) @decisions/DEC-001.md |
 | DEC-002 | MusicXML描画にOSMDを採用 | 承認済 | [詳細](decisions/DEC-002.md) @decisions/DEC-002.md |
 | DEC-003 | 運指エンジンをTypeScriptで独自実装（Python不採用） | 承認済 | [詳細](decisions/DEC-003.md) @decisions/DEC-003.md |
-| DEC-004 | MIDI入力をMain Processのnode-midiで処理 | 承認済 | [詳細](decisions/DEC-004.md) @decisions/DEC-004.md |
+| DEC-004 | MIDI入力をMain Processのnode-midiで処理 | 承認済（実装変更あり: Web MIDI APIに変更済み、PR #16） | [詳細](decisions/DEC-004.md) @decisions/DEC-004.md |
 | DEC-005 | 時刻ベースデータモデル（PPQ480絶対tick）とnoteIdパート毎連番の採用 | 承認済 | [詳細](decisions/DEC-005.md) @decisions/DEC-005.md |
 
 ---
@@ -206,7 +207,7 @@ interface Annotation {
 ```
 push → lint + typecheck → unit test → electron-builder
      → Windows: NSIS installer (.exe)
-     → macOS: DMG (.dmg)  [Phase 2]
+     → macOS: dmg / zip（arm64 + x64）  [対応済み。TASK-035で追加]
 ```
 
 ---
@@ -225,6 +226,7 @@ docs/sdd/design/
 │   ├── piano-keyboard.md          # 88鍵盤UI
 │   ├── audio-engine.md            # 音声再生（Tone.js）
 │   ├── annotation-store.md        # アノテーション永続化
+│   ├── toolbar.md                 # ツールバー・練習コントロール群
 │   └── data-model-v2.md           # 時刻ベースデータモデル（v2）
 ├── database/
 │   └── schema.md                  # データスキーマ

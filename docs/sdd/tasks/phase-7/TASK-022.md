@@ -70,9 +70,28 @@ it('IPC転送レイテンシが5ms以内', async () => {
 
 ## 受入基準
 
-- [ ] シナリオ1〜3の統合テストが全パス
-- [ ] 運指計算パフォーマンステストが30秒以内でパス
-- [ ] `npm run test:coverage` でカバレッジレポートが生成される
+> **是正（TASK-036、2026-07-04）**: 本タスクは元々ステータス`DONE`のまま以下4項目が全て未チェックで
+> 放置されていた。本節はTASK-036の調査時点（`npm run test` / `npm run test:coverage` を実行して確認）で
+> 実際に確認できた事実のみをチェックしたものである。ステータス欄自体の再判定はTASK-036のスコープ外とし、行わない。
+> なお、ここでいう「統合テスト」は`src/renderer/src/tests/integration/`配下のVitest+jsdomレベルのテストであり、
+> 実Electronプロセスを起動した実UIレベルのE2Eは[phase-10/TASK-034.md](../phase-10/TASK-034.md)で別途追加されている
+> （`docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md`が指摘した「統合テストが`resetToMeasure(1)`を
+> 手動呼び出しして初期化欠落を隠蔽していた」問題は、TASK-024（本体側の初期化実装）とTASK-034（実UI E2E追加）で対応済み）。
+
+- [x] シナリオ1〜3の統合テストが全パス
+  - `npm run test`実行で`src/renderer/src/tests/integration/practice-flow.test.tsx`（6件）・
+    `musicxml-parser-integration.test.ts`（8件）・`fingering-benchmark.test.ts`（3件）を含む
+    全51ファイル・289テストが成功することを確認済み（2026-07-04時点）。
+- [x] 運指計算パフォーマンステストが30秒以内でパス
+  - `fingering-benchmark.test.ts`の「800音符の運指計算が2秒以内に完了する」テストが成功することを確認済み
+    （タスク記述の30秒基準よりも厳しい2秒基準で実装されており、これを満たしている）。
+- [x] `npm run test:coverage` でカバレッジレポートが生成される
+  - 実行してV8カバレッジレポート（`% Coverage report from v8`形式のテキスト出力）が生成されることを確認済み。
 - [ ] カバレッジが主要モジュール（parser, practice-engine, fingering dp-solver）で80%以上
+  - `npm run test:coverage`実測値（2026-07-04時点）: `musicxml-parser/parser.ts` 95.88%、
+    `practice-engine/index.ts` 88.17%（`practice-engine`ディレクトリ全体では90.18%）は80%以上を満たすが、
+    `workers/fingering/dp-solver.ts`は**72.97%**（分岐73.91%、関数66.66%）であり基準未達。
+    dp-solverのカバレッジ改善は本タスクのスコープ外のため、後続タスクとして別途起票が必要
+    （Phase 10には該当タスクが存在しない）。
 
 **依存関係**: TASK-021

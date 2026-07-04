@@ -9,7 +9,7 @@ import { parse, extractXmlFromMxl } from './lib/musicxml-parser';
 import { SettingsModal } from './components/SettingsModal';
 import { usePractice } from './hooks/usePractice';
 import { AnnotationStoreService } from './lib/annotation-store';
-import type { FingerAssignment, Hand, PracticeMode } from './types';
+import type { FingerAssignment, Hand, PracticeMode, Score } from './types';
 
 /**
  * 練習対象パート（practiceMode）から、自動伴奏の対象となる非練習パートを決定する。
@@ -127,7 +127,7 @@ function App(): React.JSX.Element {
 
     setIsLoadingAnnotations(true);
     try {
-      let parsedScore;
+      let parsedScore: Score;
       let xmlContent: string;
       if (filePath.endsWith('.mxl') || filePath.endsWith('.MXL')) {
         const buffer = await window.electronAPI.file.readBinary(filePath);
@@ -144,7 +144,16 @@ function App(): React.JSX.Element {
       practiceEngine.resetToMeasure(1);
       await audioEngine.loadAccompaniment(parsedScore, getAccompanimentHand(practiceMode));
       setFingeringAnnotations([]);
-      await annotationStore.current.load(filePath);
+      const validNoteIds = new Set(
+        parsedScore.measures.flatMap((measure) => measure.notes.map((note) => note.id))
+      );
+      const skippedNoteIds = await annotationStore.current.load(filePath, validNoteIds);
+      if (skippedNoteIds.length > 0) {
+        console.warn(
+          `[App] noteId採番方式の変更（TASK-031）により ${skippedNoteIds.length} 件のアノテーションを読み込めませんでした:`,
+          skippedNoteIds
+        );
+      }
     } catch (error) {
       console.error('Failed to parse file:', error);
       alert('MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。');

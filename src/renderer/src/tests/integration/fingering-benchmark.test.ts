@@ -24,6 +24,11 @@ function generate800Notes(): Note[] {
       pitch: { step: 'C', octave: 4 + octaveShift },
       midiNumber: Math.min(midiNumber, 108),
       duration: 4,
+      startTick: i * 1920,
+      durationTicks: 1920,
+      startSeconds: i * 4,
+      durationSeconds: 4,
+      voice: 1,
       isChord: false,
       isRest: false,
     });
@@ -58,6 +63,11 @@ describe('運指計算パフォーマンステスト', () => {
       pitch: { step: 'C', octave: 4 },
       midiNumber: 60,
       duration: 4,
+      startTick: 0,
+      durationTicks: 1920,
+      startSeconds: 0,
+      durationSeconds: 4,
+      voice: 1,
       isChord: false,
       isRest: false,
     };

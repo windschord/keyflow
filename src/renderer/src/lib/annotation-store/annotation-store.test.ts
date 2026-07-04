@@ -115,4 +115,54 @@ describe('AnnotationStoreService', () => {
     expect(writtenData.annotations).toHaveLength(2);
     expect(store.isDirty()).toBe(false);
   });
+
+  it('load: validNoteIdsが未指定の場合はフィルタせずすべて読み込む（後方互換）', async () => {
+    const mockData = {
+      version: '1.0',
+      annotations: [{ noteId: 'P2-M1-N5', fingerNumber: 1, isAISuggested: false, isApproved: true }],
+    };
+    // @ts-expect-error test mock
+    vi.mocked(window.electronAPI.file.read).mockResolvedValue(JSON.stringify(mockData));
+
+    const skipped = await store.load('/test.xml');
+
+    expect(store.getAnnotation('P2-M1-N5')).toBeDefined();
+    expect(skipped).toEqual([]);
+  });
+
+  it('load: validNoteIdsが指定された場合、存在しないnoteIdは警告つきでスキップする（TASK-031）', async () => {
+    const mockData = {
+      version: '1.0',
+      annotations: [
+        { noteId: 'P1-M1-N0', fingerNumber: 1, isAISuggested: false, isApproved: true },
+        { noteId: 'P2-M1-N5', fingerNumber: 2, isAISuggested: false, isApproved: true },
+      ],
+    };
+    // @ts-expect-error test mock
+    vi.mocked(window.electronAPI.file.read).mockResolvedValue(JSON.stringify(mockData));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const skipped = await store.load('/test.xml', new Set(['P1-M1-N0']));
+
+    expect(store.getAnnotation('P1-M1-N0')).toBeDefined();
+    expect(store.getAnnotation('P2-M1-N5')).toBeUndefined();
+    expect(skipped).toEqual(['P2-M1-N5']);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('P2-M1-N5'));
+
+    warnSpy.mockRestore();
+  });
+
+  it('load: ファイルを破壊しない（スキップしてもdirtyにならない）', async () => {
+    const mockData = {
+      version: '1.0',
+      annotations: [{ noteId: 'P2-M1-N5', fingerNumber: 2, isAISuggested: false, isApproved: true }],
+    };
+    // @ts-expect-error test mock
+    vi.mocked(window.electronAPI.file.read).mockResolvedValue(JSON.stringify(mockData));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await store.load('/test.xml', new Set(['P1-M1-N0']));
+
+    expect(store.isDirty()).toBe(false);
+  });
 });

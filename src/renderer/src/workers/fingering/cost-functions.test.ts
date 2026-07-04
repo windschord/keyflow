@@ -11,6 +11,11 @@ const makeNote = (id: string, midiNumber: number): Note => ({
   pitch: { step: 'C', octave: 4 },
   midiNumber,
   duration: 1,
+  startTick: 0,
+  durationTicks: 480,
+  startSeconds: 0,
+  durationSeconds: 0.5,
+  voice: 1,
   isChord: false,
   isRest: false,
 });

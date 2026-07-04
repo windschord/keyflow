@@ -6,12 +6,36 @@ directories:
   output: dist-electron
   buildResources: build
 
+# electron-builderによる自動npmRebuildを無効化する。
+# node-midiのネイティブビルドは npm run postinstall の
+# `electron-rebuild -f -w midi` で個別に対応済み。
+# opensheetmusicdisplayの依存関係であるheadless-gl（gl）は
+# Electronレンダラーではブラウザ標準のCanvas/WebGLを使用するため
+# 実行時に不要だが、node-gypでのネイティブビルドがElectron 42の
+# V8 APIと非互換でリビルドに失敗するため、自動リビルド対象から外す。
+npmRebuild: false
+
 win:
   target:
     - target: nsis
       arch: [x64]
   icon: build/icon.ico
   requestedExecutionLevel: asInvoker
+
+# macOSターゲット（TASK-035）
+# 署名（codesign）・公証（Notarization）はスコープ外。未署名ビルドのため、
+# 初回起動時にmacOS Gatekeeperの警告が表示されるが既知の制約として許容する。
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  icon: build/icon.icns
+  category: public.app-category.music
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
 
 nsis:
   oneClick: false
@@ -22,7 +46,7 @@ nsis:
   installerLanguages: [ja_JP, en_US]
 
 files:
-  - dist/**/*
+  - out/**/*
   - node_modules/midi/build/Release/midi.node
   - '!node_modules/**/{CHANGELOG.md,README.md,readme.md}'
   - '!node_modules/**/*.{ts,map}'

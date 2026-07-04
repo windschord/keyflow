@@ -11,6 +11,7 @@
     "build": "npm run typecheck && electron-vite build",
     "start": "electron-vite preview",
     "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
@@ -28,7 +29,6 @@
   },
   "dependencies": {
     "conf": "^15.1.0",
-    "electron": "^42.4.1",
     "electron-store": "^8.2.0",
     "fast-xml-parser": "^5.9.3",
     "fflate": "^0.8.3",
@@ -56,6 +56,7 @@
     "@types/webmidi": "^2.1.0",
     "@vitejs/plugin-react": "^4.3.1",
     "@vitest/coverage-v8": "^3.0.0",
+    "electron": "^42.4.1",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "eslint": "^9.0.0",

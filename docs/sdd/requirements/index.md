@@ -25,6 +25,7 @@ SynthesiaやPiano Marvelに匹敵する練習体験を実現する。
 | US-007 | 繰り返し練習（ループ範囲設定） | 高 | 承認済 | [詳細](stories/US-007.md) @stories/US-007.md |
 | US-008 | 運指メモの書き込み | 中 | 承認済 | [詳細](stories/US-008.md) @stories/US-008.md |
 | US-009 | 運指提案 | 中 | 承認済 | [詳細](stories/US-009.md) @stories/US-009.md |
+| US-010 | 曲の再生（お手本演奏） | 高 | 承認済 | [詳細](stories/US-010.md) @stories/US-010.md |
 
 ---
 
@@ -41,6 +42,7 @@ SynthesiaやPiano Marvelに匹敵する練習体験を実現する。
 | REQ-007 | A-Bループ（小節範囲の繰り返し練習） | US-007 | 定義済 |
 | REQ-008 | 運指番号・コメントのアノテーション書き込み | US-008 | 定義済 |
 | REQ-009 | TypeScript独自実装エンジンによる運指提案（Parncutt-TerzuoloモデルDP） | US-009 | 定義済 |
+| REQ-010 | 楽曲全体の再生・一時停止・停止（お手本演奏、カーソル連動） | US-010 | 定義済 |
 
 ---
 
@@ -88,7 +90,8 @@ docs/sdd/requirements/
 │   ├── US-006.md              # テンポ調整
 │   ├── US-007.md              # 繰り返し練習
 │   ├── US-008.md              # 運指メモ書き込み
-│   └── US-009.md              # 運指提案
+│   ├── US-009.md              # 運指提案
+│   └── US-010.md              # 曲の再生（お手本演奏）
 └── nfr/
     ├── performance.md          # 性能要件
     ├── usability.md            # ユーザビリティ要件

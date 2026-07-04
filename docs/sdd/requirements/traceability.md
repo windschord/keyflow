@@ -39,7 +39,7 @@
 | REQ-006-002 | ○ | Toolbar.test + App.test + audio-engine.test |
 | REQ-006-003 | △ | 実装が絶対値20-400クランプで要件（元テンポ比20-200%）と不一致（TASK-046） |
 | REQ-006-004 | × | ピッチ不変（Tone.js委譲） |
-| REQ-006-005 | △ | モック上のsequence.start確認のみ。Transport起動/停止の非対称バグあり（TASK-042） |
+| REQ-006-005 | ○ | audio-engine.test（TASK-042）。metronome.tsからTransport.start()を削除し、setEnabled(true)はSequence.start(0)のみでTransportライフサイクルは再生コントロール側に一本化 |
 | REQ-006-006 | ○ | Toolbar.test |
 | REQ-006-007 | △ | parserのtempoMapは○。再生時のテンポ変化再現は無検証 |
 | REQ-007-001/002 | △ | practice-engine.test + audio-engine setLoopPoints。App/E2E経路のループなし |

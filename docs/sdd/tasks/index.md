@@ -38,12 +38,17 @@
 | Phase 8: 結線修正・UX改善（フェーズA） | 5 | 0 | 0 | 0 | [詳細](phase-8/) @phase-8/ |
 | Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 7 | 0 | 0 | 0 | [詳細](phase-9/) @phase-9/ |
 | Phase 10: QA・プロセス改善（フェーズC） | 3 | 0 | 0 | 0 | [詳細](phase-10/) @phase-10/ |
+| Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 0 | 0 | 9 | 0 | [詳細](phase-11/) @phase-11/ |
 
-**合計**: 38タスク / 推定合計: 約1510分（AIエージェント作業時間）
+**合計**: 47タスク / 推定合計: 約1940分（AIエージェント作業時間）
 
 > Phase 8〜10 は 2026-07-04 のトラブルシューティング分析
 > （[docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md](../troubleshooting/2026-07-04-app-unusable/analysis.md)）
 > に基づく修正フェーズ。承認済み方針: フェーズA→B→Cを順に完遂。
+>
+> Phase 11 は 2026-07-05 のテストすり抜け分析
+> （[docs/sdd/troubleshooting/2026-07-05-test-escape/analysis.md](../troubleshooting/2026-07-05-test-escape/analysis.md)）
+> の横断チェックで検出された事象（H1〜H5、M1〜M8、Low）の是正フェーズ。
 
 ---
 
@@ -91,6 +96,16 @@
 |--------|-------------|------|
 | TASK-027 | src/renderer/src/hooks/usePractice.ts, Toolbar/** | TASK-026 |
 | TASK-028 | src/renderer/src/components/Toolbar/**, App.tsx | TASK-026 |
+
+### グループG: Phase 11（TASK-039/042/043は並列可）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-039 | src/main/index.ts, src/main/settings.ts, SettingsModal/** | - |
+| TASK-042 | src/renderer/src/lib/audio-engine/** | - |
+| TASK-043 | src/renderer/src/workers/fingering/** | - |
+
+> TASK-040/041 も依存なしだが、TASK-040 は SettingsModal を TASK-039 と、
+> TASK-041 は App.tsx を他タスクと共有するため、衝突回避のうえ順次着手を推奨。
 
 ---
 
@@ -194,6 +209,21 @@
 | TASK-035 | macOSパッケージングの追加 | DONE | TASK-028 | 30min | [詳細](phase-10/TASK-035.md) @phase-10/TASK-035.md |
 | TASK-036 | ドキュメントの実態同期とQA運用是正 | DONE | - | 30min | [詳細](phase-10/TASK-036.md) @phase-10/TASK-036.md |
 
+### Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点）
+*推定期間: 430min（039/042/043は並列可。044はTASK-041後、045はTASK-040後、046はTASK-043後、047はTASK-044後）*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-039 | [BugFix] ファイル履歴の結線 | TODO | - | 30min | [詳細](phase-11/TASK-039.md) @phase-11/TASK-039.md |
+| TASK-040 | [BugFix] エラーモード設定の結線 | TODO | - | 30min | [詳細](phase-11/TASK-040.md) @phase-11/TASK-040.md |
+| TASK-041 | [BugFix] 鍵盤ガイドの左右色分け修正 | TODO | - | 30min | [詳細](phase-11/TASK-041.md) @phase-11/TASK-041.md |
+| TASK-042 | [BugFix] メトロノームのTransport起動/停止の非対称修正 | TODO | - | 30min | [詳細](phase-11/TASK-042.md) @phase-11/TASK-042.md |
+| TASK-043 | 運指エンジンへのscale-patterns統合 | TODO | - | 50min | [詳細](phase-11/TASK-043.md) @phase-11/TASK-043.md |
+| TASK-044 | US-008 運指メモ手動編集UIの実装 | TODO | TASK-041 | 90min | [詳細](phase-11/TASK-044.md) @phase-11/TASK-044.md |
+| TASK-045 | MIDIデバイス選択とズーム/鍵盤高さ設定UI | TODO | TASK-040 | 60min | [詳細](phase-11/TASK-045.md) @phase-11/TASK-045.md |
+| TASK-046 | テストスイート是正（再発防止策の適用） | TODO | TASK-043 | 60min | [詳細](phase-11/TASK-046.md) @phase-11/TASK-046.md |
+| TASK-047 | 残課題の要件整理と死にコード掃除 | TODO | TASK-044 | 50min | [詳細](phase-11/TASK-047.md) @phase-11/TASK-047.md |
+
 ---
 
 ## リスクと軽減策
@@ -238,5 +268,6 @@ docs/sdd/tasks/
 ├── phase-7/          # TASK-021〜022: パッケージング
 ├── phase-8/          # TASK-024〜028: 結線修正・UX改善（フェーズA）
 ├── phase-9/          # TASK-029〜033: 仕様再定義・データモデル刷新（フェーズB）
-└── phase-10/         # TASK-034〜036: QA・プロセス改善（フェーズC）
+├── phase-10/         # TASK-034〜036: QA・プロセス改善（フェーズC）
+└── phase-11/         # TASK-039〜047: 品質是正・機能補完（2026-07-05横断チェック起点）
 ```

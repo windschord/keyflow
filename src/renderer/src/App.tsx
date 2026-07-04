@@ -156,7 +156,15 @@ function App(): React.JSX.Element {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* 2. ScoreRenderer (Flex Grow) */}
-      <div style={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+      {/*
+        このコンテナはflexアイテムとして高さを確定させる役割のみを持つ。
+        overflow は指定しない（スクロールコンテナは ScoreRenderer 内部の
+        単一コンテナに一本化し、二重スクロールを避けるため）。
+        display: flex/flexDirection: column を設定することで、
+        子である ScoreRenderer の flexGrow:1 が有効になり、
+        利用可能な高さを正しく継承できるようにする。
+      */}
+      <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <ScoreRenderer
           score={score}
           musicXmlContent={musicXmlContent}

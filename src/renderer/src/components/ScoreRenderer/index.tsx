@@ -86,7 +86,13 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   }, [practiceMode, score]);
 
   return (
-    <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+    // スクロールコンテナはこの外側divのみに一本化する（overflow: 'auto'）。
+    // 内側の osmd-container div は overflow・height: '100%' を持たず、
+    // OSMDが描画した実際のコンテンツ高さのままこの外側divの中で
+    // 縦方向にはみ出す（その結果、外側divのスクロールバーが機能する）。
+    <div
+      style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'auto' }}
+    >
       {!score && (
         <div style={{ margin: 'auto', color: '#666' }} data-testid="placeholder">
           楽譜ファイルを開いてください
@@ -97,9 +103,7 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
         style={{
           display: score ? 'block' : 'none',
           width: '100%',
-          height: '100%',
           backgroundColor: '#ffffff',
-          overflowY: 'auto',
         }}
         data-testid="osmd-container"
       />

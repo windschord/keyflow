@@ -57,4 +57,31 @@ describe('ScoreRenderer', () => {
     expect(screen.queryByTestId('placeholder')).not.toBeInTheDocument();
     expect(screen.getByTestId('osmd-container')).toBeInTheDocument();
   });
+
+  it('has a single scroll container (outer div) and no nested scroll/height on the inner osmd-container', () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    const osmdContainer = screen.getByTestId('osmd-container');
+    const outerContainer = osmdContainer.parentElement as HTMLElement;
+
+    // TASK-025: スクロールコンテナは外側divの1つに一本化する。
+    expect(outerContainer.style.overflow).toBe('auto');
+    // flexアイテムとして高さを確定させるため minHeight: 0 を維持する。
+    expect(outerContainer.style.minHeight).toBe('0px');
+
+    // 内側の osmd-container は独自のスクロール・固定高さを持たない
+    // （二重スクロールコンテナの解消）。
+    expect(osmdContainer.style.overflowY).toBe('');
+    expect(osmdContainer.style.height).toBe('');
+  });
 });

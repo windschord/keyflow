@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-025 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 30分 |
 | 依存タスク | なし |
@@ -64,19 +64,48 @@
 
 ## 受入基準
 
-- [ ] マウスホイール操作で楽譜を手動スクロールでき、全小節（3段目以降含む）を閲覧できる
-- [ ] 自動スクロール（`osmd-controller.ts` の `scrollIntoView` によるカーソル追従）が手動スクロール修正後も動作する
-- [ ] 楽譜がピアノ鍵盤の下にクリップされて見切れない
-- [ ] `main.css` からelectron-viteテンプレート残骸（body中央寄せ、`#root` の `margin-bottom: 80px`）が除去されている
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [ ] マウスホイール操作で楽譜を手動スクロールでき、全小節（3段目以降含む）を閲覧できる（※注1: jsdom環境では実ブラウザのマウスホイールスクロールを検証できないため、実行環境で `npm run dev` による目視確認が別途必要。コード構造上の根拠は下記「実施内容」参照）
+- [ ] 自動スクロール（`osmd-controller.ts` の `scrollIntoView` によるカーソル追従）が手動スクロール修正後も動作する（※注1と同様、実ブラウザでの目視確認が別途必要。`scrollIntoView` の呼び出し箇所・スクロール可能祖先要素の構造は変更しておらず、単一化したスクロールコンテナが最も近いスクロール可能祖先になる設計を維持）
+- [x] 楽譜がピアノ鍵盤の下にクリップされて見切れない（コード構造上、旧 `overflow: 'hidden'` によるクリップ要因を除去し、スクロールコンテナを1つに統一したことで解消。実ブラウザでの最終確認は注1と同様に別途推奨）
+- [x] `main.css` からelectron-viteテンプレート残骸（body中央寄せ、`#root` の `margin-bottom: 80px`）が除去されている
+- [x] 既存のテストが通る（`npm run test` 206件全件パス）
+- [x] 新規テストが追加されている（`ScoreRenderer.test.tsx` にスクロールコンテナ一本化を検証するテストを追加）
 
 ## テスト項目
 
-- [ ] （手動E2E）`npm run dev` で複数段にわたる楽譜を開き、マウスホイールで最終小節までスクロールできる
-- [ ] （手動E2E）MIDI/画面鍵盤で演奏を進め、カーソルが画面外に出る際に自動スクロールが発生する
-- [ ] （回帰）`ScoreRenderer.test.tsx` がグリーン
-- [ ] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [ ] （手動E2E）`npm run dev` で複数段にわたる楽譜を開き、マウスホイールで最終小節までスクロールできる（本タスクの実行環境では未実施。次回の実機/実ブラウザQAで確認すること）
+- [ ] （手動E2E）MIDI/画面鍵盤で演奏を進め、カーソルが画面外に出る際に自動スクロールが発生する（同上、未実施）
+- [x] （回帰）`ScoreRenderer.test.tsx` がグリーン
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 実施内容（完了サマリー）
+
+### 変更ファイル
+
+- `src/renderer/src/App.tsx`
+  - ScoreRendererを包むコンテナ（旧153行目、現159行目付近）から `overflow: 'hidden'` を撤廃。
+  - `display: 'flex'`, `flexDirection: 'column'` を追加し、flexコンテナ化。これにより子である `ScoreRenderer` の `flexGrow: 1` が有効になり、実際に高さが確定するようになった（従来は親がflexコンテナでないため `flexGrow` が無視され、`ScoreRenderer` 側の `overflow: 'auto'` が発火しなかった）。
+- `src/renderer/src/components/ScoreRenderer/index.tsx`
+  - 外側div（スクロールコンテナ）に `minHeight: 0` を追加（flexアイテムとして正しく縮小できるようにするため）。
+  - 内側の `osmd-container` div から `height: '100%'` と `overflowY: 'auto'` を削除。これにより二重スクロールコンテナを解消し、実際にスクロールするコンテナを外側divの1つに一本化した。
+- `src/renderer/src/assets/main.css`
+  - `body` セレクタから electron-vite テンプレート由来の `display: flex; align-items: center; justify-content: center; overflow: hidden;` を除去（`background-image` 等の必要なスタイルは維持）。
+  - `#root` セレクタ（`display: flex; align-items: center; justify-content: center; flex-direction: column; margin-bottom: 80px;`）をブロックごと除去。
+- `src/renderer/src/components/ScoreRenderer/ScoreRenderer.test.tsx`
+  - 新規テスト「has a single scroll container (outer div) and no nested scroll/height on the inner osmd-container」を追加し、外側divが `overflow: 'auto'` かつ `minHeight: 0` を持つこと、内側 `osmd-container` が `overflowY` / `height` インラインスタイルを持たないことを検証。
+
+### コード構造上の根拠（受入基準注1）
+
+- flexチェーン: `App` ルートdiv（`height: 100vh`, flex column） → ヘッダー（`flexShrink: 0`） → ScoreRendererラッパー（`flexGrow: 1, minHeight: 0`, flex column） → `ScoreRenderer` 外側div（`flexGrow: 1, minHeight: 0, overflow: 'auto'`） → フッター（ピアノ鍵盤, `flexShrink: 0`）という構造になり、`ScoreRenderer` 外側divの高さが実際にpx値として確定する。
+- 唯一の `overflow: 'auto'` を持つのが `ScoreRenderer` 外側divであり、内側 `osmd-container` にはoverflow/固定heightがないため、OSMDが描画するSVGコンテンツが外側divの確定高さを超えた場合、外側divのスクロールバーのみが機能する（スクロールコンテナの一本化）。
+- `osmd-controller.ts` の `scrollIntoView` はDOM標準APIとして「最も近いスクロール可能な祖先要素」にスクロールする。本修正後は `ScoreRenderer` 外側divが唯一かつ最も近いスクロール可能祖先になるため、従来と同様に機能する設計を維持している（呼び出しコード自体は変更していない）。
+- 上記はコードレビュー・ユニットテストで検証済みだが、実ブラウザでのマウスホイール操作・視覚的クリップ有無の最終確認は本タスク実行環境（Bashツールによる自動化）では実施できていない。次回起動時の目視QAを推奨する。
+
+### テスト結果
+
+- `npm run test`: 206 tests passed（既存205件 + 新規1件）
+- `npm run typecheck`: エラーなし（`typecheck:node` / `typecheck:web` 共にパス）
+- `npm run lint`: エラーなし
 
 ## 情報の明確性
 

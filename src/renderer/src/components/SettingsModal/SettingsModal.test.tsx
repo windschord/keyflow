@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsModal } from './index';
+import { usePracticeStore } from '../../store';
 
 describe('SettingsModal', () => {
   const settingsApi = {
@@ -21,6 +22,7 @@ describe('SettingsModal', () => {
       },
       settings: settingsApi,
     };
+    usePracticeStore.setState({ metronomeEnabled: false });
   });
 
   it('loads settings and recent files through preload API', async () => {
@@ -84,5 +86,35 @@ describe('SettingsModal', () => {
       expect(window.alert).toHaveBeenCalledWith('設定の保存に失敗しました。変更を元に戻しました。')
     );
     expect(checkbox.checked).toBe(false);
+    // ui-slice の metronomeEnabled も保存失敗時にはロールバックされる
+    expect(usePracticeStore.getState().metronomeEnabled).toBe(false);
+  });
+
+  it('reflects "Enable Metronome by Default" changes to the ui-slice metronomeEnabled state', async () => {
+    settingsApi.get.mockImplementation((key: string) => {
+      if (key === 'ui')
+        return Promise.resolve({ theme: 'light', language: 'ja', zoom: 1, pianoHeight: 120 });
+      if (key === 'practice')
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      return Promise.resolve(undefined);
+    });
+    settingsApi.getRecentFiles.mockResolvedValue([]);
+    settingsApi.set.mockResolvedValue(undefined);
+
+    render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+    const checkbox = (await screen.findByLabelText(
+      'Enable Metronome by Default'
+    )) as HTMLInputElement;
+    await waitFor(() => expect(checkbox.checked).toBe(false));
+    expect(usePracticeStore.getState().metronomeEnabled).toBe(false);
+
+    fireEvent.click(checkbox);
+
+    await waitFor(() => expect(usePracticeStore.getState().metronomeEnabled).toBe(true));
+    expect(settingsApi.set).toHaveBeenCalledWith(
+      'practice',
+      expect.objectContaining({ metronomeEnabled: true })
+    );
   });
 });

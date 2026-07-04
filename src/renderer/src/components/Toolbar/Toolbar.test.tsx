@@ -48,6 +48,15 @@ describe('Toolbar UI', () => {
     expect(usePracticeStore.getState().bpm).toBe(400);
   });
 
+  it('resets BPM to the score-derived originalBpm when the Reset button is clicked', () => {
+    usePracticeStore.setState({ bpm: 140, originalBpm: 90 });
+    render(<Toolbar />);
+
+    fireEvent.click(screen.getByText('Reset'));
+
+    expect(usePracticeStore.getState().bpm).toBe(90);
+  });
+
   it('shows error when loop start >= end', () => {
     render(<Toolbar />);
     const startInput = screen.getByTestId('loop-start') as HTMLInputElement;

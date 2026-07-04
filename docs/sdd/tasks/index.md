@@ -35,8 +35,15 @@
 | Phase 5: 練習エンジン統合 | 4 | 0 | 0 | 0 | [詳細](phase-5/) @phase-5/ |
 | Phase 6: 運指エンジン（DP） | 4 | 0 | 0 | 0 | [詳細](phase-6/) @phase-6/ |
 | Phase 7: パッケージング・QA | 2 | 0 | 0 | 0 | [詳細](phase-7/) @phase-7/ |
+| Phase 8: 結線修正・UX改善（フェーズA） | 0 | 0 | 5 | 0 | [詳細](phase-8/) @phase-8/ |
+| Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 0 | 0 | 5 | 0 | [詳細](phase-9/) @phase-9/ |
+| Phase 10: QA・プロセス改善（フェーズC） | 0 | 0 | 3 | 0 | [詳細](phase-10/) @phase-10/ |
 
-**合計**: 23タスク / 推定合計: 約870分（AIエージェント作業時間）
+**合計**: 36タスク / 推定合計: 約1420分（AIエージェント作業時間）
+
+> Phase 8〜10 は 2026-07-04 のトラブルシューティング分析
+> （[docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md](../troubleshooting/2026-07-04-app-unusable/analysis.md)）
+> に基づく修正フェーズ。承認済み方針: フェーズA→B→Cを順に完遂。
 
 ---
 
@@ -72,6 +79,18 @@
 |--------|-------------|------|
 | TASK-018 | src/workers/fingering/dp-solver.ts | TASK-017 |
 | TASK-019 | src/workers/fingering/scale-patterns.ts | TASK-017 |
+
+### グループE: Phase 8（着手時に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-024 | src/renderer/src/App.tsx, store/** | - |
+| TASK-025 | src/renderer/src/App.tsx(CSS), ScoreRenderer/**, assets/main.css | - |
+
+### グループF: Phase 8（TASK-026完了後に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-027 | src/renderer/src/hooks/usePractice.ts, Toolbar/** | TASK-026 |
+| TASK-028 | src/renderer/src/components/Toolbar/**, App.tsx | TASK-026 |
 
 ---
 
@@ -142,6 +161,37 @@
 | TASK-021 | electron-builder設定（Windows NSISインストーラー） | DONE | Phase 6 | 30min | [詳細](phase-7/TASK-021.md) @phase-7/TASK-021.md |
 | TASK-022 | 統合テスト・E2Eシナリオ整備 | DONE | TASK-021 | 50min | [詳細](phase-7/TASK-022.md) @phase-7/TASK-022.md |
 
+### Phase 8: 結線修正・UX改善（フェーズA / 2026-07-04 トラブルシューティング起点）
+*推定期間: 170min（024〜025は並列可、026後に027〜028が並列可）*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-024 | [BugFix] スコア読み込み後の練習セッション初期化 | TODO | - | 30min | [詳細](phase-8/TASK-024.md) @phase-8/TASK-024.md |
+| TASK-025 | [BugFix] 楽譜スクロールのCSSレイアウト修正 | TODO | - | 30min | [詳細](phase-8/TASK-025.md) @phase-8/TASK-025.md |
+| TASK-026 | [BugFix] 曲の再生/停止機能の暫定実装 | TODO | TASK-024 | 40min | [詳細](phase-8/TASK-026.md) @phase-8/TASK-026.md |
+| TASK-027 | [BugFix] テンポ・メトロノーム・効果音の結線 | TODO | TASK-026 | 30min | [詳細](phase-8/TASK-027.md) @phase-8/TASK-027.md |
+| TASK-028 | [BugFix] Toolbar UXの全面改善（日本語ラベル・機能整理） | TODO | TASK-026 | 40min | [詳細](phase-8/TASK-028.md) @phase-8/TASK-028.md |
+
+### Phase 9: 仕様再定義・データモデル刷新（フェーズB / 順次実行）
+*推定期間: 260min*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-029 | 要件定義追加: US-010 曲の再生（お手本演奏） | TODO | TASK-026 | 30min | [詳細](phase-9/TASK-029.md) @phase-9/TASK-029.md |
+| TASK-030 | 設計: 時刻ベースデータモデルへの再設計 | TODO | TASK-029 | 60min | [詳細](phase-9/TASK-030.md) @phase-9/TASK-030.md |
+| TASK-031 | パーサーの時刻付与・noteId統一実装 | TODO | TASK-030 | 60min | [詳細](phase-9/TASK-031.md) @phase-9/TASK-031.md |
+| TASK-032 | practice-engineの両手・和音同時判定対応 | TODO | TASK-031 | 60min | [詳細](phase-9/TASK-032.md) @phase-9/TASK-032.md |
+| TASK-033 | 楽譜上の視覚フィードバック実装（osmd-controller空実装の解消） | TODO | TASK-032 | 50min | [詳細](phase-9/TASK-033.md) @phase-9/TASK-033.md |
+
+### Phase 10: QA・プロセス改善（フェーズC）
+*推定期間: 120min（TASK-036は他と独立して着手可）*
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-034 | 実起動E2Eテストの導入（Playwright for Electron） | TODO | TASK-028 | 60min | [詳細](phase-10/TASK-034.md) @phase-10/TASK-034.md |
+| TASK-035 | macOSパッケージングの追加 | TODO | TASK-028 | 30min | [詳細](phase-10/TASK-035.md) @phase-10/TASK-035.md |
+| TASK-036 | ドキュメントの実態同期とQA運用是正 | TODO | - | 30min | [詳細](phase-10/TASK-036.md) @phase-10/TASK-036.md |
+
 ---
 
 ## リスクと軽減策
@@ -173,5 +223,8 @@ docs/sdd/tasks/
 ├── phase-4/          # TASK-010〜013: UIコア
 ├── phase-5/          # TASK-014〜016: 練習エンジン
 ├── phase-6/          # TASK-017〜020: 運指エンジン
-└── phase-7/          # TASK-021〜022: パッケージング
+├── phase-7/          # TASK-021〜022: パッケージング
+├── phase-8/          # TASK-024〜028: 結線修正・UX改善（フェーズA）
+├── phase-9/          # TASK-029〜033: 仕様再定義・データモデル刷新（フェーズB）
+└── phase-10/         # TASK-034〜036: QA・プロセス改善（フェーズC）
 ```

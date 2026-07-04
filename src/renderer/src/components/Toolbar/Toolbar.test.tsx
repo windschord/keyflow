@@ -1,8 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { Toolbar } from './index';
 import { usePracticeStore } from '../../store';
+
+vi.mock('tone', () => ({
+  start: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe('Toolbar UI', () => {
   beforeEach(() => {
@@ -13,6 +17,7 @@ describe('Toolbar UI', () => {
       originalBpm: 120,
       loopStart: 1,
       loopEnd: 2,
+      playbackState: 'stopped',
     });
   });
 
@@ -67,5 +72,38 @@ describe('Toolbar UI', () => {
 
     fireEvent.keyDown(window, { key: 'L' });
     expect(usePracticeStore.getState().practiceMode).toBe('left');
+  });
+
+  it('renders playback controls and forwards audioEngine to them', async () => {
+    const audioEngine = {
+      playAccompaniment: vi.fn(),
+      pauseAccompaniment: vi.fn(),
+      stopAccompaniment: vi.fn(),
+    };
+    render(<Toolbar audioEngine={audioEngine} />);
+
+    fireEvent.click(screen.getByTestId('playback-play'));
+    await waitFor(() => expect(audioEngine.playAccompaniment).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('playback-pause'));
+    expect(audioEngine.pauseAccompaniment).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTestId('playback-stop'));
+    expect(audioEngine.stopAccompaniment).toHaveBeenCalledTimes(1);
+  });
+
+  it('toggles play/pause via Space key from within the Toolbar', async () => {
+    const audioEngine = {
+      playAccompaniment: vi.fn(),
+      pauseAccompaniment: vi.fn(),
+      stopAccompaniment: vi.fn(),
+    };
+    render(<Toolbar audioEngine={audioEngine} />);
+
+    fireEvent.keyDown(window, { code: 'Space' });
+    await waitFor(() => expect(audioEngine.playAccompaniment).toHaveBeenCalledTimes(1));
+
+    fireEvent.keyDown(window, { code: 'Space' });
+    expect(audioEngine.pauseAccompaniment).toHaveBeenCalledTimes(1);
   });
 });

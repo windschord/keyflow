@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import { vi } from 'vitest';
+import { AudioEngineService } from './lib/audio-engine';
 
 // Mock Tone.js globally to avoid AudioContext errors during testing
 vi.mock('tone', () => {
@@ -197,6 +198,44 @@ describe('App', () => {
 
     alertMock.mockRestore();
     consoleErrorMock.mockRestore();
+  });
+
+  it('calls audioEngine.loadAccompaniment() when a score is opened', async () => {
+    const loadAccompanimentSpy = vi
+      .spyOn(AudioEngineService.prototype, 'loadAccompaniment')
+      .mockResolvedValue(undefined);
+
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const SIMPLE_XML = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        read: readMock,
+      },
+    };
+
+    render(<App />);
+    const openFileBtn = screen.getByText('Open File');
+    openFileBtn.click();
+
+    await waitFor(() => {
+      expect(loadAccompanimentSpy).toHaveBeenCalledTimes(1);
+    });
+    expect(loadAccompanimentSpy.mock.calls[0][0]).toMatchObject({ tempo: expect.any(Number) });
+    expect(['left', 'right', 'unknown']).toContain(loadAccompanimentSpy.mock.calls[0][1]);
+
+    loadAccompanimentSpy.mockRestore();
   });
 
   it('handles errors when invoking electronAPI functions', async () => {

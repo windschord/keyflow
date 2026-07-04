@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-026 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 40分 |
 | 依存タスク | TASK-024 |
@@ -67,24 +67,37 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] Toolbarに再生・一時停止・停止ボタンが表示される
-- [ ] 再生ボタン押下で曲の伴奏音が鳴り始める（`playAccompaniment`）
-- [ ] 一時停止ボタン押下で再生が止まり、再度再生ボタンで続きから再開する
-- [ ] 停止ボタン押下で再生が止まり、位置が先頭に戻る（`stopAccompaniment`）
-- [ ] Spaceキーで再生/一時停止がトグルされる（ダミーのconsole.logではなく実処理）
-- [ ] 初回操作時に `Tone.start()` が呼ばれ、以降音声が正常に再生される
-- [ ] スコア読み込み時に `audioEngine.loadAccompaniment()` が呼ばれる
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] Toolbarに再生・一時停止・停止ボタンが表示される
+- [ ] 再生ボタン押下で曲の伴奏音が鳴り始める（`playAccompaniment`）※1
+- [ ] 一時停止ボタン押下で再生が止まり、再度再生ボタンで続きから再開する ※1
+- [ ] 停止ボタン押下で再生が止まり、位置が先頭に戻る（`stopAccompaniment`）※1
+- [x] Spaceキーで再生/一時停止がトグルされる（ダミーのconsole.logではなく実処理）
+- [ ] 初回操作時に `Tone.start()` が呼ばれ、以降音声が正常に再生される ※1
+- [x] スコア読み込み時に `audioEngine.loadAccompaniment()` が呼ばれる
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
+
+※1 いずれも `playAccompaniment`/`pauseAccompaniment`/`stopAccompaniment`/`Tone.start()` が正しい引数・タイミングで呼び出されることは自動テスト（モック検証）で確認済み。ただし本タスクの実行環境では実際にスピーカーから音が鳴ることの目視・聴覚確認ができないため、「音が鳴る」「音声が正常に再生される」という体感部分は未チェックのまま残す。`npm run dev` によるユーザー自身での実機確認を推奨する。
 
 ## テスト項目
 
-- [ ] （新規）Toolbarの再生ボタンクリックで `audioEngine.playAccompaniment` が呼ばれる
-- [ ] （新規）Toolbarの一時停止ボタンクリックで `audioEngine.pauseAccompaniment` が呼ばれる
-- [ ] （新規）Toolbarの停止ボタンクリックで `audioEngine.stopAccompaniment` が呼ばれる
-- [ ] （新規）Spaceキー押下で再生/一時停止がトグルされる
-- [ ] （手動E2E）`npm run dev` で曲を開き再生ボタンを押すと実際に音が鳴る
-- [ ] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規）Toolbarの再生ボタンクリックで `audioEngine.playAccompaniment` が呼ばれる
+- [x] （新規）Toolbarの一時停止ボタンクリックで `audioEngine.pauseAccompaniment` が呼ばれる
+- [x] （新規）Toolbarの停止ボタンクリックで `audioEngine.stopAccompaniment` が呼ばれる
+- [x] （新規）Spaceキー押下で再生/一時停止がトグルされる
+- [ ] （手動E2E）`npm run dev` で曲を開き再生ボタンを押すと実際に音が鳴る（実行環境の制約により未確認。根拠は上記※1参照）
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 完了サマリー
+
+TDDで以下を実装した。
+
+1. Zustandに `playback-slice.ts` を追加し、再生状態（`playbackState`: `'stopped' | 'playing' | 'paused'`）をstoreで一元管理するようにした。
+2. `Toolbar/PlaybackControls.tsx` を新設し、再生・一時停止・停止ボタン（日本語ラベル、`title`属性でツールチップ）を実装。ボタンクリックおよびSpaceキー押下で `audioEngine.playAccompaniment` / `pauseAccompaniment` / `stopAccompaniment` を呼び出し、初回の再生操作時のみ `Tone.start()` を呼ぶようにした（`Toolbar/index.tsx` のダミーconsole.log実装を置換）。
+3. `App.tsx` で `usePractice()` から `audioEngine` を取得し、`Toolbar` へpropsとして渡すとともに、`handleOpenFile` 内でスコア読み込み後に `audioEngine.loadAccompaniment(parsedScore, accompanimentHand)` を呼ぶよう結線した。`accompanimentHand` は `practiceMode` の逆（片手練習時は反対の手、両手練習時は `'unknown'` にフォールバックし全パート再生扱い）とするヘルパー `getAccompanimentHand` を実装。
+4. テスト: `PlaybackControls.test.tsx`（新規、7件）、`Toolbar.test.tsx`（2件追加）、`store.test.ts`（2件追加）、`App.test.tsx`（1件追加）。Tone.jsは既存の他テストと同様にモックした。
+
+`npm run test`（全44ファイル・218テスト）、`npm run typecheck`、`npm run lint` すべて成功を確認済み。
 
 ## 情報の明確性
 

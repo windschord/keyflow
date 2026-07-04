@@ -9,14 +9,28 @@ import { parse, extractXmlFromMxl } from './lib/musicxml-parser';
 import { SettingsModal } from './components/SettingsModal';
 import { usePractice } from './hooks/usePractice';
 import { AnnotationStoreService } from './lib/annotation-store';
-import type { FingerAssignment } from './types';
+import type { FingerAssignment, Hand, PracticeMode } from './types';
+
+/**
+ * 練習対象パート（practiceMode）から、自動伴奏の対象となる非練習パートを決定する。
+ *
+ * 片手のみ練習する場合は反対側の手を自動伴奏として再生する。
+ * 両手とも練習対象の場合は自動伴奏すべき非練習パートが存在しないため、
+ * AudioEngineService 側のデフォルト挙動（全パート再生）にフォールバックする
+ * 'unknown' を渡す（暫定実装。詳細な仕様は TASK-029 で再定義予定）。
+ */
+function getAccompanimentHand(practiceMode: PracticeMode): Hand {
+  if (practiceMode === 'left') return 'right';
+  if (practiceMode === 'right') return 'left';
+  return 'unknown';
+}
 
 function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = React.useState(false);
   const [fingeringAnnotations, setFingeringAnnotations] = React.useState<FingerAssignment[]>([]);
 
-  const { practiceEngine } = usePractice();
+  const { practiceEngine, audioEngine } = usePractice();
 
   const annotationStore = React.useRef(new AnnotationStoreService());
 
@@ -89,6 +103,7 @@ function App(): React.JSX.Element {
       // setScore が反映された後にリセットする必要がある（resetToMeasure は
       // store.getState().score を参照するため、呼び出し順序を変更しないこと）。
       practiceEngine.resetToMeasure(1);
+      await audioEngine.loadAccompaniment(parsedScore, getAccompanimentHand(practiceMode));
       setFingeringAnnotations([]);
       await annotationStore.current.load(filePath);
     } catch (error) {
@@ -150,7 +165,7 @@ function App(): React.JSX.Element {
             disabled={isLoadingAnnotations}
           />
         </div>
-        <Toolbar onOpenSettings={() => setIsSettingsOpen(true)} />
+        <Toolbar onOpenSettings={() => setIsSettingsOpen(true)} audioEngine={audioEngine} />
       </div>
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

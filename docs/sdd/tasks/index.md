@@ -168,7 +168,7 @@
 |----------|---------|-----------|------|------|-----------|
 | TASK-024 | [BugFix] スコア読み込み後の練習セッション初期化 | DONE | - | 30min | [詳細](phase-8/TASK-024.md) @phase-8/TASK-024.md |
 | TASK-025 | [BugFix] 楽譜スクロールのCSSレイアウト修正 | DONE | - | 30min | [詳細](phase-8/TASK-025.md) @phase-8/TASK-025.md |
-| TASK-026 | [BugFix] 曲の再生/停止機能の暫定実装 | TODO | TASK-024 | 40min | [詳細](phase-8/TASK-026.md) @phase-8/TASK-026.md |
+| TASK-026 | [BugFix] 曲の再生/停止機能の暫定実装 | DONE | TASK-024 | 40min | [詳細](phase-8/TASK-026.md) @phase-8/TASK-026.md |
 | TASK-027 | [BugFix] テンポ・メトロノーム・効果音の結線 | TODO | TASK-026 | 30min | [詳細](phase-8/TASK-027.md) @phase-8/TASK-027.md |
 | TASK-028 | [BugFix] Toolbar UXの全面改善（日本語ラベル・機能整理） | TODO | TASK-026 | 40min | [詳細](phase-8/TASK-028.md) @phase-8/TASK-028.md |
 

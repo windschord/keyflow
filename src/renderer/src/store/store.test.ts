@@ -16,6 +16,7 @@ describe('usePracticeStore', () => {
       loopEnd: 1,
       bpm: 120,
       metronomeEnabled: false,
+      playbackState: 'stopped',
     });
   });
 
@@ -59,5 +60,22 @@ describe('usePracticeStore', () => {
     expect(usePracticeStore.getState().score).toBe(mockScore);
     expect(usePracticeStore.getState().musicXmlPath).toBe('path/to/file.xml');
     expect(usePracticeStore.getState().musicXmlContent).toBe('<score-partwise/>');
+  });
+
+  it('should default playbackState to stopped', () => {
+    expect(usePracticeStore.getState().playbackState).toBe('stopped');
+  });
+
+  it('should set playbackState correctly', () => {
+    const { setPlaybackState } = usePracticeStore.getState();
+
+    setPlaybackState('playing');
+    expect(usePracticeStore.getState().playbackState).toBe('playing');
+
+    setPlaybackState('paused');
+    expect(usePracticeStore.getState().playbackState).toBe('paused');
+
+    setPlaybackState('stopped');
+    expect(usePracticeStore.getState().playbackState).toBe('stopped');
   });
 });

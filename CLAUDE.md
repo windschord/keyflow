@@ -103,6 +103,10 @@ npm run test:watch
 # カバレッジ
 npm run test:coverage
 
+# 実起動E2Eテスト（Playwright for Electron。初回のみブラウザ取得が必要）
+npx playwright install chromium   # または: npm run playwright:install
+npm run test:e2e                  # `npm run build` を実行してから実バイナリを起動して検証する
+
 # 型チェック
 npm run typecheck
 
@@ -138,6 +142,13 @@ npm run build:win
 ### データ永続化
 - アノテーション: `{MusicXMLのパス}.annotation.json`（同フォルダに保存）
 - `noteId` フォーマット: `{partId}-M{measureNumber}-N{noteIndex}` 例: `P1-M3-N0`
+
+### 実起動E2Eテスト（Playwright for Electron、TASK-034）
+- `tests/e2e/`: `npm run build` で生成した `out/main/index.js` を実際に起動し、実UI操作のみで検証するE2Eスイート（`playwright.config.ts`）
+- 既存のVitest（`npm run test`）とは完全に独立したスクリプト（`npm run test:e2e`）。ヘッドレスLinux CIではXvfb等が無いと実行できない場合があるため、CI組み込みは未対応（ローカル実行が必達要件）
+- ファイル選択ダイアログはOS依存で自動化できないため、`electronApp.evaluate()` でmainプロセスの `file:show-open-dialog` IPCハンドラのみを固定パスに差し替える（`file:read`等の他IPC・パース・レンダリングは実処理を使用）
+- MIDI入力は実ハードウェアなしで検証するため、`usePractice.ts` が公開する `window.__e2eMidiHooks__`（実際のMIDI受信コールバックそのもの）を呼び出す。状態検証には `App.tsx` が公開する `window.__e2eStore__`（実際のZustandストア参照）を使う
+- これらの `window.__e2e*__` はE2Eテスト専用の計装であり、テスト用に分岐したロジックではなく本番コードパスをそのまま呼び出す・読み取るためのフックである
 - アプリ設定: electron-store（OS標準アプリデータフォルダ）
 - 練習履歴: `history.jsonl`（JSON Lines形式）
 

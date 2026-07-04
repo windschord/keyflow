@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-034 |
 | タイプ | chore |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 60分 |
 | 依存タスク | TASK-028（フェーズA完了） |
@@ -62,20 +62,20 @@
 
 ## 受入基準
 
-- [ ] `npm run test:e2e`（または同等スクリプト）でPlaywright for ElectronによるE2Eテストが実行できる
-- [ ] シナリオ「アプリ起動→サンプルMusicXMLを開く→楽譜表示→再生開始→手動スクロール→MIDIイベント（モック）で正誤判定・カーソル進行」が自動テストとして実装され、フェーズA完了後にパスする
-- [ ] E2E実行手順がCLAUDE.mdまたはREADMEの「よく使うコマンド」に記載されている
-- [ ] 既存のテスト（Vitestユニット/統合テスト）が引き続き通る
-- [ ] 新規テストが追加されている（Playwright E2Eスイート）
+- [x] `npm run test:e2e`（または同等スクリプト）でPlaywright for ElectronによるE2Eテストが実行できる（`npm run build && playwright test`。macOS実機で実行し合格を確認済み）
+- [x] シナリオ「アプリ起動→サンプルMusicXMLを開く→楽譜表示→再生開始→手動スクロール→MIDIイベント（モック）で正誤判定・カーソル進行」が自動テストとして実装され、フェーズA完了後にパスする（`tests/e2e/app.spec.ts`、実行結果は下記「完了サマリー」参照）
+- [x] E2E実行手順がCLAUDE.mdまたはREADMEの「よく使うコマンド」に記載されている（CLAUDE.md「よく使うコマンド」および「実起動E2Eテスト（Playwright for Electron、TASK-034）」節）
+- [x] 既存のテスト（Vitestユニット/統合テスト）が引き続き通る（`npm run test` 全件成功、TASK-034追加分もVitestの対象から除外済み）
+- [x] 新規テストが追加されている（Playwright E2Eスイート）（`tests/e2e/app.spec.ts`）
 
 ## テスト項目
 
-- [ ] アプリ起動（Electronプロセスが起動し、メインウィンドウが表示される）
-- [ ] サンプルMusicXMLファイルを開く（ファイルダイアログまたはテスト用IPCショートカット経由）
-- [ ] 楽譜（OSMD）が表示される
-- [ ] 再生ボタンまたはSpaceキーで再生が開始される（TASK-026実装後に有効化）
-- [ ] マウスホイール等で楽譜を手動スクロールできる（TASK-025実装後に有効化）
-- [ ] モックMIDIイベント（NoteOn）を注入すると正誤判定結果が表示され、カーソルが進行する（TASK-024実装後に有効化）
+- [x] アプリ起動（Electronプロセスが起動し、メインウィンドウが表示される）
+- [x] サンプルMusicXMLファイルを開く（ファイルダイアログまたはテスト用IPCショートカット経由）（`electronApp.evaluate()`でmainプロセスのIPCハンドラのみ差し替え、`file:read`等は実処理を使用）
+- [x] 楽譜（OSMD）が表示される
+- [x] 再生ボタンまたはSpaceキーで再生が開始される（TASK-026実装後に有効化）
+- [x] マウスホイール等で楽譜を手動スクロールできる（TASK-025実装後に有効化）（テストではズームを引き上げてオーバーフローを作った上でscrollTop変化を確認）
+- [x] モックMIDIイベント（NoteOn）を注入すると正誤判定結果が表示され、カーソルが進行する（TASK-024実装後に有効化）（`window.__e2eMidiHooks__`経由で本番と同一の判定コードパスを呼び出し、stats・currentMeasure/currentNoteIndex・OSMDカーソル描画位置の変化で確認）
 
 ## 情報の明確性
 
@@ -90,4 +90,15 @@
 
 ### 不明/要確認の情報
 
-- `.github/workflows/ci.yml`は`ubuntu-latest`上でlint/test/buildを実行しているが、ElectronのE2Eをヘッドレスで動かす`xvfb`等の設定有無は未確認。CI組み込みは「ローカル実行可能なnpm script」を必達要件とし、CI組み込みは動作確認後の追加対応とする
+- `.github/workflows/ci.yml`は`ubuntu-latest`上でlint/test/buildを実行しているが、ElectronのE2Eをヘッドレスで動かす`xvfb`等の設定有無は未確認。CI組み込みは「ローカル実行可能なnpm script」を必達要件とし、CI組み込みは動作確認後の追加対応とする（本タスクではCIジョブへの組み込みは未実施。macOS実機での`npm run test:e2e`実行成功のみ確認済み）
+
+## 完了サマリー
+
+- `@playwright/test`をdevDependenciesに追加し、`playwright.config.ts`（`tests/e2e`配下を対象、`workers:1`、Vitestとは独立）を新設。`npm run test:e2e`（`npm run build && playwright test`）と`npm run playwright:install`（`playwright install chromium`）を追加した。
+- `tests/e2e/fixtures/sample-two-hands.musicxml`（右手/左手各8小節・32音のMusicXML）を新設し、`tests/e2e/app.spec.ts`に単一のE2Eシナリオを実装した。シナリオは「アプリ起動→メインウィンドウ表示確認→ファイルダイアログをバイパスしてサンプルMusicXMLを読み込み→OSMD描画確認→練習対象を右手に切替→再生/停止ボタンで`playbackState`が実際に遷移→ズームを上げて楽譜をオーバーフローさせ`scrollTop`が実際に変化することを確認→MIDIモック注入で正誤判定（`stats.correctNotes`増加・正解率100%表示）とカーソル進行（`currentMeasure`/`currentNoteIndex`変化、OSMDカーソル`#cursorImg-0`の描画位置変化）を確認」の一連を1本のテストとして実装した。
+- ファイル選択ダイアログの自動化はOS依存で不安定なため、Playwright公式の推奨手法である`electronApp.evaluate()`でmainプロセスの`ipcMain`の`file:show-open-dialog`ハンドラのみを固定パスに差し替える方式を採用した（`window.electronAPI`はcontextBridgeで公開されているためrenderer側から再代入できないことを実機検証で確認し、この方式に決定した）。`file:read`等その他のIPC・パース処理・レンダリングはすべて実処理のまま検証している。
+- MIDI入力の検証には、実MIDIハードウェアなしで本番と同一の判定コードパスを検証できるよう、`usePractice.ts`に`window.__e2eMidiHooks__`（実際の`handleMidiNoteOn`/`handleMidiNoteOff`コールバックそのもの）を、`App.tsx`に`window.__e2eStore__`（実際に使用しているZustandストアの参照）を、それぞれE2E専用の読み取り専用計装として追加した。いずれもテスト用に分岐したロジックを持たず、本番コードパスをそのまま呼び出す・読み取るのみである（`docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md`が指摘した「テストが手動初期化で結線欠落を隠蔽した」教訓を踏まえ、production側の初期化・判定ロジックを一切迂回しない設計とした）。
+- `ScoreRenderer`のスクロールコンテナに`data-testid="score-scroll-container"`を追加し、手動スクロールの検証を安定したセレクタで行えるようにした。
+- `vitest.config.ts`の`test.exclude`に`tests/e2e/**`を追加し、既存のVitest（jsdom）実行から新設のPlaywrightスイートを分離した。`.gitignore`に`test-results/`・`playwright-report/`・`playwright/.cache/`を追加した。
+- 実行結果: macOS実機（Darwin, Electron ^42.4.1）で`npm run test:e2e`を複数回実行し、いずれも1件合格（1.5〜4.8秒）を確認した。テスト終了後にElectron/Playwrightプロセスが残存していないことを`ps aux`で確認済み。ヘッドレスLinux CIでの動作確認は本タスクのスコープ外（未実施）。
+- 回帰確認: `npm run test`（Vitest、51ファイル・289件）全件成功、`npm run typecheck`成功、`npm run lint`エラーなしを確認した。

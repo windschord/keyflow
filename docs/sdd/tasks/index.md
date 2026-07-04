@@ -37,7 +37,7 @@
 | Phase 7: パッケージング・QA | 2 | 0 | 0 | 0 | [詳細](phase-7/) @phase-7/ |
 | Phase 8: 結線修正・UX改善（フェーズA） | 5 | 0 | 0 | 0 | [詳細](phase-8/) @phase-8/ |
 | Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 5 | 0 | 1 | 0 | [詳細](phase-9/) @phase-9/ |
-| Phase 10: QA・プロセス改善（フェーズC） | 0 | 0 | 3 | 0 | [詳細](phase-10/) @phase-10/ |
+| Phase 10: QA・プロセス改善（フェーズC） | 1 | 0 | 2 | 0 | [詳細](phase-10/) @phase-10/ |
 
 **合計**: 37タスク / 推定合計: 約1450分（AIエージェント作業時間）
 
@@ -189,7 +189,7 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-034 | 実起動E2Eテストの導入（Playwright for Electron） | TODO | TASK-028 | 60min | [詳細](phase-10/TASK-034.md) @phase-10/TASK-034.md |
+| TASK-034 | 実起動E2Eテストの導入（Playwright for Electron） | DONE | TASK-028 | 60min | [詳細](phase-10/TASK-034.md) @phase-10/TASK-034.md |
 | TASK-035 | macOSパッケージングの追加 | TODO | TASK-028 | 30min | [詳細](phase-10/TASK-035.md) @phase-10/TASK-035.md |
 | TASK-036 | ドキュメントの実態同期とQA運用是正 | TODO | - | 30min | [詳細](phase-10/TASK-036.md) @phase-10/TASK-036.md |
 

@@ -148,7 +148,14 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
     // OSMDが描画した実際のコンテンツ高さのままこの外側divの中で
     // 縦方向にはみ出す（その結果、外側divのスクロールバーが機能する）。
     <div
-      style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'auto' }}
+      data-testid="score-scroll-container"
+      style={{
+        flexGrow: 1,
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'auto',
+      }}
     >
       {!score && (
         <div style={{ margin: 'auto', color: '#666' }} data-testid="placeholder">

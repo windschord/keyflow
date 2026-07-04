@@ -22,6 +22,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage --passWithNoTests",
+    "test:e2e": "npm run build && playwright test",
+    "playwright:install": "playwright install chromium",
     "postinstall": "node node_modules/electron/install.js && electron-rebuild -f -w midi"
   },
   "dependencies": {
@@ -45,6 +47,7 @@
     "@electron-toolkit/utils": "^3.0.0",
     "@electron/rebuild": "^4.1.0",
     "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/jsdom": "^28.0.3",

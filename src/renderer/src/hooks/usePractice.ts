@@ -117,6 +117,26 @@ export function usePractice() {
 
   useMidi(webMidiService, handleMidiNoteOn, handleMidiNoteOff);
 
+  // TASK-034: 実起動E2Eテスト（Playwright for Electron）向けの計装。
+  // 実MIDIハードウェアが接続されていない環境（CI/開発機）でも正誤判定・カーソル
+  // 進行の結線を検証できるよう、実際のMIDI受信時に呼ばれるのと同じコールバック
+  // （handleMidiNoteOn/handleMidiNoteOff）をwindowに公開する。テスト専用の分岐
+  // ロジックは持たず、本番のMIDI処理経路をそのまま呼び出す点に注意。
+  useEffect(() => {
+    (
+      window as unknown as {
+        __e2eMidiHooks__?: {
+          noteOn: typeof handleMidiNoteOn;
+          noteOff: typeof handleMidiNoteOff;
+        };
+      }
+    ).__e2eMidiHooks__ = { noteOn: handleMidiNoteOn, noteOff: handleMidiNoteOff };
+
+    return () => {
+      delete (window as unknown as { __e2eMidiHooks__?: unknown }).__e2eMidiHooks__;
+    };
+  }, [handleMidiNoteOn, handleMidiNoteOff]);
+
   /**
    * 画面上のピアノ鍵盤クリックによる擬似的な NoteOn/NoteOff を処理する。
    * MIDI入力経由と同じ判定結果に応じた効果音フィードバックを発火させる。

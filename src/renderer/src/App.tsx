@@ -93,6 +93,16 @@ function App(): React.JSX.Element {
     ? (groupNotesByStartTick(currentMeasureData.notes)[currentNoteIndex]?.notes[0]?.id ?? null)
     : null;
 
+  // TASK-034: 実起動E2Eテスト（Playwright for Electron）向けの計装。
+  // usePracticeStore は本番でも使用している実際のZustandストアインスタンスであり、
+  // テスト専用の代替実装ではない。E2Eテストはここに公開された参照から
+  // getState() で状態（currentMeasure/currentNoteIndex/statsなど）を読み取り、
+  // MIDI入力に対する正誤判定・カーソル進行の結果を検証する（読み取り専用の計装）。
+  React.useEffect(() => {
+    (window as unknown as { __e2eStore__?: typeof usePracticeStore }).__e2eStore__ =
+      usePracticeStore;
+  }, []);
+
   // アプリ起動時に、SettingsModal（electron-store）で設定された
   // 「Enable Metronome by Default」の既定値を ui-slice の metronomeEnabled へ反映する。
   // ui-slice の metronomeEnabled を単一の真実源とし、起動後はツールバーのチェック

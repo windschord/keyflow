@@ -43,7 +43,12 @@ describe('usePractice', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     initializeMock.mockResolvedValue(undefined);
-    usePracticeStore.setState({ bpm: 120, metronomeEnabled: false });
+    usePracticeStore.setState({
+      bpm: 120,
+      metronomeEnabled: false,
+      currentMeasure: 1,
+      currentNoteIndex: 0,
+    });
   });
 
   it('applies the current store bpm to audioEngine on mount and on change', () => {
@@ -122,6 +127,93 @@ describe('usePractice', () => {
 
     expect(playCorrectSoundMock).not.toHaveBeenCalled();
     expect(playIncorrectSoundMock).not.toHaveBeenCalled();
+  });
+
+  it('adds a green highlight for the judged note on a correct MIDI judgement (REQ-004-003)', () => {
+    handleNoteOnMock.mockReturnValue({
+      result: 'correct',
+      note: { id: 'P1-M1-N0' },
+      advanced: true,
+    });
+    const { result } = renderHook(() => usePractice());
+
+    const noteOnCallback = onNoteOnMock.mock.calls[0][0] as (
+      noteNumber: number,
+      velocity: number,
+      channel: number
+    ) => void;
+
+    act(() => {
+      noteOnCallback(60, 100, 1);
+    });
+
+    expect(result.current.noteHighlights).toEqual({ 'P1-M1-N0': 'correct' });
+  });
+
+  it('adds a red highlight for the judged note on an incorrect MIDI judgement (REQ-004-004)', () => {
+    handleNoteOnMock.mockReturnValue({
+      result: 'incorrect',
+      note: { id: 'P1-M1-N0' },
+      advanced: false,
+    });
+    const { result } = renderHook(() => usePractice());
+
+    const noteOnCallback = onNoteOnMock.mock.calls[0][0] as (
+      noteNumber: number,
+      velocity: number,
+      channel: number
+    ) => void;
+
+    act(() => {
+      noteOnCallback(61, 100, 1);
+    });
+
+    expect(result.current.noteHighlights).toEqual({ 'P1-M1-N0': 'incorrect' });
+  });
+
+  it('does not add a highlight when the judgement is ignored or has no note', () => {
+    handleNoteOnMock.mockReturnValue({ result: 'ignored', note: null, advanced: false });
+    const { result } = renderHook(() => usePractice());
+
+    const noteOnCallback = onNoteOnMock.mock.calls[0][0] as (
+      noteNumber: number,
+      velocity: number,
+      channel: number
+    ) => void;
+
+    act(() => {
+      noteOnCallback(60, 100, 1);
+    });
+
+    expect(result.current.noteHighlights).toEqual({});
+  });
+
+  it('clears noteHighlights when the practice position (currentMeasure/currentNoteIndex) advances', () => {
+    handleNoteOnMock.mockReturnValue({
+      result: 'incorrect',
+      note: { id: 'P1-M1-N0' },
+      advanced: false,
+    });
+    usePracticeStore.setState({ currentMeasure: 1, currentNoteIndex: 0 });
+    const { result, rerender } = renderHook(() => usePractice());
+
+    const noteOnCallback = onNoteOnMock.mock.calls[0][0] as (
+      noteNumber: number,
+      velocity: number,
+      channel: number
+    ) => void;
+
+    act(() => {
+      noteOnCallback(61, 100, 1);
+    });
+    expect(result.current.noteHighlights).toEqual({ 'P1-M1-N0': 'incorrect' });
+
+    act(() => {
+      usePracticeStore.setState({ currentMeasure: 1, currentNoteIndex: 1 });
+    });
+    rerender();
+
+    expect(result.current.noteHighlights).toEqual({});
   });
 
   it('handleKeyClick judges the note, plays feedback, and schedules note-off', () => {

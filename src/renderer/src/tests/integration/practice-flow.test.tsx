@@ -119,7 +119,13 @@ function resetStore() {
     loopEnabled: false,
     loopStart: 1,
     loopEnd: 1,
-    stats: { totalNotes: 0, correctNotes: 0, incorrectNotes: 0, accuracy: 0 },
+    stats: {
+      totalNotes: 0,
+      correctNotes: 0,
+      incorrectNotes: 0,
+      accuracy: 0,
+      consecutiveCorrect: 0,
+    },
     bpm: 120,
     originalBpm: 120,
   });

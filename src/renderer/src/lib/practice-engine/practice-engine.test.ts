@@ -109,7 +109,13 @@ describe('PracticeEngineService', () => {
       loopEnabled: false,
       loopStart: 1,
       loopEnd: 2,
-      stats: { totalNotes: 0, correctNotes: 0, incorrectNotes: 0, accuracy: 0 },
+      stats: {
+        totalNotes: 0,
+        correctNotes: 0,
+        incorrectNotes: 0,
+        accuracy: 0,
+        consecutiveCorrect: 0,
+      },
       setPracticeMode: (m) => {
         mockStore.practiceMode = m;
       },
@@ -164,6 +170,7 @@ describe('PracticeEngineService', () => {
     expect(mockStore.currentMeasure).toBe(2);
     expect(mockStore.currentNoteIndex).toBe(0);
     expect(mockStore.stats.correctNotes).toBe(1);
+    expect(mockStore.stats.consecutiveCorrect).toBe(1);
   });
 
   it('誤った音符を押すとwaitモードで位置が進まない', () => {
@@ -184,6 +191,25 @@ describe('PracticeEngineService', () => {
     expect(mockStore.currentMeasure).toBe(1);
     expect(mockStore.currentNoteIndex).toBe(1); // Did not advance
     expect(mockStore.stats.incorrectNotes).toBe(1);
+  });
+
+  it('連続正解数(consecutiveCorrect)は正解のたびに加算され、不正解でリセットされる（US-004）', () => {
+    // group@tick0 (default mockStore.expectedNotes = [chordC4, chordE4, leftC3])
+    engine.handleNoteOn({ midiNumber: 60, velocity: 100, type: 'note-on', timestamp: 0 }); // C4 (right)
+    engine.handleNoteOn({ midiNumber: 64, velocity: 100, type: 'note-on', timestamp: 0 }); // E4 (right)
+    const judgement = engine.handleNoteOn({
+      midiNumber: 48, // C3 (left) - completes the chord and advances
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+
+    expect(judgement.advanced).toBe(true);
+    expect(mockStore.stats.consecutiveCorrect).toBe(1);
+
+    // Now expecting rightD4 (62) at group@tick480; press a wrong note.
+    engine.handleNoteOn({ midiNumber: 61, velocity: 100, type: 'note-on', timestamp: 0 });
+    expect(mockStore.stats.consecutiveCorrect).toBe(0);
   });
 
   it('単一パートの和音は全音符が揃ったら正解になる（回帰なし）', () => {

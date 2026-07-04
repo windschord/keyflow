@@ -3,6 +3,7 @@ import { PracticeModeSelector } from './PracticeModeSelector';
 import { TempoControl } from './TempoControl';
 import { LoopControl } from './LoopControl';
 import { PlaybackControls, PlaybackAudioEngine } from './PlaybackControls';
+import { StatsDisplay } from '../StatsDisplay';
 
 interface ToolbarProps {
   onOpenSettings?: () => void;
@@ -28,6 +29,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onOpenSettings, audioEngine })
       <LoopControl />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
       <PlaybackControls audioEngine={audioEngine} />
+      <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
+      <StatsDisplay />
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
         <button

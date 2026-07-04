@@ -23,6 +23,7 @@ const initialStats: PracticeStats = {
   correctNotes: 0,
   incorrectNotes: 0,
   accuracy: 0,
+  consecutiveCorrect: 0,
 };
 
 export const createPracticeSlice: StateCreator<PracticeSlice> = (set) => ({

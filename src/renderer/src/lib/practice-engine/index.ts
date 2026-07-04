@@ -66,6 +66,7 @@ export class PracticeEngineService {
       if (chordStatus === 'correct') {
         result = 'correct';
         stats.correctNotes += 1;
+        stats.consecutiveCorrect += 1;
         this.advancePosition();
         advanced = true;
       } else if (chordStatus === 'partial') {
@@ -80,11 +81,13 @@ export class PracticeEngineService {
           }
         }
         stats.incorrectNotes += 1;
+        stats.consecutiveCorrect = 0;
       }
     } else {
       result = 'incorrect';
       incorrectKeys.add(event.midiNumber);
       stats.incorrectNotes += 1;
+      stats.consecutiveCorrect = 0;
 
       if (errorMode === 'pass') {
         this.advancePosition();

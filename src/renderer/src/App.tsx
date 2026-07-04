@@ -10,7 +10,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { usePractice } from './hooks/usePractice';
 import { AnnotationStoreService } from './lib/annotation-store';
 import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
-import type { FingerAssignment, Hand, PracticeMode, Score } from './types';
+import type { Annotation, FingerAssignment, Hand, Note, PracticeMode, Score } from './types';
 
 /**
  * 練習対象パート（practiceMode）から、自動伴奏の対象となる非練習パートを決定する。
@@ -30,8 +30,11 @@ function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = React.useState(false);
   const [fingeringAnnotations, setFingeringAnnotations] = React.useState<FingerAssignment[]>([]);
+  // annotation-store が保持する運指メモ（手動入力・AI提案）の実データ。
+  // PianoKeyboard に渡し、鍵盤上の指番号表示に反映する（REQ-005-007）。
+  const [keyboardAnnotations, setKeyboardAnnotations] = React.useState<Annotation[]>([]);
 
-  const { practiceEngine, audioEngine, handleKeyClick } = usePractice();
+  const { practiceEngine, audioEngine, handleKeyClick, noteHighlights } = usePractice();
 
   const annotationStore = React.useRef(new AnnotationStoreService());
 
@@ -162,6 +165,7 @@ function App(): React.JSX.Element {
           skippedNoteIds
         );
       }
+      setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
     } catch (error) {
       console.error('Failed to parse file:', error);
       alert('MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。');
@@ -177,12 +181,23 @@ function App(): React.JSX.Element {
         annotationStore.current.applyAISuggestions(assignments);
         await annotationStore.current.save();
         setFingeringAnnotations(assignments);
+        setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
       } catch (error) {
         console.error('Failed to save fingering annotations:', error);
         alert('運指アノテーションの保存に失敗しました。');
       }
     },
     [musicXmlPath, isLoadingAnnotations]
+  );
+
+  // 小節クリックによるカーソル移動（REQ-002-004）。
+  // ScoreRenderer/OSMDControllerがクリック位置に最も近い音符を解決し、その音符が
+  // 属する小節番号（note.measureNumber）へ practiceEngine.resetToMeasure で移動する。
+  const handleNoteClick = React.useCallback(
+    (note: Note) => {
+      practiceEngine.resetToMeasure(note.measureNumber);
+    },
+    [practiceEngine]
   );
 
   return (
@@ -244,8 +259,9 @@ function App(): React.JSX.Element {
           practiceMode={practiceMode}
           loopRange={loopRange}
           zoom={zoom}
-          onNoteClick={() => {}}
+          onNoteClick={handleNoteClick}
           annotations={fingeringAnnotations}
+          noteHighlights={noteHighlights}
         />
       </div>
 
@@ -255,7 +271,7 @@ function App(): React.JSX.Element {
           expectedNotes={expectedNotes}
           pressedKeys={pressedKeys}
           incorrectKeys={incorrectKeys}
-          annotations={[]}
+          annotations={keyboardAnnotations}
           practiceMode={practiceMode}
           onKeyClick={handleKeyClick}
           height={pianoHeight}

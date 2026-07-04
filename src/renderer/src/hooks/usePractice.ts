@@ -1,10 +1,13 @@
-import { useMemo, useEffect, useCallback } from 'react';
+import { useMemo, useEffect, useCallback, useState } from 'react';
 import { PracticeEngineService } from '../lib/practice-engine';
 import { AudioEngineService } from '../lib/audio-engine';
 import { WebMidiService } from '../lib/midi/web-midi';
 import { usePracticeStore } from '../store';
 import { useMidi } from './useMidi';
 import type { NoteJudgement } from '../types';
+
+/** noteId -> 正誤ハイライト色。ScoreRenderer の noteHighlights prop にそのまま渡す形。 */
+export type NoteHighlights = Record<string, 'correct' | 'incorrect'>;
 
 /**
  * AudioEngineService が提供する効果音再生メソッドの最小インターフェース。
@@ -27,6 +30,22 @@ function playJudgementSound(judgement: NoteJudgement, audioEngine: JudgementAudi
   }
 }
 
+/**
+ * 正誤判定結果を noteHighlights ステートに反映する（REQ-004-003/004）。
+ * `judgement.note` は現在の判定グループの代表ノート（practice-engine側の
+ * `filteredExpected[0]`）であり、その noteId を緑/赤にハイライトする。
+ * 'ignored' や note が存在しない場合は何もしない。
+ */
+function applyJudgementHighlight(
+  judgement: NoteJudgement,
+  setNoteHighlights: (updater: (prev: NoteHighlights) => NoteHighlights) => void
+): void {
+  if (judgement.result === 'ignored' || !judgement.note) return;
+  const noteId = judgement.note.id;
+  const color = judgement.result;
+  setNoteHighlights((prev) => ({ ...prev, [noteId]: color }));
+}
+
 export function usePractice() {
   const { practiceEngine, audioEngine, webMidiService } = useMemo(() => {
     // Instead of passing store.getState() which the PracticeEngineService modifies directly,
@@ -42,6 +61,20 @@ export function usePractice() {
 
   const bpm = usePracticeStore((s) => s.bpm);
   const metronomeEnabled = usePracticeStore((s) => s.metronomeEnabled);
+  const currentMeasure = usePracticeStore((s) => s.currentMeasure);
+  const currentNoteIndex = usePracticeStore((s) => s.currentNoteIndex);
+
+  // 正誤判定結果に応じた楽譜上のハイライト（REQ-004-003/004）。
+  // ScoreRenderer に noteId -> 'correct'|'incorrect' のマップとして渡し、
+  // OSMDController.highlightNote に反映してもらう（結線はScoreRenderer側）。
+  const [noteHighlights, setNoteHighlights] = useState<NoteHighlights>({});
+
+  // 判定グループが進む（次の音符/小節へ移動する）たびに、直前のハイライトは
+  // 役目を終えたものとしてクリアする。これによりハイライトは「現在判定中の
+  // グループに対するフィードバック」として一時的に表示される。
+  useEffect(() => {
+    setNoteHighlights({});
+  }, [currentMeasure, currentNoteIndex]);
 
   // ストアの bpm / metronomeEnabled 変更を AudioEngine に同期する。
   // AudioEngine 側のメソッドはストアを変更しないため、無限ループは発生しない。
@@ -65,6 +98,7 @@ export function usePractice() {
         timestamp: Date.now(),
       });
       playJudgementSound(judgement, audioEngine);
+      applyJudgementHighlight(judgement, setNoteHighlights);
     },
     [practiceEngine, audioEngine]
   );
@@ -96,6 +130,7 @@ export function usePractice() {
         timestamp: Date.now(),
       });
       playJudgementSound(judgement, audioEngine);
+      applyJudgementHighlight(judgement, setNoteHighlights);
 
       setTimeout(() => {
         practiceEngine.handleNoteOff({
@@ -115,5 +150,5 @@ export function usePractice() {
     };
   }, [audioEngine]);
 
-  return { practiceEngine, audioEngine, handleKeyClick };
+  return { practiceEngine, audioEngine, handleKeyClick, noteHighlights };
 }

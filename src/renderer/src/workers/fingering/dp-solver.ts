@@ -1,6 +1,7 @@
 import type { Note, Finger, FingerAssignment } from '../../types';
 import type { HandSettings, FingeringResult, DPState, FingeringHand } from './types';
 import { weakFingerCost, totalTransitionCost } from './cost-functions';
+import { applyScalePattern } from './scale-patterns';
 
 const FINGERS: Finger[] = [1, 2, 3, 4, 5];
 
@@ -13,6 +14,18 @@ export function computeFingering(
 ): FingeringResult {
   const n = notes.length;
   if (n === 0) return { assignments: [], totalCost: 0 };
+
+  // REQ-009-A06: スケール・アルペジオの定型運指パターンをDPより優先して適用する。
+  // computeFingering内（worker境界の手前）で統合することで、
+  // FingeringEngineService/fingering.worker.tsのメッセージ型を変更せずに済み、
+  // 既存のdp-solver.test.tsがそのまま統合経路のテストとして機能する。
+  // detectScalePattern（scale-patterns.ts）は音符列全体が定型パターンと一致する場合のみ
+  // 結果を返すため、一致しない場合は従来どおり以下のDPにフォールバックする。
+  const scalePatternAssignments = applyScalePattern(notes, hand);
+  if (scalePatternAssignments) {
+    onProgress?.(1.0);
+    return { assignments: scalePatternAssignments, totalCost: 0 };
+  }
 
   // 動的計画法の配列、音符と指のインデックスで最小コスト状態を保持
   const dp: DPState[][] = Array.from({ length: n }, () =>

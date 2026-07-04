@@ -31,6 +31,7 @@ function App(): React.JSX.Element {
     zoom,
     pianoHeight,
     setScore,
+    setOriginalBpm,
     currentMeasure,
     currentNoteIndex,
   } = usePracticeStore(
@@ -45,6 +46,7 @@ function App(): React.JSX.Element {
       zoom: s.zoom,
       pianoHeight: s.pianoHeight,
       setScore: s.setScore,
+      setOriginalBpm: s.setOriginalBpm,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
     }))
@@ -83,6 +85,10 @@ function App(): React.JSX.Element {
         parsedScore = parse(xmlContent);
       }
       setScore(parsedScore, filePath, xmlContent);
+      setOriginalBpm(parsedScore.tempo);
+      // setScore が反映された後にリセットする必要がある（resetToMeasure は
+      // store.getState().score を参照するため、呼び出し順序を変更しないこと）。
+      practiceEngine.resetToMeasure(1);
       setFingeringAnnotations([]);
       await annotationStore.current.load(filePath);
     } catch (error) {

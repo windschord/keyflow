@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-024 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 30分 |
 | 依存タスク | なし |
@@ -64,20 +64,29 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] MusicXMLを開いた直後にMIDI入力（画面鍵盤クリック含む）で正誤判定が行われ、カーソルが進行する
-- [ ] スコア読み込み直後の `expectedNotes` が1小節目の音符で初期化されている
-- [ ] 楽譜に `<sound tempo>` がある場合、`originalBpm` / `bpm` がその値になる（ない場合はパーサーのデフォルト120）
-- [ ] アプリ経路（スコア読み込み→初期化）を検証するテストが追加され、テスト側の手動 `resetToMeasure` 呼び出しに依存していない
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] MusicXMLを開いた直後にMIDI入力（画面鍵盤クリック含む）で正誤判定が行われ、カーソルが進行する（`App.tsx`の`handleOpenFile`が`resetToMeasure(1)`を呼ぶことで自動テストにより確認。実機の`npm run dev`での目視確認は未実施）
+- [x] スコア読み込み直後の `expectedNotes` が1小節目の音符で初期化されている（統合テストで確認）
+- [x] 楽譜に `<sound tempo>` がある場合、`originalBpm` / `bpm` がその値になる（ない場合はパーサーのデフォルト120）（統合テストで確認）
+- [x] アプリ経路（スコア読み込み→初期化）を検証するテストが追加され、テスト側の手動 `resetToMeasure` 呼び出しに依存していない
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規・統合）`setScore` 後のアプリ初期化経路で `expectedNotes.length > 0` になる
-- [ ] （新規・統合）テンポ指定ありのMusicXMLで `originalBpm` / `bpm` が楽譜の値になる
-- [ ] （新規・統合）テンポ指定なしのMusicXMLで `originalBpm` / `bpm` がデフォルト値になる
-- [ ] （手動E2E）`npm run dev` でファイルを開き、画面鍵盤クリックで鍵盤ハイライトとカーソル進行が起きる
-- [ ] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規・統合）`setScore` 後のアプリ初期化経路で `expectedNotes.length > 0` になる
+- [x] （新規・統合）テンポ指定ありのMusicXMLで `originalBpm` / `bpm` が楽譜の値になる
+- [x] （新規・統合）テンポ指定なしのMusicXMLで `originalBpm` / `bpm` がデフォルト値になる
+- [ ] （手動E2E）`npm run dev` でファイルを開き、画面鍵盤クリックで鍵盤ハイライトとカーソル進行が起きる（未実施。実機起動によるE2E確認はスコープ外とし、TASK-034（Playwright for Electron導入）に委ねる）
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 完了サマリー
+
+- `src/renderer/src/App.tsx` の `handleOpenFile` にて `setScore` 直後に `setOriginalBpm(parsedScore.tempo)` と `practiceEngine.resetToMeasure(1)` を呼び出すよう修正。呼び出し順序（`setScore`→`setOriginalBpm`→`resetToMeasure`）を厳守。
+- `src/renderer/src/store/slices/ui-slice.ts` に `setOriginalBpm` アクションを追加し、`originalBpm` と `bpm` を楽譜のテンポに同期して設定できるようにした。
+- `src/renderer/src/tests/integration/practice-flow.test.tsx`（`.ts`から`.tsx`へリネーム）に、`<App />` を実際にレンダリングしてOpen Fileボタン押下からストア初期化までを検証する統合テストを3件追加。テスト側で `resetToMeasure` を手動呼び出ししていないことを確認済み。既存の手動初期化テスト（エンジン単体検証）は変更なしで残置。
+- TDDでred（`expectedNotes.length`が0のまま、`originalBpm`が90にならない）を確認した後、実装してgreenにした。
+- `npm run test`（205件）、`npm run typecheck`、`npm run lint` すべてパス。
+- 手動E2E（`npm run dev` での実機確認）は本タスクでは未実施。TASK-034で導入予定のE2Eテストでカバーする方針。
 
 ## 情報の明確性
 

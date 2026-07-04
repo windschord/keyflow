@@ -36,7 +36,7 @@
 | Phase 6: 運指エンジン（DP） | 4 | 0 | 0 | 0 | [詳細](phase-6/) @phase-6/ |
 | Phase 7: パッケージング・QA | 2 | 0 | 0 | 0 | [詳細](phase-7/) @phase-7/ |
 | Phase 8: 結線修正・UX改善（フェーズA） | 5 | 0 | 0 | 0 | [詳細](phase-8/) @phase-8/ |
-| Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 5 | 0 | 2 | 0 | [詳細](phase-9/) @phase-9/ |
+| Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 6 | 0 | 1 | 0 | [詳細](phase-9/) @phase-9/ |
 | Phase 10: QA・プロセス改善（フェーズC） | 3 | 0 | 0 | 0 | [詳細](phase-10/) @phase-10/ |
 
 **合計**: 38タスク / 推定合計: 約1510分（AIエージェント作業時間）
@@ -182,7 +182,7 @@
 | TASK-031 | パーサーの時刻付与・noteId統一実装 | DONE | TASK-030 | 60min | [詳細](phase-9/TASK-031.md) @phase-9/TASK-031.md |
 | TASK-032 | practice-engineの両手・和音同時判定対応 | DONE | TASK-031 | 60min | [詳細](phase-9/TASK-032.md) @phase-9/TASK-032.md |
 | TASK-033 | 楽譜上の視覚フィードバック実装（osmd-controller空実装の解消） | DONE | TASK-032 | 50min | [詳細](phase-9/TASK-033.md) @phase-9/TASK-033.md |
-| TASK-037 | 鍵盤上の指番号描画（PianoKeyboard、TASK-033残件） | TODO | TASK-033 | 30min | [詳細](phase-9/TASK-037.md) @phase-9/TASK-037.md |
+| TASK-037 | 鍵盤上の指番号描画（PianoKeyboard、TASK-033残件） | DONE | TASK-033 | 30min | [詳細](phase-9/TASK-037.md) @phase-9/TASK-037.md |
 | TASK-038 | [BugFix] 曲の再生の本実装（StrictMode耐性・時刻ベース・カーソル連動） | TODO | TASK-032 | 60min | [詳細](phase-9/TASK-038.md) @phase-9/TASK-038.md |
 
 ### Phase 10: QA・プロセス改善（フェーズC）

@@ -61,6 +61,26 @@ export function renderKeyboard({
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
     ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+
+    // 鍵盤上の指番号表示（REQ-005-007）。
+    // 現在の判定グループ（expectedNotes）のノーツに指番号アノテーションが
+    // ある場合のみ、該当する鍵の下部中央に描画する。
+    if (expectedNote) {
+      const annotation = annotations.find(
+        (a) => a.noteId === expectedNote.id && a.fingerNumber !== undefined
+      );
+      if (annotation?.fingerNumber !== undefined) {
+        ctx.font = `bold ${isBlack ? 11 : 13}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = isBlack ? '#FFFFFF' : '#1A1A1A';
+        ctx.fillText(
+          String(annotation.fingerNumber),
+          pos.x + pos.width / 2,
+          pos.y + pos.height - 6
+        );
+      }
+    }
   };
 
   // Draw white keys first

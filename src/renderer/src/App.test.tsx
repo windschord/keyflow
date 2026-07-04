@@ -45,7 +45,12 @@ vi.mock('tone', () => {
 });
 
 vi.mock('./components/ScoreRenderer', () => ({
-  ScoreRenderer: () => <div data-testid="mock-score-renderer">ScoreRenderer</div>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ScoreRenderer: (props: any) => (
+    <div data-testid="mock-score-renderer" data-looprange={JSON.stringify(props.loopRange)}>
+      ScoreRenderer
+    </div>
+  ),
 }));
 
 vi.mock('./components/PianoKeyboard', () => ({
@@ -62,7 +67,14 @@ vi.mock('./components/FingeringPanel', () => ({
 
 describe('App', () => {
   afterEach(() => {
-    usePracticeStore.setState({ bpm: 120, originalBpm: 120, metronomeEnabled: false });
+    usePracticeStore.setState({
+      bpm: 120,
+      originalBpm: 120,
+      metronomeEnabled: false,
+      loopEnabled: false,
+      loopStart: 1,
+      loopEnd: 2,
+    });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).electronAPI;
   });
@@ -77,7 +89,7 @@ describe('App', () => {
 
   it('renders Open File button', () => {
     render(<App />);
-    expect(screen.getByText('Open File')).toBeInTheDocument();
+    expect(screen.getByText('ファイルを開く')).toBeInTheDocument();
   });
 
   it('triggers electronAPI file methods when Open File button is clicked', async () => {
@@ -102,7 +114,7 @@ describe('App', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('Open File');
+    const openFileBtn = screen.getByText('ファイルを開く');
     openFileBtn.click();
 
     await waitFor(() => {
@@ -148,7 +160,7 @@ describe('App', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('Open File');
+    const openFileBtn = screen.getByText('ファイルを開く');
     openFileBtn.click();
 
     await waitFor(() => {
@@ -170,7 +182,7 @@ describe('App', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('Open File');
+    const openFileBtn = screen.getByText('ファイルを開く');
     openFileBtn.click();
 
     await waitFor(() => {
@@ -195,7 +207,7 @@ describe('App', () => {
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<App />);
-    const openFileBtn = screen.getByText('Open File');
+    const openFileBtn = screen.getByText('ファイルを開く');
     openFileBtn.click();
 
     await waitFor(() => {
@@ -234,7 +246,7 @@ describe('App', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('Open File');
+    const openFileBtn = screen.getByText('ファイルを開く');
     openFileBtn.click();
 
     await waitFor(() => {
@@ -260,7 +272,7 @@ describe('App', () => {
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<App />);
-    const openFileBtn = screen.getByText('Open File');
+    const openFileBtn = screen.getByText('ファイルを開く');
     openFileBtn.click();
 
     await waitFor(() => {
@@ -336,7 +348,7 @@ describe('App', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('Open File');
+    const openFileBtn = screen.getByText('ファイルを開く');
     openFileBtn.click();
 
     await waitFor(() => expect(readMock).toHaveBeenCalled());
@@ -392,5 +404,29 @@ describe('App', () => {
     delete (window as any).electronAPI;
 
     expect(() => render(<App />)).not.toThrow();
+  });
+
+  it('passes loopRange=null to ScoreRenderer when the loop is disabled', () => {
+    act(() => {
+      usePracticeStore.setState({ loopEnabled: false, loopStart: 1, loopEnd: 2 });
+    });
+
+    render(<App />);
+
+    const scoreRenderer = screen.getByTestId('mock-score-renderer');
+    expect(scoreRenderer.getAttribute('data-looprange')).toBe('null');
+  });
+
+  it('passes loopRange derived from loopStart/loopEnd to ScoreRenderer when the loop is enabled', () => {
+    act(() => {
+      usePracticeStore.setState({ loopEnabled: true, loopStart: 3, loopEnd: 7 });
+    });
+
+    render(<App />);
+
+    const scoreRenderer = screen.getByTestId('mock-score-renderer');
+    expect(scoreRenderer.getAttribute('data-looprange')).toBe(
+      JSON.stringify({ start: 3, end: 7 })
+    );
   });
 });

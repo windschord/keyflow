@@ -1,9 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { ScoreRenderer } from './index';
 
 // Mock OSMDController
+const mockDrawLoopBracket = vi.fn();
+const mockClearLoopBracket = vi.fn();
+
 vi.mock('./osmd-controller', () => {
   return {
     OSMDController: vi.fn().mockImplementation(() => {
@@ -11,7 +14,8 @@ vi.mock('./osmd-controller', () => {
         load: vi.fn().mockResolvedValue(undefined),
         moveCursor: vi.fn(),
         setPartOpacity: vi.fn(),
-        drawLoopBracket: vi.fn(),
+        drawLoopBracket: mockDrawLoopBracket,
+        clearLoopBracket: mockClearLoopBracket,
         setZoom: vi.fn(),
         highlightNote: vi.fn(),
         buildNoteIdMap: vi.fn(),
@@ -25,6 +29,11 @@ vi.mock('./osmd-controller', () => {
 describe('ScoreRenderer', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockScore: any = { title: 'Test Score', parts: [] };
+
+  beforeEach(() => {
+    mockDrawLoopBracket.mockClear();
+    mockClearLoopBracket.mockClear();
+  });
 
   it('renders placeholder when score is null', () => {
     render(
@@ -83,5 +92,51 @@ describe('ScoreRenderer', () => {
     // （二重スクロールコンテナの解消）。
     expect(osmdContainer.style.overflowY).toBe('');
     expect(osmdContainer.style.height).toBe('');
+  });
+
+  it('draws a loop bracket once the score is loaded and a loopRange is provided', async () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={{ start: 2, end: 4 }}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    await waitFor(() => expect(mockDrawLoopBracket).toHaveBeenCalledWith(2, 4));
+  });
+
+  it('clears the loop bracket when loopRange becomes null', async () => {
+    const { rerender } = render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={{ start: 1, end: 2 }}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    await waitFor(() => expect(mockDrawLoopBracket).toHaveBeenCalledWith(1, 2));
+
+    rerender(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    await waitFor(() => expect(mockClearLoopBracket).toHaveBeenCalled());
   });
 });

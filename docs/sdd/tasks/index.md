@@ -35,7 +35,7 @@
 | Phase 5: 練習エンジン統合 | 4 | 0 | 0 | 0 | [詳細](phase-5/) @phase-5/ |
 | Phase 6: 運指エンジン（DP） | 4 | 0 | 0 | 0 | [詳細](phase-6/) @phase-6/ |
 | Phase 7: パッケージング・QA | 2 | 0 | 0 | 0 | [詳細](phase-7/) @phase-7/ |
-| Phase 8: 結線修正・UX改善（フェーズA） | 4 | 0 | 1 | 0 | [詳細](phase-8/) @phase-8/ |
+| Phase 8: 結線修正・UX改善（フェーズA） | 4 | 1 | 0 | 0 | [詳細](phase-8/) @phase-8/ |
 | Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 0 | 0 | 5 | 0 | [詳細](phase-9/) @phase-9/ |
 | Phase 10: QA・プロセス改善（フェーズC） | 0 | 0 | 3 | 0 | [詳細](phase-10/) @phase-10/ |
 
@@ -170,7 +170,7 @@
 | TASK-025 | [BugFix] 楽譜スクロールのCSSレイアウト修正 | DONE | - | 30min | [詳細](phase-8/TASK-025.md) @phase-8/TASK-025.md |
 | TASK-026 | [BugFix] 曲の再生/停止機能の暫定実装 | DONE | TASK-024 | 40min | [詳細](phase-8/TASK-026.md) @phase-8/TASK-026.md |
 | TASK-027 | [BugFix] テンポ・メトロノーム・効果音の結線 | DONE | TASK-026 | 30min | [詳細](phase-8/TASK-027.md) @phase-8/TASK-027.md |
-| TASK-028 | [BugFix] Toolbar UXの全面改善（日本語ラベル・機能整理） | TODO | TASK-026 | 40min | [詳細](phase-8/TASK-028.md) @phase-8/TASK-028.md |
+| TASK-028 | [BugFix] Toolbar UXの全面改善（日本語ラベル・機能整理） | IN_PROGRESS | TASK-026 | 40min | [詳細](phase-8/TASK-028.md) @phase-8/TASK-028.md |
 
 ### Phase 9: 仕様再定義・データモデル刷新（フェーズB / 順次実行）
 *推定期間: 260min*

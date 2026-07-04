@@ -52,7 +52,7 @@ describe('Toolbar UI', () => {
     usePracticeStore.setState({ bpm: 140, originalBpm: 90 });
     render(<Toolbar />);
 
-    fireEvent.click(screen.getByText('Reset'));
+    fireEvent.click(screen.getByText('リセット'));
 
     expect(usePracticeStore.getState().bpm).toBe(90);
   });
@@ -99,6 +99,12 @@ describe('Toolbar UI', () => {
 
     fireEvent.click(screen.getByTestId('playback-stop'));
     expect(audioEngine.stopAccompaniment).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a Japanese tooltip/aria-label for the settings button', () => {
+    render(<Toolbar />);
+    const settingsButton = screen.getByLabelText('設定');
+    expect(settingsButton.getAttribute('title')).toBe('設定');
   });
 
   it('toggles play/pause via Space key from within the Toolbar', async () => {

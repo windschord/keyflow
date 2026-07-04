@@ -14,6 +14,7 @@ export interface PracticeSlice {
   loopEnd: number;
   stats: PracticeStats;
   setPracticeMode: (mode: PracticeMode) => void;
+  setErrorMode: (mode: ErrorMode) => void;
   setLoopRange: (start: number, end: number) => void;
   toggleLoop: () => void;
 }
@@ -39,6 +40,7 @@ export const createPracticeSlice: StateCreator<PracticeSlice> = (set) => ({
   loopEnd: 2,
   stats: initialStats,
   setPracticeMode: (mode) => set({ practiceMode: mode }),
+  setErrorMode: (mode) => set({ errorMode: mode }),
   setLoopRange: (start, end) => {
     if (start >= end) return;
     set({ loopStart: start, loopEnd: end });

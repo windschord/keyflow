@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-040 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 30分 |
 | 依存タスク | なし |
@@ -65,22 +65,30 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] SettingsModalで「Pass through on error」を選ぶと、直後からstoreの `errorMode` が `'pass'` になる（再起動不要）
-- [ ] electron-storeに保存された `practice.defaultErrorMode` がアプリ起動時にstoreへロードされる
-- [ ] 保存失敗時はstoreの `errorMode` も元に戻る（metronomeEnabledと同じロールバック挙動）
-- [ ] practice-engineの `'pass'` 分岐（誤りがあっても次へ自動進行）が本番経路で到達可能であることがテストで検証されている
-- [ ] `docs/sdd/requirements/traceability.md` の REQ-004-006 行が更新されている
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] SettingsModalで「Pass through on error」を選ぶと、直後からstoreの `errorMode` が `'pass'` になる（再起動不要）
+- [x] electron-storeに保存された `practice.defaultErrorMode` がアプリ起動時にstoreへロードされる
+- [x] 保存失敗時はstoreの `errorMode` も元に戻る（metronomeEnabledと同じロールバック挙動）
+- [x] practice-engineの `'pass'` 分岐（誤りがあっても次へ自動進行）が本番経路で到達可能であることがテストで検証されている
+- [x] `docs/sdd/requirements/traceability.md` の REQ-004-006 行が更新されている
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規・ユニット）`setErrorMode` でstoreの `errorMode` が更新される
-- [ ] （新規・結線）SettingsModalのselect変更→storeの `errorMode` 即時反映
-- [ ] （新規・結線）保存失敗時のロールバックでstoreの `errorMode` も戻る
-- [ ] （新規・結線）起動時ロードで `defaultErrorMode` がstoreへ反映される
-- [ ] （新規・統合）`errorMode: 'pass'` の状態で誤入力するとpractice-engineが次の音符へ自動進行する（UI→store→engineの経路）
-- [ ] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規・ユニット）`setErrorMode` でstoreの `errorMode` が更新される
+- [x] （新規・結線）SettingsModalのselect変更→storeの `errorMode` 即時反映
+- [x] （新規・結線）保存失敗時のロールバックでstoreの `errorMode` も戻る
+- [x] （新規・結線）起動時ロードで `defaultErrorMode` がstoreへ反映される
+- [x] （新規・統合）`errorMode: 'pass'` の状態で誤入力するとpractice-engineが次の音符へ自動進行する（UI→store→engineの経路）
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 完了サマリー
+
+- `practice-slice.ts` に `setErrorMode(mode: ErrorMode)` アクションを追加。
+- `SettingsModal/index.tsx` の `updatePracticeSetting` に `defaultErrorMode` 変更時の即時反映（`usePracticeStore.getState().setErrorMode`）と、保存失敗時のロールバック（`metronomeEnabled` と同一パターン）を追加。
+- `App.tsx` の起動時設定ロードeffect（旧 `loadDefaultMetronomeSetting`）を `loadDefaultPracticeSettings` に改名し、`practice.defaultErrorMode` も読み取って `setErrorMode` でstoreへ反映するよう拡張（IPC呼び出しは増やさず、既存の `settings.get('practice')` の戻り値を再利用）。
+- UIラベルの日本語化については、SettingsModal内の他コントロール（`Enable Metronome by Default` 等）も含め全体が英語表記で統一されていることを確認し、`Default Error Mode` のみを日本語化すると逆に非対称になるため、既存表記のまま維持した（practice-engine本体のロジック変更なし、結線のみのタスク）。
+- テスト: `practice-slice.test.ts`（setErrorMode）、`SettingsModal.test.tsx`（即時反映・ロールバック）、`App.test.tsx`（起動時ロード）、`practice-flow.test.tsx`（SettingsModal→store→practice-engineの `'pass'` 分岐到達をUI→store→engineの本番経路で検証）を追加。TDDでRed（4件失敗）→実装→Green（`npm run test` 236件全通過）を確認。`npm run typecheck` / `npm run lint` もパス。
 
 ## 情報の明確性
 

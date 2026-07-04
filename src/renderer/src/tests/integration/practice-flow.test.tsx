@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { parse } from '../../lib/musicxml-parser/parser';
 import { usePracticeStore } from '../../store';
 import { PracticeEngineService } from '../../lib/practice-engine';
+import { SettingsModal } from '../../components/SettingsModal';
 import App from '../../App';
 
 // Mock Tone.js globally to avoid AudioContext errors during App rendering in tests.
@@ -205,6 +206,62 @@ describe('練習フロー統合テスト', () => {
     }
 
     expect(loopCount).toBe(3);
+  });
+});
+
+describe('SettingsModal→store→practice-engineの結線（TASK-040）', () => {
+  beforeEach(() => {
+    resetStore();
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
+  });
+
+  it('SettingsModalで"Pass through on error"を選択すると、誤入力時にpractice-engineが自動で次へ進行する（UI→store→engineの本番経路）', async () => {
+    const score = parse(LOOP_TEST_XML);
+    usePracticeStore.getState().setScore(score, '/test/loop.xml', LOOP_TEST_XML);
+
+    const engine = new PracticeEngineService(usePracticeStore);
+    engine.resetToMeasure(1);
+
+    // 誤り時に到達不能だったことの前提確認: 既定は'wait'なので誤入力しても進行しない。
+    expect(usePracticeStore.getState().errorMode).toBe('wait');
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: vi.fn().mockImplementation((key: string) => {
+          if (key === 'ui')
+            return Promise.resolve({ theme: 'light', language: 'ja', zoom: 1, pianoHeight: 120 });
+          if (key === 'practice')
+            return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+          return Promise.resolve(undefined);
+        }),
+        set: vi.fn().mockResolvedValue(undefined),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+    const select = (await screen.findByLabelText('Default Error Mode')) as HTMLSelectElement;
+    await waitFor(() => expect(select.value).toBe('wait'));
+
+    fireEvent.change(select, { target: { value: 'pass' } });
+
+    await waitFor(() => expect(usePracticeStore.getState().errorMode).toBe('pass'));
+
+    // 期待音(C4=60)ではなく誤った音(61)を弾く。UI(SettingsModal)→store(errorMode)→
+    // practice-engineの'pass'分岐が本番経路で到達可能であることを確認する。
+    const judgement = engine.handleNoteOn({
+      midiNumber: 61,
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+
+    expect(judgement.result).toBe('incorrect');
+    expect(judgement.advanced).toBe(true);
+    expect(usePracticeStore.getState().currentNoteIndex).toBe(1);
   });
 });
 

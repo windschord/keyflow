@@ -28,7 +28,7 @@ describe('SettingsModal', () => {
       },
       settings: settingsApi,
     };
-    usePracticeStore.setState({ metronomeEnabled: false });
+    usePracticeStore.setState({ metronomeEnabled: false, errorMode: 'wait' });
   });
 
   it('renders recent files returned by the preload API (UI display only, mocked data)', async () => {
@@ -122,5 +122,58 @@ describe('SettingsModal', () => {
       'practice',
       expect.objectContaining({ metronomeEnabled: true })
     );
+  });
+
+  it('reflects "Default Error Mode" changes to the practice-slice errorMode state immediately (TASK-040)', async () => {
+    settingsApi.get.mockImplementation((key: string) => {
+      if (key === 'ui')
+        return Promise.resolve({ theme: 'light', language: 'ja', zoom: 1, pianoHeight: 120 });
+      if (key === 'practice')
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      return Promise.resolve(undefined);
+    });
+    settingsApi.getRecentFiles.mockResolvedValue([]);
+    settingsApi.set.mockResolvedValue(undefined);
+    usePracticeStore.setState({ errorMode: 'wait' });
+
+    render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+    const select = (await screen.findByLabelText('Default Error Mode')) as HTMLSelectElement;
+    await waitFor(() => expect(select.value).toBe('wait'));
+    expect(usePracticeStore.getState().errorMode).toBe('wait');
+
+    fireEvent.change(select, { target: { value: 'pass' } });
+
+    await waitFor(() => expect(usePracticeStore.getState().errorMode).toBe('pass'));
+    expect(settingsApi.set).toHaveBeenCalledWith(
+      'practice',
+      expect.objectContaining({ defaultErrorMode: 'pass' })
+    );
+  });
+
+  it('rolls back the practice-slice errorMode when saving "Default Error Mode" fails (TASK-040)', async () => {
+    settingsApi.get.mockImplementation((key: string) => {
+      if (key === 'ui')
+        return Promise.resolve({ theme: 'light', language: 'ja', zoom: 1, pianoHeight: 120 });
+      if (key === 'practice')
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      return Promise.resolve(undefined);
+    });
+    settingsApi.getRecentFiles.mockResolvedValue([]);
+    settingsApi.set.mockRejectedValue(new Error('save failed'));
+    usePracticeStore.setState({ errorMode: 'wait' });
+
+    render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+    const select = (await screen.findByLabelText('Default Error Mode')) as HTMLSelectElement;
+    await waitFor(() => expect(select.value).toBe('wait'));
+
+    fireEvent.change(select, { target: { value: 'pass' } });
+
+    await waitFor(() =>
+      expect(window.alert).toHaveBeenCalledWith('設定の保存に失敗しました。変更を元に戻しました。')
+    );
+    expect(select.value).toBe('wait');
+    expect(usePracticeStore.getState().errorMode).toBe('wait');
   });
 });

@@ -79,6 +79,7 @@ describe('App', () => {
       bpm: 120,
       originalBpm: 120,
       metronomeEnabled: false,
+      errorMode: 'wait',
       loopEnabled: false,
       loopStart: 1,
       loopEnd: 2,
@@ -404,6 +405,32 @@ describe('App', () => {
 
     await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('practice'));
     await waitFor(() => expect(usePracticeStore.getState().metronomeEnabled).toBe(true));
+  });
+
+  it('applies the persisted "default error mode" setting to the practice-slice on startup (TASK-040)', async () => {
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({ defaultErrorMode: 'pass', metronomeEnabled: false });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('practice'));
+    await waitFor(() => expect(usePracticeStore.getState().errorMode).toBe('pass'));
   });
 
   it('does not throw when electronAPI is unavailable while loading the default metronome setting', () => {

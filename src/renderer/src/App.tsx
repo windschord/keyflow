@@ -37,6 +37,7 @@ function App(): React.JSX.Element {
     setScore,
     setOriginalBpm,
     setMetronomeEnabled,
+    setErrorMode,
     currentMeasure,
     currentNoteIndex,
     loopEnabled,
@@ -56,6 +57,7 @@ function App(): React.JSX.Element {
       setScore: s.setScore,
       setOriginalBpm: s.setOriginalBpm,
       setMetronomeEnabled: s.setMetronomeEnabled,
+      setErrorMode: s.setErrorMode,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
       loopEnabled: s.loopEnabled,
@@ -90,30 +92,33 @@ function App(): React.JSX.Element {
   }, []);
 
   // アプリ起動時に、SettingsModal（electron-store）で設定された
-  // 「Enable Metronome by Default」の既定値を ui-slice の metronomeEnabled へ反映する。
-  // ui-slice の metronomeEnabled を単一の真実源とし、起動後はツールバーのチェック
-  // ボックス操作や SettingsModal での変更がこの値を更新する。
+  // 「Enable Metronome by Default」「Default Error Mode」の既定値を、それぞれ
+  // ui-slice の metronomeEnabled / practice-slice の errorMode へ反映する
+  // （TASK-040: これを行わないと practice-engine の 'pass' 分岐が本番経路で
+  // 到達不能になる）。単一の真実源とし、起動後はツールバー/SettingsModal での
+  // 変更がこれらの値を更新する。
   React.useEffect(() => {
     if (!window.electronAPI?.settings) return;
 
     let cancelled = false;
-    const loadDefaultMetronomeSetting = async (): Promise<void> => {
+    const loadDefaultPracticeSettings = async (): Promise<void> => {
       try {
         const practiceSettings = await window.electronAPI.settings.get('practice');
         if (!cancelled && practiceSettings) {
           setMetronomeEnabled(practiceSettings.metronomeEnabled);
+          setErrorMode(practiceSettings.defaultErrorMode);
         }
       } catch (error) {
         console.error('Failed to load default practice settings:', error);
       }
     };
 
-    loadDefaultMetronomeSetting();
+    loadDefaultPracticeSettings();
 
     return () => {
       cancelled = true;
     };
-  }, [setMetronomeEnabled]);
+  }, [setMetronomeEnabled, setErrorMode]);
 
   const handleOpenFile = async () => {
     if (!window.electronAPI) {

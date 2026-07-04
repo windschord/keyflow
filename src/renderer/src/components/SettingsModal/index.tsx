@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppSettings } from '../../types';
+import { AppSettings, ErrorMode } from '../../types';
 import { usePracticeStore } from '../../store';
 
 interface SettingsModalProps {
@@ -85,6 +85,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     // Save the previous state to revert to if the API call fails
     const previousValue = settings.practice[key];
     const previousMetronomeEnabled = usePracticeStore.getState().metronomeEnabled;
+    const previousErrorMode = usePracticeStore.getState().errorMode;
 
     const updatedPractice = { ...settings.practice, [key]: value };
     setSettings({ ...settings, practice: updatedPractice });
@@ -93,6 +94,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     // metronomeEnabled に即座に反映し、ツールバーのチェックボックスへ反映する。
     if (key === 'metronomeEnabled') {
       usePracticeStore.getState().setMetronomeEnabled(value as boolean);
+    }
+
+    // 「Default Error Mode」の変更は、practice-slice の errorMode に即座に反映する
+    // （TASK-040: 設定UI→storeの結線がないと practice-engine の 'pass' 分岐が
+    // 本番経路で到達不能になる）。
+    if (key === 'defaultErrorMode') {
+      usePracticeStore.getState().setErrorMode(value as ErrorMode);
     }
 
     try {
@@ -106,6 +114,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         }));
         if (key === 'metronomeEnabled') {
           usePracticeStore.getState().setMetronomeEnabled(previousMetronomeEnabled);
+        }
+        if (key === 'defaultErrorMode') {
+          usePracticeStore.getState().setErrorMode(previousErrorMode);
         }
         showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
       }

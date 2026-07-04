@@ -27,7 +27,7 @@
 | REQ-004-003 | ○ | practice-engine + usePractice + osmd-controller + E2E |
 | REQ-004-004 | ○ | 同上 |
 | REQ-004-005 | △ | 正解率statsは○。タイミング記録は無検証 |
-| REQ-004-006 | △※ | passモードロジックは○だが、設定UI→storeの結線が存在しない（TASK-040） |
+| REQ-004-006 | ○ | practice-slice.test（setErrorMode）+ SettingsModal.test（変更即時反映・ロールバック）+ App.test（起動時ロード）+ practice-flow.test（SettingsModal→store→practice-engineのUI→store→engine結線）。TASK-040で対応済み |
 | REQ-004-007 | △ | handleKeyClick（モック経由）。座標→MIDI変換未検証 |
 | REQ-004-008 | ×※ | MIDIデバイス選択UIなし。TASK-045で対応 |
 | REQ-005-001/002 | ×※ | 鍵盤ハイライトの色検証なし。左右色分けはpartId判定バグで機能せず（TASK-041） |

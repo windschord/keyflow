@@ -74,13 +74,14 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
         htmlFor="hand-select"
         style={{ fontSize: '14px', whiteSpace: 'nowrap', color: '#374151' }}
       >
-        手:
+        運指対象:
       </label>
       <select
         id="hand-select"
         value={hand}
         onChange={(e) => setHand(e.target.value as FingeringHand)}
         disabled={computing || !!disabled}
+        title="運指を計算する対象の手を選択します（練習対象パートの設定とは別です）"
         style={{
           height: `${TOUCH_HEIGHT}px`,
           fontSize: '16px',

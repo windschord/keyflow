@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-028 |
 | タイプ | bugfix |
-| ステータス | IN_PROGRESS |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 40分 |
 | 依存タスク | TASK-026 |
@@ -80,27 +80,38 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] テンポスライダー・BPM欄に日本語ラベルとツールチップが付与されている
-- [ ] ループ開始・終了小節欄に日本語ラベルとツールチップが付与されている
-- [ ] 「手:」（運指対象）と練習対象パート選択（Left/Right/Both）が異なるラベルで区別できる
-- [ ] Metronome/Loopチェックボックスに日本語ラベルが付与されている
-- [ ] 「Open File」「Settings」など主要な英語ラベルが日本語化されている
-- [ ] `loopStart`/`loopEnd`の初期値が`start < end`のバリデーションと矛盾しない
-- [ ] `App.tsx`の`loopRange`がストアの`loopEnabled`/`loopStart`/`loopEnd`から生成され、ハードコード`null`が解消されている
-- [ ] ループ有効時に楽譜上にループ範囲が可視化される
-- [ ] 死にコントロール（クリックしても何も起きないUI）が残っていない
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] テンポスライダー・BPM欄に日本語ラベルとツールチップが付与されている
+- [x] ループ開始・終了小節欄に日本語ラベルとツールチップが付与されている
+- [x] 「手:」（運指対象）と練習対象パート選択（Left/Right/Both）が異なるラベルで区別できる
+- [x] Metronome/Loopチェックボックスに日本語ラベルが付与されている
+- [x] 「Open File」「Settings」など主要な英語ラベルが日本語化されている
+- [x] `loopStart`/`loopEnd`の初期値が`start < end`のバリデーションと矛盾しない
+- [x] `App.tsx`の`loopRange`がストアの`loopEnabled`/`loopStart`/`loopEnd`から生成され、ハードコード`null`が解消されている
+- [ ] ループ有効時に楽譜上にループ範囲が可視化される（根拠: `osmd-controller.test.ts`と`ScoreRenderer.test.tsx`で`drawLoopBracket`/`clearLoopBracket`の呼び出しとSVG矩形描画をユニットテストで検証済み。ただし本環境はGUIを起動できないため、実際に`npm run dev`でElectron/ブラウザを開いての目視確認は未実施。実機確認が必要）
+- [x] 死にコントロール（クリックしても何も起きないUI）が残っていない（コードレビューで全コントロールがstoreないしaudioEngine/osmdControllerへ結線済みであることを確認。目視でのUI操作確認は上記と同様に未実施）
+- [x] 既存のテストが通る（`npm run test -- --run` 251件全件パス）
+- [x] 新規テストが追加されている
 
 ## テスト項目
 
-- [ ] （新規）TempoControlの各要素に期待する日本語ラベル・title属性が存在する
-- [ ] （新規）LoopControlの各要素に期待する日本語ラベル・title属性が存在する
-- [ ] （新規）FingeringPanelの「手:」ラベルが「運指対象:」等に変更されている
-- [ ] （新規）PracticeModeSelectorに練習対象を示すグループラベルが存在する
-- [ ] （新規）App.tsxが`loopEnabled`/`loopStart`/`loopEnd`から`loopRange`を正しく生成する
-- [ ] （手動E2E）ループ範囲を設定し有効化すると楽譜上に範囲が表示される
-- [ ] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規）TempoControlの各要素に期待する日本語ラベル・title属性が存在する
+- [x] （新規）LoopControlの各要素に期待する日本語ラベル・title属性が存在する
+- [x] （新規）FingeringPanelの「手:」ラベルが「運指対象:」等に変更されている
+- [x] （新規）PracticeModeSelectorに練習対象を示すグループラベルが存在する
+- [x] （新規）App.tsxが`loopEnabled`/`loopStart`/`loopEnd`から`loopRange`を正しく生成する
+- [ ] （手動E2E）ループ範囲を設定し有効化すると楽譜上に範囲が表示される（本環境でGUI起動不可のため未実施。`osmd-controller.test.ts`のユニットテストで描画ロジック自体は検証済み）
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 完了サマリー
+
+TempoControl / LoopControl / PracticeModeSelector / FingeringPanel / Toolbar(設定ボタン) / App.tsx(ファイルを開く) の全コントロールに日本語ラベル・ツールチップ（`title`属性）を付与し、NFR-U-002準拠のUIに改善した。「手:」ドロップダウンは「運指対象:」に変更し、`PracticeModeSelector`の「練習対象:」グループラベルと区別できるようにした。`practice-slice.ts`の`loopStart`/`loopEnd`初期値を`1`/`2`に変更しバリデーションと整合させた。`App.tsx`の`loopRange={null}`ハードコードを解消し、ストアの`loopEnabled`/`loopStart`/`loopEnd`から実際の値を生成して`ScoreRenderer`へ渡すよう修正した。`osmd-controller.ts`の`drawLoopBracket`/新設`clearLoopBracket`を実装し、ループ範囲に該当する音符座標のバウンディングボックスに破線矩形を描画する最小実装とした（詳細なビジュアルはTASK-033で本格実装予定）。`ScoreRenderer`に`loopRange`変更を監視する`useEffect`を追加し、`OSMDController`へ結線した。
+
+TDDに従い、各コントロールの日本語ラベル・title属性、App.tsxのloopRange生成ロジック、OSMDControllerのループブラケット描画/削除を検証する新規テストをRed状態で先にコミットし、実装後に全テストがGreenになることを確認した。
+
+- `npm run test -- --run`: 251 tests passed（既存231件 + 新規20件）
+- `npm run typecheck`: エラーなし
+- `npm run lint`: エラーなし
+- 実機（`npm run dev`でのブラウザ/Electron目視）確認: 本エージェント実行環境ではGUIを起動できないため未実施。ループ範囲の楽譜上可視化と全コントロールの死活について、ユーザー側での実機確認を推奨する。
 
 ## 情報の明確性
 

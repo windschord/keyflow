@@ -72,6 +72,15 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   }, [annotations, isLoaded]);
 
   useEffect(() => {
+    if (!osmdControllerRef.current || !isLoaded) return;
+    if (loopRange) {
+      osmdControllerRef.current.drawLoopBracket(loopRange.start, loopRange.end);
+    } else {
+      osmdControllerRef.current.clearLoopBracket();
+    }
+  }, [loopRange, isLoaded]);
+
+  useEffect(() => {
     if (osmdControllerRef.current && score) {
       score.parts.forEach((part) => {
         if (practiceMode === 'right' && part.hand === 'left') {

@@ -43,27 +43,38 @@ export const TempoControl: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <label htmlFor="tempo-slider" style={{ fontSize: '14px', color: '#374151' }}>
+        テンポ:
+      </label>
       <input
+        id="tempo-slider"
         type="range"
         min="20"
         max="200"
         value={currentRatio}
         onChange={handleSliderChange}
+        title="テンポ（原曲テンポに対する割合。20%〜200%）"
         style={{ height: '44px', cursor: 'pointer' }}
         data-testid="tempo-slider"
       />
+      <label htmlFor="tempo-input" style={{ fontSize: '14px', color: '#374151' }}>
+        BPM:
+      </label>
       <input
+        id="tempo-input"
         type="number"
         min="20"
         max="400"
         value={inputValue}
         onChange={handleInputChange}
         onBlur={handleInputBlur}
+        title="テンポをBPM（1分あたりの拍数）で直接指定します"
         style={{ ...INPUT_STYLE, width: '72px' }}
         data-testid="tempo-input"
       />
       <button
         onClick={() => setBpm(originalBpm)}
+        title="テンポを楽譜本来のテンポに戻します"
         style={{
           height: '44px',
           padding: '0 12px',
@@ -74,9 +85,10 @@ export const TempoControl: React.FC = () => {
           cursor: 'pointer',
         }}
       >
-        Reset
+        リセット
       </button>
       <label
+        title="メトロノームの音を鳴らします"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -92,7 +104,7 @@ export const TempoControl: React.FC = () => {
           onChange={(e) => setMetronomeEnabled(e.target.checked)}
           style={{ width: '20px', height: '20px', cursor: 'pointer' }}
         />
-        Metronome
+        メトロノーム
       </label>
     </div>
   );

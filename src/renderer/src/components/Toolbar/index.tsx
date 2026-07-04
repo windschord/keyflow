@@ -32,8 +32,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onOpenSettings, audioEngine })
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
         <button
           onClick={onOpenSettings}
-          title="Settings"
-          aria-label="Settings"
+          title="設定"
+          aria-label="設定"
           style={{
             padding: '8px',
             backgroundColor: 'transparent',

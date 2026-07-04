@@ -95,8 +95,62 @@ export class OSMDController {
     // Dummy implementation for practice mode hand separation
   }
 
+  /**
+   * ループ範囲（開始小節〜終了小節）を楽譜上に矩形（ブラケット）で可視化する最小実装。
+   *
+   * noteIdToSvgCoord に蓄積された音符座標のうち、指定範囲内の小節に属するものの
+   * バウンディングボックスを求め、破線の矩形として描画する。詳細なビジュアル
+   * デザイン（小節線に沿った正確な範囲表示等）は本実装のスコープ外とし、
+   * TASK-033 で本格実装する。
+   */
   drawLoopBracket(startMeasure: number, endMeasure: number): void {
-    // Dummy implementation
+    this.clearLoopBracket();
+
+    const svg = this.container.querySelector('svg');
+    if (!svg) return;
+    if (!Number.isFinite(startMeasure) || !Number.isFinite(endMeasure)) return;
+    if (startMeasure > endMeasure) return;
+
+    const coords: Array<{ x: number; y: number }> = [];
+    for (const [noteId, coord] of this.noteIdToSvgCoord.entries()) {
+      const match = noteId.match(/-M(\d+)-/);
+      if (!match) continue;
+      const measureNumber = parseInt(match[1], 10);
+      if (measureNumber >= startMeasure && measureNumber <= endMeasure) {
+        coords.push(coord);
+      }
+    }
+
+    if (coords.length === 0) return;
+
+    const margin = { x: 12, yTop: 24, yBottom: 12 };
+    const minX = Math.min(...coords.map((c) => c.x)) - margin.x;
+    const maxX = Math.max(...coords.map((c) => c.x)) + margin.x;
+    const minY = Math.min(...coords.map((c) => c.y)) - margin.yTop;
+    const maxY = Math.max(...coords.map((c) => c.y)) + margin.yBottom;
+
+    const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    layer.setAttribute('id', 'loop-bracket-layer');
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', String(minX));
+    rect.setAttribute('y', String(minY));
+    rect.setAttribute('width', String(Math.max(0, maxX - minX)));
+    rect.setAttribute('height', String(Math.max(0, maxY - minY)));
+    rect.setAttribute('fill', 'rgba(59, 130, 246, 0.12)');
+    rect.setAttribute('stroke', '#3b82f6');
+    rect.setAttribute('stroke-width', '2');
+    rect.setAttribute('stroke-dasharray', '6,3');
+    rect.setAttribute('pointer-events', 'none');
+    layer.appendChild(rect);
+
+    // ループ範囲の矩形は音符の描画より手前（後の兄弟要素）にならないよう、
+    // SVGの最初の子として挿入し、音符・カーソルの視認性を妨げないようにする。
+    svg.insertBefore(layer, svg.firstChild);
+  }
+
+  clearLoopBracket(): void {
+    this.container.querySelector('#loop-bracket-layer')?.remove();
   }
 
   setZoom(factor: number): void {

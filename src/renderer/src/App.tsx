@@ -49,6 +49,9 @@ function App(): React.JSX.Element {
     setMetronomeEnabled,
     currentMeasure,
     currentNoteIndex,
+    loopEnabled,
+    loopStart,
+    loopEnd,
   } = usePracticeStore(
     useShallow((s) => ({
       score: s.score,
@@ -65,8 +68,16 @@ function App(): React.JSX.Element {
       setMetronomeEnabled: s.setMetronomeEnabled,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
+      loopEnabled: s.loopEnabled,
+      loopStart: s.loopStart,
+      loopEnd: s.loopEnd,
     }))
   );
+
+  // ループが有効な場合のみ ScoreRenderer にループ範囲を渡す。
+  // ScoreRenderer は loopRange に基づいて楽譜上にループ範囲を可視化する
+  // （osmd-controller.ts の drawLoopBracket / clearLoopBracket）。
+  const loopRange = loopEnabled ? { start: loopStart, end: loopEnd } : null;
 
   const currentNoteId =
     score?.measures.find((m) => m.number === currentMeasure)?.notes[currentNoteIndex]?.id || null;
@@ -173,6 +184,7 @@ function App(): React.JSX.Element {
         >
           <button
             onClick={handleOpenFile}
+            title="MusicXMLファイルを開きます"
             style={{
               height: '44px',
               padding: '0 16px',
@@ -184,7 +196,7 @@ function App(): React.JSX.Element {
               whiteSpace: 'nowrap',
             }}
           >
-            Open File
+            ファイルを開く
           </button>
           <div style={{ width: '1px', height: '28px', backgroundColor: '#bbb' }} />
           <FingeringPanel
@@ -213,7 +225,7 @@ function App(): React.JSX.Element {
           musicXmlContent={musicXmlContent}
           currentNoteId={currentNoteId}
           practiceMode={practiceMode}
-          loopRange={null}
+          loopRange={loopRange}
           zoom={zoom}
           onNoteClick={() => {}}
           annotations={fingeringAnnotations}

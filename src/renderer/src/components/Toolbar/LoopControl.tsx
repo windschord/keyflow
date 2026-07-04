@@ -44,6 +44,7 @@ export const LoopControl: React.FC = () => {
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
       <label
+        title="ループ再生（指定した小節範囲の繰り返し）の有効/無効を切り替えます"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -59,22 +60,32 @@ export const LoopControl: React.FC = () => {
           onChange={toggleLoop}
           style={{ width: '20px', height: '20px', cursor: 'pointer' }}
         />
-        Loop
+        ループ
+      </label>
+      <label htmlFor="loop-start" style={{ fontSize: '14px', color: '#374151' }}>
+        開始小節:
       </label>
       <input
+        id="loop-start"
         type="number"
         value={startInput}
         onChange={(e) => setStartInput(e.target.value)}
         onBlur={handleBlur}
+        title="ループの開始小節番号"
         style={INPUT_STYLE}
         data-testid="loop-start"
       />
       <span style={{ fontSize: '15px' }}>–</span>
+      <label htmlFor="loop-end" style={{ fontSize: '14px', color: '#374151' }}>
+        終了小節:
+      </label>
       <input
+        id="loop-end"
         type="number"
         value={endInput}
         onChange={(e) => setEndInput(e.target.value)}
         onBlur={handleBlur}
+        title="ループの終了小節番号"
         style={INPUT_STYLE}
         data-testid="loop-end"
       />

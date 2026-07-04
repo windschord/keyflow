@@ -313,12 +313,15 @@ describe('App', () => {
       .mockImplementation(() => {});
 
     const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    // 2音構成にしておくことで、1音目正解後も2音目がexpectedNotesに残り、
+    // 誤った音を弾いた際に 'incorrect' 判定（'ignored'ではなく）になることを保証する。
     const SIMPLE_XML = `<?xml version="1.0"?>
 <score-partwise>
   <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
   <part id="P1">
     <measure number="1">
       <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration></note>
     </measure>
   </part>
 </score-partwise>`;
@@ -341,12 +344,13 @@ describe('App', () => {
 
     const noteOnCallback = onNoteOnSpy.mock.calls[onNoteOnSpy.mock.calls.length - 1][0];
 
-    // C4 (midi 60) is the only expected note in the loaded score.
+    // C4 (midi 60) is the first expected note in the loaded score.
     act(() => {
       noteOnCallback(60, 100, 1);
     });
     expect(playCorrectSpy).toHaveBeenCalledTimes(1);
 
+    // D4 (midi 62) is expected next; pressing C#4 (midi 61) is incorrect.
     act(() => {
       noteOnCallback(61, 100, 1);
     });
@@ -375,7 +379,9 @@ describe('App', () => {
       },
     };
 
-    render(<App />);
+    await act(async () => {
+      render(<App />);
+    });
 
     await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('practice'));
     await waitFor(() => expect(usePracticeStore.getState().metronomeEnabled).toBe(true));

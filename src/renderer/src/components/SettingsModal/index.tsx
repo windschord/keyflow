@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings } from '../../types';
+import { usePracticeStore } from '../../store';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -83,9 +84,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     // Save the previous state to revert to if the API call fails
     const previousValue = settings.practice[key];
+    const previousMetronomeEnabled = usePracticeStore.getState().metronomeEnabled;
 
     const updatedPractice = { ...settings.practice, [key]: value };
     setSettings({ ...settings, practice: updatedPractice });
+
+    // 「Enable Metronome by Default」の変更は、単一の真実源である ui-slice の
+    // metronomeEnabled に即座に反映し、ツールバーのチェックボックスへ反映する。
+    if (key === 'metronomeEnabled') {
+      usePracticeStore.getState().setMetronomeEnabled(value as boolean);
+    }
 
     try {
       await window.electronAPI.settings.set('practice', updatedPractice);
@@ -96,6 +104,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           ...currentSettings,
           practice: { ...currentSettings.practice, [key]: previousValue },
         }));
+        if (key === 'metronomeEnabled') {
+          usePracticeStore.getState().setMetronomeEnabled(previousMetronomeEnabled);
+        }
         showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
       }
     }

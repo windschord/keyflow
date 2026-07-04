@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-027 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 30分 |
 | 依存タスク | TASK-026 |
@@ -68,23 +68,32 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] テンポスライダー/BPM欄を変更すると `audioEngine.setBpm` が呼ばれ、再生テンポが変わる
-- [ ] Metronomeチェックボックスの切り替えで `audioEngine.setMetronomeEnabled` が呼ばれ、メトロノーム音のON/OFFが切り替わる
-- [ ] 正しい音を弾くと正解効果音（`playCorrectSound`）、誤った音を弾くと不正解効果音（`playIncorrectSound`）が鳴る
-- [ ] SettingsModalの「Enable Metronome by Default」変更がツールバーのMetronomeチェックボックス状態に反映される
-- [ ] Resetボタンで楽譜由来の `originalBpm` に戻る（TASK-024の初期化と整合）
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] テンポスライダー/BPM欄を変更すると `audioEngine.setBpm` が呼ばれ、再生テンポが変わる（`usePractice`/`App.test.tsx`のテストで`AudioEngineService.prototype.setBpm`呼び出しを確認。実機での音の高低確認は未実施）
+- [x] Metronomeチェックボックスの切り替えで `audioEngine.setMetronomeEnabled` が呼ばれ、メトロノーム音のON/OFFが切り替わる（呼び出しをテストで確認。実機でのクリック音ON/OFF確認は未実施）
+- [x] 正しい音を弾くと正解効果音（`playCorrectSound`）、誤った音を弾くと不正解効果音（`playIncorrectSound`）が鳴る（MIDI入力経由・画面鍵盤クリック経由の双方でテストにより呼び出しを確認。実機での音出し確認は未実施）
+- [x] SettingsModalの「Enable Metronome by Default」変更がツールバーのMetronomeチェックボックス状態に反映される（ui-sliceのmetronomeEnabledへの即時反映・保存失敗時のロールバックをテストで確認）
+- [x] Resetボタンで楽譜由来の `originalBpm` に戻る（TASK-024の初期化と整合）（回帰テストを追加し、既存実装で正しく機能することを確認）
+- [x] 既存のテストが通る（`npm run test` 全件成功）
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規）`setBpm` ストアアクション実行で `audioEngine.setBpm` が呼ばれる
-- [ ] （新規）`setMetronomeEnabled` ストアアクション実行で `audioEngine.setMetronomeEnabled` が呼ばれる
-- [ ] （新規）正誤判定結果に応じて `playCorrectSound` / `playIncorrectSound` が呼ばれる
-- [ ] （新規）SettingsModalの「Enable Metronome by Default」変更が `metronomeEnabled` ストア値に反映される
-- [ ] （手動E2E）テンポスライダーを動かすと再生速度が変化する
-- [ ] （手動E2E）Metronomeチェックでクリック音のON/OFFが切り替わる
-- [ ] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規）`setBpm` ストアアクション実行で `audioEngine.setBpm` が呼ばれる（`usePractice.test.ts`, `App.test.tsx`）
+- [x] （新規）`setMetronomeEnabled` ストアアクション実行で `audioEngine.setMetronomeEnabled` が呼ばれる（`usePractice.test.ts`, `App.test.tsx`）
+- [x] （新規）正誤判定結果に応じて `playCorrectSound` / `playIncorrectSound` が呼ばれる（`usePractice.test.ts`, `App.test.tsx`）
+- [x] （新規）SettingsModalの「Enable Metronome by Default」変更が `metronomeEnabled` ストア値に反映される（`SettingsModal.test.tsx`）
+- [ ] （手動E2E）テンポスライダーを動かすと再生速度が変化する — 実機での音出し確認ができない環境のため未実施
+- [ ] （手動E2E）Metronomeチェックでクリック音のON/OFFが切り替わる — 実機での音出し確認ができない環境のため未実施
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 完了サマリー
+
+- `usePractice`にストアの`bpm`/`metronomeEnabled`変更を購読し`audioEngine.setBpm`/`setMetronomeEnabled`へ同期する`useEffect`を追加。
+- MIDI入力経由（`handleMidiNoteOn`）と画面鍵盤クリック経由（新設した`handleKeyClick`、App.tsxのonKeyClickへ接続）の両方で、`handleNoteOn`の判定結果（correct/incorrect）に応じて`playCorrectSound`/`playIncorrectSound`を再生するよう結線。
+- `useMidi`へ渡すコールバックを`useCallback`で安定化し、bpm/metronomeEnabled変更のたびにMIDI接続が不要に再初期化される副作用（既存の潜在バグ）を修正。
+- SettingsModalの「Enable Metronome by Default」変更時に、単一の真実源であるui-sliceの`metronomeEnabled`へ即座に反映（保存失敗時はロールバック）。App.tsx起動時にはelectron-store永続化された`practice.metronomeEnabled`の既定値をui-sliceへ反映する`useEffect`を追加。
+- ResetボタンはTASK-024で実装済みの`originalBpm`（楽譜由来テンポ）への復帰について回帰テストを追加し、既存実装のままで正しく機能することを確認。
+- 実機での音出し確認（テンポ変化・メトロノームクリック音のON/OFF）はサンドボックス環境の制約により未実施。テストコードではTone.jsをモックし、`AudioEngineService`のメソッド呼び出しレベルで結線を検証した。
 
 ## 情報の明確性
 

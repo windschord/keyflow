@@ -30,7 +30,7 @@ function App(): React.JSX.Element {
   const [isLoadingAnnotations, setIsLoadingAnnotations] = React.useState(false);
   const [fingeringAnnotations, setFingeringAnnotations] = React.useState<FingerAssignment[]>([]);
 
-  const { practiceEngine, audioEngine } = usePractice();
+  const { practiceEngine, audioEngine, handleKeyClick } = usePractice();
 
   const annotationStore = React.useRef(new AnnotationStoreService());
 
@@ -46,6 +46,7 @@ function App(): React.JSX.Element {
     pianoHeight,
     setScore,
     setOriginalBpm,
+    setMetronomeEnabled,
     currentMeasure,
     currentNoteIndex,
   } = usePracticeStore(
@@ -61,6 +62,7 @@ function App(): React.JSX.Element {
       pianoHeight: s.pianoHeight,
       setScore: s.setScore,
       setOriginalBpm: s.setOriginalBpm,
+      setMetronomeEnabled: s.setMetronomeEnabled,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
     }))
@@ -68,6 +70,32 @@ function App(): React.JSX.Element {
 
   const currentNoteId =
     score?.measures.find((m) => m.number === currentMeasure)?.notes[currentNoteIndex]?.id || null;
+
+  // アプリ起動時に、SettingsModal（electron-store）で設定された
+  // 「Enable Metronome by Default」の既定値を ui-slice の metronomeEnabled へ反映する。
+  // ui-slice の metronomeEnabled を単一の真実源とし、起動後はツールバーのチェック
+  // ボックス操作や SettingsModal での変更がこの値を更新する。
+  React.useEffect(() => {
+    if (!window.electronAPI?.settings) return;
+
+    let cancelled = false;
+    const loadDefaultMetronomeSetting = async (): Promise<void> => {
+      try {
+        const practiceSettings = await window.electronAPI.settings.get('practice');
+        if (!cancelled && practiceSettings) {
+          setMetronomeEnabled(practiceSettings.metronomeEnabled);
+        }
+      } catch (error) {
+        console.error('Failed to load default practice settings:', error);
+      }
+    };
+
+    loadDefaultMetronomeSetting();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setMetronomeEnabled]);
 
   const handleOpenFile = async () => {
     if (!window.electronAPI) {
@@ -200,22 +228,7 @@ function App(): React.JSX.Element {
           incorrectKeys={incorrectKeys}
           annotations={[]}
           practiceMode={practiceMode}
-          onKeyClick={(midiNumber) => {
-            practiceEngine.handleNoteOn({
-              midiNumber,
-              velocity: 100,
-              type: 'note-on',
-              timestamp: Date.now(),
-            });
-            setTimeout(() => {
-              practiceEngine.handleNoteOff({
-                midiNumber,
-                velocity: 0,
-                type: 'note-off',
-                timestamp: Date.now(),
-              });
-            }, 200); // Simulate momentary click
-          }}
+          onKeyClick={handleKeyClick}
           height={pianoHeight}
         />
       </div>

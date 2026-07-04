@@ -120,6 +120,12 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
 
   // 4. 再生ボタンで再生が開始される
   await expect(window.getByTestId('playback-play')).toBeEnabled();
+
+  const positionBeforePlay = await window.evaluate(() => {
+    const state = window.__e2eStore__!.getState();
+    return { measure: state.currentMeasure, noteIndex: state.currentNoteIndex };
+  });
+
   await window.getByTestId('playback-play').click();
   await expect(window.getByTestId('playback-play')).toBeDisabled();
   await expect(window.getByTestId('playback-pause')).toBeEnabled();
@@ -127,10 +133,41 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
     .poll(() => window.evaluate(() => window.__e2eStore__?.getState().playbackState))
     .toBe('playing');
 
+  // 再生開始後、カーソル（判定グループ位置）が実際に進行することを確認する
+  // （REQ-010-005。2026-07-05トラブルシューティング原因2の再発防止）。
+  // 「再生状態になっただけ」ではなく「音符が実際にスケジュールされ、再生位置が
+  // 進んだ」ことを検証する。
+  await expect
+    .poll(
+      async () => {
+        const position = await window.evaluate(() => {
+          const state = window.__e2eStore__!.getState();
+          return { measure: state.currentMeasure, noteIndex: state.currentNoteIndex };
+        });
+        return (
+          position.measure !== positionBeforePlay.measure ||
+          position.noteIndex !== positionBeforePlay.noteIndex
+        );
+      },
+      { timeout: 10_000, intervals: [100] }
+    )
+    .toBe(true);
+
   await window.getByTestId('playback-stop').click();
   await expect
     .poll(() => window.evaluate(() => window.__e2eStore__?.getState().playbackState))
     .toBe('stopped');
+
+  // 停止操作で先頭小節（ループ無効時）に位置が復帰することを確認する（REQ-010-004）。
+  await expect
+    .poll(async () => {
+      const state = await window.evaluate(() => {
+        const s = window.__e2eStore__!.getState();
+        return { measure: s.currentMeasure, noteIndex: s.currentNoteIndex };
+      });
+      return state;
+    })
+    .toEqual({ measure: 1, noteIndex: 0 });
 
   // 5. 手動スクロール: ズームを引き上げてスクロール可能な状態を作った上で、
   // scrollTopが実際に変化することを確認する（TASK-025のスクロール対応）。

@@ -139,6 +139,11 @@ describe('PracticeEngineService', () => {
       setPianoHeight: () => {},
       isSidebarOpen: true,
       toggleSidebar: () => {},
+      // playback slice mock (REQ-010-007: 再生中はMIDI判定を停止する)
+      playbackState: 'stopped',
+      setPlaybackState: (playbackState) => {
+        mockStore.playbackState = playbackState;
+      },
     } as PracticeStore;
 
     const storeApiMock = {
@@ -400,6 +405,50 @@ describe('PracticeEngineService', () => {
     expect(mockStore.currentNoteIndex).toBe(0);
     expect(mockStore.incorrectKeys.has(99)).toBe(false); // discarded on loop boundary
     expect(mockStore.expectedNotes).toEqual([chordC4, chordE4, leftC3]);
+  });
+
+  it('曲の再生中（playbackState=playing）はMIDI入力を判定せずignoredを返す（REQ-010-007）', () => {
+    mockStore.playbackState = 'playing';
+    mockStore.expectedNotes = [chordC4, chordE4, leftC3];
+    const pressedKeysBefore = new Set(mockStore.pressedKeys);
+    const statsBefore = { ...mockStore.stats };
+
+    const judgement = engine.handleNoteOn({
+      midiNumber: 60,
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+
+    expect(judgement).toEqual({ result: 'ignored', note: null, advanced: false });
+    // No side effects: position/pressedKeys/stats are left untouched.
+    expect(mockStore.currentMeasure).toBe(1);
+    expect(mockStore.currentNoteIndex).toBe(0);
+    expect(mockStore.pressedKeys).toEqual(pressedKeysBefore);
+    expect(mockStore.stats).toEqual(statsBefore);
+  });
+
+  it('再生停止/一時停止後（playbackState!==playing）はMIDI判定が再開される', () => {
+    mockStore.playbackState = 'paused';
+    mockStore.expectedNotes = [chordC4, chordE4, leftC3];
+
+    engine.handleNoteOn({ midiNumber: 60, velocity: 100, type: 'note-on', timestamp: 0 });
+    const judgement = engine.handleNoteOn({
+      midiNumber: 64,
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+
+    expect(judgement.result).toBe('correct');
+  });
+
+  it('advanceToPlaybackPosition()は指定した小節・グループへ位置とexpectedNotesを更新する（REQ-010-005）', () => {
+    engine.advanceToPlaybackPosition(2, 0);
+
+    expect(mockStore.currentMeasure).toBe(2);
+    expect(mockStore.currentNoteIndex).toBe(0);
+    expect(mockStore.expectedNotes).toEqual([measure2Note]);
   });
 
   it('passモードでは誤りでもグループ単位で次に進む', () => {

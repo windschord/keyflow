@@ -5,11 +5,16 @@ import { usePracticeStore } from '../store';
 
 const handleNoteOnMock = vi.fn();
 const handleNoteOffMock = vi.fn();
+const resetToMeasureMock = vi.fn();
+const advanceToPlaybackPositionMock = vi.fn();
 const setBpmMock = vi.fn();
 const setMetronomeEnabledMock = vi.fn();
 const playCorrectSoundMock = vi.fn();
 const playIncorrectSoundMock = vi.fn();
 const disposeMock = vi.fn();
+const setLoopPointsMock = vi.fn();
+const setPositionCallbackMock = vi.fn();
+const setOnStopMock = vi.fn();
 const onNoteOnMock = vi.fn();
 const onNoteOffMock = vi.fn();
 const initializeMock = vi.fn();
@@ -18,6 +23,8 @@ vi.mock('../lib/practice-engine', () => ({
   PracticeEngineService: vi.fn().mockImplementation(() => ({
     handleNoteOn: handleNoteOnMock,
     handleNoteOff: handleNoteOffMock,
+    resetToMeasure: resetToMeasureMock,
+    advanceToPlaybackPosition: advanceToPlaybackPositionMock,
   })),
 }));
 
@@ -28,6 +35,9 @@ vi.mock('../lib/audio-engine', () => ({
     playCorrectSound: playCorrectSoundMock,
     playIncorrectSound: playIncorrectSoundMock,
     dispose: disposeMock,
+    setLoopPoints: setLoopPointsMock,
+    setPositionCallback: setPositionCallbackMock,
+    setOnStop: setOnStopMock,
   })),
 }));
 
@@ -242,5 +252,57 @@ describe('usePractice', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('wires audioEngine position callback to practiceEngine.advanceToPlaybackPosition (REQ-010-005)', () => {
+    renderHook(() => usePractice());
+
+    expect(setPositionCallbackMock).toHaveBeenCalledWith(expect.any(Function));
+    const positionCallback = setPositionCallbackMock.mock.calls[0][0] as (
+      measureNumber: number,
+      groupIndex: number
+    ) => void;
+
+    positionCallback(3, 2);
+
+    expect(advanceToPlaybackPositionMock).toHaveBeenCalledWith(3, 2);
+  });
+
+  it('unregisters the position callback on unmount', () => {
+    const { unmount } = renderHook(() => usePractice());
+    setPositionCallbackMock.mockClear();
+
+    unmount();
+
+    expect(setPositionCallbackMock).toHaveBeenCalledWith(null);
+  });
+
+  it('wires audioEngine stop callback to practiceEngine.resetToMeasure(1) when loop is disabled (REQ-010-004)', () => {
+    usePracticeStore.setState({ loopEnabled: false, loopStart: 5 });
+    renderHook(() => usePractice());
+
+    expect(setOnStopMock).toHaveBeenCalledWith(expect.any(Function));
+    const onStop = setOnStopMock.mock.calls[0][0] as () => void;
+
+    onStop();
+
+    expect(resetToMeasureMock).toHaveBeenCalledWith(1);
+  });
+
+  it('wires audioEngine stop callback to practiceEngine.resetToMeasure(loopStart) when loop is enabled (REQ-010-004)', () => {
+    usePracticeStore.setState({ loopEnabled: true, loopStart: 5 });
+    renderHook(() => usePractice());
+
+    const onStop = setOnStopMock.mock.calls[0][0] as () => void;
+    onStop();
+
+    expect(resetToMeasureMock).toHaveBeenCalledWith(5);
+  });
+
+  it('syncs loop range and score changes to audioEngine.setLoopPoints (REQ-010-008)', () => {
+    usePracticeStore.setState({ loopEnabled: true, loopStart: 2, loopEnd: 4, score: null });
+    renderHook(() => usePractice());
+
+    expect(setLoopPointsMock).toHaveBeenCalledWith(null, true, 2, 4);
   });
 });

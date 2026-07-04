@@ -29,6 +29,13 @@ export class PracticeEngineService {
 
   handleNoteOn(event: MidiNoteEvent): NoteJudgement {
     const state = this.store.getState();
+
+    // REQ-010-007: 曲の再生中はMIDI正誤判定を一時停止する。押鍵状態・統計には
+    // 一切触れず、判定なし（ignored）として扱う。停止/一時停止後に判定が再開される。
+    if (state.playbackState === 'playing') {
+      return { result: 'ignored', note: null, advanced: false };
+    }
+
     const { practiceMode, errorMode, expectedNotes, pressedKeys, incorrectKeys, stats } = state;
 
     // Add to pressed keys
@@ -175,6 +182,18 @@ export class PracticeEngineService {
       incorrectKeys: new Set(),
     });
 
+    this.updateExpectedNotes();
+  }
+
+  /**
+   * 再生（お手本演奏）のカーソル連動（REQ-010-005）専用のエントリポイント。
+   * audio-engine が判定グループ（同一startTick）ごとに解決した位置
+   * （`measureNumber`/`groupIndex`）をそのまま反映する。`resolvePosition` による
+   * 練習モードフィルタ・ループ境界の再解決は行わない（再生位置は常に実際の
+   * 発音タイミングと一致しているため）。
+   */
+  advanceToPlaybackPosition(measureNumber: number, groupIndex: number): void {
+    this.store.setState({ currentMeasure: measureNumber, currentNoteIndex: groupIndex });
     this.updateExpectedNotes();
   }
 

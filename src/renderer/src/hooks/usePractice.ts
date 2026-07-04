@@ -63,6 +63,10 @@ export function usePractice() {
   const metronomeEnabled = usePracticeStore((s) => s.metronomeEnabled);
   const currentMeasure = usePracticeStore((s) => s.currentMeasure);
   const currentNoteIndex = usePracticeStore((s) => s.currentNoteIndex);
+  const score = usePracticeStore((s) => s.score);
+  const loopEnabled = usePracticeStore((s) => s.loopEnabled);
+  const loopStart = usePracticeStore((s) => s.loopStart);
+  const loopEnd = usePracticeStore((s) => s.loopEnd);
 
   // 正誤判定結果に応じた楽譜上のハイライト（REQ-004-003/004）。
   // ScoreRenderer に noteId -> 'correct'|'incorrect' のマップとして渡し、
@@ -85,6 +89,39 @@ export function usePractice() {
   useEffect(() => {
     audioEngine.setMetronomeEnabled(metronomeEnabled);
   }, [audioEngine, metronomeEnabled]);
+
+  // ループ有効時、audioEngine（Tone.Transport）側のループ範囲を同期する
+  // （REQ-010-008）。無効時やスコア未読み込み時は audioEngine 側で解除される。
+  useEffect(() => {
+    audioEngine.setLoopPoints(score, loopEnabled, loopStart, loopEnd);
+  }, [audioEngine, score, loopEnabled, loopStart, loopEnd]);
+
+  // 再生位置→カーソル連動（REQ-010-005）。audioEngine が判定グループ
+  // （同一startTick）を通過するたびに practiceEngine 側の
+  // currentMeasure/currentNoteIndex を更新する。
+  useEffect(() => {
+    audioEngine.setPositionCallback((measureNumber, groupIndex) => {
+      practiceEngine.advanceToPlaybackPosition(measureNumber, groupIndex);
+    });
+
+    return () => {
+      audioEngine.setPositionCallback(null);
+    };
+  }, [audioEngine, practiceEngine]);
+
+  // 停止操作時、先頭（ループ有効時はループ開始小節）に位置を復帰する
+  // （REQ-010-004）。ストアの最新値を参照するため useEffect の依存には含めず、
+  // コールバック内で都度 getState() する。
+  useEffect(() => {
+    audioEngine.setOnStop(() => {
+      const latest = usePracticeStore.getState();
+      practiceEngine.resetToMeasure(latest.loopEnabled ? latest.loopStart : 1);
+    });
+
+    return () => {
+      audioEngine.setOnStop(null);
+    };
+  }, [audioEngine, practiceEngine]);
 
   // useMidi の onNoteOn/onNoteOff は useEffect の依存配列に含まれるため、
   // useCallback で参照を固定し、bpm/metronomeEnabled の変更による再レンダーの

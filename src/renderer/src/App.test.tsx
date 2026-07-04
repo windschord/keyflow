@@ -7,15 +7,23 @@ import { usePracticeStore } from './store';
 
 // Mock Tone.js globally to avoid AudioContext errors during testing
 vi.mock('tone', () => {
+  let scheduleIdSeq = 0;
   const mockTransport = {
     bpm: { value: 120 },
+    PPQ: 480,
+    loop: false,
     start: vi.fn(),
     stop: vi.fn(),
     pause: vi.fn(),
+    schedule: vi.fn(() => scheduleIdSeq++),
+    clear: vi.fn(),
+    setLoopPoints: vi.fn(),
   };
+  const mockDraw = { schedule: vi.fn((cb: () => void) => cb()) };
 
   return {
     getTransport: vi.fn(() => mockTransport),
+    getDraw: vi.fn(() => mockDraw),
     Synth: vi.fn().mockImplementation(() => ({
       toDestination: vi.fn().mockReturnThis(),
       triggerAttackRelease: vi.fn(),
@@ -220,10 +228,10 @@ describe('App', () => {
     consoleErrorMock.mockRestore();
   });
 
-  it('calls audioEngine.loadAccompaniment() when a score is opened', async () => {
-    const loadAccompanimentSpy = vi
-      .spyOn(AudioEngineService.prototype, 'loadAccompaniment')
-      .mockResolvedValue(undefined);
+  it('calls audioEngine.loadScore() when a score is opened', async () => {
+    const loadScoreSpy = vi.spyOn(AudioEngineService.prototype, 'loadScore').mockImplementation(
+      () => {}
+    );
 
     const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
     const SIMPLE_XML = `<?xml version="1.0"?>
@@ -250,12 +258,11 @@ describe('App', () => {
     openFileBtn.click();
 
     await waitFor(() => {
-      expect(loadAccompanimentSpy).toHaveBeenCalledTimes(1);
+      expect(loadScoreSpy).toHaveBeenCalledTimes(1);
     });
-    expect(loadAccompanimentSpy.mock.calls[0][0]).toMatchObject({ tempo: expect.any(Number) });
-    expect(['left', 'right', 'unknown']).toContain(loadAccompanimentSpy.mock.calls[0][1]);
+    expect(loadScoreSpy.mock.calls[0][0]).toMatchObject({ tempo: expect.any(Number) });
 
-    loadAccompanimentSpy.mockRestore();
+    loadScoreSpy.mockRestore();
   });
 
   it('handles errors when invoking electronAPI functions', async () => {

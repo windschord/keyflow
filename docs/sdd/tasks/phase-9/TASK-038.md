@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-038 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 60分 |
 | 依存タスク | TASK-031, TASK-032（v2時刻モデル） |
@@ -57,23 +57,35 @@
 
 ## 受入基準
 
-- [ ] 開発モード（StrictMode）でアプリ起動→曲読み込み→再生ボタンで、Transportにイベントが登録され再生状態になる（dispose再現ユニットテストがグリーン）
-- [ ] 全パートのノーツがstartTick/durationTicksどおりにスケジュールされる（ユニットテストで登録イベントのtick検証）
-- [ ] 再生中にカーソル（currentMeasure/currentNoteIndex）が進む（E2Eで検証）
-- [ ] 再生中のMIDI入力は判定されず、停止/一時停止後に判定が再開される
-- [ ] 停止で先頭（ループ有効時はループ開始小節）に戻る
-- [ ] ループ有効時、ループ範囲を繰り返し再生する
-- [ ] 既存のテストが通る（npm run test / typecheck / lint）
-- [ ] E2E（npm run test:e2e）が通る
+- [x] 開発モード（StrictMode）でアプリ起動→曲読み込み→再生ボタンで、Transportにイベントが登録され再生状態になる（dispose再現ユニットテストがグリーン）
+- [x] 全パートのノーツがstartTick/durationTicksどおりにスケジュールされる（ユニットテストで登録イベントのtick検証）
+- [x] 再生中にカーソル（currentMeasure/currentNoteIndex）が進む（E2Eで検証）
+- [x] 再生中のMIDI入力は判定されず、停止/一時停止後に判定が再開される
+- [x] 停止で先頭（ループ有効時はループ開始小節）に戻る
+- [x] ループ有効時、ループ範囲を繰り返し再生する（`setLoopPoints`のユニットテストで検証。Transport.loop/setLoopPointsへの反映を確認。実機での繰り返し再生の聴感確認は不可のため代理指標）
+- [x] 既存のテストが通る（npm run test / typecheck / lint）
+- [x] E2E（npm run test:e2e）が通る
 
 ## テスト項目
 
-- [ ] dispose→ensureInitializedの再初期化（StrictMode再現）
-- [ ] loadScoreのイベント登録（tick・duration・全パート）
-- [ ] カーソル連動コールバックの発火順
-- [ ] 再生中のhandleNoteOn='ignored'
-- [ ] 停止時の位置リセット（ループ有無両方）
-- [ ] E2E: 再生でカーソルが進む（手動確認: 実機で音が鳴る）
+- [x] dispose→ensureInitializedの再初期化（StrictMode再現）
+- [x] loadScoreのイベント登録（tick・duration・全パート）
+- [x] カーソル連動コールバックの発火順
+- [x] 再生中のhandleNoteOn='ignored'
+- [x] 停止時の位置リセット（ループ有無両方）
+- [x] E2E: 再生でカーソルが進む（手動確認: 実機で音が鳴る、は環境上不可のため代理指標で確認）
+
+## 完了サマリー
+
+- `AudioEngineService`を遅延初期化（`ensureInitialized()`）＋冪等`dispose()`に変更し、StrictModeの「実行→クリーンアップ→再実行」サイクルで無音化する原因1を解消。
+- `loadAccompaniment`（小節頭固定スタブ）を`loadScore`に置換し、`Tone.getTransport().PPQ = score.ticksPerQuarter`のうえ全パートの発音ノーツを`startTick`/`durationTicks`（tick表記）で`Tone.Part`にスケジュールする（原因3の解消）。
+- 判定グループ（同一startTick）ごとに`Tone.getTransport().schedule`＋`Tone.getDraw().schedule`でカーソル連動コールバックを登録し、`practiceEngine.advanceToPlaybackPosition`経由で`currentMeasure`/`currentNoteIndex`を更新（原因2＝REQ-010-005の実装）。
+- `practice-engine.handleNoteOn`の先頭で`playbackState==='playing'`を判定し、再生中はMIDI判定を`ignored`にして副作用なしで早期リターン（REQ-010-007）。
+- 停止操作は`audioEngine.setOnStop`経由で`practiceEngine.resetToMeasure(loopEnabled ? loopStart : 1)`を呼び出し、先頭/ループ開始小節へ復帰（REQ-010-004）。
+- `audioEngine.setLoopPoints(score, loopEnabled, loopStart, loopEnd)`をuseEffectでストアに同期し、`Transport.setLoopPoints`/`Transport.loop`を設定（REQ-010-008）。
+- **実装中に新たな根本原因を発見・修正**: `src/renderer/index.html`のCSP（`script-src 'self'`のみで`worker-src`未指定）により、Tone.jsのTransport内部tickerが使用するblob URL Web Workerの生成がブロックされ、`Transport.schedule()`系のコールバックが一切発火しない状態だった（`Transport.seconds`/`.position`はcontext.currentTimeから計算される純粋なgetterのため見かけ上は正常に進行して見え、発覚しにくい）。`worker-src 'self' blob:`をCSPに追加して解消。これがなければStrictMode対応後も実機で無音・カーソル停止のままだった。
+- E2E（`tests/e2e/app.spec.ts`）を強化し、再生クリック後に`currentMeasure`/`currentNoteIndex`が実際に進行すること、停止操作で先頭小節（1, 0）に復帰することをポーリング検証するよう変更。
+- 実機の音出し確認は環境上不可能なため、Transportへのイベント登録数（ユニットテスト）およびE2Eでのカーソル進行を代理指標として確認した。
 
 ## 情報の明確性
 

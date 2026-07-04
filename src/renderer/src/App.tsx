@@ -10,21 +10,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { usePractice } from './hooks/usePractice';
 import { AnnotationStoreService } from './lib/annotation-store';
 import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
-import type { Annotation, FingerAssignment, Hand, Note, PracticeMode, Score } from './types';
-
-/**
- * 練習対象パート（practiceMode）から、自動伴奏の対象となる非練習パートを決定する。
- *
- * 片手のみ練習する場合は反対側の手を自動伴奏として再生する。
- * 両手とも練習対象の場合は自動伴奏すべき非練習パートが存在しないため、
- * AudioEngineService 側のデフォルト挙動（全パート再生）にフォールバックする
- * 'unknown' を渡す（暫定実装。詳細な仕様は TASK-029 で再定義予定）。
- */
-function getAccompanimentHand(practiceMode: PracticeMode): Hand {
-  if (practiceMode === 'left') return 'right';
-  if (practiceMode === 'right') return 'left';
-  return 'unknown';
-}
+import type { Annotation, FingerAssignment, Note, Score } from './types';
 
 function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
@@ -163,7 +149,7 @@ function App(): React.JSX.Element {
       // setScore が反映された後にリセットする必要がある（resetToMeasure は
       // store.getState().score を参照するため、呼び出し順序を変更しないこと）。
       practiceEngine.resetToMeasure(1);
-      await audioEngine.loadAccompaniment(parsedScore, getAccompanimentHand(practiceMode));
+      audioEngine.loadScore(parsedScore);
       setFingeringAnnotations([]);
       const validNoteIds = new Set(
         parsedScore.measures.flatMap((measure) => measure.notes.map((note) => note.id))

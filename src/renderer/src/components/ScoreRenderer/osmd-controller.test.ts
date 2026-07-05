@@ -141,7 +141,7 @@ describe('OSMDController drawLoopBracket / clearLoopBracket', () => {
   });
 });
 
-describe('OSMDController setPartOpacity (REQ-002-007)', () => {
+describe('OSMDController setGrayedOutNotes (REQ-002-007, note単位グレーアウト TASK-048)', () => {
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
   function makeContainerWithSvg(): { container: HTMLDivElement; svg: SVGSVGElement } {
@@ -151,61 +151,76 @@ describe('OSMDController setPartOpacity (REQ-002-007)', () => {
     return { container, svg };
   }
 
-  it('adds a semi-transparent overlay layer covering the notes of the given part when opacity < 1', () => {
+  it('adds a semi-transparent veil at each grayed-out noteId coordinate (not a whole-part/system rectangle)', () => {
     const { container, svg } = makeContainerWithSvg();
     const controller = new OSMDController(container);
     // @ts-expect-error test mock access to private note coordinate map
     controller.noteIdToSvgCoord = new Map([
       ['P1-M1-N0', { x: 10, y: 20 }],
       ['P1-M1-N1', { x: 30, y: 20 }],
-      ['P2-M1-N0', { x: 10, y: 120 }],
+      ['P1-M1-N2', { x: 10, y: 120 }],
     ]);
 
-    controller.setPartOpacity('P2', 0.5);
+    // 1パート2段譜想定: N2のみ（下段=左手）をグレーアウトする。
+    controller.setGrayedOutNotes(new Set(['P1-M1-N2']));
 
-    const layer = svg.querySelector('#part-opacity-layer-P2');
+    const layer = svg.querySelector('#note-grayout-layer');
     expect(layer).not.toBeNull();
-    expect(layer?.getAttribute('data-opacity')).toBe('0.5');
-    const rect = layer?.querySelector('rect');
-    expect(rect).not.toBeNull();
-    // Should not affect P1's layer
-    expect(svg.querySelector('#part-opacity-layer-P1')).toBeNull();
+    const rects = layer?.querySelectorAll('rect');
+    expect(rects?.length).toBe(1);
+    expect(rects?.[0].getAttribute('data-note-id')).toBe('P1-M1-N2');
+    // N0/N1 (グレーアウト対象外) にはベールが掛からない。
+    expect(layer?.querySelector('rect[data-note-id="P1-M1-N0"]')).toBeNull();
   });
 
-  it('removes the overlay when opacity is set back to 1', () => {
-    const { container, svg } = makeContainerWithSvg();
-    const controller = new OSMDController(container);
-    // @ts-expect-error test mock access to private note coordinate map
-    controller.noteIdToSvgCoord = new Map([['P2-M1-N0', { x: 10, y: 120 }]]);
-
-    controller.setPartOpacity('P2', 0.5);
-    expect(svg.querySelector('#part-opacity-layer-P2')).not.toBeNull();
-
-    controller.setPartOpacity('P2', 1.0);
-    expect(svg.querySelector('#part-opacity-layer-P2')).toBeNull();
-  });
-
-  it('draws separate overlay rectangles per system (Y-clustered) row for a multi-system score', () => {
+  it('replaces the previous grayout state entirely when called again (idempotent set-based)', () => {
     const { container, svg } = makeContainerWithSvg();
     const controller = new OSMDController(container);
     // @ts-expect-error test mock access to private note coordinate map
     controller.noteIdToSvgCoord = new Map([
-      ['P2-M1-N0', { x: 10, y: 120 }],
-      ['P2-M2-N0', { x: 200, y: 122 }], // same system row as above (close Y)
-      ['P2-M3-N0', { x: 10, y: 400 }], // different system row (far Y)
+      ['P1-M1-N0', { x: 10, y: 20 }],
+      ['P1-M1-N1', { x: 30, y: 20 }],
     ]);
 
-    controller.setPartOpacity('P2', 0.5);
+    controller.setGrayedOutNotes(new Set(['P1-M1-N0']));
+    expect(svg.querySelectorAll('#note-grayout-layer rect').length).toBe(1);
 
-    const layer = svg.querySelector('#part-opacity-layer-P2');
-    const rects = layer?.querySelectorAll('rect');
-    expect(rects?.length).toBe(2);
+    controller.setGrayedOutNotes(new Set(['P1-M1-N1']));
+    const layer = svg.querySelector('#note-grayout-layer');
+    expect(layer?.querySelectorAll('rect').length).toBe(1);
+    expect(layer?.querySelector('rect[data-note-id="P1-M1-N1"]')).not.toBeNull();
+    expect(layer?.querySelector('rect[data-note-id="P1-M1-N0"]')).toBeNull();
+  });
+
+  it('removes the grayout layer entirely when passed an empty set', () => {
+    const { container, svg } = makeContainerWithSvg();
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access to private note coordinate map
+    controller.noteIdToSvgCoord = new Map([['P1-M1-N0', { x: 10, y: 20 }]]);
+
+    controller.setGrayedOutNotes(new Set(['P1-M1-N0']));
+    expect(svg.querySelector('#note-grayout-layer')).not.toBeNull();
+
+    controller.setGrayedOutNotes(new Set());
+    expect(svg.querySelector('#note-grayout-layer')).toBeNull();
+  });
+
+  it('ignores noteIds that have no known coordinate yet', () => {
+    const { container, svg } = makeContainerWithSvg();
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access to private note coordinate map
+    controller.noteIdToSvgCoord = new Map([['P1-M1-N0', { x: 10, y: 20 }]]);
+
+    controller.setGrayedOutNotes(new Set(['P1-M1-N0', 'P1-M9-N9']));
+
+    const layer = svg.querySelector('#note-grayout-layer');
+    expect(layer?.querySelectorAll('rect').length).toBe(1);
   });
 
   it('does nothing when there is no svg to draw onto', () => {
     const container = document.createElement('div');
     const controller = new OSMDController(container);
-    expect(() => controller.setPartOpacity('P1', 0.5)).not.toThrow();
+    expect(() => controller.setGrayedOutNotes(new Set(['P1-M1-N0']))).not.toThrow();
   });
 });
 

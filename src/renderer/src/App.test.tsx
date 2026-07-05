@@ -940,7 +940,12 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
     playAccompanimentSpy.mockRestore();
   });
 
-  it('does not pass a start tick when resuming from a paused state (REQ-010-003 preserved)', async () => {
+  it('resumes from the current cursor position tick even from a paused state (paused中のカーソル移動を反映)', async () => {
+    // カーソルは再生中も再生位置に追従する（REQ-010-005）ため、一時停止時点の
+    // カーソル位置＝一時停止位置であり、常にカーソル位置から開始すれば
+    // REQ-010-003（一時停止位置からの再開）は実質満たされる。加えて、
+    // 一時停止中にユーザーが楽譜クリックでカーソルを動かした場合は
+    // その位置から再開できる（2026-07-05 実機フィードバック）。
     const playAccompanimentSpy = vi
       .spyOn(AudioEngineService.prototype, 'playAccompaniment')
       .mockImplementation(() => {});
@@ -948,15 +953,23 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
     await openTwoNoteScore();
     await waitFor(() => expect(latestToolbarProps?.audioEngine).toBeDefined());
 
+    const score = usePracticeStore.getState().score!;
+    const secondNote = score.measures[0].notes[1];
+
     act(() => {
       usePracticeStore.setState({ playbackState: 'paused' });
+    });
+
+    // 一時停止中に楽譜クリックでカーソルを移動する
+    act(() => {
+      latestScoreRendererProps.onNoteClick(secondNote);
     });
 
     act(() => {
       latestToolbarProps.audioEngine.playAccompaniment();
     });
 
-    expect(playAccompanimentSpy).toHaveBeenCalledWith();
+    expect(playAccompanimentSpy).toHaveBeenCalledWith(secondNote.startTick);
 
     playAccompanimentSpy.mockRestore();
   });

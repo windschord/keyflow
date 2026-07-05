@@ -559,9 +559,16 @@ export class OSMDController {
       text.setAttribute('x', String(coord.x));
       text.setAttribute('y', String(coord.y - 4));
       text.setAttribute('text-anchor', 'middle');
-      text.setAttribute('font-size', '8');
-      // Approved: solid blue; suggested: light blue
-      text.setAttribute('fill', isApproved ? '#2563eb' : '#93c5fd');
+      // 2026-07-05 実機フィードバック: 旧実装（8px・未承認は薄い水色#93c5fd）は
+      // 小さく薄くて読めなかった。五線・符幹に重なっても判読できるよう、
+      // 太字＋白フチ（paint-order: stroke）＋濃色で描画する。
+      text.setAttribute('font-size', '12');
+      text.setAttribute('font-weight', 'bold');
+      text.setAttribute('stroke', '#ffffff');
+      text.setAttribute('stroke-width', '3');
+      text.setAttribute('paint-order', 'stroke');
+      // 提案中（未承認）: 濃い青 / 承認済み: 濃い緑（状態を色相で区別）
+      text.setAttribute('fill', isApproved ? '#15803d' : '#1d4ed8');
       text.setAttribute('pointer-events', 'none');
       text.textContent = String(finger);
       layer.appendChild(text);

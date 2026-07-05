@@ -419,24 +419,22 @@ function App(): React.JSX.Element {
   );
 
   // 再生の練習対象フィルタ・カーソル位置からの再生（TASK-051、REQ-010-001/010-010）。
-  // PlaybackControls（Toolbar経由）にはこのラッパーを渡し、再生開始（stopped状態から
-  // の再生操作）時に現在の判定グループのstartTickをaudioEngineへ渡す。一時停止からの
-  // 再開時（REQ-010-003）はTransportが保持する一時停止位置をそのまま使うため、
-  // startTickは渡さない（渡すと巻き戻ってしまうため）。
+  // PlaybackControls（Toolbar経由）にはこのラッパーを渡し、再生操作時は常に現在の
+  // 判定グループのstartTick（カーソル位置）から開始する。カーソルは再生中も再生位置に
+  // 追従する（REQ-010-005）ため、一時停止時点のカーソル位置＝一時停止位置であり、
+  // REQ-010-003（一時停止位置からの再開）はカーソル基準でも実質満たされる。加えて
+  // 一時停止中に楽譜クリックでカーソルを動かした場合はその位置から再開できる
+  // （2026-07-05 実機フィードバック: 選択した再生位置から再生されない問題の修正）。
   const playbackAudioEngine = React.useMemo(
     () => ({
       playAccompaniment: () => {
-        if (playbackState === 'paused') {
-          audioEngine.playAccompaniment();
-          return;
-        }
         const startTick = practiceEngine.getCurrentPositionTick();
         audioEngine.playAccompaniment(startTick ?? undefined);
       },
       pauseAccompaniment: () => audioEngine.pauseAccompaniment(),
       stopAccompaniment: () => audioEngine.stopAccompaniment(),
     }),
-    [audioEngine, practiceEngine, playbackState]
+    [audioEngine, practiceEngine]
   );
 
   return (

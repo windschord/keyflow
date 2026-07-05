@@ -69,6 +69,30 @@ export class AudioEngineService {
   }
 
   /**
+   * マスターボリュームを設定する（TASK-052）。伴奏・メトロノーム・効果音のすべてが
+   * `.toDestination()` で共有Destinationに直結しているため（`:44-46`）、
+   * `Tone.getDestination()` を操作するだけで一括して音量を反映できる。
+   *
+   * @param volume 0〜100のUI線形値。0はミュートとして扱う（`log10(0)` がNaNになる
+   *   ため、dB変換せず `Destination.mute = true` で明示的にミュートする）。
+   *   100は0dB（unity gain、変更前の既定音量相当）に対応する。
+   *   範囲外の値は0〜100にクランプする。
+   */
+  setMasterVolume(volume: number): void {
+    this.ensureInitialized();
+    const destination = Tone.getDestination();
+    const clamped = Math.max(0, Math.min(100, volume));
+
+    if (clamped <= 0) {
+      destination.mute = true;
+      return;
+    }
+
+    destination.mute = false;
+    destination.volume.value = 20 * Math.log10(clamped / 100);
+  }
+
+  /**
    * スコア全体（全パート、休符を除く発音ノーツ）を時刻ベースで再生スケジューリングする
    * （US-010 / data-model-v2 のtickモデル）。`loadAccompaniment` の後継。
    *

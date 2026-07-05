@@ -397,7 +397,6 @@ function App(): React.JSX.Element {
           practiceMode={practiceMode}
           onKeyClick={handleKeyClick}
           height={pianoHeight}
-          parts={score?.parts ?? []}
         />
       </div>
     </div>

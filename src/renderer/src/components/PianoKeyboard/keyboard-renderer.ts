@@ -1,4 +1,4 @@
-import { PracticeMode, Note, Annotation, Part, Hand } from '../../types';
+import { PracticeMode, Note, Annotation } from '../../types';
 import { getNotePosition, KEY_COLORS, MIDI_MIN, MIDI_MAX } from './key-layout';
 
 interface RenderOptions {
@@ -8,13 +8,6 @@ interface RenderOptions {
   incorrectKeys: Set<number>;
   annotations: Annotation[];
   practiceMode: PracticeMode;
-  /**
-   * parser算出済みのScore.parts（Part.hand、REQ-001-003）。
-   * expectedNote.partId → Part.hand を引いて右手/左手のガイド色（REQ-005-002）を
-   * 決定するために使用する。partIdがpartsに存在しない場合は左手色にフォールバックする。
-   * 未指定時は空配列扱い（全て左手色フォールバック）。
-   */
-  parts?: Part[];
 }
 
 export function renderKeyboard({
@@ -23,11 +16,8 @@ export function renderKeyboard({
   pressedKeys,
   incorrectKeys,
   annotations,
-  parts = [],
 }: RenderOptions) {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-  const handByPartId = new Map<string, Hand>(parts.map((part) => [part.id, part.hand]));
 
   const whiteKeys: number[] = [];
   const blackKeys: number[] = [];
@@ -54,11 +44,12 @@ export function renderKeyboard({
     } else if (isPressed) {
       fillColor = isBlack ? KEY_COLORS.black.correct : KEY_COLORS.white.correct;
     } else if (expectedNote) {
-      // REQ-005-002: 右手=青系、左手=緑系。partIdの文字列ヒューリスティックではなく
-      // parser算出済みのPart.handに基づいて判定する。片手練習モードでもexpectedNotes
+      // REQ-005-002: 右手=青系、左手=緑系。パート単位のPart.handではなく、
+      // parser算出済みのNote.hand（TASK-048）に基づいて判定する。1パート2段譜でも
+      // 段（手）ごとに正しく色分けできる。片手練習モードでもexpectedNotes
       // 自体が対象パートにフィルタ済みのため、practiceModeによる強制はしない。
-      // 手情報が引けないpartId（マップに未登録）は左手色にフォールバックする。
-      const isRightHand = handByPartId.get(expectedNote.partId) === 'right';
+      // hand未指定のノートは左手色にフォールバックする。
+      const isRightHand = expectedNote.hand === 'right';
       fillColor = isBlack
         ? isRightHand
           ? KEY_COLORS.black.guidRight

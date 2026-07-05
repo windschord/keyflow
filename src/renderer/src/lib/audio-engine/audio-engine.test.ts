@@ -396,22 +396,31 @@ describe('AudioEngineService', () => {
   });
 
   describe('playAccompaniment start offset (TASK-051, REQ-010-001)', () => {
-    it('starts Transport without an offset when no startTick is given (resume-from-pause compatible)', () => {
+    // Transport.start(undefined, `${tick}i`) のoffset引数は一時停止状態からの
+    // 再開時に無視されることがある（2026-07-05 実機フィードバック:
+    // 「カーソルで選択した位置から再生されず、前回停止した位置から再生される」）。
+    // そのため Transport.ticks への明示代入でシークしてから start() する方式を検証する。
+    it('starts Transport without seeking when no startTick is given', () => {
       service.playAccompaniment();
 
       expect(Tone.getTransport().start).toHaveBeenCalledWith();
+      expect(Tone.getTransport().ticks).not.toBe(480);
     });
 
-    it('starts Transport at the given tick offset when a startTick is provided (cursor position playback)', () => {
+    it('seeks Transport.ticks to the given startTick before starting (cursor position playback)', () => {
       service.playAccompaniment(480);
 
-      expect(Tone.getTransport().start).toHaveBeenCalledWith(undefined, '480i');
+      expect(Tone.getTransport().ticks).toBe(480);
+      expect(Tone.getTransport().start).toHaveBeenCalledWith();
     });
 
-    it('treats startTick=0 as an explicit offset (not "no offset")', () => {
+    it('treats startTick=0 as an explicit seek to the beginning', () => {
+      // 事前に別の位置へ進んでいた状態を模す
+      (Tone.getTransport() as unknown as { ticks: number }).ticks = 960;
       service.playAccompaniment(0);
 
-      expect(Tone.getTransport().start).toHaveBeenCalledWith(undefined, '0i');
+      expect(Tone.getTransport().ticks).toBe(0);
+      expect(Tone.getTransport().start).toHaveBeenCalledWith();
     });
   });
 

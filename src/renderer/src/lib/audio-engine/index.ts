@@ -201,11 +201,15 @@ export class AudioEngineService {
    */
   playAccompaniment(startTick?: number): void {
     this.ensureInitialized();
+    const transport = Tone.getTransport();
     if (startTick !== undefined) {
-      Tone.getTransport().start(undefined, `${startTick}i`);
-    } else {
-      Tone.getTransport().start();
+      // Transport.start(undefined, `${tick}i`) のoffset引数は一時停止状態からの
+      // 再開時に反映されないことがあるため（2026-07-05 実機フィードバック）、
+      // stopped/paused どちらの状態でも確実に効く Transport.ticks への明示代入で
+      // シークしてから開始する（Tone.js公式のシーク手法）。
+      transport.ticks = startTick;
     }
+    transport.start();
   }
 
   stopAccompaniment(): void {

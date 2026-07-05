@@ -20,6 +20,53 @@ const TICK_MATCH_TOLERANCE = 2;
 const CHORD_NOTE_VERTICAL_OFFSET_PX = 10;
 
 /**
+ * 下段（staff 2、通常ヘ音記号=左手）の指番号をカーソル下端からさらに離す
+ * マージン（ピクセル）。下段譜表の直下に描画するために使う。
+ */
+const LOWER_STAFF_FINGERING_MARGIN_PX = 12;
+
+/**
+ * 同一カーソル位置で解決された構成音群の指番号描画座標を計算する（純関数）。
+ *
+ * 2026-07-05 実機フィードバック対応: 従来は両段（ト音・ヘ音）の構成音を
+ * まとめて音高順にカーソル上端へ縦積みしていたため、右手と左手の指番号が
+ * 一列に混ざって判読できなかった。段（Note.staff、未指定は1）ごとに分離し、
+ * - 上段（staff<=1、右手）: 従来どおりカーソル上端（coord.y）を中心に音高降順で縦積み
+ * - 下段（staff>=2、左手）: カーソル下端（coord.y + coord.height）の下に音高降順で縦積み
+ * とする。
+ */
+export function computeFingeringCoords(
+  matchedNotes: Note[],
+  coord: { x: number; y: number; height: number }
+): Map<string, { x: number; y: number }> {
+  const result = new Map<string, { x: number; y: number }>();
+
+  const upper = matchedNotes.filter((n) => (n.staff ?? 1) <= 1);
+  const lower = matchedNotes.filter((n) => (n.staff ?? 1) >= 2);
+
+  const byPitchDesc = (a: Note, b: Note) => b.midiNumber - a.midiNumber;
+
+  upper.sort(byPitchDesc).forEach((note, rank) => {
+    const offsetY =
+      upper.length > 1 ? (rank - (upper.length - 1) / 2) * CHORD_NOTE_VERTICAL_OFFSET_PX : 0;
+    result.set(note.id, { x: coord.x, y: coord.y + offsetY });
+  });
+
+  lower.sort(byPitchDesc).forEach((note, rank) => {
+    result.set(note.id, {
+      x: coord.x,
+      y:
+        coord.y +
+        coord.height +
+        LOWER_STAFF_FINGERING_MARGIN_PX +
+        rank * CHORD_NOTE_VERTICAL_OFFSET_PX,
+    });
+  });
+
+  return result;
+}
+
+/**
  * OSMDカーソルが返すNote（`VoiceEntry.Notes`の要素）のうち、buildNoteIdMapでの照合に
  * 必要なプロパティだけを表す最小限の構造的型。実際にはOSMD自身の`Note`クラスの
  * インスタンスが渡ってくるが、依存を最小化するため実クラスは直接importせず、
@@ -506,7 +553,7 @@ export class OSMDController {
     return nearestId;
   }
 
-  private getCursorSvgCoord(): { x: number; y: number } | null {
+  private getCursorSvgCoord(): { x: number; y: number; height: number } | null {
     const svg = this.container.querySelector('svg') as SVGSVGElement | null;
     // cursorElement is an internal OSMD property not exposed in the public type definitions
     const cursorEl = (this.osmd.cursor as unknown as { cursorElement?: HTMLElement })
@@ -517,7 +564,9 @@ export class OSMDController {
       const cursorRect = cursorEl.getBoundingClientRect();
       if (svgRect.width === 0) return null;
 
-      // Convert screen coords to SVG internal coords via viewBox ratio
+      // Convert screen coords to SVG internal coords via viewBox ratio.
+      // height はカーソル矩形（両段をまたぐ縦線）のSVG単位での高さで、
+      // 下段（左手）の指番号をカーソル下端の下へ配置するために使う。
       const vb = svg.viewBox.baseVal;
       if (vb && vb.width > 0) {
         const scaleX = vb.width / svgRect.width;
@@ -525,12 +574,14 @@ export class OSMDController {
         return {
           x: (cursorRect.left - svgRect.left + cursorRect.width / 2) * scaleX + vb.x,
           y: (cursorRect.top - svgRect.top) * scaleY + vb.y,
+          height: cursorRect.height * scaleY,
         };
       }
       // Fallback when no viewBox
       return {
         x: cursorRect.left - svgRect.left + cursorRect.width / 2,
         y: cursorRect.top - svgRect.top,
+        height: cursorRect.height,
       };
     } catch {
       return null;
@@ -636,24 +687,15 @@ export class OSMDController {
           const candidates = remainingNotesByMeasure.get(measureNumber);
           const matched = this.matchNotesForTimestamp(osmdEntries, candidates ?? []);
 
-          // TASK-050: 同一カーソル位置(coord)には和音(複数構成音)が解決されることがある。
-          // OSMDカーソルは1ステップにつき1つの代表座標しか提供せず、符頭ごとの
-          // 正確なSVG座標をGraphicalNote.PositionAndShape等から安定して取得するには
-          // VexFlow内部の単位系(OSMD単位→SVGピクセル)の変換が必要な上、本コントローラの
-          // テスト(osmd-controller.test.ts)はOSMD内部を最小限のモックで代替しており、
-          // 実際のグラフィカルレイアウトを検証できない。そのため符頭単位座標の直接取得は
-          // 採用せず、フォールバックとして明記された「音高順の縦オフセット」を実装する:
-          // このカーソル位置で解決された構成音を音高降順(高い音が上)に並べ、一定間隔で
-          // 縦方向にずらした座標を割り当てることで、和音の各指番号が重ならずに表示される
-          // ようにする(単音の場合はオフセット0で従来と同じ座標になる)。
+          // TASK-050/2026-07-05フィードバック: 同一カーソル位置(coord)には和音や
+          // 両段（ト音・ヘ音）の構成音が同時に解決されることがある。OSMDカーソルは
+          // 1ステップにつき1つの代表座標しか提供しないため、符頭単位座標の直接取得は
+          // 行わず、段（staff）ごとに分離した縦積み座標を computeFingeringCoords
+          // （純関数）で計算する（上段=カーソル上端付近、下段=カーソル下端の下）。
           const matchedNotes = matched.filter((m): m is Note => m !== undefined);
-          const pitchRank = new Map<Note, number>();
-          if (matchedNotes.length > 1) {
-            const sortedByPitchDesc = [...matchedNotes].sort(
-              (a, b) => b.midiNumber - a.midiNumber
-            );
-            sortedByPitchDesc.forEach((note, rank) => pitchRank.set(note, rank));
-          }
+          const fingeringCoords = coord
+            ? computeFingeringCoords(matchedNotes, coord)
+            : new Map<string, { x: number; y: number }>();
 
           osmdEntries.forEach((entry, i) => {
             const matchedNote = matched[i];
@@ -666,13 +708,9 @@ export class OSMDController {
               return;
             }
             this.noteIdToCursorState.set(matchedNote.id, { iteratorIndex });
-            if (coord) {
-              const rank = pitchRank.get(matchedNote);
-              const offsetY =
-                rank !== undefined
-                  ? (rank - (matchedNotes.length - 1) / 2) * CHORD_NOTE_VERTICAL_OFFSET_PX
-                  : 0;
-              this.noteIdToSvgCoord.set(matchedNote.id, { x: coord.x, y: coord.y + offsetY });
+            const fingeringCoord = fingeringCoords.get(matchedNote.id);
+            if (fingeringCoord) {
+              this.noteIdToSvgCoord.set(matchedNote.id, fingeringCoord);
             }
             if (candidates) {
               const idx = candidates.indexOf(matchedNote);

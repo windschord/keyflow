@@ -63,6 +63,8 @@ let latestScoreRendererProps: any = null;
 let latestPianoKeyboardProps: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let latestFingeringPanelProps: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let latestToolbarProps: any = null;
 
 vi.mock('./components/ScoreRenderer', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -85,7 +87,11 @@ vi.mock('./components/PianoKeyboard', () => ({
 }));
 
 vi.mock('./components/Toolbar', () => ({
-  Toolbar: () => <div data-testid="mock-toolbar">Toolbar</div>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Toolbar: (props: any) => {
+    latestToolbarProps = props;
+    return <div data-testid="mock-toolbar">Toolbar</div>;
+  },
 }));
 
 vi.mock('./components/FingeringPanel', () => ({
@@ -109,12 +115,24 @@ describe('App', () => {
       zoom: 1.0,
       pianoHeight: 120,
       midiDeviceId: null,
+      // TASK-051: usePractice の score/practiceMode 監視エフェクト（audioEngine.loadScore
+      // の再スケジュール）を追加したことで、score がテスト間に残留していると次のテストの
+      // マウント時に意図しない loadScore 呼び出しが発生してしまう。他のテストが
+      // handleOpenFile経由でscoreをセットすることがあるため、ここで明示的にリセットする。
+      score: null,
+      musicXmlPath: null,
+      musicXmlContent: null,
+      practiceMode: 'both',
+      playbackState: 'stopped',
+      currentMeasure: 1,
+      currentNoteIndex: 0,
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).electronAPI;
     latestScoreRendererProps = null;
     latestPianoKeyboardProps = null;
     latestFingeringPanelProps = null;
+    latestToolbarProps = null;
   });
 
   it('renders correctly with layout components', () => {
@@ -589,6 +607,123 @@ describe('App', () => {
     expect(scoreRenderer.getAttribute('data-looprange')).toBe(
       JSON.stringify({ start: 3, end: 7 })
     );
+  });
+});
+
+describe('App - TASK-051: playback practice-mode filter / cursor-position playback / note-level cursor movement', () => {
+  const TWO_NOTE_XML = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+  async function openTwoNoteScore(): Promise<void> {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockResolvedValue(TWO_NOTE_XML);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: showOpenDialogMock, read: readMock },
+    };
+
+    render(<App />);
+    const openFileBtn = screen.getByText('ファイルを開く');
+    openFileBtn.click();
+
+    await waitFor(() => expect(readMock).toHaveBeenCalled());
+    await waitFor(() => expect(usePracticeStore.getState().score).not.toBeNull());
+  }
+
+  afterEach(() => {
+    usePracticeStore.setState({
+      currentMeasure: 1,
+      currentNoteIndex: 0,
+      playbackState: 'stopped',
+      score: null,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+    latestScoreRendererProps = null;
+    latestToolbarProps = null;
+  });
+
+  it("moves the cursor to the clicked note's own judgement group, not the measure head (REQ-002-004)", async () => {
+    await openTwoNoteScore();
+
+    const score = usePracticeStore.getState().score!;
+    const secondNote = score.measures[0].notes[1];
+
+    act(() => {
+      latestScoreRendererProps.onNoteClick(secondNote);
+    });
+
+    expect(usePracticeStore.getState().currentMeasure).toBe(1);
+    expect(usePracticeStore.getState().currentNoteIndex).toBe(1);
+  });
+
+  it('keeps the cursor at group index 0 when the clicked note is the first judgement group (regression)', async () => {
+    await openTwoNoteScore();
+
+    const score = usePracticeStore.getState().score!;
+    const firstNote = score.measures[0].notes[0];
+
+    act(() => {
+      latestScoreRendererProps.onNoteClick(firstNote);
+    });
+
+    expect(usePracticeStore.getState().currentMeasure).toBe(1);
+    expect(usePracticeStore.getState().currentNoteIndex).toBe(0);
+  });
+
+  it('starts playback from the current cursor position tick when playing from a stopped state (REQ-010-001)', async () => {
+    const playAccompanimentSpy = vi
+      .spyOn(AudioEngineService.prototype, 'playAccompaniment')
+      .mockImplementation(() => {});
+
+    await openTwoNoteScore();
+
+    const score = usePracticeStore.getState().score!;
+    const secondNote = score.measures[0].notes[1];
+
+    act(() => {
+      latestScoreRendererProps.onNoteClick(secondNote);
+    });
+
+    await waitFor(() => expect(latestToolbarProps?.audioEngine).toBeDefined());
+
+    act(() => {
+      latestToolbarProps.audioEngine.playAccompaniment();
+    });
+
+    expect(playAccompanimentSpy).toHaveBeenCalledWith(secondNote.startTick);
+
+    playAccompanimentSpy.mockRestore();
+  });
+
+  it('does not pass a start tick when resuming from a paused state (REQ-010-003 preserved)', async () => {
+    const playAccompanimentSpy = vi
+      .spyOn(AudioEngineService.prototype, 'playAccompaniment')
+      .mockImplementation(() => {});
+
+    await openTwoNoteScore();
+    await waitFor(() => expect(latestToolbarProps?.audioEngine).toBeDefined());
+
+    act(() => {
+      usePracticeStore.setState({ playbackState: 'paused' });
+    });
+
+    act(() => {
+      latestToolbarProps.audioEngine.playAccompaniment();
+    });
+
+    expect(playAccompanimentSpy).toHaveBeenCalledWith();
+
+    playAccompanimentSpy.mockRestore();
   });
 });
 

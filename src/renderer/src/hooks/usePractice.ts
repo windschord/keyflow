@@ -65,6 +65,7 @@ export function usePractice() {
   const currentMeasure = usePracticeStore((s) => s.currentMeasure);
   const currentNoteIndex = usePracticeStore((s) => s.currentNoteIndex);
   const score = usePracticeStore((s) => s.score);
+  const practiceMode = usePracticeStore((s) => s.practiceMode);
   const loopEnabled = usePracticeStore((s) => s.loopEnabled);
   const loopStart = usePracticeStore((s) => s.loopStart);
   const loopEnd = usePracticeStore((s) => s.loopEnd);
@@ -103,6 +104,27 @@ export function usePractice() {
   useEffect(() => {
     audioEngine.setLoopPoints(score, loopEnabled, loopStart, loopEnd);
   }, [audioEngine, score, loopEnabled, loopStart, loopEnd]);
+
+  // スコア読み込み時・practiceMode変更時に audioEngine の再生スケジュールを
+  // 同期する（TASK-051、REQ-010-010）。practiceMode は再生対象パートの絞り込み
+  // （左手練習=左手のみ、右手練習=右手のみ、両手=全パート）に使う。
+  //
+  // 再生中にこの同期が走った場合（practiceModeの切替、または再生中の新規スコア
+  // 読み込み）は、鳴っている音と新しいスケジュールが食い違うため、いったん停止
+  // する（最小実装として「停止中の切替は次回再生から即座に反映、再生中の切替は
+  // 停止する」を選択。US-010 追補に明記）。停止時の位置復帰は既存の
+  // setOnStop 結線（REQ-010-004）がそのまま担う。
+  useEffect(() => {
+    if (!score) return;
+
+    audioEngine.loadScore(score, practiceMode);
+
+    const latest = usePracticeStore.getState();
+    if (latest.playbackState === 'playing') {
+      audioEngine.stopAccompaniment();
+      latest.setPlaybackState('stopped');
+    }
+  }, [audioEngine, score, practiceMode]);
 
   // 再生位置→カーソル連動（REQ-010-005）。audioEngine が判定グループ
   // （同一startTick）を通過するたびに practiceEngine 側の

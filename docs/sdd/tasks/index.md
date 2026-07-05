@@ -39,7 +39,7 @@
 | Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 7 | 0 | 0 | 0 | [詳細](phase-9/) @phase-9/ |
 | Phase 10: QA・プロセス改善（フェーズC） | 3 | 0 | 0 | 0 | [詳細](phase-10/) @phase-10/ |
 | Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 9 | 0 | 0 | 0 | [詳細](phase-11/) @phase-11/ |
-| Phase 12: 実機フィードバック対応（2026-07-05） | 3 | 0 | 4 | 0 | [詳細](phase-12/) @phase-12/ |
+| Phase 12: 実機フィードバック対応（2026-07-05） | 5 | 0 | 2 | 0 | [詳細](phase-12/) @phase-12/ |
 
 **合計**: 54タスク / 推定合計: 約2450分（AIエージェント作業時間）
 
@@ -249,9 +249,9 @@
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
 | TASK-048 | [BugFix] 2段譜対応: Note.staff/hand導入と手判定のNote単位化 | DONE | - | 90min | [詳細](phase-12/TASK-048.md) @phase-12/TASK-048.md |
-| TASK-049 | [BugFix] noteIdマッピングの照合ベース化とリサイズ/ズーム座標ずれ修正 | TODO | TASK-048 | 90min | [詳細](phase-12/TASK-049.md) @phase-12/TASK-049.md |
+| TASK-049 | [BugFix] noteIdマッピングの照合ベース化とリサイズ/ズーム座標ずれ修正 | DONE | TASK-048 | 90min | [詳細](phase-12/TASK-049.md) @phase-12/TASK-049.md |
 | TASK-050 | [BugFix] 運指提案の和音対応（コードユニットDP＋符頭単位描画） | TODO | TASK-048, TASK-049 | 120min | [詳細](phase-12/TASK-050.md) @phase-12/TASK-050.md |
-| TASK-051 | 再生の練習対象フィルタ・カーソル位置からの再生・音単位カーソル移動 | TODO | TASK-048 | 90min | [詳細](phase-12/TASK-051.md) @phase-12/TASK-051.md |
+| TASK-051 | 再生の練習対象フィルタ・カーソル位置からの再生・音単位カーソル移動 | DONE | TASK-048 | 90min | [詳細](phase-12/TASK-051.md) @phase-12/TASK-051.md |
 | TASK-052 | 音量調整（マスターボリューム） | DONE | - | 40min | [詳細](phase-12/TASK-052.md) @phase-12/TASK-052.md |
 | TASK-053 | ドラッグ＆ドロップでのファイルオープン | TODO | - | 50min | [詳細](phase-12/TASK-053.md) @phase-12/TASK-053.md |
 | TASK-054 | [BugFix] チェックボックスラベルの視認性修正とテンプレートCSS残骸整理 | DONE | - | 30min | [詳細](phase-12/TASK-054.md) @phase-12/TASK-054.md |

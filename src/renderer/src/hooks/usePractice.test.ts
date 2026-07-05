@@ -18,6 +18,8 @@ const disposeMock = vi.fn();
 const setLoopPointsMock = vi.fn();
 const setPositionCallbackMock = vi.fn();
 const setOnStopMock = vi.fn();
+const loadScoreMock = vi.fn();
+const stopAccompanimentMock = vi.fn();
 const onNoteOnMock = vi.fn();
 const onNoteOffMock = vi.fn();
 const initializeMock = vi.fn();
@@ -43,6 +45,8 @@ vi.mock('../lib/audio-engine', () => ({
     setLoopPoints: setLoopPointsMock,
     setPositionCallback: setPositionCallbackMock,
     setOnStop: setOnStopMock,
+    loadScore: loadScoreMock,
+    stopAccompaniment: stopAccompanimentMock,
   })),
 }));
 
@@ -67,6 +71,9 @@ describe('usePractice', () => {
       volume: 80,
       currentMeasure: 1,
       currentNoteIndex: 0,
+      score: null,
+      practiceMode: 'both',
+      playbackState: 'stopped',
     });
   });
 
@@ -327,6 +334,70 @@ describe('usePractice', () => {
     renderHook(() => usePractice());
 
     expect(setLoopPointsMock).toHaveBeenCalledWith(null, true, 2, 4);
+  });
+
+  describe('audioEngine.loadScore sync (TASK-051, REQ-010-010)', () => {
+    const mockScore = { title: 'Test', measures: [] } as unknown as import('../types').Score;
+
+    it('loads the score using the current practiceMode when a score is set', () => {
+      usePracticeStore.setState({ score: mockScore, practiceMode: 'left' });
+
+      renderHook(() => usePractice());
+
+      expect(loadScoreMock).toHaveBeenCalledWith(mockScore, 'left');
+    });
+
+    it('does not call loadScore while no score is loaded', () => {
+      usePracticeStore.setState({ score: null });
+
+      renderHook(() => usePractice());
+
+      expect(loadScoreMock).not.toHaveBeenCalled();
+    });
+
+    it('re-schedules audioEngine.loadScore when practiceMode changes while a score is loaded', () => {
+      usePracticeStore.setState({ score: mockScore, practiceMode: 'both' });
+      renderHook(() => usePractice());
+      loadScoreMock.mockClear();
+
+      act(() => {
+        usePracticeStore.getState().setPracticeMode('right');
+      });
+
+      expect(loadScoreMock).toHaveBeenCalledWith(mockScore, 'right');
+    });
+
+    it('stops playback when practiceMode changes while playback is in progress (minimal implementation: stop-on-change)', () => {
+      usePracticeStore.setState({ score: mockScore, practiceMode: 'both', playbackState: 'stopped' });
+      renderHook(() => usePractice());
+      stopAccompanimentMock.mockClear();
+
+      // Start playback without touching score/practiceMode, so the sync effect does not
+      // fire yet (matches the real flow: PlaybackControls sets playbackState via the store
+      // independently of this effect's dependencies).
+      act(() => {
+        usePracticeStore.setState({ playbackState: 'playing' });
+      });
+
+      act(() => {
+        usePracticeStore.getState().setPracticeMode('left');
+      });
+
+      expect(stopAccompanimentMock).toHaveBeenCalledTimes(1);
+      expect(usePracticeStore.getState().playbackState).toBe('stopped');
+    });
+
+    it('does not call stopAccompaniment when re-scheduling while playback is not in progress', () => {
+      usePracticeStore.setState({ score: mockScore, practiceMode: 'both', playbackState: 'stopped' });
+      renderHook(() => usePractice());
+      stopAccompanimentMock.mockClear();
+
+      act(() => {
+        usePracticeStore.getState().setPracticeMode('right');
+      });
+
+      expect(stopAccompanimentMock).not.toHaveBeenCalled();
+    });
   });
 
   // TASK-045: SettingsModalがMIDI入力デバイス一覧（webMidiService.getDevices）を

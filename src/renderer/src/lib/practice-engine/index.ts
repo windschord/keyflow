@@ -145,13 +145,27 @@ export class PracticeEngineService {
     this.updateExpectedNotes();
   }
 
+  /**
+   * 指定小節の先頭（判定グループindex 0）へカーソルを移動する。
+   * `resetToPosition(measureNumber, 0)` の薄いラッパー（TASK-051でresetToPositionへ処理を統合）。
+   */
   resetToMeasure(measureNumber: number): void {
+    this.resetToPosition(measureNumber, 0);
+  }
+
+  /**
+   * 指定した小節・判定グループindexへカーソルを移動する（TASK-051: 音単位カーソル移動、
+   * REQ-002-004）。楽譜上の音符クリックが解決した判定グループへそのまま移動する用途を想定し、
+   * `resetToMeasure` と同様に `resolvePosition` で練習モードフィルタ後に空となるグループを
+   * 自動的にスキップし、押鍵状態（pressedKeys/incorrectKeys）をリセットする。
+   */
+  resetToPosition(measureNumber: number, groupIndex: number): void {
     const state = this.store.getState();
 
     if (!state.score) {
       this.store.setState({
         currentMeasure: measureNumber,
-        currentNoteIndex: 0,
+        currentNoteIndex: groupIndex,
         pressedKeys: new Set(),
         incorrectKeys: new Set(),
       });
@@ -166,7 +180,7 @@ export class PracticeEngineService {
       state.loopEnd,
       state.loopEnabled,
       measureNumber,
-      0
+      groupIndex
     );
 
     this.store.setState({
@@ -177,6 +191,27 @@ export class PracticeEngineService {
     });
 
     this.updateExpectedNotes();
+  }
+
+  /**
+   * 現在の判定グループ（store.currentMeasure/currentNoteIndex）の startTick を返す
+   * （TASK-051: カーソル位置からの再生、REQ-010-001）。
+   *
+   * スコア未読み込み、あるいは現在の小節が見つからない場合は `null` を返す
+   * （呼び出し側は曲頭からの再生にフォールバックする）。判定グループindexが
+   * 範囲外の場合（小節末尾に到達しているが次小節へまだ遷移していない等）は、
+   * 小節先頭の `startTick` にフォールバックする。
+   */
+  getCurrentPositionTick(): number | null {
+    const state = this.store.getState();
+    if (!state.score) return null;
+
+    const measure = state.score.measures.find((m) => m.number === state.currentMeasure);
+    if (!measure) return null;
+
+    const groups = groupNotesByStartTick(measure.notes);
+    const group = groups[state.currentNoteIndex];
+    return group ? group.startTick : measure.startTick;
   }
 
   /**

@@ -1,7 +1,7 @@
 import * as Tone from 'tone';
-import { Score } from '../../types';
+import { Score, PracticeMode } from '../../types';
 import { Metronome } from './metronome';
-import { groupNotesByStartTick } from '../practice-engine/note-grouping';
+import { groupNotesByStartTick, filterNotesByPracticeMode } from '../practice-engine/note-grouping';
 
 /** 再生位置（判定グループ単位）が進むたびに呼ばれるコールバック。 */
 export type PositionChangeCallback = (measureNumber: number, groupIndex: number) => void;
@@ -105,8 +105,15 @@ export class AudioEngineService {
    *   `Tone.getDraw().schedule` 経由でメインスレッドの描画タイミングに乗せる。
    * - スコア差し替え時は、既存のPartとスケジュール済みイベントをdisposeしてから
    *   再スケジュールする。
+   * - `practiceMode`（既定 `'both'`）に応じて、実際に発音スケジュールする
+   *   ノーツを `note.hand` で絞り込む（TASK-051: 再生の練習対象フィルタ、
+   *   REQ-010-010）。左手練習中は左手のみ、右手練習中は右手のみを鳴らし、
+   *   両手練習中は全ノーツを鳴らす。判定グループのカーソル連動（下記の
+   *   `schedule`）は practiceMode に関わらず全ノーツ基準のまま変更しない
+   *   （判定側フィルタは practice-engine 側で別途適用されるため、ここでは
+   *   時間軸の進行のみを扱う）。
    */
-  loadScore(score: Score): void {
+  loadScore(score: Score, practiceMode: PracticeMode = 'both'): void {
     this.ensureInitialized();
     this.disposeScorePart();
     this.clearPositionEvents();
@@ -116,8 +123,9 @@ export class AudioEngineService {
     const events: { time: string; note: string; duration: string }[] = [];
 
     score.measures.forEach((measure) => {
-      measure.notes.forEach((note) => {
-        if (note.isRest) return;
+      const soundingNotes = measure.notes.filter((note) => !note.isRest);
+      const scheduledNotes = filterNotesByPracticeMode(soundingNotes, practiceMode);
+      scheduledNotes.forEach((note) => {
         events.push({
           time: `${note.startTick}i`,
           note: Tone.Frequency(note.midiNumber, 'midi').toNote(),
@@ -182,9 +190,22 @@ export class AudioEngineService {
     );
   }
 
-  playAccompaniment(): void {
+  /**
+   * 伴奏（お手本演奏）を開始する（REQ-010-001）。
+   *
+   * @param startTick 指定した場合、その絶対tick位置（現在の判定グループの
+   *   startTick、`practice-engine.getCurrentPositionTick()` で解決）からTransportを
+   *   開始する（カーソル位置からの再生）。省略時はTransportの現在位置（一時停止から
+   *   の再開時はその一時停止位置）からそのまま開始する（REQ-010-003を維持するため、
+   *   一時停止からの再開時は呼び出し側が`startTick`を渡さないこと）。
+   */
+  playAccompaniment(startTick?: number): void {
     this.ensureInitialized();
-    Tone.getTransport().start();
+    if (startTick !== undefined) {
+      Tone.getTransport().start(undefined, `${startTick}i`);
+    } else {
+      Tone.getTransport().start();
+    }
   }
 
   stopAccompaniment(): void {

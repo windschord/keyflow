@@ -8,17 +8,31 @@ import App from '../../App';
 
 // Mock Tone.js globally to avoid AudioContext errors during App rendering in tests.
 vi.mock('tone', () => {
+  let scheduleIdSeq = 0;
   const mockTransport = {
     bpm: { value: 120 },
+    PPQ: 480,
+    loop: false,
     start: vi.fn(),
     stop: vi.fn(),
     pause: vi.fn(),
+    // TASK-051: usePractice が score/practiceMode の変化を監視して
+    // audioEngine.loadScore を呼ぶようになった（従来はApp.tsxのhandleOpenFile内で
+    // try/catchに包まれて直接呼ばれていたため、この結線が欠けていても例外は
+    // 静かに握りつぶされていた）。loadScoreが内部で使うschedule/clear/setLoopPoints
+    // もモックしておかないと、エフェクト内の例外がtry/catchで捕捉されず
+    // unhandled errorになる。
+    schedule: vi.fn(() => scheduleIdSeq++),
+    clear: vi.fn(),
+    setLoopPoints: vi.fn(),
   };
+  const mockDraw = { schedule: vi.fn((callback: () => void) => callback()) };
 
   const mockDestination = { volume: { value: 0 }, mute: false };
 
   return {
     getTransport: vi.fn(() => mockTransport),
+    getDraw: vi.fn(() => mockDraw),
     getDestination: vi.fn(() => mockDestination),
     Synth: vi.fn().mockImplementation(() => ({
       toDestination: vi.fn().mockReturnThis(),

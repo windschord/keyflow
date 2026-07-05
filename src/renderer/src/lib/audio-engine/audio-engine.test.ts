@@ -72,6 +72,7 @@ function makeNote(
     isRest: boolean;
     measureNumber: number;
     noteIndex: number;
+    hand: 'left' | 'right' | 'unknown';
   }>
 ) {
   return {
@@ -120,6 +121,36 @@ function makeScore(): Score {
       { id: 'P2', name: 'Left', hand: 'left', clef: 'bass' },
     ],
     measures: [{ number: 1, startTick: 0, notes: [p1c4, p2c3, p1d4, rest] }],
+    tempo: 120,
+    ticksPerQuarter: 480,
+    tempoMap: [{ tick: 0, bpm: 120 }],
+    timeSignature: { beats: 4, beatType: 4 },
+    keySignature: 0,
+  };
+}
+
+function makeHandScore(): Score {
+  // TASK-051: practiceMode別スケジューリング検証用。Note.handを明示的に設定する
+  // （makeScore()のノーツはhand未設定＝'both'フィルタの後方互換確認専用）。
+  // measure 1: P1(right) C4@tick0, P2(left) C3@tick0 (same group), P1(right) D4@tick480
+  const rightC4 = makeNote({ id: 'P1-M1-N0', partId: 'P1', midiNumber: 60, startTick: 0, hand: 'right' });
+  const leftC3 = makeNote({ id: 'P2-M1-N0', partId: 'P2', midiNumber: 48, startTick: 0, hand: 'left' });
+  const rightD4 = makeNote({
+    id: 'P1-M1-N1',
+    partId: 'P1',
+    midiNumber: 62,
+    startTick: 480,
+    noteIndex: 1,
+    hand: 'right',
+  });
+
+  return {
+    title: 'Test',
+    parts: [
+      { id: 'P1', name: 'Right', hand: 'right', clef: 'treble' },
+      { id: 'P2', name: 'Left', hand: 'left', clef: 'bass' },
+    ],
+    measures: [{ number: 1, startTick: 0, notes: [rightC4, leftC3, rightD4] }],
     tempo: 120,
     ticksPerQuarter: 480,
     tempoMap: [{ tick: 0, bpm: 120 }],
@@ -313,6 +344,74 @@ describe('AudioEngineService', () => {
     it('sets Transport.loop=false when no score is loaded', () => {
       service.setLoopPoints(null, true, 1, 1);
       expect(Tone.getTransport().loop).toBe(false);
+    });
+  });
+
+  describe('loadScore practiceMode filter (TASK-051, REQ-010-010)', () => {
+    it('schedules all sounding notes (both hands) when practiceMode is "both" (default, backward compatible)', () => {
+      service.loadScore(makeHandScore());
+
+      const events = (Tone.Part as unknown as Mock).mock.calls[0][1] as { note: string }[];
+      expect(events).toHaveLength(3);
+    });
+
+    it('schedules only right-hand notes when practiceMode is "right"', () => {
+      service.loadScore(makeHandScore(), 'right');
+
+      const events = (Tone.Part as unknown as Mock).mock.calls[0][1] as {
+        time: string;
+        note: string;
+        duration: string;
+      }[];
+      expect(events).toHaveLength(2);
+      expect(events).toEqual(
+        expect.arrayContaining([
+          { time: '0i', note: 'C4', duration: '480i' },
+          { time: '480i', note: 'D4', duration: '480i' },
+        ])
+      );
+    });
+
+    it('schedules only left-hand notes when practiceMode is "left"', () => {
+      service.loadScore(makeHandScore(), 'left');
+
+      const events = (Tone.Part as unknown as Mock).mock.calls[0][1] as {
+        time: string;
+        note: string;
+        duration: string;
+      }[];
+      expect(events).toHaveLength(1);
+      expect(events).toEqual([{ time: '0i', note: 'C3', duration: '480i' }]);
+    });
+
+    it('does not change the judgement-group position schedule (cursor tracking) based on practiceMode', () => {
+      service.loadScore(makeHandScore(), 'left');
+
+      // 2 groups regardless of practiceMode: tick0 (right+left) and tick480 (right only).
+      // Cursor progression follows the actual score timing, independent of which hand is
+      // being practiced/played.
+      const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
+      expect(scheduleCalls).toHaveLength(2);
+    });
+  });
+
+  describe('playAccompaniment start offset (TASK-051, REQ-010-001)', () => {
+    it('starts Transport without an offset when no startTick is given (resume-from-pause compatible)', () => {
+      service.playAccompaniment();
+
+      expect(Tone.getTransport().start).toHaveBeenCalledWith();
+    });
+
+    it('starts Transport at the given tick offset when a startTick is provided (cursor position playback)', () => {
+      service.playAccompaniment(480);
+
+      expect(Tone.getTransport().start).toHaveBeenCalledWith(undefined, '480i');
+    });
+
+    it('treats startTick=0 as an explicit offset (not "no offset")', () => {
+      service.playAccompaniment(0);
+
+      expect(Tone.getTransport().start).toHaveBeenCalledWith(undefined, '0i');
     });
   });
 

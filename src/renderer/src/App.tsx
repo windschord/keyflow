@@ -56,6 +56,7 @@ function App(): React.JSX.Element {
     loopEnabled,
     loopStart,
     loopEnd,
+    playbackState,
   } = usePracticeStore(
     useShallow((s) => ({
       score: s.score,
@@ -80,6 +81,7 @@ function App(): React.JSX.Element {
       loopEnabled: s.loopEnabled,
       loopStart: s.loopStart,
       loopEnd: s.loopEnd,
+      playbackState: s.playbackState,
     }))
   );
 
@@ -195,7 +197,9 @@ function App(): React.JSX.Element {
       // setScore が反映された後にリセットする必要がある（resetToMeasure は
       // store.getState().score を参照するため、呼び出し順序を変更しないこと）。
       practiceEngine.resetToMeasure(1);
-      audioEngine.loadScore(parsedScore);
+      // audioEngine.loadScore は usePractice 側の score/practiceMode 監視エフェクト
+      // （TASK-051）が同期して呼び出すため、ここでは明示的に呼ばない
+      // （二重スケジューリングを避けるため）。
       setKeyboardAnnotations([]);
       setNoteContextMenu(null);
       const validNoteIds = new Set(
@@ -296,14 +300,44 @@ function App(): React.JSX.Element {
     ? keyboardAnnotations.find((a) => a.noteId === noteContextMenu.noteId)
     : undefined;
 
-  // 小節クリックによるカーソル移動（REQ-002-004）。
-  // ScoreRenderer/OSMDControllerがクリック位置に最も近い音符を解決し、その音符が
-  // 属する小節番号（note.measureNumber）へ practiceEngine.resetToMeasure で移動する。
+  // 音符クリックによるカーソル移動（REQ-002-004、TASK-051で小節単位から音単位へ更新）。
+  // ScoreRenderer/OSMDControllerがクリック位置に最も近い音符を解決し、その音符が属する
+  // 判定グループ（同一startTickのノーツ集合）へ practiceEngine.resetToPosition で移動する。
+  // 小節頭に丸めず、クリックした音がそのまま属するグループへ移動する。
   const handleNoteClick = React.useCallback(
     (note: Note) => {
-      practiceEngine.resetToMeasure(note.measureNumber);
+      const measure = score?.measures.find((m) => m.number === note.measureNumber);
+      if (!measure) {
+        practiceEngine.resetToMeasure(note.measureNumber);
+        return;
+      }
+
+      const groups = groupNotesByStartTick(measure.notes);
+      const groupIndex = groups.findIndex((g) => g.startTick === note.startTick);
+      practiceEngine.resetToPosition(note.measureNumber, groupIndex >= 0 ? groupIndex : 0);
     },
-    [practiceEngine]
+    [practiceEngine, score]
+  );
+
+  // 再生の練習対象フィルタ・カーソル位置からの再生（TASK-051、REQ-010-001/010-010）。
+  // PlaybackControls（Toolbar経由）にはこのラッパーを渡し、再生開始（stopped状態から
+  // の再生操作）時に現在の判定グループのstartTickをaudioEngineへ渡す。一時停止からの
+  // 再開時（REQ-010-003）はTransportが保持する一時停止位置をそのまま使うため、
+  // startTickは渡さない（渡すと巻き戻ってしまうため）。
+  const playbackAudioEngine = React.useMemo(
+    () => ({
+      playAccompaniment: () => {
+        if (playbackState === 'paused') {
+          audioEngine.playAccompaniment();
+          return;
+        }
+        const startTick = practiceEngine.getCurrentPositionTick();
+        audioEngine.playAccompaniment(startTick ?? undefined);
+      },
+      pauseAccompaniment: () => audioEngine.pauseAccompaniment(),
+      stopAccompaniment: () => audioEngine.stopAccompaniment(),
+    }),
+    [audioEngine, practiceEngine, playbackState]
   );
 
   return (
@@ -345,7 +379,7 @@ function App(): React.JSX.Element {
         </div>
         <Toolbar
           onOpenSettings={() => setIsSettingsOpen(true)}
-          audioEngine={audioEngine}
+          audioEngine={playbackAudioEngine}
           score={score}
         />
       </div>

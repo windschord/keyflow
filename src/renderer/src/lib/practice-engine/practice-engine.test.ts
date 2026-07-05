@@ -456,6 +456,81 @@ describe('PracticeEngineService', () => {
     expect(mockStore.expectedNotes).toEqual([measure2Note]);
   });
 
+  describe('resetToPosition (TASK-051, 音単位カーソル移動)', () => {
+    it('指定した小節・判定グループindexへ直接移動する（小節頭への丸めなし）', () => {
+      engine.resetToPosition(1, 1); // group@tick480 (rightD4) within measure1
+
+      expect(mockStore.currentMeasure).toBe(1);
+      expect(mockStore.currentNoteIndex).toBe(1);
+      expect(mockStore.expectedNotes).toEqual([rightD4]);
+    });
+
+    it('resetToMeasureと同様に、練習モードフィルタで空になったグループは自動的にスキップする', () => {
+      const lOnly = makeNote({ id: 'P2-M1-N0', partId: 'P2', midiNumber: 48, startTick: 0 });
+      const rOnly = makeNote({ id: 'P1-M1-N0', partId: 'P1', midiNumber: 60, startTick: 480 });
+
+      mockStore.score = {
+        ...mockScore,
+        measures: [{ number: 1, startTick: 0, notes: [lOnly, rOnly] }],
+      };
+      mockStore.practiceMode = 'right';
+
+      engine.resetToPosition(1, 0); // pointing at the left-only group@tick0
+
+      expect(mockStore.currentMeasure).toBe(1);
+      expect(mockStore.currentNoteIndex).toBe(1); // skipped to the right-only group
+      expect(mockStore.expectedNotes).toEqual([rOnly]);
+    });
+
+    it('移動時に押鍵状態（pressedKeys/incorrectKeys）をリセットする', () => {
+      mockStore.pressedKeys = new Set([60]);
+      mockStore.incorrectKeys = new Set([61]);
+
+      engine.resetToPosition(1, 1);
+
+      expect(mockStore.pressedKeys.size).toBe(0);
+      expect(mockStore.incorrectKeys.size).toBe(0);
+    });
+
+    it('スコア未読み込み時は指定位置をそのまま設定する', () => {
+      mockStore.score = null;
+
+      engine.resetToPosition(3, 2);
+
+      expect(mockStore.currentMeasure).toBe(3);
+      expect(mockStore.currentNoteIndex).toBe(2);
+      expect(mockStore.expectedNotes).toEqual([]);
+    });
+  });
+
+  describe('getCurrentPositionTick (TASK-051, カーソル位置から再生)', () => {
+    it('現在の判定グループのstartTickを返す', () => {
+      mockStore.currentMeasure = 1;
+      mockStore.currentNoteIndex = 1; // group@tick480
+
+      expect(engine.getCurrentPositionTick()).toBe(480);
+    });
+
+    it('小節先頭のグループ（tick0）ではその小節のstartTickを返す', () => {
+      mockStore.currentMeasure = 1;
+      mockStore.currentNoteIndex = 0; // group@tick0
+
+      expect(engine.getCurrentPositionTick()).toBe(0);
+    });
+
+    it('スコア未読み込み時はnullを返す', () => {
+      mockStore.score = null;
+
+      expect(engine.getCurrentPositionTick()).toBeNull();
+    });
+
+    it('現在の小節がスコアに存在しない場合はnullを返す', () => {
+      mockStore.currentMeasure = 999;
+
+      expect(engine.getCurrentPositionTick()).toBeNull();
+    });
+  });
+
   it('passモードでは誤りでもグループ単位で次に進む', () => {
     mockStore.expectedNotes = [rightD4];
     mockStore.currentMeasure = 1;

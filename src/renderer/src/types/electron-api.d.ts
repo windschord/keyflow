@@ -4,6 +4,11 @@ export interface ElectronAPI {
   file: {
     showOpenDialog(): Promise<string | null>;
     read(path: string): Promise<string>;
+    /**
+     * 存在しないのが正常なファイル（*.annotation.json等）用。ENOENTはエラーではなく
+     * nullを返す（メインプロセスへの未処理エラーログを避ける。2026-07-05）。
+     */
+    readIfExists(path: string): Promise<string | null>;
     readBinary(path: string): Promise<ArrayBuffer>;
     /** Writes only to main-process approved targets such as `{MusicXMLPath}.annotation.json`. */
     write(path: string, content: string): Promise<void>;

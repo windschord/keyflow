@@ -239,3 +239,44 @@ describe('dp-solver: コードユニットDP（和音対応、TASK-050）', () =
     expect(result.assignments.length).toBeLessThan(notes.length);
   });
 });
+
+describe('dp-solver: 実行不可能な和音・連鎖断絶の頑健性（2026-07-05 実機フィードバック）', () => {
+  // 実楽譜には手のスパン上限を超える広い和音（アルペジオ前提の記譜等）や、
+  // 5音和音の連続（対応する指同士が必ず「同一指・異音高」になり遷移コストが
+  // 全てInfinityになる）が普通に含まれる。これらでDPの連鎖が断絶すると
+  // バックトラックがクラッシュし、運指が一切表示されなくなっていた。
+
+  it('物理的に演奏不可能な広い和音を含んでも例外にならず全音に指が割り当てられる', () => {
+    const notes = [
+      makeNote('m1', 60),
+      ...makeChord(['wide-lo', 'wide-hi'], [36, 96], 480),
+      makeNote('m2', 62),
+    ];
+
+    const result = computeFingering(notes, 'right', DEFAULT_SETTINGS);
+
+    expect(new Set(result.assignments.map((a) => a.noteId))).toEqual(
+      new Set(['m1', 'wide-lo', 'wide-hi', 'm2'])
+    );
+    expect(Number.isFinite(result.totalCost)).toBe(true);
+  });
+
+  it('5音和音が連続しても（全遷移が同一指衝突でも）クラッシュせず全10音に割り当てられる', () => {
+    const chord1 = makeChord(['a1', 'a2', 'a3', 'a4', 'a5'], [60, 62, 64, 65, 67], 0);
+    const chord2 = makeChord(['b1', 'b2', 'b3', 'b4', 'b5'], [62, 64, 65, 67, 69], 480);
+
+    const result = computeFingering([...chord1, ...chord2], 'right', DEFAULT_SETTINGS);
+
+    expect(result.assignments).toHaveLength(10);
+    expect(Number.isFinite(result.totalCost)).toBe(true);
+  });
+
+  it('曲頭が演奏不可能な和音でもクラッシュせず全音に割り当てられる', () => {
+    const notes = [...makeChord(['w1', 'w2'], [36, 96], 0), makeNote('m', 60)];
+
+    const result = computeFingering(notes, 'right', DEFAULT_SETTINGS);
+
+    expect(result.assignments).toHaveLength(3);
+    expect(Number.isFinite(result.totalCost)).toBe(true);
+  });
+});

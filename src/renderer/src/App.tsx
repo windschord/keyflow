@@ -323,10 +323,12 @@ function App(): React.JSX.Element {
   const handleFingering = React.useCallback(
     async (assignments: FingerAssignment[]) => {
       if (!musicXmlPath || isLoadingAnnotations) return;
+      // 計算済みの運指はまず表示に反映し、永続化の成否とは独立させる
+      // （保存に失敗しても提案結果が見えなくならないようにする。失敗はalertで通知）。
+      annotationStore.current.applyAISuggestions(assignments);
+      setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
       try {
-        annotationStore.current.applyAISuggestions(assignments);
         await annotationStore.current.save();
-        setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
       } catch (error) {
         console.error('Failed to save fingering annotations:', error);
         alert('運指アノテーションの保存に失敗しました。');

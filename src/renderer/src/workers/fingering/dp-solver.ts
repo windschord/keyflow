@@ -24,6 +24,23 @@ const MAX_UNIT_SIZE = 5;
 const OVERFLOW_PENALTY = 100;
 
 /**
+ * DPの連鎖が断絶した（あるユニットで全組み合わせのコストがInfinityになった）場合に、
+ * チェーンを再開するときに課す固定ペナルティ（2026-07-05 実機フィードバック対応）。
+ *
+ * 実楽譜では以下が普通に起きるため、Infinityのままにするとバックトラックが破綻し
+ * 運指が一切出力されなくなる:
+ * - 手のスパン上限を超える広い和音（アルペジオ前提の記譜等）→ 全comboのユニット内コストがInfinity
+ * - 5音和音の連続 → 対応する指同士が必ず「同一指・異音高」となり全遷移コストがInfinity
+ */
+const CHAIN_BREAK_PENALTY = 500;
+
+/** 緩和コスト: スパンが物理上限(max)を超えた場合の、超過半音あたりのペナルティ。 */
+const INFEASIBLE_SPAN_PENALTY_PER_SEMITONE = 25;
+
+/** 緩和コスト: ユニット内で同一指が異音高に重複した場合の固定ペナルティ。 */
+const SAME_FINGER_UNIT_PENALTY = 200;
+
+/**
  * 「コードユニット」: 同時に鳴る音の集合（和音、単音の場合はサイズ1）を1つの遷移ステップとして
  * まとめたもの。
  *
@@ -169,6 +186,52 @@ function unitInternalCost(
 }
 
 /**
+ * `unitInternalCost` の緩和版（必ず有限値を返す）。
+ * 全組み合わせがInfinityになる「物理的に演奏不可能な和音」（例: 片手で2オクターブ超）
+ * でも、最も妥協的な指割当を選んで運指を出力し続けるために使う。
+ * Infinityの代わりに、スパン超過分・同一指重複へ大きな有限ペナルティを課す。
+ */
+function unitInternalCostRelaxed(
+  fingerSeq: NoteFingerPair[],
+  hand: FingeringHand,
+  settings: HandSettings
+): number {
+  let cost = 0;
+  for (const { finger, note } of fingerSeq) {
+    cost += weakFingerCost(finger) + thumbOnBlackCost(finger, note) + fiveOnBlackCost(finger, note);
+  }
+
+  const k = fingerSeq.length;
+  if (k < 2) return cost;
+
+  const pairs: Array<[number, number]> = [];
+  for (let i = 0; i < k - 1; i++) pairs.push([i, i + 1]);
+  if (k >= 3) pairs.push([0, k - 1]);
+
+  for (const [a, b] of pairs) {
+    const fa = fingerSeq[a].finger;
+    const fb = fingerSeq[b].finger;
+    const na = fingerSeq[a].note;
+    const nb = fingerSeq[b].note;
+
+    if (fa === fb) {
+      if (na.midiNumber !== nb.midiNumber) cost += SAME_FINGER_UNIT_PENALTY;
+      continue;
+    }
+
+    const span = Math.abs(nb.midiNumber - na.midiNumber);
+    const { comfortable, max } = getSpan(fa, fb, hand, settings);
+    if (span > max) {
+      cost += max - comfortable + (span - max) * INFEASIBLE_SPAN_PENALTY_PER_SEMITONE;
+    } else if (span > comfortable) {
+      cost += span - comfortable;
+    }
+  }
+
+  return cost;
+}
+
+/**
  * ユニット間（時間的に連続する2つのコードユニット）の移動コスト。
  *
  * 既存の `totalTransitionCost`（cost-functions.ts）は「遷移先の指の静的コスト
@@ -278,6 +341,14 @@ function computeChordUnitDP(
     cost: unitInternalCost(seq, hand, settings),
     prevIndex: null,
   }));
+  // 曲頭が「物理的に演奏不可能な和音」（全comboがInfinity）の場合は緩和コストで開始する
+  // （2026-07-05 実機フィードバック: 連鎖断絶によるバックトラック破綻の防止）。
+  if (dp[0].every((c) => c.cost === Infinity)) {
+    dp[0] = fingerSeqCache[0].map((seq) => ({
+      cost: unitInternalCostRelaxed(seq, hand, settings),
+      prevIndex: null,
+    }));
+  }
 
   for (let u = 1; u < unitCount; u++) {
     // Check for timeout (every 100 unit-iterations to avoid excessive Date.now() calls).
@@ -288,12 +359,13 @@ function computeChordUnitDP(
     }
 
     const curCombos = fingerSeqCache[u];
+    const internals = curCombos.map((seq) => unitInternalCost(seq, hand, settings));
     dp[u] = curCombos.map(() => ({ cost: Infinity, prevIndex: null }));
 
     for (let ci = 0; ci < curCombos.length; ci++) {
-      const curSeq = curCombos[ci];
-      const curInternal = unitInternalCost(curSeq, hand, settings);
+      const curInternal = internals[ci];
       if (curInternal === Infinity) continue;
+      const curSeq = curCombos[ci];
 
       for (let pi = 0; pi < dp[u - 1].length; pi++) {
         if (dp[u - 1][pi].cost === Infinity) continue;
@@ -304,6 +376,33 @@ function computeChordUnitDP(
           dp[u][ci] = { cost: total, prevIndex: pi };
         }
       }
+    }
+
+    // 連鎖断絶時のリスタート: このユニットで全comboがInfinityのままの場合
+    // （ユニット自体が演奏不可能、または全遷移が同一指衝突等でInfinity。
+    // 例: 5音和音→別の5音和音は指列が[1..5]固定のため必ず全遷移がInfinityになる）、
+    // 直前ユニットの最良セルからCHAIN_BREAK_PENALTYを課してチェーンを繋ぎ直す。
+    // これによりバックトラックのprevIndex連鎖が途切れず、運指が必ず出力される。
+    if (dp[u].every((c) => c.cost === Infinity)) {
+      let bestPrevIdx = 0;
+      let bestPrevCost = Infinity;
+      for (let pi = 0; pi < dp[u - 1].length; pi++) {
+        if (dp[u - 1][pi].cost < bestPrevCost) {
+          bestPrevCost = dp[u - 1][pi].cost;
+          bestPrevIdx = pi;
+        }
+      }
+      const base = Number.isFinite(bestPrevCost) ? bestPrevCost : 0;
+      const hasPrev = dp[u - 1].length > 0 && Number.isFinite(bestPrevCost);
+      dp[u] = curCombos.map((seq, ci) => ({
+        cost:
+          base +
+          CHAIN_BREAK_PENALTY +
+          (Number.isFinite(internals[ci])
+            ? internals[ci]
+            : unitInternalCostRelaxed(seq, hand, settings)),
+        prevIndex: hasPrev ? bestPrevIdx : null,
+      }));
     }
 
     if (u % 10 === 0) onProgress?.(u / unitCount);
@@ -332,7 +431,11 @@ function backtrackChordUnits(
   const assignmentByNoteId = new Map<string, FingerAssignment>();
   let comboIndex: number | null = bestIndex;
   for (let u = lastUnitIndex; u >= 0; u--) {
-    const cumulativeCost = dp[u][comboIndex!].cost;
+    // 防御ガード: 連鎖断絶リスタート機構により通常ここには到達しないが、
+    // 万一prevIndexの連鎖が切れていた場合はクラッシュせず部分結果を返す。
+    const cell = comboIndex !== null ? dp[u]?.[comboIndex] : undefined;
+    if (!cell) break;
+    const cumulativeCost = cell.cost;
     const seq = fingerSeqCache[u][comboIndex!];
     for (const { finger, note } of seq) {
       assignmentByNoteId.set(note.id, { noteId: note.id, finger, cost: cumulativeCost });
@@ -344,7 +447,7 @@ function backtrackChordUnits(
         cost: cumulativeCost + OVERFLOW_PENALTY,
       });
     }
-    comboIndex = dp[u][comboIndex!].prevIndex;
+    comboIndex = cell.prevIndex;
   }
 
   // 出力順は元のnotes配列の順序を保つ（単旋律の既存実装と同じ並びにする）。

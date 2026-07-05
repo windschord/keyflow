@@ -81,6 +81,18 @@ app.whenReady().then(() => {
     return content;
   });
 
+  // アノテーションのサイドカーファイル（*.annotation.json）のように「存在しないのが
+  // 正常」なファイル用。ENOENTはエラーではなくnullを返す（file:readをそのまま使うと
+  // 初回オープンのたびにメインプロセスへ未処理エラーがログされるため。2026-07-05）。
+  ipcMain.handle('file:read-if-exists', async (_, path: string) => {
+    try {
+      return await fs.promises.readFile(path, 'utf-8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw err;
+    }
+  });
+
   ipcMain.handle('file:read-binary', async (_, path: string) => {
     const content = await fs.promises.readFile(path);
     // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換

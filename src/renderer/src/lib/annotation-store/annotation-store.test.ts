@@ -11,6 +11,8 @@ describe('AnnotationStoreService', () => {
       electronAPI: {
         file: {
           read: vi.fn(),
+          // ファイル未存在（初回オープン）が既定。各テストで必要に応じて上書きする
+          readIfExists: vi.fn().mockResolvedValue(null),
           write: vi.fn(),
         },
       },
@@ -92,12 +94,12 @@ describe('AnnotationStoreService', () => {
     };
 
     // @ts-expect-error test mock
-    vi.mocked(window.electronAPI.file.read).mockResolvedValue(JSON.stringify(mockData));
+    vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
 
     await store.load('/test.xml');
 
     // @ts-expect-error test mock
-    expect(window.electronAPI.file.read).toHaveBeenCalledWith('/test.xml.annotation.json');
+    expect(window.electronAPI.file.readIfExists).toHaveBeenCalledWith('/test.xml.annotation.json');
     expect(store.getAnnotation('N1')?.fingerNumber).toBe(1);
     expect(store.isDirty()).toBe(false);
 
@@ -122,7 +124,7 @@ describe('AnnotationStoreService', () => {
       annotations: [{ noteId: 'P2-M1-N5', fingerNumber: 1, isAISuggested: false, isApproved: true }],
     };
     // @ts-expect-error test mock
-    vi.mocked(window.electronAPI.file.read).mockResolvedValue(JSON.stringify(mockData));
+    vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
 
     const skipped = await store.load('/test.xml');
 
@@ -139,7 +141,7 @@ describe('AnnotationStoreService', () => {
       ],
     };
     // @ts-expect-error test mock
-    vi.mocked(window.electronAPI.file.read).mockResolvedValue(JSON.stringify(mockData));
+    vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const skipped = await store.load('/test.xml', new Set(['P1-M1-N0']));
@@ -158,7 +160,7 @@ describe('AnnotationStoreService', () => {
       annotations: [{ noteId: 'P2-M1-N5', fingerNumber: 2, isAISuggested: false, isApproved: true }],
     };
     // @ts-expect-error test mock
-    vi.mocked(window.electronAPI.file.read).mockResolvedValue(JSON.stringify(mockData));
+    vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
     vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await store.load('/test.xml', new Set(['P1-M1-N0']));

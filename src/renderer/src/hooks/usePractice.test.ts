@@ -1,5 +1,6 @@
-import { renderHook, act } from '@testing-library/react';
+import { act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { renderHookWithStrictMode as renderHook } from '../tests/test-utils';
 import { usePractice } from './usePractice';
 import { usePracticeStore } from '../store';
 

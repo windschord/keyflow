@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
+import { renderWithStrictMode as render } from '../../tests/test-utils';
 import { Toolbar } from './index';
 import { usePracticeStore } from '../../store';
 
@@ -28,24 +29,25 @@ describe('Toolbar UI', () => {
     expect(usePracticeStore.getState().practiceMode).toBe('right');
   });
 
-  it('updates BPM input with validation', () => {
+  it('updates BPM input with validation, clamped to originalBpm 20%-200% (REQ-006-003)', () => {
+    // originalBpm=120（beforeEachで設定）のため、範囲は24（20%）〜240（200%）。
     render(<Toolbar />);
     const input = screen.getByTestId('tempo-input') as HTMLInputElement;
 
-    // Valid input
+    // Valid input（範囲内）
     fireEvent.change(input, { target: { value: '150' } });
     fireEvent.blur(input);
     expect(usePracticeStore.getState().bpm).toBe(150);
 
-    // Below min limit
+    // Below min limit（originalBpm=120の20%=24未満）
     fireEvent.change(input, { target: { value: '10' } });
     fireEvent.blur(input);
-    expect(usePracticeStore.getState().bpm).toBe(20);
+    expect(usePracticeStore.getState().bpm).toBe(24);
 
-    // Above max limit
+    // Above max limit（originalBpm=120の200%=240超）
     fireEvent.change(input, { target: { value: '500' } });
     fireEvent.blur(input);
-    expect(usePracticeStore.getState().bpm).toBe(400);
+    expect(usePracticeStore.getState().bpm).toBe(240);
   });
 
   it('resets BPM to the score-derived originalBpm when the Reset button is clicked', () => {

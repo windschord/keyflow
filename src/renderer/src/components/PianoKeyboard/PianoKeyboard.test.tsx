@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import React from 'react';
+import { renderWithStrictMode as render } from '../../tests/test-utils';
 import { PianoKeyboard } from './index';
 import { getNotePosition, KEY_COLORS } from './key-layout';
 import { renderKeyboard } from './keyboard-renderer';

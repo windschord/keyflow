@@ -196,10 +196,14 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
   // （tests/e2e/fixtures/sample-two-hands.musicxml参照）。
   await expect.poll(() => window.evaluate(() => typeof window.__e2eMidiHooks__)).toBe('object');
 
+  // カーソル要素（#cursorImg-0）が実在することを先にassertする
+  // （2026-07-05トラブルシューティング再発防止策1: 前提要素が取得できない場合に
+  // アサーションを実行せず暗黙に合格する「空虚合格」パターンを禁止する）。
+  await expect(window.locator('[data-testid="osmd-container"] #cursorImg-0')).toHaveCount(1);
+
   const cursorBoundsBefore = await window.evaluate(() => {
     const cursor = document.querySelector('[data-testid="osmd-container"] #cursorImg-0');
-    if (!cursor) return null;
-    const rect = cursor.getBoundingClientRect();
+    const rect = cursor!.getBoundingClientRect();
     return { x: rect.x, y: rect.y };
   });
 
@@ -239,15 +243,16 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
   await expect(window.getByTestId('stats-accuracy')).toContainText('100%');
 
   // OSMDのカーソル描画位置が実際に移動したことを確認する（視覚的なカーソル進行）。
+  // カーソル要素が引き続き存在することを先にassertしてから座標変化を検証する
+  // （再発防止策1: ifガードによる無言スキップの禁止）。
+  await expect(window.locator('[data-testid="osmd-container"] #cursorImg-0')).toHaveCount(1);
+
   const cursorBoundsAfter = await window.evaluate(() => {
     const cursor = document.querySelector('[data-testid="osmd-container"] #cursorImg-0');
-    if (!cursor) return null;
-    const rect = cursor.getBoundingClientRect();
+    const rect = cursor!.getBoundingClientRect();
     return { x: rect.x, y: rect.y };
   });
-  if (cursorBoundsBefore && cursorBoundsAfter) {
-    expect(
-      cursorBoundsAfter.x !== cursorBoundsBefore.x || cursorBoundsAfter.y !== cursorBoundsBefore.y
-    ).toBe(true);
-  }
+  expect(
+    cursorBoundsAfter.x !== cursorBoundsBefore.x || cursorBoundsAfter.y !== cursorBoundsBefore.y
+  ).toBe(true);
 });

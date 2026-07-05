@@ -30,7 +30,7 @@ export interface UiSlice {
   setOriginalBpm: (bpm: number) => void;
 }
 
-export const createUiSlice: StateCreator<UiSlice> = (set) => ({
+export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   bpm: 120,
   originalBpm: 120,
   metronomeEnabled: false,
@@ -41,7 +41,16 @@ export const createUiSlice: StateCreator<UiSlice> = (set) => ({
   // 「設定未ロード時の初期表示」と「起動時ロード後の値」の間でフラッシュが発生しない。
   pianoHeight: 120,
   midiDeviceId: null,
-  setBpm: (bpm) => set({ bpm: Math.max(20, Math.min(400, bpm)) }),
+  // REQ-006-003: 元のテンポ（originalBpm）の20%〜200%の範囲でクランプする。
+  // originalBpmが未設定（0以下）の場合は初期値120を基準にする。
+  // originalBpm自体のクランプ（絶対値20〜400）はsetOriginalBpm側の責務であり、
+  // ここでは比率クランプの対象をbpmのみに限定する。
+  setBpm: (bpm) => {
+    const base = get().originalBpm > 0 ? get().originalBpm : 120;
+    const min = base * 0.2;
+    const max = base * 2.0;
+    set({ bpm: Math.max(min, Math.min(max, bpm)) });
+  },
   setMetronomeEnabled: (enabled) => set({ metronomeEnabled: enabled }),
   setZoom: (zoom) => set({ zoom }),
   setPianoHeight: (height) => set({ pianoHeight: Math.max(80, Math.min(300, height)) }),

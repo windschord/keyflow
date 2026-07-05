@@ -18,10 +18,13 @@ export const TempoControl: React.FC = () => {
     setInputValue(bpm.toString());
   }, [bpm]);
 
+  // REQ-006-003: テンポは元のテンポ（originalBpm）の20%〜200%の範囲でのみ変更できる。
+  // 絶対値でのクランプ（従来の20〜400固定）は行わず、setBpm側（ui-slice.ts）の
+  // originalBpm比クランプに委ねる。
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const ratio = parseInt(e.target.value, 10) / 100;
     const newBpm = originalBpm > 0 ? Math.round(originalBpm * ratio) : 120;
-    setBpm(Math.max(20, Math.min(400, newBpm)));
+    setBpm(newBpm);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,17 +32,15 @@ export const TempoControl: React.FC = () => {
   };
 
   const handleInputBlur = () => {
-    let newBpm = parseInt(inputValue, 10);
-    if (isNaN(newBpm)) {
-      newBpm = bpm;
-    } else {
-      newBpm = Math.max(20, Math.min(400, newBpm));
-    }
-    setBpm(newBpm);
-    setInputValue(newBpm.toString());
+    const newBpm = parseInt(inputValue, 10);
+    setBpm(isNaN(newBpm) ? bpm : newBpm);
+    // setBpmが実際にクランプ・適用した値を表示に反映する（自己矛盾のあるUI表示を防ぐ）。
+    setInputValue(usePracticeStore.getState().bpm.toString());
   };
 
   const currentRatio = originalBpm > 0 ? Math.round((bpm / originalBpm) * 100) : 100;
+  const bpmMin = originalBpm > 0 ? Math.round(originalBpm * 0.2) : 24;
+  const bpmMax = originalBpm > 0 ? Math.round(originalBpm * 2.0) : 240;
 
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -63,8 +64,8 @@ export const TempoControl: React.FC = () => {
       <input
         id="tempo-input"
         type="number"
-        min="20"
-        max="400"
+        min={bpmMin}
+        max={bpmMax}
         value={inputValue}
         onChange={handleInputChange}
         onBlur={handleInputBlur}

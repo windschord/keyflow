@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import React from 'react';
+import { renderWithStrictMode as render } from '../../tests/test-utils';
 import { ScoreRenderer } from './index';
 
 // Mock OSMDController
@@ -304,6 +305,70 @@ describe('ScoreRenderer', () => {
         { noteId: 'P1-M2-N0', finger: 2, isApproved: false },
       ])
     );
+  });
+
+  it('sets non-practicing part opacity to 0.5 and practicing/other parts to 1.0 for each practiceMode (REQ-002-007)', async () => {
+    const scoreWithParts = {
+      title: 'Test Score',
+      parts: [
+        { id: 'P1', hand: 'right' },
+        { id: 'P2', hand: 'left' },
+      ],
+      measures: [],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    // practiceMode="right": 左手パート(P2)のみグレーアウト(0.5)、右手パート(P1)は1.0。
+    const { rerender } = render(
+      <ScoreRenderer
+        score={scoreWithParts}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="right"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    await waitFor(() => expect(mockSetPartOpacity).toHaveBeenCalledWith('P1', 1.0));
+    expect(mockSetPartOpacity).toHaveBeenCalledWith('P2', 0.5);
+
+    mockSetPartOpacity.mockClear();
+
+    // practiceMode="left": 右手パート(P1)のみグレーアウト(0.5)、左手パート(P2)は1.0。
+    rerender(
+      <ScoreRenderer
+        score={scoreWithParts}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="left"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    await waitFor(() => expect(mockSetPartOpacity).toHaveBeenCalledWith('P1', 0.5));
+    expect(mockSetPartOpacity).toHaveBeenCalledWith('P2', 1.0);
+
+    mockSetPartOpacity.mockClear();
+
+    // practiceMode="both": どちらのパートもグレーアウトなし(1.0)。
+    rerender(
+      <ScoreRenderer
+        score={scoreWithParts}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    await waitFor(() => expect(mockSetPartOpacity).toHaveBeenCalledWith('P1', 1.0));
+    expect(mockSetPartOpacity).toHaveBeenCalledWith('P2', 1.0);
   });
 
   it('clears fingerings when no annotation has a fingerNumber', async () => {

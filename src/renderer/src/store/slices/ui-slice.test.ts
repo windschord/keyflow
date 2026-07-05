@@ -73,6 +73,74 @@ describe('createUiSlice setPianoHeight', () => {
   });
 });
 
+// REQ-006-003: システムは元のテンポの20%〜200%の範囲でテンポ変更をサポートしなければ
+// ならない。setBpmは絶対値ではなく originalBpm（元テンポ）に対する比率でクランプする。
+describe('createUiSlice setBpm (REQ-006-003)', () => {
+  const makeSlice = (initial: { bpm: number; originalBpm: number }) => {
+    let state = initial;
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+    return { slice, getState: () => state };
+  };
+
+  it('originalBpm=100のとき、範囲内の値(150)はそのまま設定される', () => {
+    const { slice, getState } = makeSlice({ bpm: 100, originalBpm: 100 });
+    slice.setBpm(150);
+    expect(getState().bpm).toBe(150);
+  });
+
+  it('originalBpm=100のとき、200%超（201）は200（=originalBpm*2.0）にクランプされる', () => {
+    const { slice, getState } = makeSlice({ bpm: 100, originalBpm: 100 });
+    slice.setBpm(500);
+    expect(getState().bpm).toBe(200);
+  });
+
+  it('originalBpm=100のとき、20%未満（19）は20（=originalBpm*0.2）にクランプされる', () => {
+    const { slice, getState } = makeSlice({ bpm: 100, originalBpm: 100 });
+    slice.setBpm(1);
+    expect(getState().bpm).toBe(20);
+  });
+
+  it('originalBpm=60のとき、範囲は12〜120にクランプされる（境界値含む）', () => {
+    const { slice, getState } = makeSlice({ bpm: 60, originalBpm: 60 });
+
+    slice.setBpm(200);
+    expect(getState().bpm).toBe(120);
+
+    slice.setBpm(1);
+    expect(getState().bpm).toBe(12);
+
+    slice.setBpm(12);
+    expect(getState().bpm).toBe(12);
+
+    slice.setBpm(120);
+    expect(getState().bpm).toBe(120);
+  });
+
+  it('originalBpm未設定（初期値120）のとき、範囲は24〜240にクランプされる', () => {
+    const { slice, getState } = makeSlice({ bpm: 120, originalBpm: 120 });
+
+    slice.setBpm(500);
+    expect(getState().bpm).toBe(240);
+
+    slice.setBpm(1);
+    expect(getState().bpm).toBe(24);
+  });
+
+  it('originalBpmが0以下（未初期化）の場合は120を基準にクランプする', () => {
+    const { slice, getState } = makeSlice({ bpm: 120, originalBpm: 0 });
+
+    slice.setBpm(500);
+    expect(getState().bpm).toBe(240);
+  });
+});
+
 describe('createUiSlice setMidiDeviceId', () => {
   it('updates midiDeviceId when called with a device id', () => {
     let state: { midiDeviceId: string | null } = { midiDeviceId: null };

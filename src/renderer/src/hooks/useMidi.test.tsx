@@ -1,4 +1,5 @@
-import { renderHook, act } from '@testing-library/react';
+import { act } from '@testing-library/react';
+import { renderHookWithStrictMode as renderHook } from '../tests/test-utils';
 import { useMidi } from './useMidi';
 import { WebMidiService } from '../lib/midi/web-midi';
 import { usePracticeStore } from '../store';
@@ -25,7 +26,11 @@ describe('useMidi', () => {
 
     renderHook(() => useMidi(webMidiServiceMock, onNoteOn, onNoteOff));
 
-    expect(webMidiServiceMock.initialize).toHaveBeenCalledTimes(1);
+    // StrictModeでは開発時にマウント→クリーンアップ→再マウントが発生するため、
+    // 呼び出し回数そのものではなく「マウント時に初期化されること」を検証する
+    // （WebMidiService.initializeは複数回呼ばれても安全な冪等操作であり、本番の
+    // 単一マウントでは1回のみ呼ばれる）。
+    expect(webMidiServiceMock.initialize).toHaveBeenCalled();
 
     // Instead of checking exact equality, we check if a function was passed
     expect(webMidiServiceMock.onNoteOn).toHaveBeenCalledWith(expect.any(Function));

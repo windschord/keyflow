@@ -1,4 +1,5 @@
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { renderWithStrictMode as render } from './tests/test-utils';
 import App from './App';
 import { vi } from 'vitest';
 import { AudioEngineService } from './lib/audio-engine';

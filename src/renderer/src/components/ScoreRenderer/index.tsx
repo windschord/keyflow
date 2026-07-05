@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Score, PracticeMode, Note, Annotation } from '../../types';
+import { Score, PracticeMode, Note, Annotation, Hand } from '../../types';
 import { OSMDController } from './osmd-controller';
 
 export interface ScoreRendererProps {
@@ -127,16 +127,22 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
     // isLoaded を依存に含めることで、新しい楽譜のロード直後（noteIdToSvgCoord構築完了後）に
     // もグレーアウトが再適用される（REQ-002-007: buildNoteIdMap完了前は座標が
     // 空のためオーバーレイが描画されないことがあるための再適用）。
+    // TASK-048: パート単位（Part.hand）ではなくnote単位（Note.hand）でグレーアウト対象を
+    // 収集する。1パート2段譜ではパートと手（段）が一致しないため、この方式が必要。
     if (osmdControllerRef.current && score) {
-      score.parts.forEach((part) => {
-        if (practiceMode === 'right' && part.hand === 'left') {
-          osmdControllerRef.current!.setPartOpacity(part.id, 0.5);
-        } else if (practiceMode === 'left' && part.hand === 'right') {
-          osmdControllerRef.current!.setPartOpacity(part.id, 0.5);
-        } else {
-          osmdControllerRef.current!.setPartOpacity(part.id, 1.0);
-        }
-      });
+      const grayedOutHand: Hand | null =
+        practiceMode === 'right' ? 'left' : practiceMode === 'left' ? 'right' : null;
+
+      const grayedOutNoteIds = grayedOutHand
+        ? new Set(
+            score.measures
+              .flatMap((m) => m.notes)
+              .filter((n) => n.hand === grayedOutHand)
+              .map((n) => n.id)
+          )
+        : new Set<string>();
+
+      osmdControllerRef.current.setGrayedOutNotes(grayedOutNoteIds);
     }
   }, [practiceMode, score, isLoaded]);
 

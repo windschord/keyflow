@@ -425,6 +425,105 @@ describe('MusicXML Parser - v2 tick/time model (TASK-031)', () => {
   });
 });
 
+describe('MusicXML Parser - 2段譜のNote.staff/hand（TASK-048）', () => {
+  it('1パート2段譜（staves=2）で、staff1の音はhand=right、staff2の音はhand=leftになる（和音・backup含む）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <staves>2</staves>
+        <clef number="1"><sign>G</sign><line>2</line></clef>
+        <clef number="2"><sign>F</sign><line>4</line></clef>
+      </attributes>
+      <note>
+        <pitch><step>C</step><octave>4</octave></pitch>
+        <duration>1</duration><voice>1</voice><staff>1</staff>
+      </note>
+      <note>
+        <chord/><pitch><step>E</step><octave>4</octave></pitch>
+        <duration>1</duration><voice>1</voice><staff>1</staff>
+      </note>
+      <backup><duration>1</duration></backup>
+      <note>
+        <pitch><step>C</step><octave>2</octave></pitch>
+        <duration>1</duration><voice>2</voice><staff>2</staff>
+      </note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+
+    const c4 = notes.find((n) => n.pitch.step === 'C' && n.pitch.octave === 4)!;
+    const e4 = notes.find((n) => n.pitch.step === 'E')!;
+    const c2 = notes.find((n) => n.pitch.octave === 2)!;
+
+    expect(c4.staff).toBe(1);
+    expect(c4.hand).toBe('right');
+    expect(e4.staff).toBe(1);
+    expect(e4.hand).toBe('right');
+    expect(c2.staff).toBe(2);
+    expect(c2.hand).toBe('left');
+
+    // 単一パート内でも両手同時（同一startTick）としてグループ化されること（tick計算は不変）
+    expect(c4.startTick).toBe(0);
+    expect(c2.startTick).toBe(0);
+  });
+
+  it('<staff>未指定または単一staffのパートでは、従来通りPart.handがNoteに継承される（既存2パート譜の回帰確認）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list>
+    <score-part id="P1"><part-name>Piano Right</part-name></score-part>
+    <score-part id="P2"><part-name>Piano Left</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+  <part id="P2">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>2</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+    const p1Note = notes.find((n) => n.partId === 'P1')!;
+    const p2Note = notes.find((n) => n.partId === 'P2')!;
+
+    expect(score.parts.find((p) => p.id === 'P1')!.hand).toBe('right');
+    expect(score.parts.find((p) => p.id === 'P2')!.hand).toBe('left');
+    expect(p1Note.staff).toBe(1);
+    expect(p1Note.hand).toBe('right'); // Part.hand継承
+    expect(p2Note.staff).toBe(1);
+    expect(p2Note.hand).toBe('left'); // Part.hand継承
+  });
+
+  it('単一staffのパートで<staff>1が明示されていてもPart.handを継承する（staves未指定=1扱い）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><clef><sign>F</sign></clef></attributes>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const note = score.measures[0].notes[0];
+    expect(score.parts[0].hand).toBe('left');
+    expect(note.hand).toBe('left');
+  });
+});
+
 describe('hand-detector', () => {
   it('detects right by name keywords', () => {
     expect(detectHand('Piano Right', undefined, 0)).toBe('right');

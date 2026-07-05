@@ -61,4 +61,22 @@ export interface Note {
   voice: number;
   isChord: boolean;
   isRest: boolean;
+  /**
+   * MusicXML `<staff>`（1始まり）。未指定は1（TASK-048）。
+   * 1パート2段譜（`<attributes><staves>2</staves>`）の判定に使用する。
+   * オプショナルなのは、本フィールド導入前に構築された既存のテスト用Noteリテラル
+   * との後方互換性を保つため（実運用のパーサー出力では常に設定される）。
+   */
+  staff?: number;
+  /**
+   * 音符単位の手（右手/左手）。TASK-048で導入。
+   * - 1パート2段譜（`staves>=2`）: staff 1 = 'right'、staff 2以降 = 'left'
+   * - それ以外（`<staff>`未指定/単一staffのパート）: 所属する `Part.hand` を継承
+   * 消費側（practice-engine/keyboard-renderer/FingeringPanel/osmd-controller）は
+   * 本フィールドで判定し、`Part.hand`によるパート単位判定は行わない。
+   * オプショナルなのは、本フィールド導入前に構築された既存のテスト用Noteリテラル
+   * との後方互換性を保つため（実運用のパーサー出力では常に設定される。未設定時は
+   * 消費側で左手色/対象外にフォールバックする）。
+   */
+  hand?: Hand;
 }

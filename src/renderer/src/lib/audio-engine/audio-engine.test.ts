@@ -22,9 +22,15 @@ vi.mock('tone', () => {
     schedule: vi.fn((callback: () => void) => callback()),
   };
 
+  const mockDestination = {
+    volume: { value: 0 },
+    mute: false,
+  };
+
   return {
     getTransport: vi.fn(() => mockTransport),
     getDraw: vi.fn(() => mockDraw),
+    getDestination: vi.fn(() => mockDestination),
     Synth: vi.fn().mockImplementation(() => ({
       toDestination: vi.fn().mockReturnThis(),
       triggerAttackRelease: vi.fn(),
@@ -319,6 +325,52 @@ describe('AudioEngineService', () => {
 
       expect(Tone.getTransport().stop).toHaveBeenCalled();
       expect(onStop).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('setMasterVolume (TASK-052)', () => {
+    it('sets Destination.volume.value to 0dB (unity gain) at the maximum UI value (100) and unmutes', () => {
+      service.setMasterVolume(100);
+
+      expect(Tone.getDestination().volume.value).toBeCloseTo(0, 5);
+      expect(Tone.getDestination().mute).toBe(false);
+    });
+
+    it('mutes Destination when the UI value is 0 (avoids log10(0) = NaN)', () => {
+      service.setMasterVolume(0);
+
+      expect(Tone.getDestination().mute).toBe(true);
+    });
+
+    it('unmutes Destination when a non-zero value is set after a previous mute', () => {
+      service.setMasterVolume(0);
+      service.setMasterVolume(50);
+
+      expect(Tone.getDestination().mute).toBe(false);
+    });
+
+    it('converts UI values to a monotonically increasing dB scale (quieter UI value -> lower dB)', () => {
+      service.setMasterVolume(50);
+      const dbAt50 = Tone.getDestination().volume.value;
+
+      service.setMasterVolume(80);
+      const dbAt80 = Tone.getDestination().volume.value;
+
+      expect(dbAt50).toBeLessThan(dbAt80);
+      expect(dbAt80).toBeLessThanOrEqual(0);
+    });
+
+    it('clamps UI values above 100 to the maximum (0dB)', () => {
+      service.setMasterVolume(150);
+
+      expect(Tone.getDestination().volume.value).toBeCloseTo(0, 5);
+      expect(Tone.getDestination().mute).toBe(false);
+    });
+
+    it('does not throw when called after dispose() (re-synced from store on next mount)', () => {
+      service.dispose();
+
+      expect(() => service.setMasterVolume(70)).not.toThrow();
     });
   });
 

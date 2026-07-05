@@ -85,7 +85,7 @@ export function usePractice() {
   // （CodeRabbit PR#25指摘#2）。
   //
   // 従来は「判定グループが進んだら直前のハイライトを一括クリアする」
-  // useEffect（currentMeasure/currentNoteIndex依存）を使っていたが、
+  // useEffect（currentMeasure/currentNoteIndex依存）を使っていた。しかし
   // practiceEngine.handleNoteOn は正解完了時に位置を進めてから判定結果を
   // 返すため、この useEffect が判定直後に走ってしまい、正解の緑ハイライトが
   // 表示された瞬間に消える不具合があった。位置変化ではなく、判定ごとに

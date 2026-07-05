@@ -227,7 +227,7 @@ describe('usePractice', () => {
   });
 
   // CodeRabbit PR#25指摘#2: practiceEngine.handleNoteOn は正解完了時に
-  // currentMeasure/currentNoteIndex を進めてから判定結果を返すため、位置変化を
+  // currentMeasure/currentNoteIndex を進めてから判定結果を返す。そのため位置変化を
   // 契機にハイライトを一括クリアする実装では、正解の緑ハイライトが表示された
   // 直後に消えてしまっていた。位置変化ではなく、判定ごとの固定時間
   // （HIGHLIGHT_CLEAR_DELAY_MS = 800ms）で該当noteIdのみを自動クリアする

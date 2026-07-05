@@ -88,11 +88,11 @@ describe('VolumeControl labels and behavior', () => {
     expect(usePracticeStore.getState().volume).toBe(10);
   });
 
-  // CodeRabbit PR#25指摘#1: get('ui')→set('ui')の非同期read-modify-writeが
-  // rangeのonChange高頻度発火で並行実行されると、後から開始した書き込みが先に
-  // 完了し、その後に古い値の書き込みが完了して上書きする（lost update）おそれが
-  // あった。書き込みをPromiseチェーンで直列化し、常に最新値のみが最後に保存される
-  // ことを検証する。
+  // CodeRabbit PR#25指摘#1: get('ui')→set('ui')の非同期read-modify-writeは、
+  // rangeのonChange高頻度発火で並行実行されると解決順序が入れ替わりうる。
+  // 後から開始した書き込みが先に完了し、その後に古い値の書き込みも完了して
+  // 上書きする（lost update）おそれあり。書き込みをPromiseチェーンで
+  // 直列化し、常に最新値のみが最後に保存されることを検証する。
   it('persists only the latest value when the slider changes rapidly in succession', async () => {
     let resolveFirstGet: (value: { volume: number }) => void = () => {};
     const firstGetPromise = new Promise<{ volume: number }>((resolve) => {

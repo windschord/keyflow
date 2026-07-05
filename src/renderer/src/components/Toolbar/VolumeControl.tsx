@@ -22,9 +22,9 @@ interface VolumeWriteState {
  * 何もしない。
  *
  * range の onChange は高頻度で発火するため、get('ui')→set('ui') という
- * 非同期read-modify-writeを並行実行すると、後から開始した書き込みのgetが先に
- * 完了して先に書き込みが終わり、その後に古い値のsetが完了して上書きする
- * （lost update）おそれがある。`writeState` に保持したPromiseチェーンで
+ * 非同期read-modify-writeを並行実行すると解決順序が入れ替わりうる。
+ * 後から開始した書き込みが先に完了し、その後に古い値のsetも完了して
+ * 上書きする（lost update）おそれあり。`writeState` に保持したPromiseチェーンで
  * 書き込みを直列化し、各書き込みの実行時点で最新の値のみを反映することで防ぐ。
  */
 function persistVolume(writeState: VolumeWriteState, value: number): void {

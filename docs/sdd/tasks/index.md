@@ -39,8 +39,9 @@
 | Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 7 | 0 | 0 | 0 | [詳細](phase-9/) @phase-9/ |
 | Phase 10: QA・プロセス改善（フェーズC） | 3 | 0 | 0 | 0 | [詳細](phase-10/) @phase-10/ |
 | Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 9 | 0 | 0 | 0 | [詳細](phase-11/) @phase-11/ |
+| Phase 12: 実機フィードバック対応（2026-07-05） | 0 | 0 | 7 | 0 | [詳細](phase-12/) @phase-12/ |
 
-**合計**: 47タスク / 推定合計: 約1940分（AIエージェント作業時間）
+**合計**: 54タスク / 推定合計: 約2450分（AIエージェント作業時間）
 
 > Phase 8〜10 は 2026-07-04 のトラブルシューティング分析
 > （[docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md](../troubleshooting/2026-07-04-app-unusable/analysis.md)）
@@ -49,6 +50,10 @@
 > Phase 11 は 2026-07-05 のテストすり抜け分析
 > （[docs/sdd/troubleshooting/2026-07-05-test-escape/analysis.md](../troubleshooting/2026-07-05-test-escape/analysis.md)）
 > の横断チェックで検出された事象（H1〜H5、M1〜M8、Low）の是正フェーズ。
+>
+> Phase 12 は 2026-07-05 の実機動作確認フィードバック9件の分析
+> （[docs/sdd/troubleshooting/2026-07-05-user-feedback/analysis.md](../troubleshooting/2026-07-05-user-feedback/analysis.md)）
+> に基づく修正・機能追加フェーズ（原因群A〜D）。
 
 ---
 
@@ -106,6 +111,16 @@
 
 > TASK-040/041 も依存なしだが、TASK-040 は SettingsModal を TASK-039 と、
 > TASK-041 は App.tsx を他タスクと共有するため、衝突回避のうえ順次着手を推奨。
+
+### グループH: Phase 12（TASK-048/052/053/054は並列可）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-048 | musicxml-parser/**, practice-engine/note-grouping.ts, PianoKeyboard/**, FingeringPanel/**, ScoreRenderer/** | - |
+| TASK-052 | src/renderer/src/lib/audio-engine/**, Toolbar/**, store/**, src/main/settings.ts | - |
+| TASK-053 | src/renderer/src/App.tsx, src/preload/**, src/main/** | - |
+| TASK-054 | Toolbar/TempoControl.tsx, Toolbar/LoopControl.tsx, assets/base.css | - |
+
+> TASK-049/050/051 は TASK-048 完了後に着手する（049→050 は順次）。
 
 ---
 
@@ -224,6 +239,23 @@
 | TASK-046 | テストスイート是正（再発防止策の適用） | DONE | TASK-043 | 60min | [詳細](phase-11/TASK-046.md) @phase-11/TASK-046.md |
 | TASK-047 | 残課題の要件整理と死にコード掃除 | DONE | TASK-044 | 50min | [詳細](phase-11/TASK-047.md) @phase-11/TASK-047.md |
 
+### Phase 12: 実機フィードバック対応（2026-07-05）
+*推定期間: 510min（048/052/053/054は並列可。049はTASK-048後、050はTASK-048・049後、051はTASK-048後）*
+
+> 2026-07-05 の実機動作確認フィードバック9件の分析レポート
+> （[docs/sdd/troubleshooting/2026-07-05-user-feedback/analysis.md](../troubleshooting/2026-07-05-user-feedback/analysis.md)）
+> の承認済み修正方針（原因群A〜D）に基づくタスク群。
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-048 | [BugFix] 2段譜対応: Note.staff/hand導入と手判定のNote単位化 | TODO | - | 90min | [詳細](phase-12/TASK-048.md) @phase-12/TASK-048.md |
+| TASK-049 | [BugFix] noteIdマッピングの照合ベース化とリサイズ/ズーム座標ずれ修正 | TODO | TASK-048 | 90min | [詳細](phase-12/TASK-049.md) @phase-12/TASK-049.md |
+| TASK-050 | [BugFix] 運指提案の和音対応（コードユニットDP＋符頭単位描画） | TODO | TASK-048, TASK-049 | 120min | [詳細](phase-12/TASK-050.md) @phase-12/TASK-050.md |
+| TASK-051 | 再生の練習対象フィルタ・カーソル位置からの再生・音単位カーソル移動 | TODO | TASK-048 | 90min | [詳細](phase-12/TASK-051.md) @phase-12/TASK-051.md |
+| TASK-052 | 音量調整（マスターボリューム） | TODO | - | 40min | [詳細](phase-12/TASK-052.md) @phase-12/TASK-052.md |
+| TASK-053 | ドラッグ＆ドロップでのファイルオープン | TODO | - | 50min | [詳細](phase-12/TASK-053.md) @phase-12/TASK-053.md |
+| TASK-054 | [BugFix] チェックボックスラベルの視認性修正とテンプレートCSS残骸整理 | TODO | - | 30min | [詳細](phase-12/TASK-054.md) @phase-12/TASK-054.md |
+
 ---
 
 ## リスクと軽減策
@@ -269,5 +301,6 @@ docs/sdd/tasks/
 ├── phase-8/          # TASK-024〜028: 結線修正・UX改善（フェーズA）
 ├── phase-9/          # TASK-029〜033: 仕様再定義・データモデル刷新（フェーズB）
 ├── phase-10/         # TASK-034〜036: QA・プロセス改善（フェーズC）
-└── phase-11/         # TASK-039〜047: 品質是正・機能補完（2026-07-05横断チェック起点）
+├── phase-11/         # TASK-039〜047: 品質是正・機能補完（2026-07-05横断チェック起点）
+└── phase-12/         # TASK-048〜054: 実機フィードバック対応（2026-07-05）
 ```

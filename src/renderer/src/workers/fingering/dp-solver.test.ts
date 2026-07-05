@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Note, Finger } from '../../types';
 import type { HandSettings } from './types';
 import { computeFingering } from './dp-solver';
+import { getSpan } from './span-table';
 
 const makeNote = (id: string, midiNumber: number): Note => ({
   id,
@@ -19,6 +20,24 @@ const makeNote = (id: string, midiNumber: number): Note => ({
   isChord: false,
   isRest: false,
 });
+
+/**
+ * TASK-050: 和音（コードユニット）テスト用のヘルパー。
+ * 先頭の音はisChord:false、2番目以降はisChord:trueにして、dp-solver.tsの
+ * groupIntoChordUnitsが1つのユニットとしてまとめるようにする（本実装は
+ * Note.isChordの連続性を判定基準にしており、実データ上はこれが同一startTickの
+ * 音集合と等価になる。詳細はdp-solver.tsのChordUnitのコメントを参照）。
+ */
+const makeChord = (
+  ids: string[],
+  midiNumbers: number[],
+  startTick = 0
+): Note[] =>
+  ids.map((id, i) => ({
+    ...makeNote(id, midiNumbers[i]),
+    startTick,
+    isChord: i > 0,
+  }));
 
 const DEFAULT_SETTINGS: HandSettings = { maxSpanSemitones: 14, scaleFactorLeft: 1.0 };
 
@@ -106,5 +125,117 @@ describe('dp-solver', () => {
     // Cost should be very high due to span exceeding maxSpan if they use 1->5, or they might not be able to avoid it,
     // but the test just needs to be defined as requested.
     expect(result.totalCost).toBeGreaterThan(0);
+  });
+});
+
+describe('dp-solver: コードユニットDP（和音対応、TASK-050）', () => {
+  it('3和音（C4-E4-G4、右手）で3音全てに指が割り当てられ、音高昇順=指昇順・指の重複なしになる', () => {
+    const chord = makeChord(['c', 'e', 'g'], [60, 64, 67]);
+    const result = computeFingering(chord, 'right', DEFAULT_SETTINGS);
+
+    expect(result.assignments).toHaveLength(3);
+    const byId = new Map(result.assignments.map((a) => [a.noteId, a.finger]));
+
+    // 指の重複がない
+    const fingers = result.assignments.map((a) => a.finger);
+    expect(new Set(fingers).size).toBe(3);
+
+    // 音高昇順(C4<E4<G4)に対して指番号も昇順であること
+    expect(byId.get('c')!).toBeLessThan(byId.get('e')!);
+    expect(byId.get('e')!).toBeLessThan(byId.get('g')!);
+
+    // 全ペアがSPAN_TABLEの実行可能範囲内(max以内)であること
+    const midi: Record<string, number> = { c: 60, e: 64, g: 67 };
+    const pairs: Array<[string, string]> = [
+      ['c', 'e'],
+      ['e', 'g'],
+      ['c', 'g'],
+    ];
+    for (const [a, b] of pairs) {
+      const fa = byId.get(a)! as 1 | 2 | 3 | 4 | 5;
+      const fb = byId.get(b)! as 1 | 2 | 3 | 4 | 5;
+      const span = Math.abs(midi[b] - midi[a]);
+      const { max } = getSpan(fa, fb, 'right', DEFAULT_SETTINGS);
+      expect(span).toBeLessThanOrEqual(max);
+    }
+
+    // 最小コストの割当(1-3-5)であることを確認する(C(5,3)=10通り全探索で唯一の最小値)
+    expect(byId.get('c')).toBe(1);
+    expect(byId.get('e')).toBe(3);
+    expect(byId.get('g')).toBe(5);
+  });
+
+  it('左手の和音（C4-E4-G4）では音高昇順に対して指降順で割り当てられる', () => {
+    const chord = makeChord(['c', 'e', 'g'], [60, 64, 67]);
+    const result = computeFingering(chord, 'left', DEFAULT_SETTINGS);
+
+    expect(result.assignments).toHaveLength(3);
+    const byId = new Map(result.assignments.map((a) => [a.noteId, a.finger]));
+
+    // 指の重複がない
+    const fingers = result.assignments.map((a) => a.finger);
+    expect(new Set(fingers).size).toBe(3);
+
+    // 音高昇順(C4<E4<G4)に対して指番号は降順(親指が高音側)であること
+    expect(byId.get('c')!).toBeGreaterThan(byId.get('e')!);
+    expect(byId.get('e')!).toBeGreaterThan(byId.get('g')!);
+  });
+
+  it('和音内で物理的に不可能な組合せ（スパン超過）は選ばれない', () => {
+    // C3(48), C4(60), D4(62): 隣接ペアC3-C4=12半音、端点C3-D4=14半音という
+    // 広い和音。SPAN_TABLE上、この全ペアを実行可能にする指の組み合わせは
+    // {1,4,5}（C3→1, C4→4, D4→5）しか存在しない（他の9通りは
+    // いずれかのペアでスパン上限(max)を超えるか、より高コストになる）。
+    const chord = makeChord(['c3', 'c4', 'd4'], [48, 60, 62]);
+    const result = computeFingering(chord, 'right', DEFAULT_SETTINGS);
+
+    expect(result.assignments).toHaveLength(3);
+    const byId = new Map(result.assignments.map((a) => [a.noteId, a.finger]));
+
+    expect(byId.get('c3')).toBe(1);
+    expect(byId.get('c4')).toBe(4);
+    expect(byId.get('d4')).toBe(5);
+
+    // 指の重複がないこと(=物理的に不可能な同一指の複数音割当が回避されていること)
+    const fingers = result.assignments.map((a) => a.finger);
+    expect(new Set(fingers).size).toBe(3);
+  });
+
+  it('和音を含む列にスケール定型パターンが適用されず、DPにフォールバックする', () => {
+    // Cメジャースケール8音のうち、先頭2音(C4,D4)を和音(1ユニット)にまとめる。
+    // 全ユニットがサイズ1ではないため、本来なら8音全体に一致するはずの
+    // スケール定型パターン([1,2,3,1,2,3,4,5])は適用されない。
+    const midiNumbers = [60, 62, 64, 65, 67, 69, 71, 72];
+    const notes = midiNumbers.map((m, i) => makeNote(`n${i}`, m));
+    notes[1] = { ...notes[1], isChord: true }; // n0とn1を1ユニット(和音)にまとめる
+
+    const result = computeFingering(notes, 'right', DEFAULT_SETTINGS);
+
+    expect(result.assignments).toHaveLength(8);
+    const fingers = result.assignments.map((a) => a.finger);
+    // スケール定型パターンがそのまま適用されていれば[1,2,3,1,2,3,4,5]になるはずだが、
+    // ガードにより適用されないため一致しないことを確認する。
+    expect(fingers).not.toEqual([1, 2, 3, 1, 2, 3, 4, 5]);
+
+    // 和音にまとめたn0(C4)・n1(D4)は、音高昇順=指昇順かつ重複しない指が割り当てられる
+    const byId = new Map(result.assignments.map((a) => [a.noteId, a.finger]));
+    expect(byId.get('n0')!).toBeLessThan(byId.get('n1')!);
+  });
+
+  it('deadline到達時にユニット境界までの部分結果が返る', () => {
+    // 150ユニット(単音)の旋律。deadline判定はユニット単位(u % 100 === 0)で
+    // 行われるため、100ユニット目で打ち切られ、部分結果(100音分)が返る。
+    const notes: Note[] = [];
+    for (let i = 0; i < 150; i++) {
+      // スケール定型パターンに一致しないよう、単純な半音階の往復にする
+      const midi = 60 + (i % 12 < 6 ? i % 12 : 12 - (i % 12));
+      notes.push(makeNote(`n${i}`, midi));
+    }
+
+    const pastDeadline = Date.now() - 1000;
+    const result = computeFingering(notes, 'right', DEFAULT_SETTINGS, undefined, pastDeadline);
+
+    expect(result.assignments.length).toBeGreaterThan(0);
+    expect(result.assignments.length).toBeLessThan(notes.length);
   });
 });

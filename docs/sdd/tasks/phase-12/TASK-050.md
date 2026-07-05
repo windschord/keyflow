@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-050 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 120分 |
 | 依存タスク | TASK-048, TASK-049 |
@@ -73,25 +73,58 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] 3和音で3音全てに指番号が割り当てられ、音高昇順=指昇順（右手）・スパン制約内・指の重複なしという物理的に妥当な運指になる
-- [ ] 左手の和音では音高昇順に対して指降順で割り当てられる
-- [ ] 単旋律入力の結果・コストが現行実装と一致し、既存の `dp-solver.test.ts` が修正なしで通る
-- [ ] 和音を含む列にスケール定型パターンが適用されない（全ユニットがサイズ1のときのみ適用）
-- [ ] deadline 到達時にユニット境界までの部分結果が返る
-- [ ] 楽譜上で和音の各構成音の指番号が重ならずに表示される（符頭単位座標または音高順の縦オフセット）
-- [ ] worker のメッセージ型・`FingeringEngineService` の公開インターフェースが変更されていない
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] 3和音で3音全てに指番号が割り当てられ、音高昇順=指昇順（右手）・スパン制約内・指の重複なしという物理的に妥当な運指になる
+- [x] 左手の和音では音高昇順に対して指降順で割り当てられる
+- [x] 単旋律入力の結果・コストが現行実装と一致し、既存の `dp-solver.test.ts` が修正なしで通る
+- [x] 和音を含む列にスケール定型パターンが適用されない（全ユニットがサイズ1のときのみ適用）
+- [x] deadline 到達時にユニット境界までの部分結果が返る
+- [x] 楽譜上で和音の各構成音の指番号が重ならずに表示される（符頭単位座標または音高順の縦オフセット）
+- [x] worker のメッセージ型・`FingeringEngineService` の公開インターフェースが変更されていない
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規）3和音の全音割当・音高昇順=指昇順・SPAN_TABLE 実行可能性・指重複なし
-- [ ] （新規）左手和音の指降順割当
-- [ ] （新規）和音内で物理的に不可能な組合せ（スパン超過）が選ばれない（Infinity 排除）
-- [ ] （新規）和音混在列で applyScalePattern が適用されない
-- [ ] （新規）deadline 打ち切りでの部分結果
-- [ ] （新規）和音構成音の指番号描画座標が互いに異なる
-- [ ] （回帰）単旋律の既存 dp-solver テスト・scale-patterns テストが通る。`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規）3和音の全音割当・音高昇順=指昇順・SPAN_TABLE 実行可能性・指重複なし
+- [x] （新規）左手和音の指降順割当
+- [x] （新規）和音内で物理的に不可能な組合せ（スパン超過）が選ばれない（Infinity 排除）
+- [x] （新規）和音混在列で applyScalePattern が適用されない
+- [x] （新規）deadline 打ち切りでの部分結果
+- [x] （新規）和音構成音の指番号描画座標が互いに異なる
+- [x] （回帰）単旋律の既存 dp-solver テスト・scale-patterns テストが通る。`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 完了サマリー
+
+`dp-solver.ts` を、同一 `startTick`（実装上は `Note.isChord` の連続性で判定。実データでは
+同一startTickと等価であり、かつ既存テストフィクスチャの `startTick:0` 固定という前提とも
+後方互換になる）でグルーピングした「コードユニット」列に対するDPへ刷新した。
+
+- ユニット内: ピッチ昇順の構成音に対し、C(5,k) の指の組み合わせ（右手=昇順、左手=降順）を
+  列挙し、隣接ペア・端点ペアを `SPAN_TABLE`（`getSpan`）で実行可能性チェック（超過はInfinity）
+  ＋各構成音の `weakFingerCost`/`thumbOnBlackCost`/`fiveOnBlackCost` を加算（`unitInternalCost`）。
+- ユニット間: `totalTransitionCost` の静的コスト（遷移先の指の静的コスト）二重計上を避けるため、
+  「動き」のみの成分（`spanCost`+`thumbPassingCost`+`largeJumpCost`）に分解した
+  `unitTransitionMotionCost` を採用。単音ユニット同士（k=1）では
+  `unitInternalCost` の静的コスト + `unitTransitionMotionCost` が
+  `totalTransitionCost` と数学的に厳密一致するため、既存 `dp-solver.test.ts`（8件）は無修正で
+  そのまま通過することを確認済み。
+- `applyScalePattern` は全ユニットがサイズ1のときのみ適用するガードを追加。
+- deadline処理・部分結果返却はユニット単位（`u % 100 === 0`）に読み替えて流用。
+- 6音以上の同時発音（片手・稀なケース）は上限5音でDP対象を打ち切り、残りは最も近いピッチの
+  割当済み指を再利用するフォールバック（固定ペナルティ加算、`assignOverflowFingers`）。
+- 表示側は `osmd-controller.ts` の `buildNoteIdMap` を修正。同一カーソル位置（和音）に複数の
+  構成音が解決された場合、音高降順に並べて一定間隔（`CHORD_NOTE_VERTICAL_OFFSET_PX`=10px）の
+  縦オフセットを付与する。符頭単位のSVG座標を `GraphicalNote.PositionAndShape` 等から直接取得する
+  方式は、OSMD内部の単位変換が必要な上、本コントローラのテスト環境（jsdomベースの最小限モック）
+  では実際のグラフィカルレイアウトを検証できないため、タスク指示で明記されたフォールバック
+  （音高順の縦オフセット）を採用した。`renderFingeringLayer` は座標マップをそのまま参照するため
+  変更不要。
+
+worker のメッセージ型（`FingeringRequest`/`FingeringResponse`）・`FingeringEngineService` の
+公開インターフェースは変更していない（分析レポート原因群Cの方針どおり）。
+
+テスト: `dp-solver.test.ts` に5件、`osmd-controller.test.ts` に2件を追加。
+`npm run test`（408件）・`npm run typecheck`・`npm run lint` すべてパス。
 
 ## 情報の明確性
 

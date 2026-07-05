@@ -704,6 +704,205 @@ describe('OSMDController buildNoteIdMap 照合ベース採番 (TASK-049)', () =>
   });
 });
 
+describe('OSMDController buildNoteIdMap 和音の符頭単位座標オフセット (TASK-050)', () => {
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function makeOsmdNote(opts: { halfTone: number; staffId?: number; absTimestamp?: number }): unknown {
+    return {
+      isRest: () => false,
+      halfTone: opts.halfTone,
+      ParentStaffEntry: {
+        ParentStaff: { Id: opts.staffId ?? 1 },
+        AbsoluteTimestamp: { RealValue: opts.absTimestamp ?? 0 },
+      },
+    };
+  }
+
+  function makeRectStub(rect: { left: number; top: number; width: number; height: number }): DOMRect {
+    return {
+      ...rect,
+      right: rect.left + rect.width,
+      bottom: rect.top + rect.height,
+      x: rect.left,
+      y: rect.top,
+      toJSON: () => rect,
+    } as DOMRect;
+  }
+
+  it('和音（同一カーソル位置の複数構成音）の指番号描画座標が音高順に重ならず配置される', () => {
+    const container = document.createElement('div');
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    container.appendChild(svg);
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue(
+      makeRectStub({ left: 0, top: 0, width: 500, height: 500 })
+    );
+
+    const cursorElement = {
+      getBoundingClientRect: () => makeRectStub({ left: 50, top: 60, width: 10, height: 20 }),
+    } as unknown as HTMLImageElement;
+
+    let idx = 0;
+    const mockCursor = {
+      Hidden: true,
+      show: vi.fn(),
+      hide: vi.fn(),
+      cursorElement,
+      reset: vi.fn(() => {
+        idx = 0;
+      }),
+      next: vi.fn(() => {
+        idx++;
+      }),
+      get Iterator() {
+        return {
+          CurrentMeasureIndex: 0,
+          EndReached: idx >= 1,
+          get CurrentVoiceEntries() {
+            return [
+              {
+                // MusicXML順(XML文書順)はC4(和音開始)→E4(chord)→G4(chord)。
+                Notes: [
+                  makeOsmdNote({ halfTone: 48 }), // C4
+                  makeOsmdNote({ halfTone: 55 }), // G4
+                  makeOsmdNote({ halfTone: 52 }), // E4
+                ],
+              },
+            ];
+          },
+        };
+      },
+    };
+
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+    // @ts-expect-error test mock access
+    controller.osmd = { cursor: mockCursor };
+
+    const score: Score = {
+      title: 'Chord',
+      parts: [{ id: 'P1', name: 'Piano', hand: 'right', clef: 'treble' }],
+      tempo: 120,
+      ticksPerQuarter: 480,
+      tempoMap: [{ tick: 0, bpm: 120 }],
+      timeSignature: { beats: 4, beatType: 4 },
+      keySignature: 0,
+      measures: [
+        {
+          number: 1,
+          startTick: 0,
+          notes: [
+            {
+              id: 'P1-M1-N0',
+              partId: 'P1',
+              measureNumber: 1,
+              noteIndex: 0,
+              pitch: { step: 'C', octave: 4 },
+              midiNumber: 60,
+              duration: 1,
+              startTick: 0,
+              durationTicks: 480,
+              startSeconds: 0,
+              durationSeconds: 0.5,
+              voice: 1,
+              isChord: false,
+              isRest: false,
+              staff: 1,
+            },
+            {
+              id: 'P1-M1-N1',
+              partId: 'P1',
+              measureNumber: 1,
+              noteIndex: 1,
+              pitch: { step: 'E', octave: 4 },
+              midiNumber: 64,
+              duration: 1,
+              startTick: 0,
+              durationTicks: 480,
+              startSeconds: 0,
+              durationSeconds: 0.5,
+              voice: 1,
+              isChord: true,
+              isRest: false,
+              staff: 1,
+            },
+            {
+              id: 'P1-M1-N2',
+              partId: 'P1',
+              measureNumber: 1,
+              noteIndex: 2,
+              pitch: { step: 'G', octave: 4 },
+              midiNumber: 67,
+              duration: 1,
+              startTick: 0,
+              durationTicks: 480,
+              startSeconds: 0,
+              durationSeconds: 0.5,
+              voice: 1,
+              isChord: true,
+              isRest: false,
+              staff: 1,
+            },
+          ],
+        },
+      ],
+    };
+
+    controller.buildNoteIdMap(score);
+
+    // @ts-expect-error test access to private coordinate map
+    const coordMap: Map<string, { x: number; y: number }> = controller.noteIdToSvgCoord;
+    const c0 = coordMap.get('P1-M1-N0'); // C4
+    const c1 = coordMap.get('P1-M1-N1'); // E4
+    const c2 = coordMap.get('P1-M1-N2'); // G4
+
+    expect(c0).toBeDefined();
+    expect(c1).toBeDefined();
+    expect(c2).toBeDefined();
+
+    // 同じ拍位置なのでx座標は共通のまま
+    expect(c0!.x).toBe(c1!.x);
+    expect(c1!.x).toBe(c2!.x);
+
+    // y座標は3音とも互いに異なる(重ならない)
+    expect(new Set([c0!.y, c1!.y, c2!.y]).size).toBe(3);
+
+    // 音高が高いほど楽譜上で上(yが小さい)に描画される
+    expect(c2!.y).toBeLessThan(c1!.y); // G4 > E4
+    expect(c1!.y).toBeLessThan(c0!.y); // E4 > C4
+  });
+
+  it('renderFingeringLayerで和音構成音ごとに異なる座標へ指番号が描画される', () => {
+    const container = document.createElement('div');
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    container.appendChild(svg);
+
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access to private note coordinate map
+    controller.noteIdToSvgCoord = new Map([
+      ['P1-M1-N0', { x: 10, y: 30 }],
+      ['P1-M1-N1', { x: 10, y: 20 }],
+      ['P1-M1-N2', { x: 10, y: 10 }],
+    ]);
+
+    controller.showFingerings([
+      { noteId: 'P1-M1-N0', finger: 1, isApproved: true },
+      { noteId: 'P1-M1-N1', finger: 3, isApproved: true },
+      { noteId: 'P1-M1-N2', finger: 5, isApproved: true },
+    ]);
+
+    const texts = Array.from(svg.querySelectorAll('#fingering-layer text'));
+    expect(texts).toHaveLength(3);
+    const positions = texts.map((t) => ({
+      x: t.getAttribute('x'),
+      y: t.getAttribute('y'),
+      finger: t.textContent,
+    }));
+    const ys = new Set(positions.map((p) => p.y));
+    expect(ys.size).toBe(3);
+  });
+});
+
 describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
   function installFakeResizeObserver(): {
     getCallback: () => (() => void) | undefined;

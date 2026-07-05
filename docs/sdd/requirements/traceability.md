@@ -49,20 +49,20 @@
 | REQ-007-005 | ×※ | 自動解除（将来予定と明記済み・意図的） |
 | REQ-007-006 | △ | store toggleLoopのみ |
 | REQ-008-001 | ○ | osmd-controller.test（contextmenu座標→noteId解決）+ NoteContextMenu.test（指番号1-5選択）+ ScoreRenderer.test（結線）+ App.test（右クリック→setFinger→save統合）。TASK-044で対応済み |
-| REQ-008-002 | ○ | ScoreRenderer.test（annotations→showFingerings、isApproved色分け含む）。TASK-044で対応済み。TASK-049でnoteIdの照合ベース化（多声部・2段譜での誤対応解消）とリサイズ/setZoom時の再構築により、運指番号の座標stale化を解消 |
+| REQ-008-002 | ○ | ScoreRenderer.test（annotations→showFingerings、isApproved色分け含む）。TASK-044で対応済み。TASK-049でnoteIdの照合ベース化（多声部・2段譜での誤対応解消）とリサイズ/setZoom時の再構築により、運指番号の座標stale化を解消。TASK-050で和音（同一カーソル位置の複数構成音）を音高順の縦オフセットで重ならず描画することをosmd-controller.testで検証 |
 | REQ-008-003 | ○ | NoteContextMenu.test（コメント編集UI）+ App.test（コメント保存→annotation-store結線）。TASK-044で対応済み |
 | REQ-008-004 | ○ | annotation-store.test + path-allowlist.test + App結線 |
 | REQ-008-005 | △ | load（validNoteIdsフィルタ）は○。App結線未アサート |
 | REQ-008-006 | ○ | NoteContextMenu.test（削除ボタン活性制御）+ App.test（右クリック→removeFinger→save統合）。TASK-044で対応済み |
-| REQ-009-001 | △ | dp-solver + service（モックWorker）。実Worker未検証 |
-| REQ-009-002 | △ | FingeringPanel.test（左手/右手選択でNote.hand基準の対象音符フィルタ・エラー文言を検証、1パート2段譜のstaff2音符を含む。TASK-048）。DP計算結果自体の左手固有ロジック検証は引き続き弱い |
+| REQ-009-001 | △ | dp-solver + service（モックWorker）。実Worker未検証。TASK-050で和音（同一startTick/isChord連続）をコードユニット化するDPへ刷新し、3和音の全音割当・SPAN_TABLE実行可能性・指重複なしをdp-solver.testで検証 |
+| REQ-009-002 | △ | FingeringPanel.test（左手/右手選択でNote.hand基準の対象音符フィルタ・エラー文言を検証、1パート2段譜のstaff2音符を含む。TASK-048）。TASK-050で左手和音（音高昇順に対して指降順）のDP割当をdp-solver.testで追加検証。DP計算結果自体の詳細な左手固有ロジック検証は引き続き弱い |
 | REQ-009-003 | × | プログレスバー表示未検証 |
 | REQ-009-004 | × | showFingerings未検証 |
 | REQ-009-005 | ○ | NoteContextMenu.test（AI提案時のみ承認ボタン表示）+ App.test（承認→approveAnnotation→isApproved:true反映）。TASK-044で対応済み |
 | REQ-009-006 | ○ | annotation-store.test（applyAISuggestionsが承認済みを上書きしない）+ App.test（承認後に新規AI提案を適用しても手動承認値が維持される回帰テスト）。TASK-044で対応済み |
 | REQ-009-007 | △ | モックWorkerのみ |
 | REQ-009-A01 | △ | dp-solver.test（アサーション弱い） |
-| REQ-009-A02 | △ | spanCostユニット○、DP統合は弱い |
+| REQ-009-A02 | △ | spanCostユニット○。TASK-050で和音内のSPAN_TABLE実行可能性チェック（隣接・端点ペア、超過時Infinity）をdp-solver.testで検証。単旋律のDP統合検証は引き続き弱い |
 | REQ-009-A03 | △ | cost-functions.test（thumbPassingCostの親指くぐり/指越え発生・非発生ケース）を追加。DP統合での検証は引き続き弱い。TASK-046で対応済み |
 | REQ-009-A04 | △ | cost-functions.test（fiveOnBlackCostの黒鍵/白鍵・小指以外のケース）を追加。DP統合での検証は引き続き弱い。TASK-046で対応済み |
 | REQ-009-A05 | △※ | 手の大きさ設定UIなし。DPテストは空虚 |

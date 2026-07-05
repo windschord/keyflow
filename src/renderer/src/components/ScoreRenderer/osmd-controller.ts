@@ -13,6 +13,13 @@ const RESIZE_DEBOUNCE_MS = 250;
 const TICK_MATCH_TOLERANCE = 2;
 
 /**
+ * 和音（同一カーソル位置に複数の構成音が解決される場合）の指番号描画座標を
+ * 重ならせないための縦オフセット幅（ピクセル）。音高降順（高い音が上）に
+ * 一定間隔でずらす（TASK-050）。
+ */
+const CHORD_NOTE_VERTICAL_OFFSET_PX = 10;
+
+/**
  * OSMDカーソルが返すNote（`VoiceEntry.Notes`の要素）のうち、buildNoteIdMapでの照合に
  * 必要なプロパティだけを表す最小限の構造的型。実際にはOSMD自身の`Note`クラスの
  * インスタンスが渡ってくるが、依存を最小化するため実クラスは直接importせず、
@@ -622,6 +629,25 @@ export class OSMDController {
           const candidates = remainingNotesByMeasure.get(measureNumber);
           const matched = this.matchNotesForTimestamp(osmdEntries, candidates ?? []);
 
+          // TASK-050: 同一カーソル位置(coord)には和音(複数構成音)が解決されることがある。
+          // OSMDカーソルは1ステップにつき1つの代表座標しか提供せず、符頭ごとの
+          // 正確なSVG座標をGraphicalNote.PositionAndShape等から安定して取得するには
+          // VexFlow内部の単位系(OSMD単位→SVGピクセル)の変換が必要な上、本コントローラの
+          // テスト(osmd-controller.test.ts)はOSMD内部を最小限のモックで代替しており、
+          // 実際のグラフィカルレイアウトを検証できない。そのため符頭単位座標の直接取得は
+          // 採用せず、フォールバックとして明記された「音高順の縦オフセット」を実装する:
+          // このカーソル位置で解決された構成音を音高降順(高い音が上)に並べ、一定間隔で
+          // 縦方向にずらした座標を割り当てることで、和音の各指番号が重ならずに表示される
+          // ようにする(単音の場合はオフセット0で従来と同じ座標になる)。
+          const matchedNotes = matched.filter((m): m is Note => m !== undefined);
+          const pitchRank = new Map<Note, number>();
+          if (matchedNotes.length > 1) {
+            const sortedByPitchDesc = [...matchedNotes].sort(
+              (a, b) => b.midiNumber - a.midiNumber
+            );
+            sortedByPitchDesc.forEach((note, rank) => pitchRank.set(note, rank));
+          }
+
           osmdEntries.forEach((entry, i) => {
             const matchedNote = matched[i];
             if (!matchedNote) {
@@ -633,7 +659,14 @@ export class OSMDController {
               return;
             }
             this.noteIdToCursorState.set(matchedNote.id, { iteratorIndex });
-            if (coord) this.noteIdToSvgCoord.set(matchedNote.id, coord);
+            if (coord) {
+              const rank = pitchRank.get(matchedNote);
+              const offsetY =
+                rank !== undefined
+                  ? (rank - (matchedNotes.length - 1) / 2) * CHORD_NOTE_VERTICAL_OFFSET_PX
+                  : 0;
+              this.noteIdToSvgCoord.set(matchedNote.id, { x: coord.x, y: coord.y + offsetY });
+            }
             if (candidates) {
               const idx = candidates.indexOf(matchedNote);
               if (idx >= 0) candidates.splice(idx, 1);

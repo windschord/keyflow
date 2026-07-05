@@ -33,7 +33,7 @@
 | REQ-005-001/002 | ○ | PianoKeyboard.test（keyboard-renderer.tsのfillStyleアサーション）。Part.hand（parser算出済み）に基づきguidRight/guidLeft色を検証。partId文字列ヒューリスティックのバグを修正（TASK-041） |
 | REQ-005-003/004 | △ | ロジックは○、鍵盤描画は× |
 | REQ-005-005 | △ | getNotePosition範囲外throwのみ |
-| REQ-005-006 | △※ | 「その音を再生」が未実装（TASK-047で整理） |
+| REQ-005-006 | ○ | usePractice.test（handleKeyClickがaudioEngine.playNote(midiNumber)を呼ぶことを検証）+ 従来通りの正誤判定・note-offスケジュール検証。TASK-047で対応済み |
 | REQ-005-007 | ○ | PianoKeyboard.test（実描画関数への座標アサーション） |
 | REQ-006-001 | ○ | parser + practice-flow.test（App経路） |
 | REQ-006-002 | ○ | Toolbar.test + App.test + audio-engine.test |
@@ -67,7 +67,7 @@
 | REQ-009-A05 | △※ | 手の大きさ設定UIなし。DPテストは空虚 |
 | REQ-009-A06 | ○ | computeFingering内でapplyScalePatternを優先適用済み（dp-solver.test、TASK-043） |
 | REQ-010-001 | ○ | audio-engine.test（loadScoreスケジューリング）+ E2E |
-| REQ-010-002 | ×※ | 未読込時の再生無効化＋理由ツールチップ未実装（TASK-047で整理） |
+| REQ-010-002 | ○ | PlaybackControls.test（score===nullで再生/一時停止/停止がdisabled＋title「楽譜を開くと再生できます」、読込後に有効化・通常ツールチップへ復帰）。TASK-047で対応済み |
 | REQ-010-003 | △ | 状態遷移＋ユニット。実機聴感は不可 |
 | REQ-010-004 | ○ | usePractice結線 + audio-engine setOnStop + E2E（模範パターン） |
 | REQ-010-005 | ○ | audio-engine schedule + 結線 + practice-engine + E2E poll（模範パターン） |

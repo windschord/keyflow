@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-047 |
 | タイプ | docs+chore |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Low |
 | 見積もり | 50分 |
 | 依存タスク | TASK-044 |
@@ -89,23 +89,34 @@
 
 ## 受入基準
 
-- [ ] REQ-003-004とUS-010の矛盾が要件ドキュメント上で解消され、traceability.mdに反映されている
-- [ ] スコア未読込時に再生コントロールが無効化され、理由がツールチップで表示される（REQ-010-002）
-- [ ] 画面鍵盤クリックでクリックした音が再生され、従来どおり正誤判定される（REQ-005-006）
-- [ ] ファイル連続オープン時に古い `load()` の完了処理が実行されず、noteIdマップと表示が一致する
-- [ ] 死にコード（midi-controller.ts / Versions / ping / 空window.api / createWindow重複 / setLoop・clearLoop / cancel）が削除され、参照切れがない
-- [ ] CLAUDE.mdから `history.jsonl` の記載が削除されている
-- [ ] `docs/sdd/requirements/traceability.md` の該当行が更新されている
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] REQ-003-004とUS-010の矛盾が要件ドキュメント上で解消され、traceability.mdに反映されている（完了済み・別コミット 4f75b62「REQ-003-004を将来拡張へスコープ変更」、f88fb2d「traceability更新」）
+- [x] スコア未読込時に再生コントロールが無効化され、理由がツールチップで表示される（REQ-010-002）
+- [x] 画面鍵盤クリックでクリックした音が再生され、従来どおり正誤判定される（REQ-005-006）
+- [x] ファイル連続オープン時に古い `load()` の完了処理が実行されず、noteIdマップと表示が一致する
+- [x] 死にコード（midi-controller.ts / Versions / ping / 空window.api / createWindow重複 / setLoop・clearLoop / cancel）が削除され、参照切れがない
+- [x] CLAUDE.mdから `history.jsonl` の記載が削除されている
+- [x] `docs/sdd/requirements/traceability.md` の該当行が更新されている
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規・コンポーネント）PlaybackControls: `score === null` で再生ボタンdisabled＋ツールチップ表示、読込後に有効化
-- [ ] （是正・結線）鍵盤クリック→クリック音の発音API呼び出し＋正誤判定（現挙動の仕様化テストを是正）
-- [ ] （新規・ユニット）ScoreRenderer: 連続load時に先行loadの `setIsLoaded` / `buildNoteIdMap` が無効化される
-- [ ] （回帰）死にコード削除後に `npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
-- [ ] （回帰）アプリ起動・`activate` 再起動（macOS経路）でウィンドウが1枚だけ正しく生成される
+- [x] （新規・コンポーネント）PlaybackControls: `score === null` で再生ボタンdisabled＋ツールチップ表示、読込後に有効化
+- [x] （是正・結線）鍵盤クリック→クリック音の発音API呼び出し＋正誤判定（現挙動の仕様化テストを是正）
+- [x] （新規・ユニット）ScoreRenderer: 連続load時に先行loadの `setIsLoaded` / `buildNoteIdMap` が無効化される
+- [x] （回帰）死にコード削除後に `npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （回帰）アプリ起動・`activate` 再起動（macOS経路）でウィンドウが1枚だけ正しく生成される（`createWindow()`呼び出しへの一本化により起動経路・activate経路の双方が同一関数を使うことをコードレビューで確認。E2E（`npm run test:e2e`）で起動経路のスモークテストを実施）
+
+## 完了サマリー
+
+- 要件整理（REQ-003-004/US-010の矛盾解消）は別コミット（4f75b62, f88fb2d）で完了済み。本タスクでは残りの実装・掃除項目を実施した。
+- REQ-010-002: `PlaybackControls`に`score`propを追加（`Toolbar`経由でApp.tsxの`score`を受け取る）。`score === null`のとき再生/一時停止/停止ボタンをdisabledにし、`title`に「楽譜を開くと再生できます」を表示。`score`未指定（undefined）時は後方互換のため無効化しない。
+- REQ-005-006: `usePractice.ts`の`handleKeyClick`で`audioEngine.playNote(midiNumber)`を呼び出すよう結線。正誤フィードバック音（`playCorrectSound`/`playIncorrectSound`、`clickSynth`）とは別チャンネル（`playSynth`）のため同時発音しても干渉しない。
+- M4（OSMD load再入対策）: `ScoreRenderer/index.tsx`のload effectに`cancelled`フラグを導入し、effect再実行時に古い`load()`の`.then`（`setIsLoaded`/`buildNoteIdMap`）を無効化。
+- 死にコード削除: `src/main/midi-controller.ts`、`src/renderer/src/components/Versions.tsx`/`Versions.test.tsx`、`ping` IPC、preloadの空`window.api`（`electronAPI`は維持）、`src/main/index.ts`の`createWindow()`呼び出しへの一本化（MIDI許可ハンドラの初期化順序は維持）、`PracticeEngineService.setLoop/clearLoop`、`FingeringEngineService.cancel`を削除。すべてgrep確認のうえ参照ゼロであることを確認済み。
+- CLAUDE.mdの`history.jsonl`記載を「未実装（将来拡張）」に是正。あわせてmidi-controller.ts削除・createWindow統合を反映。
+- 設計書追随: DEC-004・`design/components/midi-controller.md`・`design/components/fingering-engine.md`（cancel削除）・`design/components/practice-engine.md`（setLoop削除）・`design/components/toolbar.md`（PlaybackControlsの無効化条件）を更新。
+- `npm run test`（319件）/ `npm run typecheck` / `npm run lint` / `npm run test:e2e` すべて合格。
 
 ## 情報の明確性
 

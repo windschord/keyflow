@@ -54,9 +54,9 @@
 | ループ有効化 | `LoopControl`（チェックボックス） | `ループ` | `ループ再生（指定した小節範囲の繰り返し）の有効/無効を切り替えます` | なし | US-007 / REQ-007 |
 | ループ開始小節 | `LoopControl`（`input[type=number]`） | `開始小節:` | `ループの開始小節番号` | なし（1未満または終了小節以上の値はフォーカスアウト時にエラー表示、値は反映されない） | US-007 / REQ-007 |
 | ループ終了小節 | `LoopControl`（`input[type=number]`） | `終了小節:` | `ループの終了小節番号` | なし（同上のバリデーション） | US-007 / REQ-007 |
-| 再生 | `PlaybackControls`（ボタン） | `再生`（ツールチップに`(Space)`表記） | `再生 (Space)` | `playbackState === 'playing'`のとき無効 | US-010 / REQ-010 |
-| 一時停止 | `PlaybackControls`（ボタン） | `一時停止`（ツールチップに`(Space)`表記） | `一時停止 (Space)` | `playbackState !== 'playing'`のとき無効 | US-010 / REQ-010 |
-| 停止 | `PlaybackControls`（ボタン） | `停止` | `停止` | `playbackState === 'stopped'`のとき無効 | US-010 / REQ-010 |
+| 再生 | `PlaybackControls`（ボタン） | `再生`（ツールチップに`(Space)`表記） | `再生 (Space)`（楽譜未読込時は`楽譜を開くと再生できます`） | `score === null`（楽譜未読込）または`playbackState === 'playing'`のとき無効（REQ-010-002） | US-010 / REQ-010 |
+| 一時停止 | `PlaybackControls`（ボタン） | `一時停止`（ツールチップに`(Space)`表記） | `一時停止 (Space)`（楽譜未読込時は`楽譜を開くと再生できます`） | `score === null`（楽譜未読込）または`playbackState !== 'playing'`のとき無効（REQ-010-002） | US-010 / REQ-010 |
+| 停止 | `PlaybackControls`（ボタン） | `停止` | `停止`（楽譜未読込時は`楽譜を開くと再生できます`） | `score === null`（楽譜未読込）または`playbackState === 'stopped'`のとき無効（REQ-010-002） | US-010 / REQ-010 |
 | 統計表示（正解率） | `StatsDisplay`（テキスト） | `正解率: {n}%` | なし（表示専用、操作不可） | 該当なし（操作コントロールではない） | US-004 / REQ-004 |
 | 統計表示（連続正解数） | `StatsDisplay`（テキスト） | `連続正解数: {n}` | なし（表示専用、操作不可） | 該当なし | US-004 / REQ-004 |
 | 設定 | `Toolbar`（アイコンボタン） | なし（歯車アイコンのみ） | `設定` | なし | NFR-U-002（日本語UI）、アプリ設定全般 |
@@ -82,7 +82,8 @@
 
 ## 各コントロールの共通無効化方針
 
-- 楽譜未読み込み（`score === null`）の状態でも、テンポ・ループ・練習対象の各コントロールは操作自体が可能である（値は保持されるが、実際の判定・再生に影響するのは楽譜読み込み後）。ただし「運指提案」ボタンと「運指対象」選択のみ、`FingeringPanel`が`score`の有無を見て明示的に無効化する。
+- 楽譜未読み込み（`score === null`）の状態でも、テンポ・ループ・練習対象の各コントロールは操作自体が可能である（値は保持されるが、実際の判定・再生に影響するのは楽譜読み込み後）。「運指提案」ボタンと「運指対象」選択は`FingeringPanel`が、「再生」「一時停止」「停止」は`PlaybackControls`が、それぞれ`score`の有無を見て明示的に無効化する（TASK-047、REQ-010-002）。
+- `PlaybackControls`の`score`prop（`Toolbar`経由でApp.tsxの`score`を受け取る）が`undefined`（未指定）の場合は、呼び出し側が楽譜有無を管理していないケースとみなし後方互換のため無効化しない。実際のApp.tsx経由の呼び出しでは常に`score`（`Score | null`）が渡される。
 - 「ファイルを開く」ボタンは常時有効（読み込み中の二重クリックによる競合はApp.tsx側の`isLoadingAnnotations`ガードで抑止する）。
 
 ---

@@ -22,7 +22,7 @@ MIDI入力の正誤判定・運指提案・A-Bループ練習を備え、Synthes
 | 音声合成 | Tone.js |
 | 状態管理 | Zustand v4 |
 | 運指エンジン | 独自実装 TypeScript（Web Worker）Parncutt-Terzuolo DPモデル |
-| 永続化 | electron-store（設定）、JSONサイドカー（アノテーション）、JSONL（練習履歴） |
+| 永続化 | electron-store（設定）、JSONサイドカー（アノテーション） |
 | テスト | Vitest |
 | Linter/Formatter | ESLint + Prettier |
 | パッケージング | electron-builder（Windows: NSIS） |
@@ -58,10 +58,8 @@ docs/sdd/
 ```
 src/
 ├── main/                  # Electron Main Process
-│   ├── index.ts           # エントリーポイント（ファイルダイアログ・file:read/write・settings系IPCハンドラを実装）
-│   ├── midi-controller.ts # node-midiラッパー（未使用・未結線。src/main/index.tsから参照されていない残存コード。
-│   │                       #   MIDI入力は設計変更によりRendererのWeb MIDI API直接利用に切り替え済み。
-│   │                       #   将来ネイティブMIDI実装へ戻す可能性がある場合の参考実装として残置。削除判断は未確定）
+│   ├── index.ts           # エントリーポイント（ファイルダイアログ・file:read/write・settings系IPCハンドラを実装。
+│   │                       #   ウィンドウ生成はcreateWindow()に一本化。MIDI許可ハンドラは起動時に1回設定）
 │   ├── settings.ts        # electron-store ラッパー（アプリ設定・最近使ったファイル）
 │   └── path-allowlist.ts  # ファイル書き込み許可パスの検証
 ├── preload/
@@ -164,7 +162,7 @@ npm run build:mac
 - MIDI入力は実ハードウェアなしで検証するため、`usePractice.ts` が公開する `window.__e2eMidiHooks__`（実際のMIDI受信コールバックそのもの）を呼び出す。状態検証には `App.tsx` が公開する `window.__e2eStore__`（実際のZustandストア参照）を使う
 - これらの `window.__e2e*__` はE2Eテスト専用の計装であり、テスト用に分岐したロジックではなく本番コードパスをそのまま呼び出す・読み取るためのフックである
 - アプリ設定: electron-store（OS標準アプリデータフォルダ）
-- 練習履歴: `history.jsonl`（JSON Lines形式）
+- 練習履歴の永続化は未実装（将来拡張。実装・要件とも現時点では存在しない）
 
 ## 実装ガイドライン
 

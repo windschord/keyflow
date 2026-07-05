@@ -1,5 +1,11 @@
 # MIDI Controller
 
+> **注記（[DEC-004](../decisions/DEC-004.md) @../decisions/DEC-004.md、[phase-11/TASK-047](../../tasks/phase-11/TASK-047.md) @../../tasks/phase-11/TASK-047.md）**:
+> 本ドキュメントが設計するnode-midi（Main Process）方式は、実装ではWeb MIDI API
+> （Renderer Process直接利用、`src/renderer/src/lib/midi/web-midi.ts`）に変更されている。
+> 本ドキュメント記載のnode-midiラッパー（`src/main/midi-controller.ts`）は未結線の死にコードと
+> なっていたため削除済み。本ドキュメントは検討当時の設計記録として残す。
+
 ## 概要
 
 **目的**: MIDIデバイスの検出・接続管理と、ノートイベントのリアルタイム転送

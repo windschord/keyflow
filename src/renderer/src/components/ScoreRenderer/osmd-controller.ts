@@ -12,8 +12,14 @@ export class OSMDController {
     [];
   /** ループ範囲の最後に指定された値。setZoom等の再描画後にオーバーレイを再適用するために保持する。 */
   private lastLoopRange: { start: number; end: number } | null = null;
-  /** パートごとに最後に設定された不透明度（REQ-002-007: 非練習パートのグレーアウト）。 */
-  private partOpacities = new Map<string, number>();
+  /**
+   * グレーアウト対象のnoteId集合（REQ-002-007: 非練習側のnote単位グレーアウト、TASK-048）。
+   * 従来はパート単位（partId→Y座標クラスタ矩形）で管理していたが、1パート2段譜では
+   * 手（段）とパートが一致しないため、note単位で管理する。
+   */
+  private grayedOutNoteIds = new Set<string>();
+  /** setGrayedOutNotesで最後に指定された不透明度（0〜1、既定0.5）。 */
+  private grayoutOpacity = 0.5;
   /** noteIdごとの正誤ハイライト状態（'expected'は「ハイライトなし」を意味するため保持しない）。 */
   private noteHighlights = new Map<string, 'correct' | 'incorrect'>();
   /** 小節クリック時に呼び出されるコールバック（App.tsx側でpracticeEngine.resetToMeasureに結線する）。 */
@@ -111,66 +117,54 @@ export class OSMDController {
   }
 
   /**
-   * 指定パートの不透明度を設定する（REQ-002-007: 非練習パートのグレーアウト表示）。
+   * グレーアウト対象のnoteId集合を設定する（REQ-002-007: 非練習側のグレーアウト表示）。
    *
-   * OSMDが生成するSVGにはインストゥルメント単位で安定して参照できるid/class属性が
-   * 存在しないため、`noteIdToSvgCoord`（noteIdの先頭セグメント＝partIdを含む）から
-   * 対象パートの音符座標を収集し、システム（段）ごとにY座標でクラスタリングした上で
-   * 半透明の白色オーバーレイ矩形をその段の上に重ねることでグレーアウトを表現する。
-   * `opacity >= 1` の場合はオーバーレイを除去し、通常表示に戻す。
+   * TASK-048: 従来はパート単位（partId→Y座標クラスタ矩形）でグレーアウトしていたが、
+   * 1パート2段譜ではパートと手（段）が一致しないため、noteId集合を直接受け取り、
+   * `noteIdToSvgCoord` の該当座標にのみ小さな半透明ベールを掛けるnote単位の実装に変更した。
+   * 呼び出しごとに状態を完全に置き換える（差分適用ではない）。空集合を渡すと
+   * グレーアウトを全解除する。
    */
-  setPartOpacity(partId: string, opacity: number): void {
-    this.partOpacities.set(partId, opacity);
-    this.renderPartOpacityLayer(partId);
+  setGrayedOutNotes(noteIds: ReadonlySet<string> | readonly string[], opacity = 0.5): void {
+    this.grayedOutNoteIds = new Set(noteIds);
+    this.grayoutOpacity = opacity;
+    this.renderGrayoutLayer();
   }
 
-  private renderPartOpacityLayer(partId: string): void {
-    const layerId = `part-opacity-layer-${this.sanitizeId(partId)}`;
+  private renderGrayoutLayer(): void {
+    const layerId = 'note-grayout-layer';
     this.container.querySelector(`#${layerId}`)?.remove();
 
     const svg = this.container.querySelector('svg');
-    if (!svg) return;
-
-    const opacity = this.partOpacities.get(partId);
-    if (opacity === undefined || opacity >= 1) return; // Fully opaque: no overlay needed
-
-    const coords: Array<{ x: number; y: number }> = [];
-    for (const [noteId, coord] of this.noteIdToSvgCoord.entries()) {
-      if (this.parsePartId(noteId) === partId) coords.push(coord);
-    }
-    if (coords.length === 0) return;
+    if (!svg || this.grayedOutNoteIds.size === 0) return;
 
     const layer = document.createElementNS(SVG_NS, 'g');
     layer.setAttribute('id', layerId);
-    layer.setAttribute('data-part-id', partId);
-    layer.setAttribute('data-opacity', String(opacity));
 
-    const margin = { x: 20, yTop: 24, yBottom: 24 };
-    for (const cluster of this.clusterByY(coords, 40)) {
-      const minX = Math.min(...cluster.map((c) => c.x)) - margin.x;
-      const maxX = Math.max(...cluster.map((c) => c.x)) + margin.x;
-      const minY = Math.min(...cluster.map((c) => c.y)) - margin.yTop;
-      const maxY = Math.max(...cluster.map((c) => c.y)) + margin.yBottom;
+    // 音符1つ分を覆う程度の小さな矩形（段全体ではなく該当ノートのみを覆う）。
+    const margin = { x: 8, yTop: 20, yBottom: 20 };
+    let hasRect = false;
+    for (const noteId of this.grayedOutNoteIds) {
+      const coord = this.noteIdToSvgCoord.get(noteId);
+      if (!coord) continue; // 座標未確定（buildNoteIdMap未完了等）のノートは無視する
 
       const rect = document.createElementNS(SVG_NS, 'rect');
-      rect.setAttribute('x', String(minX));
-      rect.setAttribute('y', String(minY));
-      rect.setAttribute('width', String(Math.max(0, maxX - minX)));
-      rect.setAttribute('height', String(Math.max(0, maxY - minY)));
+      rect.setAttribute('x', String(coord.x - margin.x));
+      rect.setAttribute('y', String(coord.y - margin.yTop));
+      rect.setAttribute('width', String(margin.x * 2));
+      rect.setAttribute('height', String(margin.yTop + margin.yBottom));
       // 不透明度が低いほど白いベールを濃くし、下の音符をグレーアウトして見せる。
-      rect.setAttribute('fill', `rgba(255, 255, 255, ${(1 - opacity).toFixed(2)})`);
+      rect.setAttribute('fill', `rgba(255, 255, 255, ${(1 - this.grayoutOpacity).toFixed(2)})`);
+      rect.setAttribute('data-note-id', noteId);
       rect.setAttribute('pointer-events', 'none');
       layer.appendChild(rect);
+      hasRect = true;
     }
+
+    if (!hasRect) return;
 
     // グレーアウトは音符の描画より手前（上）に重ねることで視覚的な減光を表現する。
     svg.appendChild(layer);
-  }
-
-  private renderAllPartOpacityLayers(): void {
-    for (const partId of this.partOpacities.keys()) {
-      this.renderPartOpacityLayer(partId);
-    }
   }
 
   /**
@@ -251,7 +245,7 @@ export class OSMDController {
   private reapplyOverlays(): void {
     this.renderFingeringLayer();
     this.renderLoopBracketLayer();
-    this.renderAllPartOpacityLayers();
+    this.renderGrayoutLayer();
     this.renderHighlightLayer();
   }
 
@@ -300,45 +294,6 @@ export class OSMDController {
     }
 
     svg.appendChild(layer);
-  }
-
-  /** noteId（`{partId}-M{measure}-N{index}`形式）からpartIdを抽出する。 */
-  private parsePartId(noteId: string): string | null {
-    const match = noteId.match(/^(.+)-M\d+-N\d+$/);
-    return match ? match[1] : null;
-  }
-
-  /** SVGのid属性として安全に使えるよう、partIdの記号をハイフンに置き換える。 */
-  private sanitizeId(id: string): string {
-    return id.replace(/[^a-zA-Z0-9_-]/g, '-');
-  }
-
-  /**
-   * Y座標が近い（同じ譜表段に属すると推定される）座標同士をグループ化する。
-   * setPartOpacity のグレーアウト矩形を、複数システム（段）にまたがる楽譜でも
-   * 段ごとに分けて描画するために使用する。
-   */
-  private clusterByY(
-    coords: Array<{ x: number; y: number }>,
-    threshold: number
-  ): Array<Array<{ x: number; y: number }>> {
-    const sorted = [...coords].sort((a, b) => a.y - b.y);
-    const clusters: Array<Array<{ x: number; y: number }>> = [];
-    let current: Array<{ x: number; y: number }> = [];
-    let lastY: number | null = null;
-
-    for (const coord of sorted) {
-      if (lastY === null || coord.y - lastY <= threshold) {
-        current.push(coord);
-      } else {
-        clusters.push(current);
-        current = [coord];
-      }
-      lastY = coord.y;
-    }
-    if (current.length > 0) clusters.push(current);
-
-    return clusters;
   }
 
   /**

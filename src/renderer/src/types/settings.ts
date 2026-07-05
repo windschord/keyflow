@@ -7,6 +7,13 @@ export interface AppSettings {
   recentFiles: Array<{ path: string; openedAt: string }>;
   midi: { selectedDeviceId: string | null; selectedDeviceIndex: number };
   handSettings: HandSettings;
-  ui: { theme: 'light' | 'dark' | 'system'; zoom: number; pianoHeight: number; language: string };
+  ui: {
+    theme: 'light' | 'dark' | 'system';
+    zoom: number;
+    pianoHeight: number;
+    language: string;
+    /** マスターボリューム（0〜100のUI線形値、TASK-052）。 */
+    volume: number;
+  };
   practice: { defaultErrorMode: 'wait' | 'pass'; metronomeEnabled: boolean };
 }

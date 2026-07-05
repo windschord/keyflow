@@ -4,7 +4,14 @@ interface AppSettings {
   recentFiles: Array<{ path: string; openedAt: string }>;
   midi: { selectedDeviceId: string | null; selectedDeviceIndex: number };
   handSettings: { maxSpanSemitones: number; leftHandScaleFactor: number };
-  ui: { theme: 'light' | 'dark'; zoom: number; pianoHeight: number; language: string };
+  ui: {
+    theme: 'light' | 'dark';
+    zoom: number;
+    pianoHeight: number;
+    language: string;
+    /** マスターボリューム（0〜100のUI線形値、TASK-052）。 */
+    volume: number;
+  };
   practice: { defaultErrorMode: 'wait' | 'pass'; metronomeEnabled: boolean };
 }
 
@@ -12,7 +19,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   recentFiles: [],
   midi: { selectedDeviceId: null, selectedDeviceIndex: 0 },
   handSettings: { maxSpanSemitones: 14, leftHandScaleFactor: 1.0 },
-  ui: { theme: 'light', zoom: 1.0, pianoHeight: 120, language: 'ja' },
+  ui: { theme: 'light', zoom: 1.0, pianoHeight: 120, language: 'ja', volume: 80 },
   practice: { defaultErrorMode: 'wait', metronomeEnabled: false },
 };
 

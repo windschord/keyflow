@@ -28,7 +28,7 @@
 - US-010（TASK-029で追加）: 曲の再生 — 再生スケジューリングに発音時刻・デュレーションが必須
 - US-003 / REQ-003: 右手/左手/両手の練習モード — 両手同時判定に時刻ベース統合が必須
 - US-004 / REQ-004: MIDI入力の正誤判定 — 和音・両手同時押下の判定仕様の裏付け
-- CLAUDE.md「データ永続化」: noteIdフォーマット `{partId}-M{measureNumber}-N{noteIndex}` — **noteIndexはパート毎連番として本フォーマットを正とする**
+- CLAUDE.md「データ永続化」: noteIdフォーマット `{partId}-M{measureNumber}-N{noteIndex}` — **noteIndexはパート内・小節内の連番（本書で「パート毎連番」と呼ぶものと同一定義。0始まりの `<note>` 出現順）として本フォーマットを正とする**
 - `docs/sdd/design/index.md` データモデル（Score/Part/Measure/Note/Annotation）
 
 ## 実装内容

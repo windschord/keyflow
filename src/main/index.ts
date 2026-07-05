@@ -63,9 +63,6 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window);
   });
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'));
-
   ipcMain.handle(
     'file:show-open-dialog',
     createShowOpenDialogHandler(dialog, pathAllowlist, settingsService)
@@ -154,36 +151,7 @@ app.whenReady().then(() => {
     }
   });
 
-  const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 1024,
-    minHeight: 600,
-    show: false,
-    autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-
-  win.on('ready-to-show', () => {
-    win.show();
-  });
-
-  win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
-    return { action: 'deny' };
-  });
-
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    win.loadURL(process.env['ELECTRON_RENDERER_URL']);
-  } else {
-    win.loadFile(join(__dirname, '../renderer/index.html'));
-  }
+  createWindow();
 
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     if (permission === 'midi' || permission === 'midiSysex') {

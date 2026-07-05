@@ -60,14 +60,6 @@ export class FingeringEngineService {
     });
   }
 
-  cancel(requestId: string): void {
-    const pending = this.pendingRequests.get(requestId);
-    if (pending) {
-      clearTimeout(pending.timeoutId);
-      this.pendingRequests.delete(requestId);
-    }
-  }
-
   dispose(): void {
     // Reject all pending requests before terminating
     this.pendingRequests.forEach((pending) => {

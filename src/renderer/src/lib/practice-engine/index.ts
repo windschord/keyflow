@@ -197,17 +197,6 @@ export class PracticeEngineService {
     this.updateExpectedNotes();
   }
 
-  setLoop(start: number, end: number): void {
-    this.store.getState().setLoopRange(start, end);
-  }
-
-  clearLoop(): void {
-    const state = this.store.getState();
-    if (state.loopEnabled) {
-      state.toggleLoop();
-    }
-  }
-
   /**
    * `(fromMeasure, fromGroupIndex)` を起点に、練習モードでフィルタした際に
    * 空にならない次の判定グループを探索する。

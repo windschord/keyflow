@@ -63,8 +63,8 @@ const noteIdMap = new Map<string, OSMDNote>(); // Note.id → OSMDのNote参照
 
 ## 実装メモ（TASK-033）
 
-OSMDが生成するSVGにはインストゥルメント単位・音符単位で安定して参照できるid/class属性が
-存在しないため、`setPartOpacity`・`highlightNote`・`drawLoopBracket`はいずれも
+OSMDが生成するSVGには、インストゥルメント単位・音符単位で安定して参照できるid/class属性が
+存在しない。そのため、`setPartOpacity`・`highlightNote`・`drawLoopBracket`はいずれも
 `noteIdToSvgCoord`（カーソル座標サンプリングで構築した近似座標マップ）を用いた
 SVGオーバーレイ（半透明の矩形・円）として実装している。`setZoom`によるOSMDの再描画
 （`render()`はSVG子要素を再構築する）後は、保持しているオーバーレイ状態

@@ -3,6 +3,7 @@ import { PracticeModeSelector } from './PracticeModeSelector';
 import { TempoControl } from './TempoControl';
 import { LoopControl } from './LoopControl';
 import { PlaybackControls, PlaybackAudioEngine } from './PlaybackControls';
+import { VolumeControl } from './VolumeControl';
 import { StatsDisplay } from '../StatsDisplay';
 import { ZoomControl } from './ZoomControl';
 import type { Score } from '../../types';
@@ -32,6 +33,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onOpenSettings, audioEngine, s
       <LoopControl />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
       <PlaybackControls audioEngine={audioEngine} score={score} />
+      <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
+      <VolumeControl />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
       <ZoomControl />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>

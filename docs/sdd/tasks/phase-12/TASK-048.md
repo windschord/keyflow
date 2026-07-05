@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-048 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 90分 |
 | 依存タスク | なし |
@@ -88,26 +88,55 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] 1パート2段譜フィクスチャで、staff1 の音が `hand='right'`、staff2 の音が `hand='left'` になる
-- [ ] `<staff>` 未指定または単一 staff のパートでは従来の `Part.hand` が Note に継承される（既存2パート譜の挙動不変）
-- [ ] 左手練習モードで 2段譜の下段（staff2）の音のみが判定対象になる
-- [ ] 鍵盤ガイドが 2段譜で上段=右手色/下段=左手色に塗り分けられる
-- [ ] 運指提案で「左手」を選ぶと 2段譜の下段の音が計算対象になり、エラーにならない（文言も更新済み）
-- [ ] 片手モード時のグレーアウトが note 単位（非練習側の音のみ）で適用される
-- [ ] `data-model-v2.md` に Note.staff/hand の追補が記載されている
-- [ ] ユーザーの実楽譜（musescore.com由来）がリポジトリにコミットされていない
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] 1パート2段譜フィクスチャで、staff1 の音が `hand='right'`、staff2 の音が `hand='left'` になる
+- [x] `<staff>` 未指定または単一 staff のパートでは従来の `Part.hand` が Note に継承される（既存2パート譜の挙動不変）
+- [x] 左手練習モードで 2段譜の下段（staff2）の音のみが判定対象になる
+- [x] 鍵盤ガイドが 2段譜で上段=右手色/下段=左手色に塗り分けられる
+- [x] 運指提案で「左手」を選ぶと 2段譜の下段の音が計算対象になり、エラーにならない（文言も更新済み）
+- [x] 片手モード時のグレーアウトが note 単位（非練習側の音のみ）で適用される
+- [x] `data-model-v2.md` に Note.staff/hand の追補が記載されている
+- [x] ユーザーの実楽譜（musescore.com由来）がリポジトリにコミットされていない
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規）parser: 2段譜フィクスチャで staff→hand 判定（和音・`<backup>` 含む）
-- [ ] （新規）parser: `<staff>` 未指定/単一 staff で `Part.hand` 継承
-- [ ] （新規）note-grouping: `filterNotesByPracticeMode` が `note.hand` で左右フィルタする
-- [ ] （新規）keyboard-renderer: `expectedNote.hand` に基づく guidRight/guidLeft 色分け
-- [ ] （新規）FingeringPanel: 左手選択時に staff2 の音が計算対象になる
-- [ ] （新規）osmd-controller/ScoreRenderer: noteId 集合ベースのグレーアウト適用・解除
-- [ ] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規）parser: 2段譜フィクスチャで staff→hand 判定（和音・`<backup>` 含む）
+- [x] （新規）parser: `<staff>` 未指定/単一 staff で `Part.hand` 継承
+- [x] （新規）note-grouping: `filterNotesByPracticeMode` が `note.hand` で左右フィルタする
+- [x] （新規）keyboard-renderer: `expectedNote.hand` に基づく guidRight/guidLeft 色分け
+- [x] （新規）FingeringPanel: 左手選択時に staff2 の音が計算対象になる
+- [x] （新規）osmd-controller/ScoreRenderer: noteId 集合ベースのグレーアウト適用・解除
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 完了サマリ（2026-07-05）
+
+`Note` 型に `staff?: number` / `hand?: Hand`（後方互換のためoptional）を追加し、`parser.ts` で
+`<attributes><staves>` を追跡・`<note><staff>` を読み取って、`staves>=2` のパートは
+staff番号から直接note単位でhandを決定（staff1='right'、staff2以降='left'）、それ以外は従来通り
+`Part.hand` を継承するようにした。tick/backup/chord計算・noteId採番は変更していない。
+
+消費側4箇所をパート単位（`Part.hand`/partId）判定からNote単位（`note.hand`）判定へ移行した。
+
+- `practice-engine/note-grouping.ts`: `filterNotesByPracticeMode(notes, practiceMode)` に
+  シグネチャ変更（`parts`引数を削除）。`index.ts` の呼び出し元（`resolvePosition`/
+  `advancePosition`/`resetToMeasure`）も追随。
+- `PianoKeyboard/keyboard-renderer.ts`: `expectedNote.hand` を直接参照。`parts` propは
+  `PianoKeyboard`/`App.tsx` から除去。
+- `FingeringPanel/index.tsx`: `score.parts` フィルタ（`'unknown'`デッドコード含む）を
+  `note.hand === hand` の直接フィルタへ変更。エラー文言を「右手/左手の音符が見つかりません」に更新。
+- `ScoreRenderer/osmd-controller.ts`: `setPartOpacity(partId, opacity)`（Y座標クラスタ矩形）を
+  `setGrayedOutNotes(noteIds, opacity)`（note単位の小さなベール）に置換。`ScoreRenderer/index.tsx`
+  はpracticeModeに応じた非練習側handのnoteId集合を渡すよう結線。
+
+TDDで進め、各ステップでred→green→commitを実施（コミット: 7a3f019, e6e5da5, 296ae81, 8689deb,
+add4ffa, 68f54db, 5a059b7, 26a5469, 96c1822, a814020, 583786c, c13a66a, 02ce600）。
+
+合成MusicXMLフィクスチャ（1パート2段譜、和音、`<backup>`含む）でTDD検証した。ユーザーの実楽譜
+（`/Users/tsk/Desktop/無題のスコア.musicxml`）はコミットせず、手動検証用の一時テストで
+parse結果を確認（right: 798件、left: 546件のnoteが正しく分離されることを確認後、削除）。
+
+`npm run test`（354 tests / 36 files）・`npm run typecheck`・`npm run lint` すべて通過。
 
 ## 情報の明確性
 

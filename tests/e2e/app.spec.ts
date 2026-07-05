@@ -107,7 +107,8 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
     ipcMain.handle('file:show-open-dialog', () => fixturePath);
   }, FIXTURE_PATH);
 
-  await window.getByText('ファイルを開く').click();
+  // TASK-053のドロップ案内文にも「ファイルを開く」が含まれるため、ロールで特定する
+  await window.getByRole('button', { name: 'ファイルを開く' }).click();
 
   // 3. 楽譜（OSMD）が表示される
   await expect(window.locator('[data-testid="osmd-container"] svg')).toBeVisible({

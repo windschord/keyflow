@@ -177,9 +177,15 @@ export function usePractice() {
   /**
    * 画面上のピアノ鍵盤クリックによる擬似的な NoteOn/NoteOff を処理する。
    * MIDI入力経由と同じ判定結果に応じた効果音フィードバックを発火させる。
+   *
+   * REQ-005-006: クリックした音自体も鳴らす。正誤フィードバック音（playCorrectSound/
+   * playIncorrectSound）とは別チャンネル（playSynth）で鳴らすため、同時発音しても
+   * 音色が重ならず干渉しない。実際の鍵盤演奏で「押した音が聞こえる」体験に合わせる。
    */
   const handleKeyClick = useCallback(
     (midiNumber: number) => {
+      audioEngine.playNote(midiNumber);
+
       const judgement = practiceEngine.handleNoteOn({
         midiNumber,
         velocity: 100,

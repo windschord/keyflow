@@ -5,13 +5,15 @@ import { LoopControl } from './LoopControl';
 import { PlaybackControls, PlaybackAudioEngine } from './PlaybackControls';
 import { StatsDisplay } from '../StatsDisplay';
 import { ZoomControl } from './ZoomControl';
+import type { Score } from '../../types';
 
 interface ToolbarProps {
   onOpenSettings?: () => void;
   audioEngine?: PlaybackAudioEngine;
+  score?: Score | null;
 }
 
-export const Toolbar: React.FC<ToolbarProps> = ({ onOpenSettings, audioEngine }) => {
+export const Toolbar: React.FC<ToolbarProps> = ({ onOpenSettings, audioEngine, score }) => {
   return (
     <div
       style={{
@@ -29,7 +31,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onOpenSettings, audioEngine })
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
       <LoopControl />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
-      <PlaybackControls audioEngine={audioEngine} />
+      <PlaybackControls audioEngine={audioEngine} score={score} />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
       <ZoomControl />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>

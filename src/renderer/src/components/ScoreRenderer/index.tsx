@@ -54,18 +54,33 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   }, []);
 
   useEffect(() => {
+    // M4対策: ファイル連続オープン等でこのeffectが再実行されると、古いload()の
+    // 完了(.then)が新しいload()より後に解決し、noteIdマップ・isLoadedを
+    // 「後勝ち」で上書きしてしまう恐れがある。cancelledフラグでこのeffect実行
+    // （＝この世代のload）が既に無効化されたかどうかを判定し、無効化済みなら
+    // .thenの副作用（setIsLoaded/buildNoteIdMap）を実行しない。
+    let cancelled = false;
+
     if (score && musicXmlContent && osmdControllerRef.current) {
       setIsLoaded(false);
       osmdControllerRef.current
         .load(musicXmlContent)
         .then(() => {
+          if (cancelled) return;
           setIsLoaded(true);
           osmdControllerRef.current?.buildNoteIdMap();
         })
-        .catch((err) => console.error('[ScoreRenderer] OSMD load failed:', err));
+        .catch((err) => {
+          if (cancelled) return;
+          console.error('[ScoreRenderer] OSMD load failed:', err);
+        });
     } else if (!score) {
       setIsLoaded(false);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [score, musicXmlContent]);
 
   useEffect(() => {

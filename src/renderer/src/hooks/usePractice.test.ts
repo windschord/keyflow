@@ -12,6 +12,7 @@ const setBpmMock = vi.fn();
 const setMetronomeEnabledMock = vi.fn();
 const playCorrectSoundMock = vi.fn();
 const playIncorrectSoundMock = vi.fn();
+const playNoteMock = vi.fn();
 const disposeMock = vi.fn();
 const setLoopPointsMock = vi.fn();
 const setPositionCallbackMock = vi.fn();
@@ -35,6 +36,7 @@ vi.mock('../lib/audio-engine', () => ({
     setMetronomeEnabled: setMetronomeEnabledMock,
     playCorrectSound: playCorrectSoundMock,
     playIncorrectSound: playIncorrectSoundMock,
+    playNote: playNoteMock,
     dispose: disposeMock,
     setLoopPoints: setLoopPointsMock,
     setPositionCallback: setPositionCallbackMock,
@@ -230,7 +232,7 @@ describe('usePractice', () => {
     expect(result.current.noteHighlights).toEqual({});
   });
 
-  it('handleKeyClick judges the note, plays feedback, and schedules note-off', () => {
+  it('handleKeyClick plays the clicked note, judges it, plays feedback, and schedules note-off (REQ-005-006)', () => {
     vi.useFakeTimers();
     try {
       handleNoteOnMock.mockReturnValue({ result: 'correct', note: null, advanced: true });
@@ -240,6 +242,8 @@ describe('usePractice', () => {
         result.current.handleKeyClick(60);
       });
 
+      // REQ-005-006: 画面鍵盤クリック時、クリックした音自体を発音する。
+      expect(playNoteMock).toHaveBeenCalledWith(60);
       expect(handleNoteOnMock).toHaveBeenCalledWith(
         expect.objectContaining({ midiNumber: 60, type: 'note-on' })
       );

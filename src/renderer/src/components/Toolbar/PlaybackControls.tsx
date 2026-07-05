@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import { usePracticeStore } from '../../store';
+import type { Score } from '../../types';
 
 const BTN_STYLE: React.CSSProperties = {
   height: '44px',
@@ -30,7 +31,16 @@ export interface PlaybackAudioEngine {
 
 interface PlaybackControlsProps {
   audioEngine?: PlaybackAudioEngine;
+  /**
+   * 現在読み込まれている楽譜（REQ-010-002）。
+   * `null` の場合は楽譜未読込として再生系ボタンを無効化しツールチップで理由を示す。
+   * `undefined`（未指定）の場合は呼び出し側が楽譜有無を管理していないとみなし、
+   * 後方互換のため無効化しない（既存の呼び出し・テストへの影響を避けるため）。
+   */
+  score?: Score | null;
 }
+
+const NO_SCORE_TOOLTIP = '楽譜を開くと再生できます';
 
 /**
  * 曲の再生・一時停止・停止を行うツールバー部品（暫定実装）。
@@ -39,9 +49,12 @@ interface PlaybackControlsProps {
  * - 初回の再生操作でのみ Tone.start() を呼び、AudioContext を解放する
  * - 再生状態（playing/paused/stopped）は Zustand store で一元管理する
  */
-export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine }) => {
+export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine, score }) => {
   const { playbackState, setPlaybackState } = usePracticeStore();
   const toneStartedRef = useRef(false);
+  // score === null のときだけ「未読込」として無効化する。undefined（未指定）は
+  // 呼び出し側が楽譜有無を渡していないケースであり、後方互換のため無効化しない。
+  const noScoreLoaded = score === null;
 
   const ensureToneStarted = useCallback(async () => {
     if (!toneStartedRef.current) {
@@ -51,20 +64,23 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine 
   }, []);
 
   const handlePlay = useCallback(async () => {
+    if (noScoreLoaded) return;
     await ensureToneStarted();
     audioEngine?.playAccompaniment();
     setPlaybackState('playing');
-  }, [audioEngine, ensureToneStarted, setPlaybackState]);
+  }, [audioEngine, ensureToneStarted, setPlaybackState, noScoreLoaded]);
 
   const handlePause = useCallback(() => {
+    if (noScoreLoaded) return;
     audioEngine?.pauseAccompaniment();
     setPlaybackState('paused');
-  }, [audioEngine, setPlaybackState]);
+  }, [audioEngine, setPlaybackState, noScoreLoaded]);
 
   const handleStop = useCallback(() => {
+    if (noScoreLoaded) return;
     audioEngine?.stopAccompaniment();
     setPlaybackState('stopped');
-  }, [audioEngine, setPlaybackState]);
+  }, [audioEngine, setPlaybackState, noScoreLoaded]);
 
   const handleTogglePlayPause = useCallback(() => {
     if (playbackState === 'playing') {
@@ -80,43 +96,44 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine 
       if (['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'].includes(tag)) return;
       if (e.code === 'Space') {
         e.preventDefault();
+        if (noScoreLoaded) return;
         handleTogglePlayPause();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleTogglePlayPause]);
+  }, [handleTogglePlayPause, noScoreLoaded]);
 
   return (
     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
       <button
         data-testid="playback-play"
-        title="再生 (Space)"
+        title={noScoreLoaded ? NO_SCORE_TOOLTIP : '再生 (Space)'}
         aria-label="再生"
         onClick={() => void handlePlay()}
-        disabled={playbackState === 'playing'}
-        style={playbackState === 'playing' ? BTN_DISABLED_STYLE : BTN_STYLE}
+        disabled={noScoreLoaded || playbackState === 'playing'}
+        style={noScoreLoaded || playbackState === 'playing' ? BTN_DISABLED_STYLE : BTN_STYLE}
       >
         再生
       </button>
       <button
         data-testid="playback-pause"
-        title="一時停止 (Space)"
+        title={noScoreLoaded ? NO_SCORE_TOOLTIP : '一時停止 (Space)'}
         aria-label="一時停止"
         onClick={handlePause}
-        disabled={playbackState !== 'playing'}
-        style={playbackState !== 'playing' ? BTN_DISABLED_STYLE : BTN_STYLE}
+        disabled={noScoreLoaded || playbackState !== 'playing'}
+        style={noScoreLoaded || playbackState !== 'playing' ? BTN_DISABLED_STYLE : BTN_STYLE}
       >
         一時停止
       </button>
       <button
         data-testid="playback-stop"
-        title="停止"
+        title={noScoreLoaded ? NO_SCORE_TOOLTIP : '停止'}
         aria-label="停止"
         onClick={handleStop}
-        disabled={playbackState === 'stopped'}
-        style={playbackState === 'stopped' ? BTN_DISABLED_STYLE : BTN_STYLE}
+        disabled={noScoreLoaded || playbackState === 'stopped'}
+        style={noScoreLoaded || playbackState === 'stopped' ? BTN_DISABLED_STYLE : BTN_STYLE}
       >
         停止
       </button>

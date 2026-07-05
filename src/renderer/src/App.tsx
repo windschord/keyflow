@@ -336,7 +336,11 @@ function App(): React.JSX.Element {
             disabled={isLoadingAnnotations}
           />
         </div>
-        <Toolbar onOpenSettings={() => setIsSettingsOpen(true)} audioEngine={audioEngine} />
+        <Toolbar
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          audioEngine={audioEngine}
+          score={score}
+        />
       </div>
 
       <SettingsModal

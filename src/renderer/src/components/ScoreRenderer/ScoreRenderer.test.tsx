@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, render as renderPlain } from '@testing-library/react';
 import React from 'react';
 import { renderWithStrictMode as render } from '../../tests/test-utils';
 import { ScoreRenderer } from './index';
@@ -13,12 +13,16 @@ const mockSetOnMeasureClick = vi.fn();
 const mockSetOnNoteContextMenu = vi.fn();
 const mockShowFingerings = vi.fn();
 const mockClearFingerings = vi.fn();
+const mockBuildNoteIdMap = vi.fn();
+// デフォルトは即時解決（既存テストの前提を維持）。M4の再入テストのみ
+// mockImplementationOnce で解決タイミングを個別に制御する。
+const mockLoad = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('./osmd-controller', () => {
   return {
     OSMDController: vi.fn().mockImplementation(() => {
       return {
-        load: vi.fn().mockResolvedValue(undefined),
+        load: mockLoad,
         moveCursor: vi.fn(),
         setPartOpacity: mockSetPartOpacity,
         drawLoopBracket: mockDrawLoopBracket,
@@ -27,7 +31,7 @@ vi.mock('./osmd-controller', () => {
         highlightNote: mockHighlightNote,
         setOnMeasureClick: mockSetOnMeasureClick,
         setOnNoteContextMenu: mockSetOnNoteContextMenu,
-        buildNoteIdMap: vi.fn(),
+        buildNoteIdMap: mockBuildNoteIdMap,
         showFingerings: mockShowFingerings,
         clearFingerings: mockClearFingerings,
       };
@@ -48,6 +52,9 @@ describe('ScoreRenderer', () => {
     mockSetOnNoteContextMenu.mockClear();
     mockShowFingerings.mockClear();
     mockClearFingerings.mockClear();
+    mockBuildNoteIdMap.mockClear();
+    mockLoad.mockClear();
+    mockLoad.mockResolvedValue(undefined);
   });
 
   it('renders placeholder when score is null', () => {
@@ -387,5 +394,58 @@ describe('ScoreRenderer', () => {
 
     await waitFor(() => expect(mockClearFingerings).toHaveBeenCalled());
     expect(mockShowFingerings).not.toHaveBeenCalled();
+  });
+
+  it('ignores a stale load() completion when a newer load starts first (M4: OSMD load reentrancy)', async () => {
+    // このテストのみ StrictMode 二重マウントによる load() 呼び出し回数のブレを避けるため、
+    // 通常の render を使う（StrictModeでの再入耐性は他の全テストがStrictModeで
+    // 通っていることで既に間接的に検証されている）。
+    let resolveFirstLoad: (() => void) | undefined;
+    mockLoad.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirstLoad = resolve;
+        })
+    );
+
+    const { rerender } = renderPlain(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>first"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    await waitFor(() => expect(mockLoad).toHaveBeenCalledTimes(1));
+
+    // 1回目がまだ未解決のうちに、2回目（新しい楽譜）のload effectを走らせる。
+    // 2回目は即時解決するデフォルトのmockLoad実装を使う。
+    rerender(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>second"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    await waitFor(() => expect(mockLoad).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockBuildNoteIdMap).toHaveBeenCalledTimes(1));
+
+    // 古い(1回目の)loadを今になって解決させる。cancelledフラグにより
+    // その.then（setIsLoaded/buildNoteIdMap）は無視されるべきで、
+    // buildNoteIdMapの呼び出し回数は2回目のload分の1回のままであること。
+    resolveFirstLoad?.();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockBuildNoteIdMap).toHaveBeenCalledTimes(1);
   });
 });

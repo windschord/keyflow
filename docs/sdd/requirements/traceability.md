@@ -20,7 +20,7 @@
 | REQ-002-006 | ○ | ZoomControl.test（Toolbar常設、Japanese label・値反映）+ Toolbar.test（統合）+ ScoreRenderer/osmd-controller.test（zoom prop→setZoom結線、既存）+ E2E（`zoom-select`のUI操作でストアのzoomが変わることを検証、store直接呼び出しを廃止）。TASK-045で対応済み |
 | REQ-002-007 | ○ | osmd-controller.test（overlay描画）+ ScoreRenderer.test（practiceMode right/left/bothごとのsetPartOpacity結線をアサート）。TASK-046で対応済み |
 | REQ-003-001〜003 | ○ | practice-engine.test（モードフィルタ、スキップ） |
-| REQ-003-004 | ×※ | 非練習パート自動伴奏が未実装。TASK-047で要件再整理 |
+| REQ-003-004 | - | 保留・将来拡張へスコープ変更（2026-07-05、US-003参照）。曲を聴く用途はUS-010の再生で代替 |
 | REQ-003-005 | × | モード切替時の位置維持: 無検証 |
 | REQ-004-001 | △ | web-midi.test初期化のみ。ホットプラグ未検証 |
 | REQ-004-002 | × | 10ms以内のレイテンシ検証なし |

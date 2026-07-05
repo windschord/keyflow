@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import App from './App';
 import { vi } from 'vitest';
 import { AudioEngineService } from './lib/audio-engine';
@@ -52,17 +52,33 @@ vi.mock('tone', () => {
   };
 });
 
+// TASK-044: 実装したコンテキストメニュー結線を検証するため、モック化した
+// ScoreRenderer/PianoKeyboard/FingeringPanelのpropsを直近レンダー分だけ捕捉する。
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let latestScoreRendererProps: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let latestPianoKeyboardProps: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let latestFingeringPanelProps: any = null;
+
 vi.mock('./components/ScoreRenderer', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ScoreRenderer: (props: any) => (
-    <div data-testid="mock-score-renderer" data-looprange={JSON.stringify(props.loopRange)}>
-      ScoreRenderer
-    </div>
-  ),
+  ScoreRenderer: (props: any) => {
+    latestScoreRendererProps = props;
+    return (
+      <div data-testid="mock-score-renderer" data-looprange={JSON.stringify(props.loopRange)}>
+        ScoreRenderer
+      </div>
+    );
+  },
 }));
 
 vi.mock('./components/PianoKeyboard', () => ({
-  PianoKeyboard: () => <div data-testid="mock-piano-keyboard">PianoKeyboard</div>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  PianoKeyboard: (props: any) => {
+    latestPianoKeyboardProps = props;
+    return <div data-testid="mock-piano-keyboard">PianoKeyboard</div>;
+  },
 }));
 
 vi.mock('./components/Toolbar', () => ({
@@ -70,7 +86,11 @@ vi.mock('./components/Toolbar', () => ({
 }));
 
 vi.mock('./components/FingeringPanel', () => ({
-  FingeringPanel: () => <div data-testid="mock-fingering-panel">FingeringPanel</div>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  FingeringPanel: (props: any) => {
+    latestFingeringPanelProps = props;
+    return <div data-testid="mock-fingering-panel">FingeringPanel</div>;
+  },
 }));
 
 describe('App', () => {
@@ -89,6 +109,9 @@ describe('App', () => {
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).electronAPI;
+    latestScoreRendererProps = null;
+    latestPianoKeyboardProps = null;
+    latestFingeringPanelProps = null;
   });
 
   it('renders correctly with layout components', () => {
@@ -527,6 +550,193 @@ describe('App', () => {
     const scoreRenderer = screen.getByTestId('mock-score-renderer');
     expect(scoreRenderer.getAttribute('data-looprange')).toBe(
       JSON.stringify({ start: 3, end: 7 })
+    );
+  });
+});
+
+describe('App - note context menu (TASK-044, US-008)', () => {
+  const SIMPLE_XML = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+  async function openScoreFile(writeMock: ReturnType<typeof vi.fn>): Promise<void> {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockImplementation((path: string) => {
+      if (path.endsWith('.annotation.json')) {
+        return Promise.reject(new Error('not found'));
+      }
+      return Promise.resolve(SIMPLE_XML);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        read: readMock,
+        write: writeMock,
+      },
+    };
+
+    render(<App />);
+    const openFileBtn = screen.getByText('ファイルを開く');
+    openFileBtn.click();
+
+    await waitFor(() => expect(readMock).toHaveBeenCalledWith('test.xml'));
+    await waitFor(() =>
+      expect(latestScoreRendererProps?.onNoteContextMenu).toBeInstanceOf(Function)
+    );
+  }
+
+  it('opens the context menu on right-click and saves a selected finger number via annotation-store (REQ-008-001)', async () => {
+    const writeMock = vi.fn().mockResolvedValue(undefined);
+    await openScoreFile(writeMock);
+
+    act(() => {
+      latestScoreRendererProps.onNoteContextMenu('P1-M1-N0', 50, 60);
+    });
+
+    expect(screen.getByTestId('note-context-menu')).toBeInTheDocument();
+
+    await act(async () => {
+      screen.getByTestId('finger-option-3').click();
+    });
+
+    await waitFor(() => expect(writeMock).toHaveBeenCalled());
+    const writtenContent = JSON.parse(writeMock.mock.calls[0][1] as string);
+    expect(writtenContent.annotations).toEqual([
+      expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 3 }),
+    ]);
+
+    expect(screen.queryByTestId('note-context-menu')).not.toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(latestPianoKeyboardProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 3 }),
+      ])
+    );
+    expect(latestScoreRendererProps.annotations).toEqual([
+      expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 3 }),
+    ]);
+  });
+
+  it('removes an existing finger number via the context menu (REQ-008-006)', async () => {
+    const writeMock = vi.fn().mockResolvedValue(undefined);
+    await openScoreFile(writeMock);
+
+    act(() => {
+      latestScoreRendererProps.onNoteContextMenu('P1-M1-N0', 50, 60);
+    });
+    await act(async () => {
+      screen.getByTestId('finger-option-4').click();
+    });
+    await waitFor(() => expect(writeMock).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      latestScoreRendererProps.onNoteContextMenu('P1-M1-N0', 50, 60);
+    });
+    expect(screen.getByTestId('remove-finger-button')).not.toBeDisabled();
+
+    await act(async () => {
+      screen.getByTestId('remove-finger-button').click();
+    });
+
+    await waitFor(() => expect(writeMock).toHaveBeenCalledTimes(2));
+    const writtenContent = JSON.parse(
+      writeMock.mock.calls[writeMock.mock.calls.length - 1][1] as string
+    );
+    expect(writtenContent.annotations).toEqual([]);
+    await waitFor(() => expect(latestPianoKeyboardProps.annotations).toEqual([]));
+  });
+
+  it('adds and edits a text comment via the context menu (REQ-008-003)', async () => {
+    const writeMock = vi.fn().mockResolvedValue(undefined);
+    await openScoreFile(writeMock);
+
+    act(() => {
+      latestScoreRendererProps.onNoteContextMenu('P1-M1-N0', 50, 60);
+    });
+
+    const textarea = screen.getByTestId('comment-textarea') as HTMLTextAreaElement;
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: '親指から始める' } });
+      screen.getByTestId('save-comment-button').click();
+    });
+
+    await waitFor(() => expect(writeMock).toHaveBeenCalled());
+    const writtenContent = JSON.parse(writeMock.mock.calls[0][1] as string);
+    expect(writtenContent.annotations).toEqual([
+      expect.objectContaining({ noteId: 'P1-M1-N0', comment: '親指から始める' }),
+    ]);
+  });
+
+  it('approves an AI-suggested annotation via the context menu, reflected as isApproved in showFingerings data (REQ-009-005)', async () => {
+    const writeMock = vi.fn().mockResolvedValue(undefined);
+    await openScoreFile(writeMock);
+
+    await waitFor(() => expect(latestFingeringPanelProps?.onSuggested).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 2, cost: 0 }]);
+    });
+
+    await waitFor(() =>
+      expect(latestScoreRendererProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 2, isApproved: false }),
+      ])
+    );
+
+    act(() => {
+      latestScoreRendererProps.onNoteContextMenu('P1-M1-N0', 50, 60);
+    });
+
+    await act(async () => {
+      screen.getByTestId('approve-annotation-button').click();
+    });
+
+    await waitFor(() =>
+      expect(latestScoreRendererProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 2, isApproved: true }),
+      ])
+    );
+  });
+
+  it('keeps a manually approved annotation when new AI suggestions are applied afterwards (REQ-009-006 regression)', async () => {
+    const writeMock = vi.fn().mockResolvedValue(undefined);
+    await openScoreFile(writeMock);
+
+    await waitFor(() => expect(latestFingeringPanelProps?.onSuggested).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 2, cost: 0 }]);
+    });
+
+    act(() => {
+      latestScoreRendererProps.onNoteContextMenu('P1-M1-N0', 50, 60);
+    });
+    await act(async () => {
+      screen.getByTestId('approve-annotation-button').click();
+    });
+
+    await waitFor(() =>
+      expect(latestScoreRendererProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 2, isApproved: true }),
+      ])
+    );
+
+    await act(async () => {
+      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 5, cost: 0 }]);
+    });
+
+    await waitFor(() =>
+      expect(latestScoreRendererProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 2, isApproved: true }),
+      ])
     );
   });
 });

@@ -9,6 +9,9 @@ const mockClearLoopBracket = vi.fn();
 const mockSetPartOpacity = vi.fn();
 const mockHighlightNote = vi.fn();
 const mockSetOnMeasureClick = vi.fn();
+const mockSetOnNoteContextMenu = vi.fn();
+const mockShowFingerings = vi.fn();
+const mockClearFingerings = vi.fn();
 
 vi.mock('./osmd-controller', () => {
   return {
@@ -22,9 +25,10 @@ vi.mock('./osmd-controller', () => {
         setZoom: vi.fn(),
         highlightNote: mockHighlightNote,
         setOnMeasureClick: mockSetOnMeasureClick,
+        setOnNoteContextMenu: mockSetOnNoteContextMenu,
         buildNoteIdMap: vi.fn(),
-        showFingerings: vi.fn(),
-        clearFingerings: vi.fn(),
+        showFingerings: mockShowFingerings,
+        clearFingerings: mockClearFingerings,
       };
     }),
   };
@@ -40,6 +44,9 @@ describe('ScoreRenderer', () => {
     mockSetPartOpacity.mockClear();
     mockHighlightNote.mockClear();
     mockSetOnMeasureClick.mockClear();
+    mockSetOnNoteContextMenu.mockClear();
+    mockShowFingerings.mockClear();
+    mockClearFingerings.mockClear();
   });
 
   it('renders placeholder when score is null', () => {
@@ -220,5 +227,100 @@ describe('ScoreRenderer', () => {
     await waitFor(() =>
       expect(mockHighlightNote).toHaveBeenCalledWith('P1-M1-N0', 'expected')
     );
+  });
+
+  it('registers a note-contextmenu handler that forwards resolved noteId and screen coordinates (REQ-008-001)', async () => {
+    const onNoteContextMenu = vi.fn();
+
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+        onNoteContextMenu={onNoteContextMenu}
+      />
+    );
+
+    await waitFor(() => expect(mockSetOnNoteContextMenu).toHaveBeenCalled());
+
+    const registeredCallback = mockSetOnNoteContextMenu.mock.calls[
+      mockSetOnNoteContextMenu.mock.calls.length - 1
+    ][0] as (noteId: string, x: number, y: number) => void;
+    registeredCallback('P1-M2-N0', 120, 240);
+
+    expect(onNoteContextMenu).toHaveBeenCalledWith('P1-M2-N0', 120, 240);
+  });
+
+  it('unregisters the note-contextmenu handler on unmount', async () => {
+    const onNoteContextMenu = vi.fn();
+
+    const { unmount } = render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+        onNoteContextMenu={onNoteContextMenu}
+      />
+    );
+
+    await waitFor(() => expect(mockSetOnNoteContextMenu).toHaveBeenCalled());
+    mockSetOnNoteContextMenu.mockClear();
+
+    unmount();
+
+    expect(mockSetOnNoteContextMenu).toHaveBeenCalledWith(null);
+  });
+
+  it('renders fingerings using the real isApproved value from annotation data instead of a fixed false (osmd-controller.ts:454 dead branch)', async () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+        annotations={[
+          { noteId: 'P1-M1-N0', fingerNumber: 3, isAISuggested: false, isApproved: true },
+          { noteId: 'P1-M2-N0', fingerNumber: 2, isAISuggested: true, isApproved: false },
+          // Annotations without a fingerNumber (comment-only) must not be passed to showFingerings.
+          { noteId: 'P1-M3-N0', comment: 'メモのみ', isAISuggested: false, isApproved: false },
+        ]}
+      />
+    );
+
+    await waitFor(() =>
+      expect(mockShowFingerings).toHaveBeenCalledWith([
+        { noteId: 'P1-M1-N0', finger: 3, isApproved: true },
+        { noteId: 'P1-M2-N0', finger: 2, isApproved: false },
+      ])
+    );
+  });
+
+  it('clears fingerings when no annotation has a fingerNumber', async () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+        annotations={[{ noteId: 'P1-M1-N0', isAISuggested: false, isApproved: false }]}
+      />
+    );
+
+    await waitFor(() => expect(mockClearFingerings).toHaveBeenCalled());
+    expect(mockShowFingerings).not.toHaveBeenCalled();
   });
 });

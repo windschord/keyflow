@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Score, PracticeMode, Note, FingerAssignment } from '../../types';
+import { Score, PracticeMode, Note, Annotation } from '../../types';
 import { OSMDController } from './osmd-controller';
 
 export interface ScoreRendererProps {
@@ -10,12 +10,25 @@ export interface ScoreRendererProps {
   loopRange: { start: number; end: number } | null;
   zoom: number;
   onNoteClick: (note: Note) => void;
-  annotations?: FingerAssignment[];
+  /**
+   * annotation-storeの実データ（手動入力・AI提案の両方を含む）。
+   * fingerNumberが設定されている項目のみ楽譜上に指番号として描画し、
+   * isApprovedの値に応じて色分けする（承認済み: 濃い青、未承認: 淡い青。
+   * osmd-controller.ts の renderFingeringLayer 参照）。
+   */
+  annotations?: Annotation[];
   /**
    * noteIdごとの正誤ハイライト状態（REQ-004-003/004）。
    * practice-engineの判定結果（usePractice経由）をApp.tsxから受け取り、OSMDController.highlightNoteに反映する。
    */
   noteHighlights?: Record<string, 'correct' | 'incorrect'>;
+  /**
+   * 音符の右クリック（contextmenu）を検知した際に呼び出されるコールバック
+   * （REQ-008-001/003/006、REQ-009-005）。座標解決済みのnoteIdと、メニュー表示位置
+   * となる画面座標（clientX/clientY）を受け取る。App.tsx側で運指メモの
+   * コンテキストメニュー表示に結線する。
+   */
+  onNoteContextMenu?: (noteId: string, screenX: number, screenY: number) => void;
 }
 
 export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
@@ -28,6 +41,7 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   onNoteClick,
   annotations,
   noteHighlights,
+  onNoteContextMenu,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdControllerRef = useRef<OSMDController | null>(null);
@@ -68,9 +82,17 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
 
   useEffect(() => {
     if (!osmdControllerRef.current) return;
-    if (isLoaded && annotations && annotations.length > 0) {
+    const withFinger = (annotations ?? []).filter(
+      (a): a is Annotation & { fingerNumber: NonNullable<Annotation['fingerNumber']> } =>
+        a.fingerNumber !== undefined
+    );
+    if (isLoaded && withFinger.length > 0) {
       osmdControllerRef.current.showFingerings(
-        annotations.map((a) => ({ noteId: a.noteId, finger: a.finger, isApproved: false }))
+        withFinger.map((a) => ({
+          noteId: a.noteId,
+          finger: a.fingerNumber,
+          isApproved: a.isApproved,
+        }))
       );
     } else {
       osmdControllerRef.current.clearFingerings();
@@ -118,6 +140,18 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
       osmdControllerRef.current?.setOnMeasureClick(null);
     };
   }, [score, onNoteClick]);
+
+  // 音符の右クリック（contextmenu）によるコンテキストメニュー表示
+  // （REQ-008-001/003/006、REQ-009-005）。OSMDController側でクリック位置に最も
+  // 近いnoteIdを解決し、画面座標とともに onNoteContextMenu prop 経由で
+  // App.tsxへ通知する。
+  useEffect(() => {
+    if (!osmdControllerRef.current) return;
+    osmdControllerRef.current.setOnNoteContextMenu(onNoteContextMenu ?? null);
+    return () => {
+      osmdControllerRef.current?.setOnNoteContextMenu(null);
+    };
+  }, [onNoteContextMenu]);
 
   // 正誤判定結果に応じた楽譜上のハイライト（REQ-004-003/004）。
   // usePractice/App.tsx から渡される noteHighlights の差分のみ OSMDController に反映し、

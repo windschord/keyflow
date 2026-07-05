@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-044 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 90分 |
 | 依存タスク | TASK-041 |
@@ -70,25 +70,53 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] 楽譜上の音符を右クリックするとコンテキストメニューが開き、指番号1〜5を選択して保存できる（REQ-008-001）
-- [ ] 右クリックメニューから既存の運指番号を削除できる（REQ-008-006）
-- [ ] 右クリックメニューから音符へのテキストコメントを追加・編集できる（REQ-008-003）
-- [ ] AI提案運指を承認でき、承認結果がアノテーションとして保存される（REQ-009-005）
-- [ ] 承認済み運指が楽譜上で濃い青（未承認の提案は淡い青）で表示される（`osmd-controller.ts:454` の分岐が実データで到達可能）
-- [ ] 編集結果がJSONサイドカーに永続化され、ファイルを開き直すと復元される
-- [ ] 手動編集した指番号が鍵盤上の指番号表示（REQ-005-007）にも反映される
-- [ ] `docs/sdd/requirements/traceability.md` の該当行が更新されている
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] 楽譜上の音符を右クリックするとコンテキストメニューが開き、指番号1〜5を選択して保存できる（REQ-008-001）
+- [x] 右クリックメニューから既存の運指番号を削除できる（REQ-008-006）
+- [x] 右クリックメニューから音符へのテキストコメントを追加・編集できる（REQ-008-003）
+- [x] AI提案運指を承認でき、承認結果がアノテーションとして保存される（REQ-009-005）
+- [x] 承認済み運指が楽譜上で濃い青（未承認の提案は淡い青）で表示される（`osmd-controller.ts:454` の分岐が実データで到達可能）
+- [x] 編集結果がJSONサイドカーに永続化され、ファイルを開き直すと復元される
+- [x] 手動編集した指番号が鍵盤上の指番号表示（REQ-005-007）にも反映される
+- [x] `docs/sdd/requirements/traceability.md` の該当行が更新されている
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規・ユニット）osmd-controller: contextmenu座標→noteId解決→コールバック
-- [ ] （新規・コンポーネント）メニューUI: 指番号選択・削除・コメント編集・承認の各操作がコールバックを発火する
-- [ ] （新規・統合）右クリック→指番号入力→annotation-store反映→`save()` 呼び出し→鍵盤・楽譜表示更新
-- [ ] （新規・統合）承認操作→`approveAnnotation`→`showFingerings` に `isApproved: true` が渡り色分けされる
-- [ ] （新規・回帰）AI提案適用（`applyAISuggestions`）と手動編集が共存する（手動値が上書きされない: REQ-009-006）
-- [ ] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規・ユニット）osmd-controller: contextmenu座標→noteId解決→コールバック
+- [x] （新規・コンポーネント）メニューUI: 指番号選択・削除・コメント編集・承認の各操作がコールバックを発火する
+- [x] （新規・統合）右クリック→指番号入力→annotation-store反映→`save()` 呼び出し→鍵盤・楽譜表示更新
+- [x] （新規・統合）承認操作→`approveAnnotation`→`showFingerings` に `isApproved: true` が渡り色分けされる
+- [x] （新規・回帰）AI提案適用（`applyAISuggestions`）と手動編集が共存する（手動値が上書きされない: REQ-009-006）
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 完了サマリ
+
+TDDで実装した。
+
+1. `osmd-controller.ts`: `setOnNoteContextMenu` を追加し、`contextmenu` イベントで
+   `screenToSvgCoord` → `findNearestNoteId`（既存の `handleContainerClick` と同一パターン）
+   により noteId を解決し、画面座標とともにコールバックへ通知する。ブラウザ既定の
+   コンテキストメニューは常に `preventDefault` で抑止する。
+2. `ScoreRenderer/index.tsx`: `onNoteContextMenu` propを追加してOSMDControllerに結線。
+   `annotations` propの型を `FingerAssignment[]` から `Annotation[]` に変更し、
+   `fingerNumber` が設定された項目のみ実際の `isApproved` 値とともに
+   `showFingerings` に渡すよう修正（`isApproved: false` 固定を解消、
+   `osmd-controller.ts:454` の色分け分岐を実データで到達可能にした）。
+3. `components/NoteContextMenu/index.tsx`（新規）: 指番号1〜5選択・削除・
+   コメント編集・（AI提案かつ未承認の場合のみ）承認ボタンを持つメニュー。
+   Escキー・外側クリックで閉じる。
+4. `App.tsx`: `fingeringAnnotations` state を廃止し、`keyboardAnnotations`
+   （annotation-storeの実データ）を鍵盤・楽譜表示双方の単一の真実源に統一。
+   右クリックでメニューを開き、指番号選択・削除・コメント保存・承認の各操作を
+   annotation-storeのCRUD API呼び出し→`save()`→`keyboardAnnotations` 更新という
+   一連の流れに結線した（失敗時は既存パターンに合わせ `alert` 表示）。
+5. `docs/sdd/requirements/traceability.md` の REQ-008-001/002/003/006、
+   REQ-009-005/006 を更新し、実装・テストの検証状況を反映した。
+
+新規/更新テスト: `osmd-controller.test.ts`（+4）、`ScoreRenderer.test.tsx`（+4）、
+`NoteContextMenu.test.tsx`（新規9件）、`App.test.tsx`（+5、統合シナリオ）。
+`npm run test`（298件全通過）、`npm run typecheck`、`npm run lint` すべて通過を確認済み。
 
 ## 情報の明確性
 

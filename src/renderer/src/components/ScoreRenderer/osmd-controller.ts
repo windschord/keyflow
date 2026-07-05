@@ -18,6 +18,13 @@ export class OSMDController {
   private noteHighlights = new Map<string, 'correct' | 'incorrect'>();
   /** 小節クリック時に呼び出されるコールバック（App.tsx側でpracticeEngine.resetToMeasureに結線する）。 */
   private onMeasureClickCallback: ((measureNumber: number) => void) | null = null;
+  /**
+   * 音符の右クリック（contextmenu）時に呼び出されるコールバック（REQ-008-001/003/006、
+   * REQ-009-005）。App.tsx側で運指メモのコンテキストメニュー表示に結線する。
+   */
+  private onNoteContextMenuCallback:
+    | ((noteId: string, screenX: number, screenY: number) => void)
+    | null = null;
 
   constructor(container: HTMLDivElement) {
     this.container = container;
@@ -27,6 +34,7 @@ export class OSMDController {
       drawTitle: true,
     });
     this.container.addEventListener('click', this.handleContainerClick);
+    this.container.addEventListener('contextmenu', this.handleContainerContextMenu);
   }
 
   async load(xmlContent: string): Promise<void> {
@@ -355,6 +363,33 @@ export class OSMDController {
     if (!match) return;
 
     this.onMeasureClickCallback(parseInt(match[1], 10));
+  };
+
+  /**
+   * 音符の右クリック（contextmenu）を処理し、クリック位置に最も近いnoteIdを解決して
+   * コールバックへ通知する（REQ-008-001/003/006、REQ-009-005）。ScoreRenderer側で
+   * App.tsxのコンテキストメニュー表示・annotation-store CRUDに結線する。座標解決は
+   * 既存の handleContainerClick と同じ screenToSvgCoord → findNearestNoteId のパターンを
+   * 流用する。楽譜上に独自のメニューを表示するため、ブラウザ既定のコンテキストメニューは
+   * 常に抑止する。
+   */
+  setOnNoteContextMenu(
+    callback: ((noteId: string, screenX: number, screenY: number) => void) | null
+  ): void {
+    this.onNoteContextMenuCallback = callback;
+  }
+
+  private handleContainerContextMenu = (event: MouseEvent): void => {
+    event.preventDefault();
+    if (!this.onNoteContextMenuCallback) return;
+
+    const svgPoint = this.screenToSvgCoord(event.clientX, event.clientY);
+    if (!svgPoint) return;
+
+    const noteId = this.findNearestNoteId(svgPoint);
+    if (!noteId) return;
+
+    this.onNoteContextMenuCallback(noteId, event.clientX, event.clientY);
   };
 
   private screenToSvgCoord(clientX: number, clientY: number): { x: number; y: number } | null {

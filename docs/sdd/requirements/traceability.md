@@ -47,18 +47,18 @@
 | REQ-007-004 | ×※ | ループ回数カウンターUI未実装 |
 | REQ-007-005 | ×※ | 自動解除（将来予定と明記済み・意図的） |
 | REQ-007-006 | △ | store toggleLoopのみ |
-| REQ-008-001 | ×※ | 右クリック運指入力UIが存在しない（TASK-044） |
-| REQ-008-002 | × | showFingeringsテストゼロ |
-| REQ-008-003 | △※ | setCommentユニットのみ。コメントUIなし（TASK-044） |
+| REQ-008-001 | ○ | osmd-controller.test（contextmenu座標→noteId解決）+ NoteContextMenu.test（指番号1-5選択）+ ScoreRenderer.test（結線）+ App.test（右クリック→setFinger→save統合）。TASK-044で対応済み |
+| REQ-008-002 | ○ | ScoreRenderer.test（annotations→showFingerings、isApproved色分け含む）。TASK-044で対応済み |
+| REQ-008-003 | ○ | NoteContextMenu.test（コメント編集UI）+ App.test（コメント保存→annotation-store結線）。TASK-044で対応済み |
 | REQ-008-004 | ○ | annotation-store.test + path-allowlist.test + App結線 |
 | REQ-008-005 | △ | load（validNoteIdsフィルタ）は○。App結線未アサート |
-| REQ-008-006 | △※ | removeFingerユニットのみ。削除UIなし（TASK-044） |
+| REQ-008-006 | ○ | NoteContextMenu.test（削除ボタン活性制御）+ App.test（右クリック→removeFinger→save統合）。TASK-044で対応済み |
 | REQ-009-001 | △ | dp-solver + service（モックWorker）。実Worker未検証 |
 | REQ-009-002 | △ | 左手固有の検証なし |
 | REQ-009-003 | × | プログレスバー表示未検証 |
 | REQ-009-004 | × | showFingerings未検証 |
-| REQ-009-005 | △※ | approveAnnotationユニットのみ。承認UIなし（TASK-044） |
-| REQ-009-006 | ×※ | 個別上書きUIなし（TASK-044） |
+| REQ-009-005 | ○ | NoteContextMenu.test（AI提案時のみ承認ボタン表示）+ App.test（承認→approveAnnotation→isApproved:true反映）。TASK-044で対応済み |
+| REQ-009-006 | ○ | annotation-store.test（applyAISuggestionsが承認済みを上書きしない）+ App.test（承認後に新規AI提案を適用しても手動承認値が維持される回帰テスト）。TASK-044で対応済み |
 | REQ-009-007 | △ | モックWorkerのみ |
 | REQ-009-A01 | △ | dp-solver.test（アサーション弱い） |
 | REQ-009-A02 | △ | spanCostユニット○、DP統合は弱い |

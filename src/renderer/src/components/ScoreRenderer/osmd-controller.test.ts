@@ -341,3 +341,80 @@ describe('OSMDController measure click resolution (REQ-002-004)', () => {
     ).not.toThrow();
   });
 });
+
+describe('OSMDController note context menu (REQ-008-001/003/006, REQ-009-005)', () => {
+  it('resolves the nearest noteId on contextmenu and invokes the registered callback with screen coordinates', () => {
+    const container = document.createElement('div');
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access to private note coordinate map
+    controller.noteIdToSvgCoord = new Map([
+      ['P1-M1-N0', { x: 10, y: 20 }],
+      ['P1-M3-N0', { x: 200, y: 20 }],
+    ]);
+    // Bypass real DOM geometry (jsdom does not implement SVG viewBox/getBoundingClientRect
+    // meaningfully); stub the screen-to-SVG conversion to a fixed point near M3.
+    // @ts-expect-error test override of private method
+    controller.screenToSvgCoord = () => ({ x: 190, y: 22 });
+
+    const onNoteContextMenu = vi.fn();
+    controller.setOnNoteContextMenu(onNoteContextMenu);
+
+    const event = new MouseEvent('contextmenu', {
+      clientX: 300,
+      clientY: 400,
+      bubbles: true,
+      cancelable: true,
+    });
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+    container.dispatchEvent(event);
+
+    expect(preventDefaultSpy).toHaveBeenCalled();
+    expect(onNoteContextMenu).toHaveBeenCalledWith('P1-M3-N0', 300, 400);
+  });
+
+  it('prevents the default browser context menu even when no callback is registered', () => {
+    const container = document.createElement('div');
+    new OSMDController(container);
+
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+
+    expect(() => container.dispatchEvent(event)).not.toThrow();
+    expect(preventDefaultSpy).toHaveBeenCalled();
+  });
+
+  it('does not invoke the callback when no note is near the click position', () => {
+    const container = document.createElement('div');
+    const controller = new OSMDController(container);
+    // @ts-expect-error test override of private method
+    controller.screenToSvgCoord = () => null;
+
+    const onNoteContextMenu = vi.fn();
+    controller.setOnNoteContextMenu(onNoteContextMenu);
+
+    container.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+
+    expect(onNoteContextMenu).not.toHaveBeenCalled();
+  });
+
+  it('unregisters the callback when set to null', () => {
+    const container = document.createElement('div');
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access to private note coordinate map
+    controller.noteIdToSvgCoord = new Map([['P1-M1-N0', { x: 10, y: 20 }]]);
+    // @ts-expect-error test override of private method
+    controller.screenToSvgCoord = () => ({ x: 10, y: 20 });
+
+    const onNoteContextMenu = vi.fn();
+    controller.setOnNoteContextMenu(onNoteContextMenu);
+    controller.setOnNoteContextMenu(null);
+
+    container.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+
+    expect(onNoteContextMenu).not.toHaveBeenCalled();
+  });
+});

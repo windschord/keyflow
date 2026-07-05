@@ -3,6 +3,7 @@ import { Toolbar } from './components/Toolbar';
 import { ScoreRenderer } from './components/ScoreRenderer';
 import { PianoKeyboard } from './components/PianoKeyboard';
 import { FingeringPanel } from './components/FingeringPanel';
+import { NoteContextMenu } from './components/NoteContextMenu';
 import { usePracticeStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { parse, extractXmlFromMxl } from './lib/musicxml-parser';
@@ -10,15 +11,22 @@ import { SettingsModal } from './components/SettingsModal';
 import { usePractice } from './hooks/usePractice';
 import { AnnotationStoreService } from './lib/annotation-store';
 import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
-import type { Annotation, FingerAssignment, Note, Score } from './types';
+import type { Annotation, Finger, FingerAssignment, Note, Score } from './types';
 
 function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = React.useState(false);
-  const [fingeringAnnotations, setFingeringAnnotations] = React.useState<FingerAssignment[]>([]);
-  // annotation-store が保持する運指メモ（手動入力・AI提案）の実データ。
-  // PianoKeyboard に渡し、鍵盤上の指番号表示に反映する（REQ-005-007）。
+  // annotation-store が保持する運指メモ（手動入力・AI提案の両方）の実データ。
+  // PianoKeyboard の鍵盤上指番号表示（REQ-005-007）と ScoreRenderer の楽譜上
+  // 指番号表示（REQ-008-002、承認済み/未承認の色分けを含む）の両方に渡す
+  // 単一の真実源とする（TASK-044: 片方だけ更新されて表示が食い違う状態を避ける）。
   const [keyboardAnnotations, setKeyboardAnnotations] = React.useState<Annotation[]>([]);
+  // 右クリックで開く運指メモ編集メニュー（REQ-008-001/003/006、REQ-009-005）の状態。
+  const [noteContextMenu, setNoteContextMenu] = React.useState<{
+    noteId: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const { practiceEngine, audioEngine, webMidiService, handleKeyClick, noteHighlights } =
     usePractice();
@@ -181,7 +189,8 @@ function App(): React.JSX.Element {
       // store.getState().score を参照するため、呼び出し順序を変更しないこと）。
       practiceEngine.resetToMeasure(1);
       audioEngine.loadScore(parsedScore);
-      setFingeringAnnotations([]);
+      setKeyboardAnnotations([]);
+      setNoteContextMenu(null);
       const validNoteIds = new Set(
         parsedScore.measures.flatMap((measure) => measure.notes.map((note) => note.id))
       );
@@ -207,7 +216,6 @@ function App(): React.JSX.Element {
       try {
         annotationStore.current.applyAISuggestions(assignments);
         await annotationStore.current.save();
-        setFingeringAnnotations(assignments);
         setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
       } catch (error) {
         console.error('Failed to save fingering annotations:', error);
@@ -216,6 +224,70 @@ function App(): React.JSX.Element {
     },
     [musicXmlPath, isLoadingAnnotations]
   );
+
+  // 運指メモの右クリックメニュー結線（REQ-008-001/003/006、REQ-009-005）。
+  // ScoreRenderer/OSMDControllerが座標→noteId解決したコールバックを受け、
+  // クリック位置にメニューを表示する。
+  const handleNoteContextMenu = React.useCallback((noteId: string, x: number, y: number) => {
+    setNoteContextMenu({ noteId, x, y });
+  }, []);
+
+  const closeNoteContextMenu = React.useCallback(() => {
+    setNoteContextMenu(null);
+  }, []);
+
+  // annotation-store への変更後、JSONサイドカーへ即時永続化し（REQ-008-004）、
+  // 鍵盤・楽譜の指番号表示を更新する（handleFingering:173-187と同じ
+  // エラーハンドリング＝失敗時alert）。
+  const persistAnnotationChange = React.useCallback(async () => {
+    try {
+      await annotationStore.current.save();
+      setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
+    } catch (error) {
+      console.error('Failed to save annotation:', error);
+      alert('運指メモの保存に失敗しました。');
+    }
+  }, []);
+
+  const handleSelectFinger = React.useCallback(
+    async (noteId: string, finger: Finger) => {
+      annotationStore.current.setFinger(noteId, finger);
+      await persistAnnotationChange();
+      setNoteContextMenu(null);
+    },
+    [persistAnnotationChange]
+  );
+
+  const handleRemoveFinger = React.useCallback(
+    async (noteId: string) => {
+      annotationStore.current.removeFinger(noteId);
+      await persistAnnotationChange();
+      setNoteContextMenu(null);
+    },
+    [persistAnnotationChange]
+  );
+
+  const handleSaveComment = React.useCallback(
+    async (noteId: string, comment: string) => {
+      annotationStore.current.setComment(noteId, comment);
+      await persistAnnotationChange();
+      setNoteContextMenu(null);
+    },
+    [persistAnnotationChange]
+  );
+
+  const handleApproveAnnotation = React.useCallback(
+    async (noteId: string) => {
+      annotationStore.current.approveAnnotation(noteId);
+      await persistAnnotationChange();
+      setNoteContextMenu(null);
+    },
+    [persistAnnotationChange]
+  );
+
+  const activeNoteAnnotation = noteContextMenu
+    ? keyboardAnnotations.find((a) => a.noteId === noteContextMenu.noteId)
+    : undefined;
 
   // 小節クリックによるカーソル移動（REQ-002-004）。
   // ScoreRenderer/OSMDControllerがクリック位置に最も近い音符を解決し、その音符が
@@ -291,10 +363,25 @@ function App(): React.JSX.Element {
           loopRange={loopRange}
           zoom={zoom}
           onNoteClick={handleNoteClick}
-          annotations={fingeringAnnotations}
+          annotations={keyboardAnnotations}
           noteHighlights={noteHighlights}
+          onNoteContextMenu={handleNoteContextMenu}
         />
       </div>
+
+      {noteContextMenu && (
+        <NoteContextMenu
+          noteId={noteContextMenu.noteId}
+          x={noteContextMenu.x}
+          y={noteContextMenu.y}
+          annotation={activeNoteAnnotation}
+          onSelectFinger={(finger) => handleSelectFinger(noteContextMenu.noteId, finger)}
+          onRemoveFinger={() => handleRemoveFinger(noteContextMenu.noteId)}
+          onSaveComment={(comment) => handleSaveComment(noteContextMenu.noteId, comment)}
+          onApprove={() => handleApproveAnnotation(noteContextMenu.noteId)}
+          onClose={closeNoteContextMenu}
+        />
+      )}
 
       {/* 3. PianoKeyboard (Fixed Footer) */}
       <div style={{ flexShrink: 0 }}>

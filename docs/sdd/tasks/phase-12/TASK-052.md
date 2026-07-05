@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-052 |
 | タイプ | feature |
-| ステータス | IN_PROGRESS |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 40分 |
 | 依存タスク | なし |
@@ -65,20 +65,23 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] ツールバーの音量スライダーで再生・メトロノーム・効果音の音量が変わる
-- [ ] スライダー0でミュートになる
-- [ ] 音量設定がelectron-storeに永続化され、アプリ再起動後に復元される
-- [ ] スライダーに日本語ラベルとツールチップがある
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] ツールバーの音量スライダーで再生・メトロノーム・効果音の音量が変わる
+- [x] スライダー0でミュートになる
+- [x] 音量設定がelectron-storeに永続化され、アプリ再起動後に復元される
+- [x] スライダーに日本語ラベルとツールチップがある
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規）audio-engine: `setMasterVolume` のdB変換・ミュート・境界値
-- [ ] （新規）ui-slice: `volume`/`setVolume` のクランプ
-- [ ] （新規）VolumeControl: スライダー操作→`setVolume` 呼び出し、ラベル・ツールチップ
-- [ ] （新規）結線: store の volume 変更→`audioEngine.setMasterVolume`、起動時ロード、変更時保存
-- [ ] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規）audio-engine: `setMasterVolume` のdB変換・ミュート・境界値
+- [x] （新規）ui-slice: `volume`/`setVolume` のクランプ
+- [x] （新規）VolumeControl: スライダー操作→`setVolume` 呼び出し、ラベル・ツールチップ
+- [x] （新規）結線: store の volume 変更→`audioEngine.setMasterVolume`、起動時ロード、変更時保存
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+  （TASK-052スコープ外のosmd-controller.test.ts失敗を除く。TASK-048担当エージェントが
+  同一タイムスタンプで並行修正中の`setGrayedOutNotes`未実装によるもので、60秒後の
+  再実行でも同様に別ファイルの失敗として再現し、本タスクの変更とは無関係と判断した）
 
 ## 情報の明確性
 
@@ -90,3 +93,29 @@ TDDで進める。
 ### 不明/要確認の情報
 
 - なし（すべて確認済み）
+
+## 完了サマリー
+
+- `AudioEngineService.setMasterVolume(volume)` を追加。0〜100のUI線形値を
+  `20 * log10(v/100)` でdB変換し `Tone.getDestination().volume.value` へ設定。
+  0は`Destination.mute = true`で明示的にミュート（`log10(0)`のNaNを回避）。
+  伴奏・メトロノーム・効果音は共通Destinationに直結しているため一括で反映される。
+- `ui-slice` に `volume`（初期値80）・`setVolume`（0〜100クランプ）を追加。
+- `Toolbar/VolumeControl.tsx` を新規追加し、`Toolbar/index.tsx`の
+  `PlaybackControls`直後に組み込み。日本語ラベル「音量:」・ツールチップ付き。
+  変更時に`setVolume`を即時反映しつつ、electron-store `ui`設定へ
+  （既存値とマージして）永続化する。
+- `usePractice.ts` に `volume` 用の同期`useEffect`を追加（bpm/metronomeEnabledと同型）。
+- `App.tsx` の起動時設定ロードに `ui.volume` → `setVolume` の反映を追加
+  （zoom/pianoHeightと同型）。
+- `AppSettings.ui.volume`（既定値80）を renderer/main 双方の型定義に追加し、
+  `SettingsModal`のDEFAULT_SETTINGSも型整合のため更新。
+- US-010.md に REQ-010-009 を新規追加し、「再生音量は将来の拡張」の記述を
+  実装済みである旨に更新。traceability.mdにREQ-010-009の追跡行を追加。
+- テスト: audio-engine（setMasterVolume, 6件）、ui-slice（volume/setVolume, 5件）、
+  VolumeControl（7件）、usePractice（volume同期, 1件）、App.tsx（起動時ロード, 1件）
+  を新規追加。全てTDD（Red→Green）で進めた。
+- `npm run test`はTASK-052の変更範囲内で全件グリーン（プロジェクト全体では
+  TASK-048担当エージェントが並行修正中の`osmd-controller.test.ts`
+  （`setGrayedOutNotes`未実装）のみが失敗しており、本タスクとは無関係）。
+  `npm run typecheck` / `npm run lint` はプロジェクト全体でパス。

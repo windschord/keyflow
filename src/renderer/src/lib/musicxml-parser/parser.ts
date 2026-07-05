@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { unzipSync } from 'fflate';
-import { Score, Part, Measure, Note, TempoEvent } from '../../types';
+import { Score, Part, Measure, Note, TempoEvent, Hand } from '../../types';
 import { toMidiNumber } from './midi-utils';
 import { detectHand } from './hand-detector';
 
@@ -210,9 +210,11 @@ export function parse(xmlContent: string): Score {
     }
   }
 
-  // Pass 2: 全パートを走査し、tick/voice/noteIdを付与する。
+  // Pass 2: 全パートを走査し、tick/voice/noteId/staff/handを付与する。
   const measuresMap = new Map<number, MeasureBuilder>();
   const tempoEventsMap = new Map<number, number>();
+  // TASK-048: staff/hand決定にPart.handを参照するためのルックアップ。
+  const partsById = new Map<string, Part>(parts.map((p) => [p.id, p]));
 
   const ensureMeasure = (measureNumber: number): MeasureBuilder => {
     if (!measuresMap.has(measureNumber)) {
@@ -228,6 +230,10 @@ export function parse(xmlContent: string): Score {
   for (const partEl of partElements) {
     const partId = partEl.getAttribute('id') || '';
     let divisions = 1;
+    // TASK-048: <attributes><staves> を追跡する。2以上なら1パート2段譜として
+    // staff番号から直接hand（1='right'、2以降='left'）を決定し、未指定/1段の
+    // パートは従来通りPart.handを継承する。
+    let staves = 1;
     const measureElements = Array.from(partEl.children).filter((c) => c.tagName === 'measure');
 
     for (const measureEl of measureElements) {
@@ -246,6 +252,10 @@ export function parse(xmlContent: string): Score {
           const divisionsText = getDirectChildText(child, 'divisions');
           if (divisionsText !== undefined) {
             divisions = parseNumberOrDefault(divisionsText, divisions);
+          }
+          const stavesText = getDirectChildText(child, 'staves');
+          if (stavesText !== undefined) {
+            staves = parseNumberOrDefault(stavesText, staves);
           }
           const timeEl = getDirectChildByTag(child, 'time');
           if (timeEl) {
@@ -301,6 +311,15 @@ export function parse(xmlContent: string): Score {
           noteIndexCounter++;
           const noteId = `${partId}-M${measureNumber}-N${noteIndex}`;
 
+          // TASK-048: staff/handの決定。
+          const staffNumber = parseNumberOrDefault(getDirectChildText(child, 'staff'), 1);
+          const hand: Hand =
+            staves >= 2
+              ? staffNumber === 1
+                ? 'right'
+                : 'left'
+              : (partsById.get(partId)?.hand ?? 'right');
+
           measure.notes.push({
             id: noteId,
             partId,
@@ -316,6 +335,8 @@ export function parse(xmlContent: string): Score {
             voice,
             isChord,
             isRest,
+            staff: staffNumber,
+            hand,
           });
         } else if (tag === 'backup') {
           const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);

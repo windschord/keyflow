@@ -226,32 +226,145 @@ describe('usePractice', () => {
     expect(result.current.noteHighlights).toEqual({});
   });
 
-  it('clears noteHighlights when the practice position (currentMeasure/currentNoteIndex) advances', () => {
-    handleNoteOnMock.mockReturnValue({
-      result: 'incorrect',
-      note: { id: 'P1-M1-N0' },
-      advanced: false,
+  // CodeRabbit PR#25指摘#2: practiceEngine.handleNoteOn は正解完了時に
+  // currentMeasure/currentNoteIndex を進めてから判定結果を返すため、位置変化を
+  // 契機にハイライトを一括クリアする実装では、正解の緑ハイライトが表示された
+  // 直後に消えてしまっていた。位置変化ではなく、判定ごとの固定時間
+  // （HIGHLIGHT_CLEAR_DELAY_MS = 800ms）で該当noteIdのみを自動クリアする
+  // タイマー方式に見直した。
+  describe('noteHighlights auto-clear timer (CodeRabbit PR#25指摘#2)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
     });
-    usePracticeStore.setState({ currentMeasure: 1, currentNoteIndex: 0 });
-    const { result, rerender } = renderHook(() => usePractice());
 
-    const noteOnCallback = onNoteOnMock.mock.calls[0][0] as (
-      noteNumber: number,
-      velocity: number,
-      channel: number
-    ) => void;
-
-    act(() => {
-      noteOnCallback(61, 100, 1);
+    afterEach(() => {
+      vi.useRealTimers();
     });
-    expect(result.current.noteHighlights).toEqual({ 'P1-M1-N0': 'incorrect' });
 
-    act(() => {
-      usePracticeStore.setState({ currentMeasure: 1, currentNoteIndex: 1 });
+    it('keeps the highlight visible immediately after the practice position advances', () => {
+      handleNoteOnMock.mockReturnValue({
+        result: 'correct',
+        note: { id: 'P1-M1-N0' },
+        advanced: true,
+      });
+      usePracticeStore.setState({ currentMeasure: 1, currentNoteIndex: 0 });
+      const { result, rerender } = renderHook(() => usePractice());
+
+      const noteOnCallback = onNoteOnMock.mock.calls[0][0] as (
+        noteNumber: number,
+        velocity: number,
+        channel: number
+      ) => void;
+
+      act(() => {
+        noteOnCallback(60, 100, 1);
+      });
+      expect(result.current.noteHighlights).toEqual({ 'P1-M1-N0': 'correct' });
+
+      // 判定完了に伴い practiceEngine 側で位置が進む状況を再現する。
+      act(() => {
+        usePracticeStore.setState({ currentMeasure: 1, currentNoteIndex: 1 });
+      });
+      rerender();
+
+      // 位置が進んだ直後でも、ハイライトはまだ自動クリアのタイマーが
+      // 満了していないため表示され続ける。
+      expect(result.current.noteHighlights).toEqual({ 'P1-M1-N0': 'correct' });
     });
-    rerender();
 
-    expect(result.current.noteHighlights).toEqual({});
+    it('automatically clears the highlight once the display duration elapses', () => {
+      handleNoteOnMock.mockReturnValue({
+        result: 'incorrect',
+        note: { id: 'P1-M1-N0' },
+        advanced: false,
+      });
+      const { result } = renderHook(() => usePractice());
+
+      const noteOnCallback = onNoteOnMock.mock.calls[0][0] as (
+        noteNumber: number,
+        velocity: number,
+        channel: number
+      ) => void;
+
+      act(() => {
+        noteOnCallback(61, 100, 1);
+      });
+      expect(result.current.noteHighlights).toEqual({ 'P1-M1-N0': 'incorrect' });
+
+      act(() => {
+        vi.advanceTimersByTime(799);
+      });
+      expect(result.current.noteHighlights).toEqual({ 'P1-M1-N0': 'incorrect' });
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(result.current.noteHighlights).toEqual({});
+    });
+
+    it('resets the clear timer when the same note is judged again before it clears', () => {
+      handleNoteOnMock.mockReturnValue({
+        result: 'correct',
+        note: { id: 'P1-M1-N0' },
+        advanced: true,
+      });
+      const { result } = renderHook(() => usePractice());
+
+      const noteOnCallback = onNoteOnMock.mock.calls[0][0] as (
+        noteNumber: number,
+        velocity: number,
+        channel: number
+      ) => void;
+
+      act(() => {
+        noteOnCallback(60, 100, 1);
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      // 800ms経過する前に同じnoteIdが再度判定されたら、タイマーはリセットされる。
+      act(() => {
+        noteOnCallback(60, 100, 1);
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      // 最初の判定から通算1000ms経過しているが、リセット後からはまだ500msしか
+      // 経過していないため、ハイライトは残っている。
+      expect(result.current.noteHighlights).toEqual({ 'P1-M1-N0': 'correct' });
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(result.current.noteHighlights).toEqual({});
+    });
+
+    it('clears timers on unmount without throwing', () => {
+      handleNoteOnMock.mockReturnValue({
+        result: 'correct',
+        note: { id: 'P1-M1-N0' },
+        advanced: true,
+      });
+      const { unmount } = renderHook(() => usePractice());
+
+      const noteOnCallback = onNoteOnMock.mock.calls[0][0] as (
+        noteNumber: number,
+        velocity: number,
+        channel: number
+      ) => void;
+
+      act(() => {
+        noteOnCallback(60, 100, 1);
+      });
+
+      expect(() => unmount()).not.toThrow();
+
+      // アンマウント後にタイマーが発火しても setState 等でエラーにならないこと。
+      expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
+    });
   });
 
   it('handleKeyClick plays the clicked note, judges it, plays feedback, and schedules note-off (REQ-005-006)', () => {

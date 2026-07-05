@@ -17,7 +17,12 @@ describe('useMidi', () => {
   });
 
   afterEach(() => {
-    usePracticeStore.setState({ midiDeviceId: null });
+    // CodeRabbit PR#25指摘#3: usePracticeStore.setState はストア購読側の
+    // 再レンダーを引き起こすため、RTLのcleanup（アンマウント）より先に
+    // ここが走るとact()外での状態更新としてact()警告が出る。act()で包む。
+    act(() => {
+      usePracticeStore.setState({ midiDeviceId: null });
+    });
   });
 
   it('should initialize webMidiService on mount', () => {

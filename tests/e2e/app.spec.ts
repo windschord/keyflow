@@ -122,6 +122,14 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
   // 4. 再生ボタンで再生が開始される
   await expect(window.getByTestId('playback-play')).toBeEnabled();
 
+  // __e2eStore__ の最初の使用前に、その存在を明示的にassertする
+  // （2026-07-05トラブルシューティング再発防止策1: 前提要素の存在を確認せずに
+  // `!` で参照する「暗黙の前提」を禁止する）。以降はこのpollで存在確認済みの
+  // ため、参照スタイルを `!` に統一する（`?.` との混在をやめる）。
+  // `__e2eStore__` はZustandストアフック（関数）そのものであるため、
+  // typeofは'object'ではなく'function'になる。
+  await expect.poll(() => window.evaluate(() => typeof window.__e2eStore__)).toBe('function');
+
   const positionBeforePlay = await window.evaluate(() => {
     const state = window.__e2eStore__!.getState();
     return { measure: state.currentMeasure, noteIndex: state.currentNoteIndex };
@@ -131,7 +139,7 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
   await expect(window.getByTestId('playback-play')).toBeDisabled();
   await expect(window.getByTestId('playback-pause')).toBeEnabled();
   await expect
-    .poll(() => window.evaluate(() => window.__e2eStore__?.getState().playbackState))
+    .poll(() => window.evaluate(() => window.__e2eStore__!.getState().playbackState))
     .toBe('playing');
 
   // 再生開始後、カーソル（判定グループ位置）が実際に進行することを確認する
@@ -156,7 +164,7 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
 
   await window.getByTestId('playback-stop').click();
   await expect
-    .poll(() => window.evaluate(() => window.__e2eStore__?.getState().playbackState))
+    .poll(() => window.evaluate(() => window.__e2eStore__!.getState().playbackState))
     .toBe('stopped');
 
   // 停止操作で先頭小節（ループ無効時）に位置が復帰することを確認する（REQ-010-004）。
@@ -176,7 +184,7 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
   // UI操作経由で検証することで、ズームUIの結線漏れ（TASK-045の背景参照）を
   // 再発防止する。
   await window.getByTestId('zoom-select').selectOption('4');
-  await expect.poll(() => window.evaluate(() => window.__e2eStore__?.getState().zoom)).toBe(4);
+  await expect.poll(() => window.evaluate(() => window.__e2eStore__!.getState().zoom)).toBe(4);
 
   const scrollContainer = window.getByTestId('score-scroll-container');
   await expect

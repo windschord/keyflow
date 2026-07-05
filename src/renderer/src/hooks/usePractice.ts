@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useCallback, useState } from 'react';
+import { useMemo, useEffect, useCallback, useState, useRef } from 'react';
 import { PracticeEngineService } from '../lib/practice-engine';
 import { AudioEngineService } from '../lib/audio-engine';
 import { WebMidiService } from '../lib/midi/web-midi';
@@ -36,16 +36,23 @@ function playJudgementSound(judgement: NoteJudgement, audioEngine: JudgementAudi
  * （practice-engine側の `filteredExpected[0]`）であり、その noteId を
  * 緑/赤にハイライトする。
  * 'ignored' や note が存在しない場合は何もしない。
+ * ハイライトを設定した場合、`onHighlighted` を呼び出して自動クリアの
+ * タイマーを（再）スケジュールさせる（CodeRabbit PR#25指摘#2）。
  */
 function applyJudgementHighlight(
   judgement: NoteJudgement,
-  setNoteHighlights: (updater: (prev: NoteHighlights) => NoteHighlights) => void
+  setNoteHighlights: (updater: (prev: NoteHighlights) => NoteHighlights) => void,
+  onHighlighted: (noteId: string) => void
 ): void {
   if (judgement.result === 'ignored' || !judgement.note) return;
   const noteId = judgement.note.id;
   const color = judgement.result;
   setNoteHighlights((prev) => ({ ...prev, [noteId]: color }));
+  onHighlighted(noteId);
 }
+
+/** 正誤ハイライトを自動で消すまでの表示時間（ミリ秒）。CodeRabbit PR#25指摘#2。 */
+const HIGHLIGHT_CLEAR_DELAY_MS = 800;
 
 export function usePractice() {
   const { practiceEngine, audioEngine, webMidiService } = useMemo(() => {
@@ -63,8 +70,6 @@ export function usePractice() {
   const bpm = usePracticeStore((s) => s.bpm);
   const metronomeEnabled = usePracticeStore((s) => s.metronomeEnabled);
   const volume = usePracticeStore((s) => s.volume);
-  const currentMeasure = usePracticeStore((s) => s.currentMeasure);
-  const currentNoteIndex = usePracticeStore((s) => s.currentNoteIndex);
   const score = usePracticeStore((s) => s.score);
   const practiceMode = usePracticeStore((s) => s.practiceMode);
   const loopEnabled = usePracticeStore((s) => s.loopEnabled);
@@ -76,12 +81,44 @@ export function usePractice() {
   // OSMDController.highlightNote に反映してもらう（結線はScoreRenderer側）。
   const [noteHighlights, setNoteHighlights] = useState<NoteHighlights>({});
 
-  // 判定グループが進む（次の音符/小節へ移動する）たびに、直前のハイライトは
-  // 役目を終えたものとしてクリアする。これによりハイライトは「現在判定中の
-  // グループに対するフィードバック」として一時的に表示される。
+  // ハイライトごとの自動クリア用タイマーを noteId 単位で管理する
+  // （CodeRabbit PR#25指摘#2）。
+  //
+  // 従来は「判定グループが進んだら直前のハイライトを一括クリアする」
+  // useEffect（currentMeasure/currentNoteIndex依存）を使っていたが、
+  // practiceEngine.handleNoteOn は正解完了時に位置を進めてから判定結果を
+  // 返すため、この useEffect が判定直後に走ってしまい、正解の緑ハイライトが
+  // 表示された瞬間に消える不具合があった。位置変化ではなく、判定ごとに
+  // 固定時間（HIGHLIGHT_CLEAR_DELAY_MS）後にその noteId のみを消すタイマー
+  // 方式に変更する。同一 noteId が再度判定された場合はタイマーをリセットする。
+  const highlightTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const scheduleHighlightClear = useCallback((noteId: string) => {
+    const timeouts = highlightTimeoutsRef.current;
+    const existing = timeouts.get(noteId);
+    if (existing) {
+      clearTimeout(existing);
+    }
+    const timeoutId = setTimeout(() => {
+      setNoteHighlights((prev) => {
+        if (!(noteId in prev)) return prev;
+        const next = { ...prev };
+        delete next[noteId];
+        return next;
+      });
+      timeouts.delete(noteId);
+    }, HIGHLIGHT_CLEAR_DELAY_MS);
+    timeouts.set(noteId, timeoutId);
+  }, []);
+
+  // アンマウント時に未消化のタイマーをすべて破棄する。
   useEffect(() => {
-    setNoteHighlights({});
-  }, [currentMeasure, currentNoteIndex]);
+    const timeouts = highlightTimeoutsRef.current;
+    return () => {
+      timeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+      timeouts.clear();
+    };
+  }, []);
 
   // ストアの bpm / metronomeEnabled 変更を AudioEngine に同期する。
   // AudioEngine 側のメソッドはストアを変更しないため、無限ループは発生しない。
@@ -166,9 +203,9 @@ export function usePractice() {
         timestamp: Date.now(),
       });
       playJudgementSound(judgement, audioEngine);
-      applyJudgementHighlight(judgement, setNoteHighlights);
+      applyJudgementHighlight(judgement, setNoteHighlights, scheduleHighlightClear);
     },
-    [practiceEngine, audioEngine]
+    [practiceEngine, audioEngine, scheduleHighlightClear]
   );
 
   const handleMidiNoteOff = useCallback(
@@ -224,7 +261,7 @@ export function usePractice() {
         timestamp: Date.now(),
       });
       playJudgementSound(judgement, audioEngine);
-      applyJudgementHighlight(judgement, setNoteHighlights);
+      applyJudgementHighlight(judgement, setNoteHighlights, scheduleHighlightClear);
 
       setTimeout(() => {
         practiceEngine.handleNoteOff({
@@ -235,7 +272,7 @@ export function usePractice() {
         });
       }, 200); // Simulate momentary click
     },
-    [practiceEngine, audioEngine]
+    [practiceEngine, audioEngine, scheduleHighlightClear]
   );
 
   useEffect(() => {

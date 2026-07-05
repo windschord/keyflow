@@ -87,4 +87,44 @@ describe('VolumeControl labels and behavior', () => {
     expect(() => fireEvent.change(slider, { target: { value: '10' } })).not.toThrow();
     expect(usePracticeStore.getState().volume).toBe(10);
   });
+
+  // CodeRabbit PR#25指摘#1: get('ui')→set('ui')の非同期read-modify-writeが
+  // rangeのonChange高頻度発火で並行実行されると、後から開始した書き込みが先に
+  // 完了し、その後に古い値の書き込みが完了して上書きする（lost update）おそれが
+  // あった。書き込みをPromiseチェーンで直列化し、常に最新値のみが最後に保存される
+  // ことを検証する。
+  it('persists only the latest value when the slider changes rapidly in succession', async () => {
+    let resolveFirstGet: (value: { volume: number }) => void = () => {};
+    const firstGetPromise = new Promise<{ volume: number }>((resolve) => {
+      resolveFirstGet = resolve;
+    });
+    const getMock = vi
+      .fn()
+      .mockImplementationOnce(() => firstGetPromise)
+      .mockImplementation(() => Promise.resolve({ volume: 999 }));
+    const setCalls: number[] = [];
+    const setMock = vi.fn().mockImplementation((_key: string, uiSettings: { volume: number }) => {
+      setCalls.push(uiSettings.volume);
+      return Promise.resolve();
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      settings: { get: getMock, set: setMock, getRecentFiles: vi.fn() },
+    };
+
+    render(<VolumeControl />);
+    const slider = screen.getByTestId('volume-slider') as HTMLInputElement;
+
+    // 2つの変更を、最初のget()がまだ解決していない間に連続で発火させる。
+    // 直列化されていなければ、後発の書き込みが先に完了してしまい得る。
+    fireEvent.change(slider, { target: { value: '10' } });
+    fireEvent.change(slider, { target: { value: '20' } });
+
+    resolveFirstGet({ volume: 80 });
+
+    await vi.waitFor(() => expect(setCalls.length).toBeGreaterThan(0));
+    // 途中経過が何回あっても、最後に書き込まれる値は必ず最新（20）である。
+    expect(setCalls[setCalls.length - 1]).toBe(20);
+    expect(usePracticeStore.getState().volume).toBe(20);
+  });
 });

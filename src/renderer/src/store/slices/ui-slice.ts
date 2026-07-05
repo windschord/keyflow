@@ -13,6 +13,13 @@ export interface UiSlice {
    * この値をWebMidiService.setSelectedDeviceへ反映する（TASK-045）。
    */
   midiDeviceId: string | null;
+  /**
+   * マスターボリューム（0〜100のUI線形値、TASK-052）。electron-store側の
+   * デフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.volume）と一致させる。
+   * dB変換・ミュートはAudioEngineService.setMasterVolume側の責務であり、
+   * ここでは0〜100の範囲クランプのみを行う（0はミュートとして扱われる）。
+   */
+  volume: number;
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
   setZoom: (zoom: number) => void;
@@ -22,6 +29,8 @@ export interface UiSlice {
    */
   setPianoHeight: (height: number) => void;
   setMidiDeviceId: (deviceId: string | null) => void;
+  /** マスターボリュームを設定する。0〜100にクランプする（TASK-052）。 */
+  setVolume: (volume: number) => void;
   /**
    * 楽譜由来のテンポをセッションの基準テンポとして設定する。
    * Reset操作の戻し先である originalBpm と、現在の再生テンポ bpm を
@@ -41,6 +50,9 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   // 「設定未ロード時の初期表示」と「起動時ロード後の値」の間でフラッシュが発生しない。
   pianoHeight: 120,
   midiDeviceId: null,
+  // electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.volume）
+  // と一致させる（TASK-052、pianoHeightと同じ理由で起動時ロード前後の不整合を避ける）。
+  volume: 80,
   // REQ-006-003: 元のテンポ（originalBpm）の20%〜200%の範囲でクランプする。
   // originalBpmが未設定（0以下）の場合は初期値120を基準にする。
   // originalBpm自体のクランプ（絶対値20〜400）はsetOriginalBpm側の責務であり、
@@ -55,6 +67,7 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   setZoom: (zoom) => set({ zoom }),
   setPianoHeight: (height) => set({ pianoHeight: Math.max(80, Math.min(300, height)) }),
   setMidiDeviceId: (deviceId) => set({ midiDeviceId: deviceId }),
+  setVolume: (volume) => set({ volume: Math.max(0, Math.min(100, volume)) }),
   setOriginalBpm: (bpm) => {
     const clamped = Math.max(20, Math.min(400, bpm));
     set({ originalBpm: clamped, bpm: clamped });

@@ -141,6 +141,84 @@ describe('createUiSlice setBpm (REQ-006-003)', () => {
   });
 });
 
+// TASK-052: マスターボリューム（0〜100のUI線形値）。ui-slice側では範囲クランプの
+// みを担い、dB変換・ミュートはAudioEngineService.setMasterVolumeの責務とする。
+describe('createUiSlice volume/setVolume (TASK-052)', () => {
+  it('initializes volume to 80 (a sensible default, matching electron-store default settings.ts)', () => {
+    const set = vi.fn();
+    const get = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    expect(slice.volume).toBe(80);
+  });
+
+  it('updates volume when called with a value inside the valid range (0-100)', () => {
+    let state = { volume: 80 };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setVolume(50);
+
+    expect(state.volume).toBe(50);
+  });
+
+  it('clamps values below the minimum (0)', () => {
+    let state = { volume: 80 };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setVolume(-10);
+
+    expect(state.volume).toBe(0);
+  });
+
+  it('clamps values above the maximum (100)', () => {
+    let state = { volume: 80 };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setVolume(999);
+
+    expect(state.volume).toBe(100);
+  });
+
+  it('accepts the boundary value 0 as-is (mute, REQ: スライダー0でミュート)', () => {
+    let state = { volume: 80 };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setVolume(0);
+
+    expect(state.volume).toBe(0);
+  });
+});
+
 describe('createUiSlice setMidiDeviceId', () => {
   it('updates midiDeviceId when called with a device id', () => {
     let state: { midiDeviceId: string | null } = { midiDeviceId: null };

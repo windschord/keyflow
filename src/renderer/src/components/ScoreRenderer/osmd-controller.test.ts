@@ -401,9 +401,7 @@ describe('OSMDController measure click resolution (REQ-002-004)', () => {
     // @ts-expect-error test override of private method
     controller.screenToSvgCoord = () => ({ x: 10, y: 20 });
 
-    expect(() =>
-      container.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    ).not.toThrow();
+    expect(() => container.dispatchEvent(new MouseEvent('click', { bubbles: true }))).not.toThrow();
   });
 });
 
@@ -457,9 +455,7 @@ describe('OSMDController note context menu (REQ-008-001/003/006, REQ-009-005)', 
     const onNoteContextMenu = vi.fn();
     controller.setOnNoteContextMenu(onNoteContextMenu);
 
-    container.dispatchEvent(
-      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-    );
+    container.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
 
     expect(onNoteContextMenu).not.toHaveBeenCalled();
   });
@@ -476,9 +472,7 @@ describe('OSMDController note context menu (REQ-008-001/003/006, REQ-009-005)', 
     controller.setOnNoteContextMenu(onNoteContextMenu);
     controller.setOnNoteContextMenu(null);
 
-    container.dispatchEvent(
-      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-    );
+    container.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
 
     expect(onNoteContextMenu).not.toHaveBeenCalled();
   });
@@ -707,7 +701,11 @@ describe('OSMDController buildNoteIdMap 照合ベース採番 (TASK-049)', () =>
 describe('OSMDController buildNoteIdMap 和音の符頭単位座標オフセット (TASK-050)', () => {
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  function makeOsmdNote(opts: { halfTone: number; staffId?: number; absTimestamp?: number }): unknown {
+  function makeOsmdNote(opts: {
+    halfTone: number;
+    staffId?: number;
+    absTimestamp?: number;
+  }): unknown {
     return {
       isRest: () => false,
       halfTone: opts.halfTone,
@@ -718,7 +716,12 @@ describe('OSMDController buildNoteIdMap 和音の符頭単位座標オフセッ�
     };
   }
 
-  function makeRectStub(rect: { left: number; top: number; width: number; height: number }): DOMRect {
+  function makeRectStub(rect: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  }): DOMRect {
     return {
       ...rect,
       right: rect.left + rect.width,

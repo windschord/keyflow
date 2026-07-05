@@ -277,9 +277,9 @@ describe('App', () => {
   });
 
   it('calls audioEngine.loadScore() when a score is opened', async () => {
-    const loadScoreSpy = vi.spyOn(AudioEngineService.prototype, 'loadScore').mockImplementation(
-      () => {}
-    );
+    const loadScoreSpy = vi
+      .spyOn(AudioEngineService.prototype, 'loadScore')
+      .mockImplementation(() => {});
 
     const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
     const SIMPLE_XML = `<?xml version="1.0"?>
@@ -604,9 +604,7 @@ describe('App', () => {
     render(<App />);
 
     const scoreRenderer = screen.getByTestId('mock-score-renderer');
-    expect(scoreRenderer.getAttribute('data-looprange')).toBe(
-      JSON.stringify({ start: 3, end: 7 })
-    );
+    expect(scoreRenderer.getAttribute('data-looprange')).toBe(JSON.stringify({ start: 3, end: 7 }));
   });
 });
 
@@ -819,7 +817,9 @@ describe('App - drag & drop file open (TASK-053)', () => {
 
     dropFiles(appRoot, [file]);
 
-    await waitFor(() => expect(registerDroppedFileMock).toHaveBeenCalledWith('/scores/dropped.xml'));
+    await waitFor(() =>
+      expect(registerDroppedFileMock).toHaveBeenCalledWith('/scores/dropped.xml')
+    );
     await waitFor(() => expect(alertMock).toHaveBeenCalled());
     expect(readMock).not.toHaveBeenCalled();
 

@@ -324,8 +324,12 @@ describe('MusicXML Parser - v2 tick/time model (TASK-031)', () => {
 </score-partwise>`;
     const score = parse(xml);
     const notes = score.measures[0].notes;
-    const p1Notes = notes.filter((n) => n.partId === 'P1').sort((a, b) => a.noteIndex - b.noteIndex);
-    const p2Notes = notes.filter((n) => n.partId === 'P2').sort((a, b) => a.noteIndex - b.noteIndex);
+    const p1Notes = notes
+      .filter((n) => n.partId === 'P1')
+      .sort((a, b) => a.noteIndex - b.noteIndex);
+    const p2Notes = notes
+      .filter((n) => n.partId === 'P2')
+      .sort((a, b) => a.noteIndex - b.noteIndex);
 
     expect(p1Notes.map((n) => n.id)).toEqual(['P1-M1-N0', 'P1-M1-N1']);
     expect(p2Notes.map((n) => n.id)).toEqual(['P2-M1-N0', 'P2-M1-N1']);
@@ -360,9 +364,9 @@ describe('MusicXML Parser - v2 tick/time model (TASK-031)', () => {
     const score = parse(xml);
     const notes = score.measures[0].notes;
 
-    expect(
-      notes.map((n) => `${n.partId}:${n.pitch.step}${n.pitch.octave}@${n.startTick}`)
-    ).toEqual(['P1:C4@0', 'P2:C2@0', 'P1:E4@240', 'P1:G4@240']);
+    expect(notes.map((n) => `${n.partId}:${n.pitch.step}${n.pitch.octave}@${n.startTick}`)).toEqual(
+      ['P1:C4@0', 'P2:C2@0', 'P1:E4@240', 'P1:G4@240']
+    );
 
     const c4 = notes.find((n) => n.partId === 'P1' && n.pitch.step === 'C')!;
     const e4 = notes.find((n) => n.partId === 'P1' && n.pitch.step === 'E')!;

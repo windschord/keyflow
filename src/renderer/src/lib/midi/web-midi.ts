@@ -63,7 +63,9 @@ export class WebMidiService {
 
     inputs.forEach((input) => {
       const shouldBind = effectiveDeviceId === null || input.id === effectiveDeviceId;
-      input.onmidimessage = shouldBind ? (event: MIDIMessageEvent) => this.handleMessage(event) : null;
+      input.onmidimessage = shouldBind
+        ? (event: MIDIMessageEvent) => this.handleMessage(event)
+        : null;
     });
   }
 

@@ -1,5 +1,10 @@
 import React, { StrictMode } from 'react';
-import { render, renderHook, type RenderOptions, type RenderHookOptions } from '@testing-library/react';
+import {
+  render,
+  renderHook,
+  type RenderOptions,
+  type RenderHookOptions,
+} from '@testing-library/react';
 
 /**
  * StrictModeでラップしてコンポーネントをレンダリングするヘルパー。

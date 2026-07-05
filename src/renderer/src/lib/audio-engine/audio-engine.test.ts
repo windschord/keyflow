@@ -133,8 +133,20 @@ function makeHandScore(): Score {
   // TASK-051: practiceMode別スケジューリング検証用。Note.handを明示的に設定する
   // （makeScore()のノーツはhand未設定＝'both'フィルタの後方互換確認専用）。
   // measure 1: P1(right) C4@tick0, P2(left) C3@tick0 (same group), P1(right) D4@tick480
-  const rightC4 = makeNote({ id: 'P1-M1-N0', partId: 'P1', midiNumber: 60, startTick: 0, hand: 'right' });
-  const leftC3 = makeNote({ id: 'P2-M1-N0', partId: 'P2', midiNumber: 48, startTick: 0, hand: 'left' });
+  const rightC4 = makeNote({
+    id: 'P1-M1-N0',
+    partId: 'P1',
+    midiNumber: 60,
+    startTick: 0,
+    hand: 'right',
+  });
+  const leftC3 = makeNote({
+    id: 'P2-M1-N0',
+    partId: 'P2',
+    midiNumber: 48,
+    startTick: 0,
+    hand: 'left',
+  });
   const rightD4 = makeNote({
     id: 'P1-M1-N1',
     partId: 'P1',

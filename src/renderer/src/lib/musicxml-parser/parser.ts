@@ -373,7 +373,8 @@ export function parse(xmlContent: string): Score {
 
     for (const note of measure.notes) {
       note.startSeconds = tickToSeconds(note.startTick, tempoMap);
-      note.durationSeconds = tickToSeconds(note.startTick + note.durationTicks, tempoMap) - note.startSeconds;
+      note.durationSeconds =
+        tickToSeconds(note.startTick + note.durationTicks, tempoMap) - note.startSeconds;
     }
   }
 

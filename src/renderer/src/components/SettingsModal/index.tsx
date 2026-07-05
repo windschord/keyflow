@@ -377,9 +377,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <select
                 id="midiDevice"
                 value={settings.midi.selectedDeviceId ?? ''}
-                onChange={(e) =>
-                  updateMidiDevice(e.target.value === '' ? null : e.target.value)
-                }
+                onChange={(e) => updateMidiDevice(e.target.value === '' ? null : e.target.value)}
                 title="使用するMIDI入力デバイスを選択します（複数接続時）"
                 style={{
                   width: '100%',

@@ -121,7 +121,9 @@ describe('AnnotationStoreService', () => {
   it('load: validNoteIdsが未指定の場合はフィルタせずすべて読み込む（後方互換）', async () => {
     const mockData = {
       version: '1.0',
-      annotations: [{ noteId: 'P2-M1-N5', fingerNumber: 1, isAISuggested: false, isApproved: true }],
+      annotations: [
+        { noteId: 'P2-M1-N5', fingerNumber: 1, isAISuggested: false, isApproved: true },
+      ],
     };
     // @ts-expect-error test mock
     vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
@@ -157,7 +159,9 @@ describe('AnnotationStoreService', () => {
   it('load: ファイルを破壊しない（スキップしてもdirtyにならない）', async () => {
     const mockData = {
       version: '1.0',
-      annotations: [{ noteId: 'P2-M1-N5', fingerNumber: 2, isAISuggested: false, isApproved: true }],
+      annotations: [
+        { noteId: 'P2-M1-N5', fingerNumber: 2, isAISuggested: false, isApproved: true },
+      ],
     };
     // @ts-expect-error test mock
     vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));

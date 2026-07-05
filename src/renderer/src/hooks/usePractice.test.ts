@@ -368,7 +368,11 @@ describe('usePractice', () => {
     });
 
     it('stops playback when practiceMode changes while playback is in progress (minimal implementation: stop-on-change)', () => {
-      usePracticeStore.setState({ score: mockScore, practiceMode: 'both', playbackState: 'stopped' });
+      usePracticeStore.setState({
+        score: mockScore,
+        practiceMode: 'both',
+        playbackState: 'stopped',
+      });
       renderHook(() => usePractice());
       stopAccompanimentMock.mockClear();
 
@@ -388,7 +392,11 @@ describe('usePractice', () => {
     });
 
     it('does not call stopAccompaniment when re-scheduling while playback is not in progress', () => {
-      usePracticeStore.setState({ score: mockScore, practiceMode: 'both', playbackState: 'stopped' });
+      usePracticeStore.setState({
+        score: mockScore,
+        practiceMode: 'both',
+        playbackState: 'stopped',
+      });
       renderHook(() => usePractice());
       stopAccompanimentMock.mockClear();
 

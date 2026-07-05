@@ -28,11 +28,7 @@ const makeNote = (id: string, midiNumber: number): Note => ({
  * Note.isChordの連続性を判定基準にしており、実データ上はこれが同一startTickの
  * 音集合と等価になる。詳細はdp-solver.tsのChordUnitのコメントを参照）。
  */
-const makeChord = (
-  ids: string[],
-  midiNumbers: number[],
-  startTick = 0
-): Note[] =>
+const makeChord = (ids: string[], midiNumbers: number[], startTick = 0): Note[] =>
   ids.map((id, i) => ({
     ...makeNote(id, midiNumbers[i]),
     startTick,

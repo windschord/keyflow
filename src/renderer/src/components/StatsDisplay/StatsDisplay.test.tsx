@@ -7,7 +7,13 @@ import { usePracticeStore } from '../../store';
 describe('StatsDisplay (US-004: 正解率・連続正解数の可視化)', () => {
   beforeEach(() => {
     usePracticeStore.setState({
-      stats: { totalNotes: 0, correctNotes: 0, incorrectNotes: 0, accuracy: 0, consecutiveCorrect: 0 },
+      stats: {
+        totalNotes: 0,
+        correctNotes: 0,
+        incorrectNotes: 0,
+        accuracy: 0,
+        consecutiveCorrect: 0,
+      },
     });
   });
 

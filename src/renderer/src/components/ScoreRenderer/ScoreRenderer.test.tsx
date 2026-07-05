@@ -216,9 +216,7 @@ describe('ScoreRenderer', () => {
       />
     );
 
-    await waitFor(() =>
-      expect(mockHighlightNote).toHaveBeenCalledWith('P1-M1-N0', 'correct')
-    );
+    await waitFor(() => expect(mockHighlightNote).toHaveBeenCalledWith('P1-M1-N0', 'correct'));
 
     mockHighlightNote.mockClear();
 
@@ -235,9 +233,7 @@ describe('ScoreRenderer', () => {
       />
     );
 
-    await waitFor(() =>
-      expect(mockHighlightNote).toHaveBeenCalledWith('P1-M1-N0', 'expected')
-    );
+    await waitFor(() => expect(mockHighlightNote).toHaveBeenCalledWith('P1-M1-N0', 'expected'));
   });
 
   it('registers a note-contextmenu handler that forwards resolved noteId and screen coordinates (REQ-008-001)', async () => {
@@ -348,9 +344,7 @@ describe('ScoreRenderer', () => {
       />
     );
 
-    await waitFor(() =>
-      expect(mockSetGrayedOutNotes).toHaveBeenCalledWith(new Set(['P1-M1-N1']))
-    );
+    await waitFor(() => expect(mockSetGrayedOutNotes).toHaveBeenCalledWith(new Set(['P1-M1-N1'])));
 
     mockSetGrayedOutNotes.mockClear();
 
@@ -367,9 +361,7 @@ describe('ScoreRenderer', () => {
       />
     );
 
-    await waitFor(() =>
-      expect(mockSetGrayedOutNotes).toHaveBeenCalledWith(new Set(['P1-M1-N0']))
-    );
+    await waitFor(() => expect(mockSetGrayedOutNotes).toHaveBeenCalledWith(new Set(['P1-M1-N0'])));
 
     mockSetGrayedOutNotes.mockClear();
 

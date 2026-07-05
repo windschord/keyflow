@@ -7,7 +7,9 @@ import type { SettingsService } from './settings';
  * テストでは electron 全体をモックせず showOpenDialog のみ差し替えられるようにする。
  */
 export interface DialogLike {
-  showOpenDialog(options: OpenDialogOptions): Promise<Pick<OpenDialogReturnValue, 'canceled' | 'filePaths'>>;
+  showOpenDialog(
+    options: OpenDialogOptions
+  ): Promise<Pick<OpenDialogReturnValue, 'canceled' | 'filePaths'>>;
 }
 
 const OPEN_MUSICXML_DIALOG_OPTIONS: OpenDialogOptions = {
@@ -28,9 +30,7 @@ export function createShowOpenDialogHandler(
   settingsService: SettingsService
 ): () => Promise<string | null> {
   return async (): Promise<string | null> => {
-    const { canceled, filePaths } = await dialogModule.showOpenDialog(
-      OPEN_MUSICXML_DIALOG_OPTIONS
-    );
+    const { canceled, filePaths } = await dialogModule.showOpenDialog(OPEN_MUSICXML_DIALOG_OPTIONS);
     if (canceled || filePaths.length === 0) {
       return null;
     }

@@ -190,9 +190,7 @@ describe('SettingsModal', () => {
 
   // TASK-045: MIDIデバイス選択（REQ-004-008）
   describe('MIDI device selection (TASK-045, REQ-004-008)', () => {
-    const makeWebMidiServiceMock = (
-      devices: Array<{ id: string; name: string }>
-    ): WebMidiService =>
+    const makeWebMidiServiceMock = (devices: Array<{ id: string; name: string }>): WebMidiService =>
       ({
         getDevices: vi.fn().mockReturnValue(devices),
       }) as unknown as WebMidiService;

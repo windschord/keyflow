@@ -19,7 +19,10 @@ export const StatsDisplay: React.FC = () => {
       <span data-testid="stats-accuracy" style={{ color: '#374151', whiteSpace: 'nowrap' }}>
         正解率: <strong>{accuracyPercent}%</strong>
       </span>
-      <span data-testid="stats-consecutive-correct" style={{ color: '#374151', whiteSpace: 'nowrap' }}>
+      <span
+        data-testid="stats-consecutive-correct"
+        style={{ color: '#374151', whiteSpace: 'nowrap' }}
+      >
         連続正解数: <strong>{stats.consecutiveCorrect}</strong>
       </span>
     </div>

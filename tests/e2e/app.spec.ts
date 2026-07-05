@@ -176,9 +176,7 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
   // UI操作経由で検証することで、ズームUIの結線漏れ（TASK-045の背景参照）を
   // 再発防止する。
   await window.getByTestId('zoom-select').selectOption('4');
-  await expect
-    .poll(() => window.evaluate(() => window.__e2eStore__?.getState().zoom))
-    .toBe(4);
+  await expect.poll(() => window.evaluate(() => window.__e2eStore__?.getState().zoom)).toBe(4);
 
   const scrollContainer = window.getByTestId('score-scroll-container');
   await expect

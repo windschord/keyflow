@@ -54,7 +54,12 @@ describe('FingeringPanel note.hand-based filtering (TASK-048)', () => {
     computeFingeringMock.mockResolvedValue({ assignments: [], totalCost: 0 });
 
     // 1パート('P1')2段譜: staff1='right'、staff2='left' の音符が混在する。
-    const upperStaffNote = makeNote({ id: 'P1-M1-N0', partId: 'P1', midiNumber: 60, hand: 'right' });
+    const upperStaffNote = makeNote({
+      id: 'P1-M1-N0',
+      partId: 'P1',
+      midiNumber: 60,
+      hand: 'right',
+    });
     const lowerStaffNote = makeNote({ id: 'P1-M1-N1', partId: 'P1', midiNumber: 48, hand: 'left' });
     const score: Score = {
       title: 'Test',
@@ -105,7 +110,13 @@ describe('FingeringPanel note.hand-based filtering (TASK-048)', () => {
 
   it('休符（isRest）は計算対象から除外される', async () => {
     computeFingeringMock.mockResolvedValue({ assignments: [], totalCost: 0 });
-    const rest = makeNote({ id: 'P1-M1-N0', partId: 'P1', midiNumber: 0, hand: 'right', isRest: true });
+    const rest = makeNote({
+      id: 'P1-M1-N0',
+      partId: 'P1',
+      midiNumber: 0,
+      hand: 'right',
+      isRest: true,
+    });
     const sounding = makeNote({ id: 'P1-M1-N1', partId: 'P1', midiNumber: 60, hand: 'right' });
     const score: Score = {
       title: 'Test',

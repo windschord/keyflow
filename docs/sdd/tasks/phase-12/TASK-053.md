@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-053 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 50分 |
 | 依存タスク | なし |
@@ -70,22 +70,22 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] `.xml` / `.musicxml` / `.mxl` ファイルをウィンドウへドロップすると楽譜が開き、ダイアログ経由と同じ初期化（練習位置リセット・再生スケジュール・アノテーション読込）が行われる
-- [ ] D&D で開いたファイルでも運指メモの保存（`file:write`）とファイル履歴が機能する（allowlist 登録・addRecentFile）
-- [ ] 対象外拡張子のドロップは拒否され、ユーザーに通知される（Main 側でも拡張子検証される）
-- [ ] 楽譜未ロード時に「ここにMusicXMLファイルをドロップ」等のドロップ可能表示がある
-- [ ] `handleOpenFile` と D&D 経路がオープン処理を共通化している
-- [ ] US-001 の D&D 要件が traceability.md に反映されている
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] `.xml` / `.musicxml` / `.mxl` ファイルをウィンドウへドロップすると楽譜が開き、ダイアログ経由と同じ初期化（練習位置リセット・再生スケジュール・アノテーション読込）が行われる
+- [x] D&D で開いたファイルでも運指メモの保存（`file:write`）とファイル履歴が機能する（allowlist 登録・addRecentFile）
+- [x] 対象外拡張子のドロップは拒否され、ユーザーに通知される（Main 側でも拡張子検証される）
+- [x] 楽譜未ロード時に「ここにMusicXMLファイルをドロップ」等のドロップ可能表示がある
+- [x] `handleOpenFile` と D&D 経路がオープン処理を共通化している
+- [x] US-001 の D&D 要件が traceability.md に反映されている
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規）ドロップイベント→オープン経路の結線（パース→setScore→初期化→loadScore→アノテーション読込）
-- [ ] （新規）拒否拡張子（Renderer 側の受付拒否・Main 側 IPC の検証拒否の両方）
-- [ ] （新規）登録 IPC: 検証通過時のみ `allowMusicXml`・`addRecentFile` が呼ばれる
-- [ ] （新規）未ロード時のドロッププレースホルダ表示
-- [ ] （回帰）ダイアログ経由のオープンが従来どおり動作する。`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規）ドロップイベント→オープン経路の結線（パース→setScore→初期化→loadScore→アノテーション読込）
+- [x] （新規）拒否拡張子（Renderer 側の受付拒否・Main 側 IPC の検証拒否の両方）
+- [x] （新規）登録 IPC: 検証通過時のみ `allowMusicXml`・`addRecentFile` が呼ばれる
+- [x] （新規）未ロード時のドロッププレースホルダ表示
+- [x] （回帰）ダイアログ経由のオープンが従来どおり動作する。`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
 
 ## 情報の明確性
 
@@ -97,3 +97,38 @@ TDDで進める。
 ### 不明/要確認の情報
 
 - なし（ドロップファイルのパス取得方法は「webUtils.getPathForFile 等を調査して採用」と指示されており、実装時調査事項として本文に明記済み）
+
+## 完了サマリー
+
+- パス取得: `webUtils.getPathForFile`（Electron 42.4.1で利用可能）を採用。
+  `src/preload/index.ts`（contextBridge有効/無効の両分岐）に
+  `file.getDroppedFilePath(file: File): string` を追加し、preload経由でのみ呼び出す
+  （`contextIsolation: true` 維持）。
+- Main側登録IPC: `src/main/file-handlers.ts` に
+  `createRegisterDroppedFileHandler(pathAllowlist, settingsService)` を追加
+  （`createShowOpenDialogHandler` と同型のファクトリパターン）。拡張子が
+  `.xml`/`.musicxml`/`.mxl`（大文字小文字を区別しない）の場合のみ
+  `pathAllowlist.allowMusicXml` と `settingsService.addRecentFile` を呼び、
+  それ以外は`false`を返し何も変更しない。`src/main/index.ts` に
+  `file:register-dropped-file` として登録。preloadに
+  `file.registerDroppedFile(path): Promise<boolean>` を追加。
+- Renderer: `src/renderer/src/App.tsx` の `handleOpenFile` 後段（パース→setScore→
+  `resetToMeasure`→アノテーション読込）を `openMusicXmlFile(filePath)` として抽出し、
+  ダイアログ経由・D&D経由の両方から呼び出す形に共通化。ルート`div`
+  （`data-testid="app-container"`）に `onDragEnter`/`onDragOver`/`onDragLeave`/`onDrop`
+  を設定し、アプリ全体でドロップを受け付ける。ドロップ時は
+  (1) 拡張子検証（Renderer側で早期拒否）→(2) `getDroppedFilePath`→
+  (3) `registerDroppedFile`（Main側検証、多層防御）→(4) `openMusicXmlFile`、の順に処理。
+  複数ファイル同時ドロップ時は先頭ファイルのみを対象とし、それが非対応拡張子の場合は拒否する。
+  `.mxl` は既存どおり `readBinary`→`extractXmlFromMxl` 経路を通す。
+- UI: ScoreRenderer自体（他エージェントがTASK-050で並行修正中のため変更対象外）とは
+  独立に、App.tsx側で楽譜未ロード時のドロップ可能バナー（`data-testid="drop-zone-hint"`、
+  「ここにMusicXMLファイルをドロップ（またはファイルを開く）」）と、ドラッグオーバー中の
+  視覚フィードバック（`data-testid="drag-active-overlay"`、破線ボーダー＋半透明ハイライト、
+  dragenter/dragleaveのカウンタで点滅を防止）を実装。
+- US-001.md に REQ-001-007（D&D要件のEARS化）を追加し、traceability.mdに追跡行を追加。
+- テスト: `file-handlers.test.ts`（`createRegisterDroppedFileHandler`、3件新規）、
+  `App.test.tsx`（D&D関連9件新規: プレースホルダ表示、ドラッグオーバー視覚効果、
+  `preventDefault`確認、.xml/.mxlオープン結線、拒否拡張子、複数ファイル時の先頭優先、
+  Main側拒否時の通知、electronAPI未提供時の通知）を追加。すべてTDD（Red→Green）で進めた。
+- `npm run test`（401件）・`npm run typecheck`・`npm run lint` すべてグリーン。

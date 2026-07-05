@@ -12,6 +12,7 @@
 | REQ-001-004 | ○ | parser.test（tempo/time/key、tempoMap含む） |
 | REQ-001-005 | × | MusicXML 3.1準拠スイートなし |
 | REQ-001-006 | ○ | file-handlers.test（createShowOpenDialogHandlerがaddRecentFileを呼ぶ結線を検証）。TASK-039で対応済み |
+| REQ-001-007 | ○ | App.test（D&D→openMusicXmlFile結線、.xml/.mxl両経路、拒否拡張子・Main側拒否の通知、ドロップ可能表示、視覚フィードバック）+ file-handlers.test（createRegisterDroppedFileHandlerの拡張子検証・allowlist登録・addRecentFile結線）。TASK-053で対応済み |
 | REQ-002-001 | △ | E2E: svg可視のみ |
 | REQ-002-002 | × | OSMD委譲、無検証 |
 | REQ-002-003 | △ | osmd-controller.test（scrollIntoView、モック）+ E2Eカーソル移動 |

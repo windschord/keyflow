@@ -5,8 +5,8 @@ describe('createPracticeSlice initial state', () => {
   it('provides loopStart/loopEnd defaults that satisfy the start < end validation used by LoopControl', () => {
     const set = vi.fn();
     const get = vi.fn();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const api = {} as any;
+    // sliceは第3引数（StoreApi）を使用しないため空オブジェクトで足りる（`any`禁止ルールに従う）
+    const api = {} as Parameters<typeof createPracticeSlice>[2];
     const slice = createPracticeSlice(set, get, api);
 
     expect(slice.loopStart).toBeLessThan(slice.loopEnd);
@@ -17,8 +17,8 @@ describe('createPracticeSlice statsの初期値汚染防止（CodeRabbit指摘: 
   it('スライスを複数回生成しても、あるインスタンスのstatsを書き換えた影響が次のインスタンスに残らない', () => {
     const set1 = vi.fn();
     const get1 = vi.fn();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const api1 = {} as any;
+    // sliceは第3引数（StoreApi）を使用しないため空オブジェクトで足りる（`any`禁止ルールに従う）
+    const api1 = {} as Parameters<typeof createPracticeSlice>[2];
     const slice1 = createPracticeSlice(set1, get1, api1);
 
     // practice-engineのhandleNoteOnが行うような、stats内部フィールドへの直接変更を模倣する。
@@ -30,8 +30,7 @@ describe('createPracticeSlice statsの初期値汚染防止（CodeRabbit指摘: 
 
     const set2 = vi.fn();
     const get2 = vi.fn();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const api2 = {} as any;
+    const api2 = {} as Parameters<typeof createPracticeSlice>[2];
     const slice2 = createPracticeSlice(set2, get2, api2);
 
     expect(slice2.stats.correctNotes).toBe(0);
@@ -48,8 +47,8 @@ describe('createPracticeSlice setErrorMode', () => {
       state = { ...state, ...partial };
     });
     const get = vi.fn(() => state);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const api = {} as any;
+    // sliceは第3引数（StoreApi）を使用しないため空オブジェクトで足りる（`any`禁止ルールに従う）
+    const api = {} as Parameters<typeof createPracticeSlice>[2];
     const slice = createPracticeSlice(set, get, api);
 
     expect(slice.errorMode).toBe('wait');

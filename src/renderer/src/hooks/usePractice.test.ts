@@ -365,6 +365,35 @@ describe('usePractice', () => {
       // アンマウント後にタイマーが発火しても setState 等でエラーにならないこと。
       expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
     });
+
+    it('leaves no pending timers after unmount (StrictMode double-mount safe)', () => {
+      // renderHook は renderHookWithStrictMode のエイリアスであり、StrictModeの
+      // 「マウント→クリーンアップ→再マウント」を経由する。二重マウントでタイマーの
+      // 重複登録やクリーンアップ漏れがあれば、アンマウント後に残留タイマーとして
+      // 現れるため、タイマー数がゼロであることを明示的に検証する
+      // （CodeRabbit PR#25 再レビュー指摘）。
+      handleNoteOnMock.mockReturnValue({
+        result: 'correct',
+        note: { id: 'P1-M1-N0' },
+        advanced: true,
+      });
+      const { unmount } = renderHook(() => usePractice());
+
+      const noteOnCallback = onNoteOnMock.mock.calls[0][0] as (
+        noteNumber: number,
+        velocity: number,
+        channel: number
+      ) => void;
+
+      act(() => {
+        noteOnCallback(60, 100, 1);
+      });
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+      unmount();
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 
   it('handleKeyClick plays the clicked note, judges it, plays feedback, and schedules note-off (REQ-005-006)', () => {

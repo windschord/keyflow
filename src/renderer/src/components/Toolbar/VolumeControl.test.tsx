@@ -6,11 +6,24 @@ import { usePracticeStore } from '../../store';
 
 // TASK-052: マスターボリューム調整UI（REQ: ツールバーの音量スライダーで音量が変わる、
 // スライダー0でミュート、日本語ラベル・ツールチップがある）。
+
+// テスト用にelectronAPIを差し替えるためのwindow参照。実際のElectronAPI型全体を
+// モックする必要はないため、settings部分のみを持つ構造的な型でキャストする
+// （`any` 禁止ルールに従い、unknown経由の限定的なキャストを使う）。
+const testWindow = window as unknown as {
+  electronAPI?: {
+    settings: {
+      get: ReturnType<typeof vi.fn>;
+      set: ReturnType<typeof vi.fn>;
+      getRecentFiles: ReturnType<typeof vi.fn>;
+    };
+  };
+};
+
 describe('VolumeControl labels and behavior', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (window as any).electronAPI;
+    delete testWindow.electronAPI;
     usePracticeStore.setState({ volume: 80 });
   });
 
@@ -63,8 +76,7 @@ describe('VolumeControl labels and behavior', () => {
       volume: 80,
     });
     const setMock = vi.fn().mockResolvedValue(undefined);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).electronAPI = {
+    testWindow.electronAPI = {
       settings: { get: getMock, set: setMock, getRecentFiles: vi.fn() },
     };
 
@@ -107,8 +119,7 @@ describe('VolumeControl labels and behavior', () => {
       setCalls.push(uiSettings.volume);
       return Promise.resolve();
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).electronAPI = {
+    testWindow.electronAPI = {
       settings: { get: getMock, set: setMock, getRecentFiles: vi.fn() },
     };
 

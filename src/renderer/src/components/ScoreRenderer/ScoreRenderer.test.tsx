@@ -7,7 +7,7 @@ import { ScoreRenderer } from './index';
 // Mock OSMDController
 const mockDrawLoopBracket = vi.fn();
 const mockClearLoopBracket = vi.fn();
-const mockSetPartOpacity = vi.fn();
+const mockSetGrayedOutNotes = vi.fn();
 const mockHighlightNote = vi.fn();
 const mockSetOnMeasureClick = vi.fn();
 const mockSetOnNoteContextMenu = vi.fn();
@@ -24,7 +24,7 @@ vi.mock('./osmd-controller', () => {
       return {
         load: mockLoad,
         moveCursor: vi.fn(),
-        setPartOpacity: mockSetPartOpacity,
+        setGrayedOutNotes: mockSetGrayedOutNotes,
         drawLoopBracket: mockDrawLoopBracket,
         clearLoopBracket: mockClearLoopBracket,
         setZoom: vi.fn(),
@@ -46,7 +46,7 @@ describe('ScoreRenderer', () => {
   beforeEach(() => {
     mockDrawLoopBracket.mockClear();
     mockClearLoopBracket.mockClear();
-    mockSetPartOpacity.mockClear();
+    mockSetGrayedOutNotes.mockClear();
     mockHighlightNote.mockClear();
     mockSetOnMeasureClick.mockClear();
     mockSetOnNoteContextMenu.mockClear();
@@ -314,21 +314,28 @@ describe('ScoreRenderer', () => {
     );
   });
 
-  it('sets non-practicing part opacity to 0.5 and practicing/other parts to 1.0 for each practiceMode (REQ-002-007)', async () => {
-    const scoreWithParts = {
+  it('grays out only the non-practicing hand notes (note-unit, TASK-048) for each practiceMode', async () => {
+    // 1パート2段譜を想定: 同一partId('P1')でも、note.handでstaff1(right)/staff2(left)を区別する。
+    const scoreWithNotes = {
       title: 'Test Score',
-      parts: [
-        { id: 'P1', hand: 'right' },
-        { id: 'P2', hand: 'left' },
+      parts: [{ id: 'P1', hand: 'right' }],
+      measures: [
+        {
+          number: 1,
+          startTick: 0,
+          notes: [
+            { id: 'P1-M1-N0', hand: 'right' },
+            { id: 'P1-M1-N1', hand: 'left' },
+          ],
+        },
       ],
-      measures: [],
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 
-    // practiceMode="right": 左手パート(P2)のみグレーアウト(0.5)、右手パート(P1)は1.0。
+    // practiceMode="right": 左手音(N1)のみグレーアウト対象。
     const { rerender } = render(
       <ScoreRenderer
-        score={scoreWithParts}
+        score={scoreWithNotes}
         musicXmlContent="<score-partwise/>"
         currentNoteId={null}
         practiceMode="right"
@@ -338,15 +345,16 @@ describe('ScoreRenderer', () => {
       />
     );
 
-    await waitFor(() => expect(mockSetPartOpacity).toHaveBeenCalledWith('P1', 1.0));
-    expect(mockSetPartOpacity).toHaveBeenCalledWith('P2', 0.5);
+    await waitFor(() =>
+      expect(mockSetGrayedOutNotes).toHaveBeenCalledWith(new Set(['P1-M1-N1']))
+    );
 
-    mockSetPartOpacity.mockClear();
+    mockSetGrayedOutNotes.mockClear();
 
-    // practiceMode="left": 右手パート(P1)のみグレーアウト(0.5)、左手パート(P2)は1.0。
+    // practiceMode="left": 右手音(N0)のみグレーアウト対象。
     rerender(
       <ScoreRenderer
-        score={scoreWithParts}
+        score={scoreWithNotes}
         musicXmlContent="<score-partwise/>"
         currentNoteId={null}
         practiceMode="left"
@@ -356,15 +364,16 @@ describe('ScoreRenderer', () => {
       />
     );
 
-    await waitFor(() => expect(mockSetPartOpacity).toHaveBeenCalledWith('P1', 0.5));
-    expect(mockSetPartOpacity).toHaveBeenCalledWith('P2', 1.0);
+    await waitFor(() =>
+      expect(mockSetGrayedOutNotes).toHaveBeenCalledWith(new Set(['P1-M1-N0']))
+    );
 
-    mockSetPartOpacity.mockClear();
+    mockSetGrayedOutNotes.mockClear();
 
-    // practiceMode="both": どちらのパートもグレーアウトなし(1.0)。
+    // practiceMode="both": グレーアウトなし（空集合）。
     rerender(
       <ScoreRenderer
-        score={scoreWithParts}
+        score={scoreWithNotes}
         musicXmlContent="<score-partwise/>"
         currentNoteId={null}
         practiceMode="both"
@@ -374,8 +383,7 @@ describe('ScoreRenderer', () => {
       />
     );
 
-    await waitFor(() => expect(mockSetPartOpacity).toHaveBeenCalledWith('P1', 1.0));
-    expect(mockSetPartOpacity).toHaveBeenCalledWith('P2', 1.0);
+    await waitFor(() => expect(mockSetGrayedOutNotes).toHaveBeenCalledWith(new Set()));
   });
 
   it('clears fingerings when no annotation has a fingerNumber', async () => {

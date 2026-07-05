@@ -15,8 +15,11 @@ vi.mock('tone', () => {
     pause: vi.fn(),
   };
 
+  const mockDestination = { volume: { value: 0 }, mute: false };
+
   return {
     getTransport: vi.fn(() => mockTransport),
+    getDestination: vi.fn(() => mockDestination),
     Synth: vi.fn().mockImplementation(() => ({
       toDestination: vi.fn().mockReturnThis(),
       triggerAttackRelease: vi.fn(),

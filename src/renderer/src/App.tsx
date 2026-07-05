@@ -50,6 +50,7 @@ function App(): React.JSX.Element {
     setZoom,
     setPianoHeight,
     setMidiDeviceId,
+    setVolume,
     currentMeasure,
     currentNoteIndex,
     loopEnabled,
@@ -73,6 +74,7 @@ function App(): React.JSX.Element {
       setZoom: s.setZoom,
       setPianoHeight: s.setPianoHeight,
       setMidiDeviceId: s.setMidiDeviceId,
+      setVolume: s.setVolume,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
       loopEnabled: s.loopEnabled,
@@ -115,6 +117,8 @@ function App(): React.JSX.Element {
   //   到達不能になる）。
   // - ui.zoom / ui.pianoHeight → ui-slice.zoom / ui-slice.pianoHeight
   //   （TASK-045: ズームUI・鍵盤高さ設定UIの永続化された値を反映する）。
+  // - ui.volume → ui-slice.volume
+  //   （TASK-052: usePractice側のuseEffectがaudioEngine.setMasterVolumeへ反映する）。
   // - midi.selectedDeviceId → ui-slice.midiDeviceId
   //   （TASK-045, REQ-004-008: useMidiがmidiDeviceIdの変更を購読し、
   //   WebMidiService.setSelectedDeviceへ反映する）。
@@ -138,6 +142,9 @@ function App(): React.JSX.Element {
         if (uiSettings) {
           setZoom(uiSettings.zoom);
           setPianoHeight(uiSettings.pianoHeight);
+          if (typeof uiSettings.volume === 'number') {
+            setVolume(uiSettings.volume);
+          }
         }
         if (midiSettings) {
           setMidiDeviceId(midiSettings.selectedDeviceId);
@@ -152,7 +159,7 @@ function App(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [setMetronomeEnabled, setErrorMode, setZoom, setPianoHeight, setMidiDeviceId]);
+  }, [setMetronomeEnabled, setErrorMode, setZoom, setPianoHeight, setMidiDeviceId, setVolume]);
 
   const handleOpenFile = async () => {
     if (!window.electronAPI) {

@@ -21,10 +21,12 @@ vi.mock('tone', () => {
     setLoopPoints: vi.fn(),
   };
   const mockDraw = { schedule: vi.fn((cb: () => void) => cb()) };
+  const mockDestination = { volume: { value: 0 }, mute: false };
 
   return {
     getTransport: vi.fn(() => mockTransport),
     getDraw: vi.fn(() => mockDraw),
+    getDestination: vi.fn(() => mockDestination),
     Synth: vi.fn().mockImplementation(() => ({
       toDestination: vi.fn().mockReturnThis(),
       triggerAttackRelease: vi.fn(),
@@ -488,6 +490,41 @@ describe('App', () => {
     await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('ui'));
     await waitFor(() => expect(usePracticeStore.getState().zoom).toBe(2.5));
     expect(usePracticeStore.getState().pianoHeight).toBe(200);
+  });
+
+  it('applies the persisted ui.volume setting to the store on startup (TASK-052)', async () => {
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      }
+      if (key === 'ui') {
+        return Promise.resolve({
+          theme: 'light',
+          language: 'ja',
+          zoom: 1,
+          pianoHeight: 120,
+          volume: 35,
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('ui'));
+    await waitFor(() => expect(usePracticeStore.getState().volume).toBe(35));
   });
 
   it('applies the persisted midi.selectedDeviceId setting to WebMidiService via useMidi on startup (TASK-045, REQ-004-008)', async () => {

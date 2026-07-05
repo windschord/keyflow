@@ -74,6 +74,7 @@
 | REQ-010-006 | △ | setBpmチェーンは○、再生中の即時反映は未検証 |
 | REQ-010-007 | ○ | practice-engine.test |
 | REQ-010-008 | △ | setLoopPointsユニット+結線。実ループは代理指標 |
+| REQ-010-009 | ○ | audio-engine.test（setMasterVolumeのdB変換・ミュート・境界値）+ ui-slice.test（volume/setVolumeクランプ）+ VolumeControl.test（スライダー操作・ラベル・ツールチップ・electron-store永続化）+ usePractice.test（store→audioEngine同期）+ App.test（起動時ロード）。TASK-052で対応済み |
 
 ## 運用ルール
 

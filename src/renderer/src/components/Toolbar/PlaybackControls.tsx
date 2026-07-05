@@ -43,7 +43,7 @@ interface PlaybackControlsProps {
 const NO_SCORE_TOOLTIP = '楽譜を開くと再生できます';
 
 /**
- * 曲の再生・一時停止・停止を行うツールバー部品（暫定実装）。
+ * 曲の再生・一時停止・停止を操作するツールバー部品（暫定実装）。
  *
  * - Spaceキーで再生/一時停止をトグルする
  * - 初回の再生操作でのみ Tone.start() を呼び、AudioContext を解放する

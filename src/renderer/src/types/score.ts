@@ -71,7 +71,7 @@ export interface Note {
   /**
    * 音符単位の手（右手/左手）。TASK-048で導入。
    * - 1パート2段譜（`staves>=2`）: staff 1 = 'right'、staff 2以降 = 'left'
-   * - それ以外（`<staff>`未指定/単一staffのパート）: 所属する `Part.hand` を継承
+   * - それ以外（`<staff>`未指定/単一staffのパート）: 所属する `Part.hand` を継承する。
    * 消費側（practice-engine/keyboard-renderer/FingeringPanel/osmd-controller）は
    * 本フィールドで判定し、`Part.hand`によるパート単位判定は行わない。
    * オプショナルなのは、本フィールド導入前に構築された既存のテスト用Noteリテラル

@@ -14,7 +14,7 @@ import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
 import type { Annotation, Finger, FingerAssignment, Note, Score } from './types';
 
 // TASK-053: ドラッグ＆ドロップで受け付けるMusicXMLの拡張子（大文字小文字を区別しない）。
-// Main側のfile:register-dropped-fileハンドラでも同様の検証を行う（多層防御）。
+// Main側のfile:register-dropped-fileハンドラでも同様に検証する（多層防御）。
 const ACCEPTED_DROP_EXTENSIONS = ['.xml', '.musicxml', '.mxl'];
 
 function hasAcceptedDropExtension(fileName: string): boolean {
@@ -132,9 +132,9 @@ function App(): React.JSX.Element {
   // それぞれ対応するstoreへ反映する（単一の真実源とし、起動後はツールバー/
   // SettingsModal での変更がこれらの値を更新する）。
   // - practice.metronomeEnabled / practice.defaultErrorMode
-  //   → ui-slice.metronomeEnabled / practice-slice.errorMode
-  //   （TASK-040: これを行わないと practice-engine の 'pass' 分岐が本番経路で
-  //   到達不能になる）。
+  //   → ui-slice.metronomeEnabled / practice-slice.errorMode（TASK-040）。
+  //   この反映を省くと practice-engine の 'pass' 分岐は本番経路で
+  //   到達不能になる。
   // - ui.zoom / ui.pianoHeight → ui-slice.zoom / ui-slice.pianoHeight
   //   （TASK-045: ズームUI・鍵盤高さ設定UIの永続化された値を反映する）。
   // - ui.volume → ui-slice.volume
@@ -308,7 +308,7 @@ function App(): React.JSX.Element {
 
       // D&D で開いたファイルも file:write（アノテーション保存）の allowlist・
       // ファイル履歴に載せる必要があるため、Main 側の登録 IPC を経由する
-      // （Main 側でも拡張子検証を行う多層防御。TASK-053）。
+      // （Main 側でも拡張子を検証する多層防御。TASK-053）。
       const registered = await window.electronAPI.file.registerDroppedFile(filePath);
       if (!registered) {
         alert(UNSUPPORTED_DROP_MESSAGE);

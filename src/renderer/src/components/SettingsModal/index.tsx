@@ -88,7 +88,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const updatedUi = { ...settings.ui, [key]: value };
     setSettings({ ...settings, ui: updatedUi });
 
-    // 「鍵盤の高さ」の変更は、単一の真実源である ui-slice の pianoHeight に
+    // 「鍵盤の高さ」の変更は、単一の真実源である ui-slice の pianoHeight へ
     // 即座に反映し、PianoKeyboardへ反映する（TASK-045。metronomeEnabledの
     // 既存パターン踏襲）。
     if (key === 'pianoHeight') {
@@ -127,12 +127,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setSettings({ ...settings, practice: updatedPractice });
 
     // 「既定でメトロノームを有効にする」の変更は、単一の真実源である ui-slice の
-    // metronomeEnabled に即座に反映し、ツールバーのチェックボックスへ反映する。
+    // metronomeEnabled へ即座に反映し、ツールバーのチェックボックスへ反映する。
     if (key === 'metronomeEnabled') {
       usePracticeStore.getState().setMetronomeEnabled(value as boolean);
     }
 
-    // 「既定のエラーモード」の変更は、practice-slice の errorMode に即座に反映する
+    // 「既定のエラーモード」の変更は、practice-slice の errorMode へ即座に反映する
     // （TASK-040: 設定UI→storeの結線がないと practice-engine の 'pass' 分岐が
     // 本番経路で到達不能になる）。
     if (key === 'defaultErrorMode') {

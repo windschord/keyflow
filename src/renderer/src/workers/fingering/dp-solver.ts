@@ -27,7 +27,7 @@ const OVERFLOW_PENALTY = 100;
  * DPの連鎖が断絶した（あるユニットで全組み合わせのコストがInfinityになった）場合に、
  * チェーンを再開するときに課す固定ペナルティ（2026-07-05 実機フィードバック対応）。
  *
- * 実楽譜では以下が普通に起きるため、Infinityのままにするとバックトラックが破綻し
+ * 実楽譜では以下が普通に起きるため、Infinityのままにするとバックトラックが破綻し、
  * 運指が一切出力されなくなる:
  * - 手のスパン上限を超える広い和音（アルペジオ前提の記譜等）→ 全comboのユニット内コストがInfinity
  * - 5音和音の連続 → 対応する指同士が必ず「同一指・異音高」となり全遷移コストがInfinity
@@ -45,13 +45,15 @@ const SAME_FINGER_UNIT_PENALTY = 200;
  * まとめたもの。
  *
  * ユニット化にはNote.isChordを判定基準として使う（同一startTickかどうかを都度比較するのではない）。
- * MusicXMLの仕様上、`<chord/>` 要素を持つ音符（isChord===true）は必ず直前の非chord音符と
- * 同一startTickで発音されるため、「isChordが連続する音符を1ユニットにまとめる」ことは
- * 実データにおいて「同一startTickの音集合をユニット化する」ことと等価である。
+ * MusicXMLの仕様上、`<chord/>` 要素を持つ音符（isChord===true）は必ず直前の
+ * 非chord音符と同一startTickで発音される。そのため「isChordが連続する音符を
+ * 1ユニットにまとめる」ことは実データにおいて「同一startTickの音集合を
+ * ユニット化する」ことと等価である。
  * 一方でisChordを判定基準にすることで、実際の時刻情報（startTick）を厳密に持たない
- * テスト用Noteフィクスチャ（例: 本ファイルのテストで使うmakeNoteは全ノートでstartTick:0固定）
- * に対しても、和音でない限り従来どおり1音=1ユニットの区切りを維持できる
- * （既存dp-solver.test.tsの単旋律回帰テストとの互換性を優先するための設計判断）。
+ * テスト用Noteフィクスチャ（例: 本ファイルのテストで使うmakeNoteは全ノートで
+ * startTick:0固定）に対しても、和音でない限り従来どおり1音=1ユニットの区切りを
+ * 維持できる。これは既存dp-solver.test.tsの単旋律回帰テストとの互換性を
+ * 優先するための設計判断である。
  */
 interface ChordUnit {
   /** ユニットを構成する音符（元の入力配列内での相対順序のまま保持）。 */
@@ -70,7 +72,7 @@ function groupIntoChordUnits(notes: Note[]): ChordUnit[] {
   return units;
 }
 
-/** 1..5の指からサイズkの昇順の組み合わせ（C(5,k)）を列挙する。 */
+/** 1..5の指から、指定サイズの昇順の組み合わせ（C(5,k)）を列挙する。 */
 function generateCombinations(k: number): Finger[][] {
   const result: Finger[][] = [];
   const combo: Finger[] = [];
@@ -235,8 +237,8 @@ function unitInternalCostRelaxed(
  * ユニット間（時間的に連続する2つのコードユニット）の移動コスト。
  *
  * 既存の `totalTransitionCost`（cost-functions.ts）は「遷移先の指の静的コスト
- * （weakFingerCost/thumbOnBlackCost/fiveOnBlackCost）」を含めて計算するが、
- * 本モジュールでは静的コストを `unitInternalCost` 側でユニット内の全構成音に対して
+ * （weakFingerCost/thumbOnBlackCost/fiveOnBlackCost）」を含めて計算する。
+ * 一方、本モジュールでは静的コストを `unitInternalCost` 側でユニット内の全構成音に対して
  * 一度だけ計上する（和音の全構成音を漏れなく評価するため）。そのため、ここでは
  * `totalTransitionCost` を構成する既存のコスト関数のうち、純粋に「動き」に関わる
  * 部分（spanCost・thumbPassingCost・largeJumpCost）のみを合算し、静的コストの
@@ -245,9 +247,9 @@ function unitInternalCostRelaxed(
  * 単音ユニット同士（k=1）の遷移では、
  *   unitInternalCost(現在ユニット) の静的コスト + このunitTransitionMotionCost
  *   === totalTransitionCost(f1, f2, n1, n2, hand, settings)
- * と厳密に一致する（両者を合算した式を展開すると、spanCost + weakFingerCost(f2) +
+ * と厳密に一致する。両者を合算した式を展開すると、spanCost + weakFingerCost(f2) +
  * thumbOnBlackCost(f2, n2) + fiveOnBlackCost(f2, n2) + thumbPassingCost + largeJumpCost
- * となり totalTransitionCost の定義そのものになる）。これにより、単旋律入力での
+ * となる。これは totalTransitionCost の定義そのものである。これにより、単旋律入力での
  * 既存dp-solver.test.tsの結果・コストと完全に一致する（回帰テストで担保）。
  *
  * 代表ペアの取り方: ユニット内の構成音をピッチ昇順に並べたときの対応する順位同士
@@ -378,10 +380,11 @@ function computeChordUnitDP(
       }
     }
 
-    // 連鎖断絶時のリスタート: このユニットで全comboがInfinityのままの場合
-    // （ユニット自体が演奏不可能、または全遷移が同一指衝突等でInfinity。
-    // 例: 5音和音→別の5音和音は指列が[1..5]固定のため必ず全遷移がInfinityになる）、
+    // 連鎖断絶時のリスタート: このユニットで全comboがInfinityのままの場合、
     // 直前ユニットの最良セルからCHAIN_BREAK_PENALTYを課してチェーンを繋ぎ直す。
+    // Infinityのままになるのは、ユニット自体が演奏不可能なケースか、全遷移が
+    // 同一指衝突等でInfinityになるケースである。
+    // 例: 5音和音→別の5音和音は指列が[1..5]固定のため必ず全遷移がInfinityになる。
     // これによりバックトラックのprevIndex連鎖が途切れず、運指が必ず出力される。
     if (dp[u].every((c) => c.cost === Infinity)) {
       let bestPrevIdx = 0;

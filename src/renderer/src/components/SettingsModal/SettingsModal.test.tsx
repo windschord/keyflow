@@ -6,9 +6,10 @@ import { usePracticeStore } from '../../store';
 import type { WebMidiService } from '../../lib/midi/web-midi';
 
 // 本ファイルは window.electronAPI をモックした「UI表示層のみ」の検証である。
-// settingsApi.getRecentFiles はモック応答を返すため、Main プロセス側で
-// SettingsService.addRecentFile が実際に呼ばれ、electron-store の recentFiles に
-// 反映されるという本番経路の結線（REQ-001-006）はここでは検証できない。
+// settingsApi.getRecentFiles はモック応答を返す。
+// そのため、Main プロセス側で SettingsService.addRecentFile が実際に呼ばれ、
+// electron-store の recentFiles に反映されるという本番経路の結線（REQ-001-006）は
+// ここでは検証できない。
 // その結線検証は src/main/file-handlers.test.ts
 // （createShowOpenDialogHandler が addRecentFile を呼ぶことの検証）が担う。
 //

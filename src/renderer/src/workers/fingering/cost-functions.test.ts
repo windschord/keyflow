@@ -112,7 +112,7 @@ describe('cost-functions', () => {
   // REQ-009-A04: エンジンは黒鍵への4・5指の使用を避けるよう重み付けしなければならない。
   // 出典: docs/sdd/design/components/fingering-engine.md のコスト項目
   // 'FIVE_ON_BLACK'（黒鍵に小指を置くペナルティ）。fiveOnBlackCostは小指(5)が黒鍵に
-  // 乗るケースにペナルティを課すことを検証する（白鍵に乗る場合・小指以外の指の場合は
+  // 乗るケースへペナルティを課すことを検証する（白鍵に乗る場合・小指以外の指の場合は
   // コスト0であること）。
   describe('fiveOnBlackCost (REQ-009-A04)', () => {
     it('小指(5)がC#4(61、黒鍵)に乗るとコストが発生する', () => {

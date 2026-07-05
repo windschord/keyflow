@@ -32,8 +32,9 @@ function playJudgementSound(judgement: NoteJudgement, audioEngine: JudgementAudi
 
 /**
  * 正誤判定結果を noteHighlights ステートに反映する（REQ-004-003/004）。
- * `judgement.note` は現在の判定グループの代表ノート（practice-engine側の
- * `filteredExpected[0]`）であり、その noteId を緑/赤にハイライトする。
+ * `judgement.note` は現在の判定グループの代表ノート
+ * （practice-engine側の `filteredExpected[0]`）であり、その noteId を
+ * 緑/赤にハイライトする。
  * 'ignored' や note が存在しない場合は何もしない。
  */
 function applyJudgementHighlight(

@@ -44,8 +44,8 @@ export function groupNotesByStartTick(notes: Note[]): NoteGroup[] {
  * 練習パートフィルタ（Left/Right/Both）をノーツ集合へ適用する。
  *
  * `both` の場合はフィルタなし。`right`/`left` の場合は、`note.hand` が
- * 一致するノーツのみを残す（TASK-048: パート単位判定からNote単位判定へ変更。
- * 1パート2段譜でも段（手）ごとに正しくフィルタできるようにするため）。
+ * 一致するノーツのみを残す（TASK-048でパート単位判定からNote単位判定へ変更）。
+ * 1パート2段譜でも段（手）ごとに正しくフィルタするためである。
  */
 export function filterNotesByPracticeMode(notes: Note[], practiceMode: PracticeMode): Note[] {
   if (practiceMode === 'both') return notes;

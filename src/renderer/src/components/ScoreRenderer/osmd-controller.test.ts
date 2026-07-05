@@ -5,8 +5,9 @@ import type { Score, Note } from '../../types';
 /**
  * テスト用の最小限のScoreを組み立てるヘルパー。
  * 指定した小節ごとのnoteId配列から、midiNumber=12・staff=1・isRest=falseで
- * 統一されたNoteリストを生成する（OSMDカーソルのモックNote `{}` がhalfTone未設定＝0の
- * ため、midiNumber = halfTone(0) + 12 = 12 になることに合わせている）。
+ * 統一されたNoteリストを生成する。
+ * OSMDカーソルのモックNote `{}` はhalfTone未設定＝0のため、
+ * midiNumber = halfTone(0) + 12 = 12 と評価されることに合わせている。
  */
 function makeScore(measures: Array<{ number: number; noteIds: string[] }>): Score {
   return {

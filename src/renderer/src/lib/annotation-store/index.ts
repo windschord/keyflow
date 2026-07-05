@@ -23,7 +23,7 @@ export class AnnotationStoreService {
     this.currentFilePath = musicXmlPath + '.annotation.json';
     const skipped: string[] = [];
     try {
-      // 初回オープン時はサイドカーファイルが存在しないのが正常なため、
+      // 初回オープン時にサイドカーファイルが存在しないのは正常なため、
       // ENOENTでエラーログを出さない readIfExists を使う（2026-07-05）。
       const content = await window.electronAPI.file.readIfExists(this.currentFilePath);
       if (content === null) {

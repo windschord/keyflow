@@ -9,10 +9,10 @@ export type PositionChangeCallback = (measureNumber: number, groupIndex: number)
 /**
  * StrictMode（React 18開発モード）はエフェクトを「実行→クリーンアップ→再実行」の
  * 順で二重実行する。usePractice.ts は useMemo で保持した単一の AudioEngineService
- * インスタンスに対して、アンマウント時 dispose() を呼ぶクリーンアップを登録するため、
- * 開発モードでは起動直後に dispose() が呼ばれ、以降のメソッド呼び出しがすべて
- * 破棄済みのシンセに対して行われ無音になっていた（2026-07-05 トラブルシューティング
- * 原因1）。
+ * インスタンスに対して、アンマウント時 dispose() を呼ぶクリーンアップを登録する。
+ * このため開発モードでは起動直後に dispose() が呼ばれ、以降のメソッド呼び出しが
+ * すべて破棄済みのシンセに対して行われ無音になっていた（2026-07-05
+ * トラブルシューティング原因1）。
  *
  * 対策として、シンセ等のリソースは `ensureInitialized()` により遅延初期化し、
  * 各公開メソッドの先頭で呼び出す。`dispose()` はリソースを解放したうえで
@@ -108,8 +108,8 @@ export class AudioEngineService {
    * - `practiceMode`（既定 `'both'`）に応じて、実際に発音スケジュールする
    *   ノーツを `note.hand` で絞り込む（TASK-051: 再生の練習対象フィルタ、
    *   REQ-010-010）。左手練習中は左手のみ、右手練習中は右手のみを鳴らし、
-   *   両手練習中は全ノーツを鳴らす。判定グループのカーソル連動（下記の
-   *   `schedule`）は practiceMode に関わらず全ノーツ基準のまま変更しない
+   *   両手練習中は全ノーツを鳴らす。判定グループのカーソル連動
+   *   （下記の `schedule`）は practiceMode に関わらず全ノーツ基準のまま変更しない
    *   （判定側フィルタは practice-engine 側で別途適用されるため、ここでは
    *   時間軸の進行のみを扱う）。
    */
@@ -204,9 +204,9 @@ export class AudioEngineService {
     const transport = Tone.getTransport();
     if (startTick !== undefined) {
       // Transport.start(undefined, `${tick}i`) のoffset引数は一時停止状態からの
-      // 再開時に反映されないことがあるため（2026-07-05 実機フィードバック）、
-      // stopped/paused どちらの状態でも確実に効く Transport.ticks への明示代入で
-      // シークしてから開始する（Tone.js公式のシーク手法）。
+      // 再開時に反映されないことがある（2026-07-05 実機フィードバック）。
+      // そのため stopped/paused どちらの状態でも確実に効く Transport.ticks への
+      // 明示代入でシークしてから開始する（Tone.js公式のシーク手法）。
       transport.ticks = startTick;
     }
     transport.start();
@@ -253,7 +253,7 @@ export class AudioEngineService {
   }
 
   /**
-   * リソースを解放する。StrictModeのエフェクト再実行に耐えるため冪等にする
+   * リソースを解放する。StrictModeのエフェクト再実行に耐えるため、冪等にする
    * （未初期化・解放済みの状態で呼ばれても何もしない）。解放後に公開メソッドが
    * 呼ばれた場合は `ensureInitialized()` が自動的に再初期化する。
    */

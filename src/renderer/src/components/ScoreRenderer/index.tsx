@@ -13,7 +13,7 @@ export interface ScoreRendererProps {
   /**
    * annotation-storeの実データ（手動入力・AI提案の両方を含む）。
    * fingerNumberが設定されている項目のみ楽譜上に指番号として描画し、
-   * isApprovedの値に応じて色分けする（承認済み: 濃い青、未承認: 淡い青。
+   * isApprovedの値に応じて色分けする（承認済み: 濃い青、未承認: 淡い青、
    * osmd-controller.ts の renderFingeringLayer 参照）。
    */
   annotations?: Annotation[];
@@ -54,10 +54,11 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
     osmdControllerRef.current = controller;
 
     // TASK-049: アンマウント時にOSMDController.dispose()を呼び、ResizeObserverの
-    // disconnectとclick/contextmenuリスナーの解除を行う（リソース解放漏れの防止）。
-    // このeffectで生成したcontrollerをクロージャで捕捉してdisposeすることで、
-    // StrictModeのマウント→クリーンアップ→再マウントの間もosmdControllerRef.current
-    // をnullに戻さない（他のeffectのクリーンアップがcontrollerを参照できるよう保つ）。
+    // disconnectとclick/contextmenuリスナーを解除する（リソース解放漏れの防止）。
+    // このeffectで生成したcontrollerをクロージャで捕捉してdisposeする。
+    // これにより、StrictModeのマウント→クリーンアップ→再マウントの間も
+    // osmdControllerRef.currentをnullに戻さない
+    // （他のeffectのクリーンアップがcontrollerを参照できるよう保つ）。
     // 再マウント時は本effectが無条件に新しいcontrollerを生成し直す。
     return () => {
       controller.dispose();
@@ -138,7 +139,7 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   useEffect(() => {
     // isLoaded を依存に含めることで、新しい楽譜のロード直後（noteIdToSvgCoord構築完了後）に
     // もグレーアウトが再適用される（REQ-002-007: buildNoteIdMap完了前は座標が
-    // 空のためオーバーレイが描画されないことがあるための再適用）。
+    // 空で、オーバーレイを描画できないことがあるための再適用）。
     // TASK-048: パート単位（Part.hand）ではなくnote単位（Note.hand）でグレーアウト対象を
     // 収集する。1パート2段譜ではパートと手（段）が一致しないため、この方式が必要。
     if (osmdControllerRef.current && score) {

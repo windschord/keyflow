@@ -157,8 +157,8 @@ export function parse(xmlContent: string): Score {
 
   // --- v2: 時刻付与・noteId統一（TASK-031 / data-model-v2.md） ---
   // <backup>/<forward>/<chord>/<divisions> はXML上の兄弟要素間の出現順序が重要なため、
-  // 順序を保持できるDOMParserで別途トラバースする（fast-xml-parserは同名要素を
-  // タグ名ごとの配列にまとめてしまい、異なるタグ間の相対順序が失われるため）。
+  // 順序を保持できるDOMParserで別途トラバースする。fast-xml-parserは同名要素を
+  // タグ名ごとの配列にまとめてしまい、異なるタグ間の相対順序が失われるためである。
   const xmlDoc = new DOMParser().parseFromString(xmlContent, 'application/xml');
   const partElements = Array.from(xmlDoc.getElementsByTagName('part'));
 

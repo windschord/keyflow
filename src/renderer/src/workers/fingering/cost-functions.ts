@@ -26,11 +26,10 @@ export function spanCost(
     return span - comfortable;
   } else {
     // 実際には comfortable超でペナルティあり。
-    // 仕様確認: spanCost = (span - comfortable) + (span - max) * 10 とするが、
+    // 仕様確認: spanCost = (span - comfortable) + (span - max) * 10 とする。
     // テストケースに合わせると、C4(60)からA4(69)は差9、1-5ペアのcomfortable=7, max=14で
-    // spanCost=9-7=2（comfortable超過分）となる。なので以下の式とする。
-    // = (span - comfortable) + (span > max ? (span - max) * 10 : 0)
-    // テストのコメントにある通り
+    // spanCost=9-7=2（comfortable超過分）となる。なので以下の式とし、
+    // max超過時のみ (span - max) * 10 を加算する（テストのコメントにある通り）。
     return span - comfortable + (span - max) * 10;
   }
 }

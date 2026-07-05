@@ -3,7 +3,7 @@ import { usePracticeStore } from '../../store';
 
 // ズームレベルの選択肢（REQ-002-006）。50%〜400%の範囲を用意し、
 // 400%はE2Eの手動スクロール検証（tests/e2e/app.spec.ts）が
-// スクロール可能な状態を確実に作るために利用する。
+// スクロール可能な状態を確実に作れるよう利用する。
 const ZOOM_LEVELS: Array<{ value: number; label: string }> = [
   { value: 0.5, label: '50%' },
   { value: 0.75, label: '75%' },

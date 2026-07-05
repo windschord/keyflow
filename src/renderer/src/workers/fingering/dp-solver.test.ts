@@ -24,9 +24,9 @@ const makeNote = (id: string, midiNumber: number): Note => ({
 /**
  * TASK-050: 和音（コードユニット）テスト用のヘルパー。
  * 先頭の音はisChord:false、2番目以降はisChord:trueにして、dp-solver.tsの
- * groupIntoChordUnitsが1つのユニットとしてまとめるようにする（本実装は
+ * groupIntoChordUnitsが1つのユニットとしてまとめるようにする。本実装は
  * Note.isChordの連続性を判定基準にしており、実データ上はこれが同一startTickの
- * 音集合と等価になる。詳細はdp-solver.tsのChordUnitのコメントを参照）。
+ * 音集合と等価になる。詳細はdp-solver.tsのChordUnitのコメントを参照。
  */
 const makeChord = (ids: string[], midiNumbers: number[], startTick = 0): Note[] =>
   ids.map((id, i) => ({
@@ -82,8 +82,8 @@ describe('dp-solver', () => {
     const result = computeFingering(notes, 'right', DEFAULT_SETTINGS);
 
     expect(result.assignments).toHaveLength(8);
-    // 定型パターン適用時の固定運指（1,2,3,1,2,3,4,5 または 5,4,3,2,1,3,2,1）とは一致しない、
-    // 純粋なDPが導いた最適解であることを確認する
+    // 定型パターン適用時の固定運指（1→2→3→1→2→3→4→5 または 5→4→3→2→1→3→2→1）とは
+    // 一致しない、純粋なDPが導いた最適解であることを確認する
     const fingers = result.assignments.map((a) => a.finger);
     expect(fingers).not.toEqual([1, 2, 3, 1, 2, 3, 4, 5]);
     expect(fingers).not.toEqual([5, 4, 3, 2, 1, 3, 2, 1]);

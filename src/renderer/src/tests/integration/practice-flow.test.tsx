@@ -17,9 +17,9 @@ vi.mock('tone', () => {
     stop: vi.fn(),
     pause: vi.fn(),
     // TASK-051: usePractice が score/practiceMode の変化を監視して
-    // audioEngine.loadScore を呼ぶようになった（従来はApp.tsxのhandleOpenFile内で
+    // audioEngine.loadScore を呼ぶようになった。従来はApp.tsxのhandleOpenFile内で
     // try/catchに包まれて直接呼ばれていたため、この結線が欠けていても例外は
-    // 静かに握りつぶされていた）。loadScoreが内部で使うschedule/clear/setLoopPoints
+    // 静かに握りつぶされていた。loadScoreが内部で使うschedule/clear/setLoopPoints
     // もモックしておかないと、エフェクト内の例外がtry/catchで捕捉されず
     // unhandled errorになる。
     schedule: vi.fn(() => scheduleIdSeq++),

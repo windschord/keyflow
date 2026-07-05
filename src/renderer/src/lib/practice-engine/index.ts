@@ -227,7 +227,7 @@ export class PracticeEngineService {
   }
 
   /**
-   * `(fromMeasure, fromGroupIndex)` を起点に、練習モードでフィルタした際に
+   * `(fromMeasure, fromGroupIndex)` を起点に、練習モードでフィルタしても
    * 空にならない次の判定グループを探索する。
    *
    * - グループ内の全ノーツがフィルタで除外される（空になる）場合は
@@ -321,11 +321,12 @@ export class PracticeEngineService {
       return;
     }
 
-    // expectedNotes holds the *unfiltered* judgement group (all notes sharing the
-    // current startTick) so that the on-screen keyboard guide can show the full
-    // picture of both hands (data-model-v2 design doc: 鍵盤ガイドは現在グループの
-    // 全ノーツ). Practice-mode filtering is applied at judgement time in
-    // handleNoteOn() via filterNotesByPracticeMode().
+    // expectedNotes holds the *unfiltered* judgement group (all notes sharing
+    // the current startTick). This is so that the on-screen keyboard guide can
+    // show the full picture of both hands (data-model-v2 design doc の
+    // 「鍵盤ガイドは現在グループの全ノーツ」). Practice-mode filtering is
+    // applied at judgement time in handleNoteOn() via
+    // filterNotesByPracticeMode().
     const groups = groupNotesByStartTick(measure.notes);
     const currentGroup = groups[state.currentNoteIndex];
 

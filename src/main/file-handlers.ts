@@ -56,7 +56,7 @@ function hasAcceptedMusicXmlExtension(filePath: string): boolean {
  * ダイアログ経由（`createShowOpenDialogHandler`）と同様に SettingsService.addRecentFile を
  * 呼び出す。Renderer から任意パスを allowlist に登録できてしまわないよう、
  * 拡張子が `.xml` / `.musicxml` / `.mxl`（大文字小文字を区別しない）のいずれかである
- * 場合のみ登録を行う。それ以外の拡張子は登録を拒否し false を返す
+ * 場合のみ登録する。それ以外の拡張子は登録を拒否し false を返す
  * （allowlist・履歴のいずれにも変更を加えない）。
  */
 export function createRegisterDroppedFileHandler(

@@ -8,9 +8,10 @@ export interface UiSlice {
   pianoHeight: number;
   /**
    * 選択中のMIDI入力デバイスid（REQ-004-008）。`null`は「すべてのデバイス」を
-   * 意味する。SettingsModalでの変更・起動時の設定ロード（electron-store
-   * `midi.selectedDeviceId`）の単一の真実源であり、usePractice/useMidiが
-   * この値をWebMidiService.setSelectedDeviceへ反映する（TASK-045）。
+   * 意味する。SettingsModalでの変更・起動時の設定ロード
+   * （electron-store `midi.selectedDeviceId`）の単一の真実源である。
+   * usePractice/useMidiがこの値をWebMidiService.setSelectedDeviceへ反映する
+   * （TASK-045）。
    */
   midiDeviceId: string | null;
   /**

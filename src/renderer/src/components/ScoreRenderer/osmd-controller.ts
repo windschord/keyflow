@@ -3,7 +3,7 @@ import { Score, Note } from '../../types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** ウィンドウ/コンテナのリサイズ検知後、再描画・再構築を実行するまでのデバウンス時間（ミリ秒）。 */
+/** ウィンドウ/コンテナのリサイズ検知後、再描画・再構築するまでのデバウンス時間（ミリ秒）。 */
 const RESIZE_DEBOUNCE_MS = 250;
 /**
  * OSMDカーソルのタイムスタンプから導出した絶対tickと、パーサ由来Note.startTickとの
@@ -21,7 +21,7 @@ const CHORD_NOTE_VERTICAL_OFFSET_PX = 10;
 
 /**
  * 下段（staff 2、通常ヘ音記号=左手）の指番号をカーソル下端からさらに離す
- * マージン（ピクセル）。下段譜表の直下に描画するために使う。
+ * マージン（ピクセル）。下段譜表の直下へ描画するために使う。
  */
 const LOWER_STAFF_FINGERING_MARGIN_PX = 12;
 
@@ -101,7 +101,7 @@ export class OSMDController {
   private currentIteratorIndex = 0;
   private noteIdToSvgCoord = new Map<string, { x: number; y: number }>();
   /**
-   * buildNoteIdMapに最後に渡されたパース済みScore。autoResize:false化に伴い、
+   * buildNoteIdMapへ最後に渡されたパース済みScore。autoResize:false化に伴い、
    * ResizeObserver発火時・setZoom時に外部から改めてscoreを渡されなくても
    * 同じ照合ロジックでマップを再構築できるよう保持する。
    */
@@ -135,9 +135,9 @@ export class OSMDController {
   constructor(container: HTMLDivElement) {
     this.container = container;
     // TASK-049: OSMDの自動再レイアウト（autoResize）に頼ると、noteIdToSvgCoord等の
-    // オーバーレイ用座標マップがロード時の1回きりのまま古くなる（stale）ため、
-    // autoResizeをoffにし、ResizeObserverで render→buildNoteIdMap→reapplyOverlays を
-    // 自前制御する。
+    // オーバーレイ用座標マップがロード時の1回きりのまま古くなる（stale）。
+    // そのためautoResizeをoffにし、ResizeObserverで
+    // render→buildNoteIdMap→reapplyOverlays を自前制御する。
     this.osmd = new OpenSheetMusicDisplay(container, {
       autoResize: false,
       backend: 'svg',
@@ -264,8 +264,8 @@ export class OSMDController {
     // To scroll the cursor into view
     try {
       // Use bracket notation without ts-expect-error if it's considered valid by TypeScript
-      // or explicitly typed as any by user configuration,
-      // but to satisfy "strict: true" and "any 禁止", we will treat this.osmd.cursor as unknown first.
+      // or explicitly typed as any by user configuration.
+      // To satisfy "strict: true" and "any 禁止", we will treat this.osmd.cursor as unknown first.
       const cursorObj = this.osmd.cursor as unknown as {
         cursorElement?: { scrollIntoView: (options: object) => void };
       };
@@ -639,7 +639,7 @@ export class OSMDController {
    * noteIdごとのカーソル位置・SVG座標マップを構築する（TASK-049）。
    *
    * 従来はOSMDカーソルのタイムスタンプ順で独自にnoteId（`{partId}-M{measure}-N{index}`）を
-   * 振り直していたが、パーサはXML文書順（staff1全音→backup→staff2）で採番するため、
+   * 振り直していた。しかしパーサはXML文書順（staff1全音→backup→staff2）で採番するため、
    * 多声部・2段譜の小節では順序が食い違い、同じnoteIdが別の音を指す不整合があった。
    * 本実装はパーサ側で確定済みの `Note.id` を照合によって引き当てるため、この不整合を解消する。
    *
@@ -661,7 +661,7 @@ export class OSMDController {
     let iteratorIndex = 0;
 
     // 小節番号ごとの未消費（未マッチ）候補Noteリスト。マッチした候補はここから
-    // 取り除き、同一小節内で同じNoteが二重に割り当てられないようにする。
+    // 取り除き、同一小節内で同じNoteの二重割り当てを防ぐ。
     const remainingNotesByMeasure = new Map<number, Note[]>();
     for (const measure of score.measures) {
       remainingNotesByMeasure.set(measure.number, [...measure.notes]);
@@ -688,7 +688,7 @@ export class OSMDController {
           const matched = this.matchNotesForTimestamp(osmdEntries, candidates ?? []);
 
           // TASK-050/2026-07-05フィードバック: 同一カーソル位置(coord)には和音や
-          // 両段（ト音・ヘ音）の構成音が同時に解決されることがある。OSMDカーソルは
+          // 両段（ト音・ヘ音）の構成音が同時に解決されることもある。OSMDカーソルは
           // 1ステップにつき1つの代表座標しか提供しないため、符頭単位座標の直接取得は
           // 行わず、段（staff）ごとに分離した縦積み座標を computeFingeringCoords
           // （純関数）で計算する（上段=カーソル上端付近、下段=カーソル下端の下）。

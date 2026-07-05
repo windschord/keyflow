@@ -409,8 +409,8 @@ describe('AudioEngineService', () => {
 
   describe('playAccompaniment start offset (TASK-051, REQ-010-001)', () => {
     // Transport.start(undefined, `${tick}i`) のoffset引数は一時停止状態からの
-    // 再開時に無視されることがある（2026-07-05 実機フィードバック:
-    // 「カーソルで選択した位置から再生されず、前回停止した位置から再生される」）。
+    // 再開時に無視されることがある（2026-07-05 実機フィードバックで判明）。
+    // 症状は「カーソルで選択した位置から再生されず、前回停止した位置から再生される」。
     // そのため Transport.ticks への明示代入でシークしてから start() する方式を検証する。
     it('starts Transport without seeking when no startTick is given', () => {
       service.playAccompaniment();

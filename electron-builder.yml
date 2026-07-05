@@ -7,8 +7,7 @@ directories:
   buildResources: build
 
 # electron-builderによる自動npmRebuildを無効化する。
-# node-midiのネイティブビルドは npm run postinstall の
-# `electron-rebuild -f -w midi` で個別に対応済み。
+# ネイティブアドオンは使用していない（MIDIはRendererのWeb MIDI APIで処理）。
 # opensheetmusicdisplayの依存関係であるheadless-gl（gl）は
 # Electronレンダラーではブラウザ標準のCanvas/WebGLを使用するため
 # 実行時に不要だが、node-gypでのネイティブビルドがElectron 42の
@@ -47,13 +46,7 @@ nsis:
 
 files:
   - out/**/*
-  - node_modules/midi/build/Release/midi.node
   - '!node_modules/**/{CHANGELOG.md,README.md,readme.md}'
   - '!node_modules/**/*.{ts,map}'
-
-extraResources:
-  - from: 'node_modules/midi/build/Release/'
-    to: 'midi/build/Release/'
-    filter: ['**/*.node']
 
 publish: null

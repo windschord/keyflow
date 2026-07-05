@@ -107,9 +107,10 @@ export class PracticeEngineService {
     stats = {
       ...stats,
       totalNotes: stats.correctNotes + stats.incorrectNotes,
-      accuracy: stats.correctNotes + stats.incorrectNotes > 0
-        ? stats.correctNotes / (stats.correctNotes + stats.incorrectNotes)
-        : 0,
+      accuracy:
+        stats.correctNotes + stats.incorrectNotes > 0
+          ? stats.correctNotes / (stats.correctNotes + stats.incorrectNotes)
+          : 0,
     };
 
     // Re-read pressedKeys/incorrectKeys from the store rather than relying on the

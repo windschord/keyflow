@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { filterNotesByPracticeMode, groupNotesByStartTick, getGroupsForNotes } from './note-grouping';
+import {
+  filterNotesByPracticeMode,
+  groupNotesByStartTick,
+  getGroupsForNotes,
+} from './note-grouping';
 import { Note } from '../../types';
 
 function makeNote(overrides: Partial<Note> & Pick<Note, 'id' | 'partId' | 'midiNumber'>): Note {

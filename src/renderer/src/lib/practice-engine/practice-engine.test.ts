@@ -564,7 +564,9 @@ describe('PracticeEngineService', () => {
 
   describe('statsの初期値汚染防止（CodeRabbit指摘: initialStatsのインプレース変更回帰）', () => {
     it('あるストアでhandleNoteOnが統計を更新しても、新規に生成した別ストアの初期statsに影響しない', () => {
-      const store1 = create<PracticeSlice>()(createPracticeSlice) as unknown as StoreApi<PracticeStore>;
+      const store1 = create<PracticeSlice>()(
+        createPracticeSlice
+      ) as unknown as StoreApi<PracticeStore>;
       store1.setState({
         expectedNotes: [makeNote({ id: 'x1', partId: 'P1', midiNumber: 60 })],
       });

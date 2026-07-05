@@ -8,7 +8,7 @@
 |---|---|---|
 | REQ-001-001 | △ | parser.test / E2E表示。「5秒以内」の性能検証なし |
 | REQ-001-002 | △ | App.test（エラーダイアログ）。「前の状態維持」未アサート |
-| REQ-001-003 | ○ | parser.test hand-detector / 統合テスト |
+| REQ-001-003 | ○ | parser.test hand-detector / 統合テスト。1パート2段譜（`<staves>2</staves>`）のNote.staff/hand判定を追加検証（TASK-048） |
 | REQ-001-004 | ○ | parser.test（tempo/time/key、tempoMap含む） |
 | REQ-001-005 | × | MusicXML 3.1準拠スイートなし |
 | REQ-001-006 | ○ | file-handlers.test（createShowOpenDialogHandlerがaddRecentFileを呼ぶ結線を検証）。TASK-039で対応済み |
@@ -18,8 +18,8 @@
 | REQ-002-004 | △ | osmd-controller.test + ScoreRenderer.test。E2Eクリックなし |
 | REQ-002-005 | × | showFingerings テストゼロ |
 | REQ-002-006 | ○ | ZoomControl.test（Toolbar常設、Japanese label・値反映）+ Toolbar.test（統合）+ ScoreRenderer/osmd-controller.test（zoom prop→setZoom結線、既存）+ E2E（`zoom-select`のUI操作でストアのzoomが変わることを検証、store直接呼び出しを廃止）。TASK-045で対応済み |
-| REQ-002-007 | ○ | osmd-controller.test（overlay描画）+ ScoreRenderer.test（practiceMode right/left/bothごとのsetPartOpacity結線をアサート）。TASK-046で対応済み |
-| REQ-003-001〜003 | ○ | practice-engine.test（モードフィルタ、スキップ） |
+| REQ-002-007 | ○ | osmd-controller.test（note単位グレーアウトのoverlay描画）+ ScoreRenderer.test（practiceMode right/left/bothごとのsetGrayedOutNotes結線をアサート）。TASK-046で対応済み。TASK-048でパート単位(setPartOpacity)からNote.hand単位(setGrayedOutNotes)へ変更し、1パート2段譜でも検証 |
+| REQ-003-001〜003 | ○ | practice-engine.test（モードフィルタ、スキップ）+ note-grouping.test（filterNotesByPracticeModeがNote.hand基準でフィルタすることを検証、TASK-048） |
 | REQ-003-004 | - | 保留・将来拡張へスコープ変更（2026-07-05、US-003参照）。曲を聴く用途はUS-010の再生で代替 |
 | REQ-003-005 | × | モード切替時の位置維持: 無検証 |
 | REQ-004-001 | △ | web-midi.test初期化のみ。ホットプラグ未検証 |
@@ -30,7 +30,7 @@
 | REQ-004-006 | ○ | practice-slice.test（setErrorMode）+ SettingsModal.test（変更即時反映・ロールバック）+ App.test（起動時ロード）+ practice-flow.test（SettingsModal→store→practice-engineのUI→store→engine結線）。TASK-040で対応済み |
 | REQ-004-007 | △ | handleKeyClick（モック経由）。座標→MIDI変換未検証 |
 | REQ-004-008 | ○ | web-midi.test（setSelectedDeviceによる選択デバイスのみバインド・未接続時フォールバック）+ SettingsModal.test（デバイス一覧表示・選択・保存・ロールバック）+ useMidi.test（storeのmidiDeviceId→WebMidiService.setSelectedDeviceの結線、起動時反映）+ App.test（起動時ロード）。TASK-045で対応済み |
-| REQ-005-001/002 | ○ | PianoKeyboard.test（keyboard-renderer.tsのfillStyleアサーション）。Part.hand（parser算出済み）に基づきguidRight/guidLeft色を検証。partId文字列ヒューリスティックのバグを修正（TASK-041） |
+| REQ-005-001/002 | ○ | PianoKeyboard.test（keyboard-renderer.tsのfillStyleアサーション）。Note.hand（parser算出済み、TASK-048でPart.hand単位からNote単位に変更）に基づきguidRight/guidLeft色を検証。partId文字列ヒューリスティックのバグを修正（TASK-041）。1パート2段譜（同一partId・staff違い）の色分けも検証（TASK-048） |
 | REQ-005-003/004 | △ | ロジックは○、鍵盤描画は× |
 | REQ-005-005 | △ | getNotePosition範囲外throwのみ |
 | REQ-005-006 | ○ | usePractice.test（handleKeyClickがaudioEngine.playNote(midiNumber)を呼ぶことを検証）+ 従来通りの正誤判定・note-offスケジュール検証。TASK-047で対応済み |
@@ -54,7 +54,7 @@
 | REQ-008-005 | △ | load（validNoteIdsフィルタ）は○。App結線未アサート |
 | REQ-008-006 | ○ | NoteContextMenu.test（削除ボタン活性制御）+ App.test（右クリック→removeFinger→save統合）。TASK-044で対応済み |
 | REQ-009-001 | △ | dp-solver + service（モックWorker）。実Worker未検証 |
-| REQ-009-002 | △ | 左手固有の検証なし |
+| REQ-009-002 | △ | FingeringPanel.test（左手/右手選択でNote.hand基準の対象音符フィルタ・エラー文言を検証、1パート2段譜のstaff2音符を含む。TASK-048）。DP計算結果自体の左手固有ロジック検証は引き続き弱い |
 | REQ-009-003 | × | プログレスバー表示未検証 |
 | REQ-009-004 | × | showFingerings未検証 |
 | REQ-009-005 | ○ | NoteContextMenu.test（AI提案時のみ承認ボタン表示）+ App.test（承認→approveAnnotation→isApproved:true反映）。TASK-044で対応済み |

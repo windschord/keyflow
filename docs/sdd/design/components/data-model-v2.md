@@ -132,6 +132,48 @@ Measure.notes（startTick昇順）: [C4(P1), C2(P2), E4(P1), G4(P1)]
 | Measure | `startTick` | `notes` の並び順（パート連結順→startTick昇順） | なし |
 | Note | `startTick`, `durationTicks`, `startSeconds`, `durationSeconds`, `voice` | `noteIndex`/`id`（パート毎連番に統一） | なし（`duration` は維持） |
 
+## 追補: Note.staff/hand（TASK-048、1パート2段譜対応）
+
+2026-07-05のトラブルシューティング分析（[analysis.md](../../troubleshooting/2026-07-05-user-feedback/analysis.md) 原因群A）を受けた追補。1パート2段譜（MuseScore製の標準的なピアノ譜: `<attributes><staves>2</staves>`、各音符に`<staff>1|2</staff>`）では、従来の「右手=1パート目、左手=2パート目」という**パート単位の手判定**が成立しない（両段が同一partIdに属するため）ため、Note単位で手を持たせる。
+
+```typescript
+export interface Note {
+  // ...(既存フィールドは変更なし)
+  staff?: number;  // [追加] MusicXML <staff>（1始まり）。未指定は1
+  hand?: Hand;     // [追加] Note単位の手（右手/左手）
+}
+```
+
+- オプショナルなのは、本追補より前に構築された既存のテスト用Noteリテラル（`workers/fingering`、`audio-engine`等）との後方互換性を保つため。パーサー出力では常に設定される。
+
+### hand決定規則（パーサー）
+
+パート・小節走査中に `<attributes><staves>` を追跡し、各 `<note>` の `<staff>`（未指定は1）を読む。
+
+| 条件 | Note.hand |
+|------|-----------|
+| `staves >= 2` のパート | staff 1 = `'right'`、staff 2以降 = `'left'`（note単位で決定） |
+| `<staff>` 未指定、または単一staffのパート | 従来通り所属する `Part.hand`（`detectHand`によるパート単位判定）を継承 |
+
+tick/`<backup>`/`<chord>`計算・noteId採番は本追補の対象外（変更なし）。
+
+### 消費側の変更
+
+パート単位判定（`Part.hand`によるpartId集合フィルタ）を行っていた以下のコンポーネントを、Note単位判定（`note.hand`直接比較）に変更した。
+
+| コンポーネント | 変更前 | 変更後 |
+|---------------|--------|--------|
+| practice-engine（`note-grouping.ts` `filterNotesByPracticeMode`） | `Part.hand`からpartId集合を作りフィルタ | `note.hand === practiceMode` で直接フィルタ |
+| PianoKeyboard（`keyboard-renderer.ts`） | `expectedNote.partId` → `Part.hand`マップ参照 | `expectedNote.hand` を直接参照 |
+| FingeringPanel（`index.tsx`） | `score.parts.filter(hand一致 \|\| 'unknown')` → partId集合 → notes | `note.hand === hand` で直接フィルタ（`'unknown'`分岐は`detectHand`が返さないデッドコードのため削除） |
+| ScoreRenderer/OSMDController（`setPartOpacity`） | partId単位でY座標クラスタ矩形をグレーアウト | `setGrayedOutNotes(noteId集合)` でnote単位に小さなベールを適用（`osmd-controller.ts`） |
+
+### フィールド差分サマリ（追補）
+
+| 型 | 追加 | 意味変更 | 削除 |
+|----|------|---------|------|
+| Note | `staff`, `hand`（ともにオプショナル） | なし | なし |
+
 ## 要件トレーサビリティ
 
 - REQ-003（右手/左手/両手モード）: 判定仕様2（フィルタと空グループスキップ）

@@ -14,7 +14,7 @@
 ### 報告された現象
 
 1. 曲の再生ができない
-2. 用途がわからないボタン・数字・チェックボックスがある（グレーに見えるMetronome/Loop、「1」「1」の数値フィールド等）
+2. 用途不明のボタン・数字・チェックボックスがある（グレーに見えるMetronome/Loop、「1」「1」の数値フィールド等）
 3. 楽譜を手動でスクロールできない（3段目がピアノ鍵盤に隠れて見切れる）
 4. 全体として「MusicXMLを読み込みMIDI入力で練習するSynthesiaライクなアプリ」として使い物にならない
 
@@ -51,7 +51,7 @@
 ### 原因2: 再生機能の不在（仕様漏れ＋統合スコープ漏れ）
 
 - 「曲全体の再生（お手本演奏）」はユーザーストーリー（US-001〜009）に存在しない。`docs/sdd/requirements/nfr/usability.md:33` に「スペース: 再生/停止」とあるが対応する機能要件がない。
-- `AudioEngineService`（`src/renderer/src/lib/audio-engine/index.ts`）には `loadAccompaniment` / `playAccompaniment` / `setBpm` / `setMetronomeEnabled` が実装済みだが、**UIからの呼び出しがゼロ**。`usePractice.ts:15` で生成され `dispose()` されるだけ。
+- `AudioEngineService`（`src/renderer/src/lib/audio-engine/index.ts`）には `loadAccompaniment` / `playAccompaniment` / `setBpm` / `setMetronomeEnabled` が実装済み。しかし**UIからの呼び出しがゼロ**。`usePractice.ts:15` で生成され `dispose()` されるだけ。
 - Spaceキーハンドラは `console.log('Play/Pause toggled')` のダミー（`src/renderer/src/components/Toolbar/index.tsx:15-19`）。`Tone.start()`（AudioContext解放）を呼ぶ箇所もない。
 - **結果: アプリから音が一切出ない。テンポスライダー・BPM欄・Metronomeも聴覚的効果ゼロ。**
 - 統合タスク `docs/sdd/tasks/phase-5/TASK-016.md` のスコープにAudioEngine結線が含まれていなかったことが直接原因。
@@ -121,6 +121,7 @@
 4. Toolbar UX改善: 全コントロールへの日本語ラベル・ツールチップ、手選択の統合または明確な区分、死にコントロールの結線または削除、`loopRange` 結線
 
 **フェーズB: 仕様の再定義（Synthesiaライク体験の要件化）**
+
 5. requirements-defining で「曲の再生（お手本演奏）」ユーザーストーリーを追加
 6. データモデル再設計: 音符への発音時刻付与、パート統合の時刻ベース化、noteId仕様統一 → 両手曲対応
 7. osmd-controllerの空実装（highlightNote / setPartOpacity / drawLoopBracket）の実装

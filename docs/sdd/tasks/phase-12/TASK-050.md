@@ -24,7 +24,7 @@
 
 ### 根本原因
 
-1. **表示**: 計算・保存は和音の全構成音に行われているが、`buildNoteIdMap` が和音（同一 VoiceEntry）の全音に**同一のSVG座標**を登録するため（`osmd-controller.ts:555-558`）、`renderFingeringLayer`（`osmd-controller.ts:472-496`）が指番号を同一位置に重ねて描画し、1個しか無いように見える。
+1. **表示**: 計算・保存は和音の全構成音に行われている。しかし `buildNoteIdMap` が和音（同一 VoiceEntry）の全音に**同一のSVG座標**を登録する（`osmd-controller.ts:555-558`）。そのため `renderFingeringLayer`（`osmd-controller.ts:472-496`）が指番号を同一位置に重ねて描画し、1個しか無いように見える。
 2. **DP**: `dp-solver.ts` の DP（`:43-63`）は音符列を1音ずつの遷移としてモデル化しており、同一 startTick の和音構成音同士にも `totalTransitionCost`（`cost-functions.ts:77`）を「時間遷移」として課す。和音内の音高順・指順の整合や和音内スパン制約（`SPAN_TABLE`、`span-table.ts:5`）の実行可能性チェックが存在しない。
 
 ### 関連する仕様
@@ -95,13 +95,13 @@ TDDで進める。
 
 ## 完了サマリー
 
-`dp-solver.ts` を、同一 `startTick`（実装上は `Note.isChord` の連続性で判定。実データでは
-同一startTickと等価であり、かつ既存テストフィクスチャの `startTick:0` 固定という前提とも
-後方互換になる）でグルーピングした「コードユニット」列に対するDPへ刷新した。
+`dp-solver.ts` を、同一 `startTick` でグルーピングした「コードユニット」列に対するDPへ刷新した。
+実装上は `Note.isChord` の連続性で判定する。実データでは同一startTickと等価であり、かつ既存
+テストフィクスチャの `startTick:0` 固定という前提とも後方互換になる。
 
-- ユニット内: ピッチ昇順の構成音に対し、C(5,k) の指の組み合わせ（右手=昇順、左手=降順）を
-  列挙し、隣接ペア・端点ペアを `SPAN_TABLE`（`getSpan`）で実行可能性チェック（超過はInfinity）
-  ＋各構成音の `weakFingerCost`/`thumbOnBlackCost`/`fiveOnBlackCost` を加算（`unitInternalCost`）。
+- ユニット内: ピッチ昇順の構成音に対し、C(5,k) の指の組み合わせ（右手=昇順、左手=降順）を列挙する。
+  隣接ペア・端点ペアを `SPAN_TABLE`（`getSpan`）で実行可能性チェックし（超過はInfinity）、各構成音の
+  `weakFingerCost`/`thumbOnBlackCost`/`fiveOnBlackCost` を加算する（`unitInternalCost`）。
 - ユニット間: `totalTransitionCost` の静的コスト（遷移先の指の静的コスト）二重計上を避けるため、
   「動き」のみの成分（`spanCost`+`thumbPassingCost`+`largeJumpCost`）に分解した
   `unitTransitionMotionCost` を採用。単音ユニット同士（k=1）では
@@ -115,9 +115,9 @@ TDDで進める。
 - 表示側は `osmd-controller.ts` の `buildNoteIdMap` を修正。同一カーソル位置（和音）に複数の
   構成音が解決された場合、音高降順に並べて一定間隔（`CHORD_NOTE_VERTICAL_OFFSET_PX`=10px）の
   縦オフセットを付与する。符頭単位のSVG座標を `GraphicalNote.PositionAndShape` 等から直接取得する
-  方式は、OSMD内部の単位変換が必要な上、本コントローラのテスト環境（jsdomベースの最小限モック）
-  では実際のグラフィカルレイアウトを検証できないため、タスク指示で明記されたフォールバック
-  （音高順の縦オフセット）を採用した。`renderFingeringLayer` は座標マップをそのまま参照するため
+  方式は採用しなかった。OSMD内部の単位変換が必要な上、本コントローラのテスト環境（jsdomベースの
+  最小限モック）では実際のグラフィカルレイアウトを検証できないためである。代わりに、タスク指示で
+  明記されたフォールバック（音高順の縦オフセット）を採用した。`renderFingeringLayer` は座標マップをそのまま参照するため
   変更不要。
 
 worker のメッセージ型（`FingeringRequest`/`FingeringResponse`）・`FingeringEngineService` の
@@ -130,7 +130,7 @@ worker のメッセージ型（`FingeringRequest`/`FingeringResponse`）・`Fing
 
 ### 明示された情報
 
-- 根本原因の file:line（実コードで検証済み: `osmd-controller.ts:555-558` の同一座標登録、`renderFingeringLayer:472-496`、`dp-solver.ts:43-63` の単音遷移DP、`applyScalePattern` 統合 `:24-28`、deadline `:45-50`）
+- 根本原因の file:line を実コードで検証済み。`osmd-controller.ts:555-558` の同一座標登録、`renderFingeringLayer:472-496`、`dp-solver.ts:43-63` の単音遷移DP、`applyScalePattern` 統合 `:24-28`、deadline `:45-50` を確認した
 - 修正方針: コードユニットDP（C(5,k)状態・SPAN_TABLE実行可能性・既存遷移コスト流用・worker型不変）＋符頭単位描画（分析レポート承認済み方針 TASK-050）
 - 符頭座標の取得候補: `cursor.GNotesUnderCursor()` 等（指示で明示。実装時にOSMD APIを調査して確定する）
 

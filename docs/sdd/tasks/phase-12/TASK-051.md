@@ -25,7 +25,7 @@
 
 - `audio-engine` の `loadScore`（`src/renderer/src/lib/audio-engine/index.ts:85-120`）は全パート・全発音ノーツを無条件にスケジュールし、practiceMode を参照しない
 - `playAccompaniment`（`audio-engine/index.ts:161-164`）は `Tone.getTransport().start()` を開始位置指定なしで呼ぶため常に先頭（または前回停止位置）からで、現在の判定グループ位置と無関係
-- `App.handleNoteClick`（`App.tsx:295-300`）はクリック解決された音の `measureNumber` で `practiceEngine.resetToMeasure` を呼ぶため、小節内の途中の音をクリックしても小節頭に戻る（`practice-engine/index.ts:153-186`）
+- `App.handleNoteClick`（`App.tsx:295-300`）はクリック解決された音の `measureNumber` で `practiceEngine.resetToMeasure` を呼ぶ。そのため小節内の途中の音をクリックしても小節頭に戻る（`practice-engine/index.ts:153-186`）
 
 ### 関連する仕様
 
@@ -47,7 +47,7 @@
 - ファイル: `src/renderer/src/lib/practice-engine/index.ts`
   - 変更内容: 音単位カーソル移動 `resetToPosition(measureNumber, groupIndex)`（または noteId→グループ解決を含む形）を追加する。`resetToMeasure`（`:153-186`）と同様に `resolvePosition` でフィルタ空グループをスキップし、押鍵状態をリセットする。
 - ファイル: `src/renderer/src/App.tsx`
-  - 変更内容: `handleNoteClick`（`:295-300`）を `resetToMeasure(note.measureNumber)` から「クリックした音が属する判定グループへの移動」（`resetToPosition` 呼び出し）に変更する（クリック音の `startTick` からグループ index を解決する）。
+  - 変更内容: `handleNoteClick`（`:295-300`）を `resetToMeasure(note.measureNumber)` から「クリックした音が属する判定グループへの移動」（`resetToPosition` 呼び出し）に変更する。クリック音の `startTick` からグループ index を解決する。
 - ファイル: `docs/sdd/requirements/stories/US-010.md`
   - 変更内容: 「カーソル位置から再生」「再生対象は練習対象パート（左手練習=左手のみ、右手=右手のみ、両手=全パート）」を反映する（REQ-010-001 の更新または REQ-010-009 等の追補）。
 - ファイル: `docs/sdd/requirements/stories/US-002.md`
@@ -74,7 +74,7 @@ TDDで進める。
 - practiceMode 変更時の再スケジュールは、再生中に行われた場合の挙動（いったん停止するか、次回再生から反映か）を実装時に決めてテスト・要件文言と一致させること。最小実装としては「停止中の切替で反映、再生中の切替は停止を促す/即時再スケジュール」のいずれかを選び US-010 追補に明記する。
 - ループ再生（`setLoopPoints`、REQ-010-008）と開始オフセットの併用時、開始位置がループ範囲外の場合の挙動に注意する（Tone.js の loop と offset の相互作用を確認する）。
 - 停止時の位置復帰（`setOnStop` → `resetToMeasure(loopStart or 1)`、`usePractice.ts:115-124`）は既存挙動を維持する。
-- 判定側のフィルタ（`filterNotesByPracticeMode`）と再生側のフィルタが同じ手判定（`Note.hand`）を共有し、二重実装にならないようにする。
+- 判定側のフィルタ（`filterNotesByPracticeMode`）と再生側のフィルタが同じ手判定（`Note.hand`）を共有し、二重実装を避ける。
 
 ## 受入基準
 
@@ -104,14 +104,14 @@ TDDで進める。
 - `hooks/usePractice.ts`: score/practiceMode変更を監視し `audioEngine.loadScore` を再スケジュールするeffectを追加。再生中に変更された場合は停止する（US-010追補どおり最小実装として明記）。
 - `App.tsx`: `handleNoteClick` をクリックした音のstartTick一致で判定グループindexを解決し `resetToPosition` を呼ぶよう変更。`playbackAudioEngine`（`playAccompaniment`ラッパー）を作成し、Toolbarへは元のaudioEngineの代わりにこれを渡す（一時停止中以外は`practiceEngine.getCurrentPositionTick()`を渡す）。
 - テスト: audio-engine.test.ts / practice-engine.test.ts / usePractice.test.ts / App.test.tsx に新規テストを追加。App.test.tsxの`afterEach`にscore関連フィールドのリセットを追加（TASK-051のeffect追加により既存のテスト間score残留が露見したため）。practice-flow.test.tsxのToneモックに`schedule`/`clear`/`setLoopPoints`/`getDraw`を追加（同様の理由）。
-- ドキュメント: US-010.md（REQ-010-001明確化・REQ-010-010追加）、US-002.md（REQ-002-004を音単位に更新）、US-003.md（REQ-010-010との整合のため備考を更新）、traceability.md（REQ-002-004/REQ-010-001/REQ-010-010）を更新。
+- ドキュメント更新: US-010.md（REQ-010-001明確化・REQ-010-010追加）、US-002.md（REQ-002-004を音単位に更新）。US-003.md（REQ-010-010との整合のため備考を更新）、traceability.md（REQ-002-004/REQ-010-001/REQ-010-010）も更新した。
 - `npm run test` 380件全てグリーン、`npm run typecheck`・`npm run lint` パス。
 
 ## 情報の明確性
 
 ### 明示された情報
 
-- 現状実装の file:line（実コードで検証済み: `audio-engine/index.ts:85-120` の全ノーツスケジュール、`:161-164` のオフセットなし start、`App.tsx:295-300` の resetToMeasure、`practice-engine/index.ts:153-186`）
+- 現状実装の file:line を実コードで検証済み。`audio-engine/index.ts:85-120` の全ノーツスケジュール、`:161-164` のオフセットなし start、`App.tsx:295-300` の resetToMeasure、`practice-engine/index.ts:153-186` を確認した。
 - 修正方針: 手フィルタ再生・判定グループ startTick からの再生・`resetToPosition` 導入・US-010/US-002/traceability 更新（分析レポート承認済み方針 TASK-051）
 
 ### 不明/要確認の情報

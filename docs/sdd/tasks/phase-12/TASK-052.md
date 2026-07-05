@@ -42,7 +42,7 @@
 - ファイル: `src/renderer/src/types/settings.ts`・`src/main/settings.ts`
   - 変更内容: `AppSettings` に音量（例: `ui.volume` または `audio.volume`）を追加し、`DEFAULT_SETTINGS` に既定値を定義する（electron-store 永続化）。
 - ファイル: `src/renderer/src/App.tsx`・`src/renderer/src/hooks/usePractice.ts`
-  - 変更内容: 起動時ロード（既存の設定ロード useEffect `App.tsx:121-155` に追加）と、store の `volume` 変更→`audioEngine.setMasterVolume` 同期（既存の bpm 同期 `usePractice.ts:85-87` と同型の useEffect）、UI変更時の electron-store 保存を結線する。
+  - 変更内容: 起動時ロードを既存の設定ロード useEffect（`App.tsx:121-155`）に追加する。store の `volume` 変更→`audioEngine.setMasterVolume` 同期（既存の bpm 同期 `usePractice.ts:85-87` と同型の useEffect）と、UI変更時の electron-store 保存を結線する。
 
 ### 実装手順
 
@@ -78,10 +78,10 @@ TDDで進める。
 - [x] （新規）ui-slice: `volume`/`setVolume` のクランプ
 - [x] （新規）VolumeControl: スライダー操作→`setVolume` 呼び出し、ラベル・ツールチップ
 - [x] （新規）結線: store の volume 変更→`audioEngine.setMasterVolume`、起動時ロード、変更時保存
-- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
-  （TASK-052スコープ外のosmd-controller.test.ts失敗を除く。TASK-048担当エージェントが
-  同一タイムスタンプで並行修正中の`setGrayedOutNotes`未実装によるもので、60秒後の
-  再実行でも同様に別ファイルの失敗として再現し、本タスクの変更とは無関係と判断した）
+- [x] （回帰）`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス。
+  ただし TASK-052スコープ外の osmd-controller.test.ts 失敗を除く。これは TASK-048担当エージェントが
+  同一タイムスタンプで並行修正中の `setGrayedOutNotes` 未実装によるものである。60秒後の
+  再実行でも同様に別ファイルの失敗として再現し、本タスクの変更とは無関係と判断した。
 
 ## 情報の明確性
 

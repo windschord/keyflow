@@ -15,7 +15,7 @@
 
 ### 問題の概要
 
-`electron-builder.yml` には Windows（NSIS）向けの設定のみが存在し、macOS向けターゲットが定義されていない。一方でユーザーの実行環境は `darwin`（macOS）であり、`docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md` の発生環境欄にも「macOS 12+（darwin）、開発ビルド（`npm run dev`）」と明記されている。CLAUDE.mdでは「Phase 2 対象OS: macOS 12+（将来）」とされているが、開発中のユーザー自身が実際にはmacOSで動作確認・利用しており、パッケージ済みアプリでの検証手段が存在しない状態が、他の結線漏れ（原因1〜4）を「実機でのQAなしにDONE判定してしまう」プロセス上の一因になっていた。
+`electron-builder.yml` には Windows（NSIS）向けの設定のみが存在し、macOS向けターゲットが定義されていない。一方でユーザーの実行環境は `darwin`（macOS）であり、`docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md` の発生環境欄にも「macOS 12+（darwin）、開発ビルド（`npm run dev`）」と明記されている。CLAUDE.mdでは「Phase 2 対象OS: macOS 12+（将来）」とされている。しかし開発中のユーザー自身は、実際にmacOSで動作確認・利用していた。パッケージ済みアプリでの検証手段が存在しない状態は、他の結線漏れ（原因1〜4）を「実機でのQAなしにDONE判定してしまう」プロセス上の一因になっていた。
 
 ### 根本原因
 
@@ -86,19 +86,19 @@
 - [x] `dist-electron/` にdmg/zip（arm64・x64それぞれ）が生成される
 - [x] 生成されたdmg/appをマウント・起動できる（arm64版の`.app`を`open`コマンドで起動し、main/gpu/renderer/audio/networkの各プロセスが正常に立ち上がることを確認。数秒後に`pkill`で終了）
 - [ ] 起動後、Web MIDI API経由でMIDIデバイス一覧が取得できる（実MIDIデバイスなし環境のため未検証。対象コードは`src/renderer/src/lib/midi/web-midi.ts`）
-- [x] 既存の `npm run build:win`（Windows環境またはCI）に影響がないことを確認する（設定差分はwinセクション非改変。ただし本タスクで修正した`files`パス誤り・`npmRebuild`設定・`electron`依存区分の3件は`build:win`にも影響する既存バグであり、修正により`build:win`も併せて是正される）
+- [x] 既存の `npm run build:win`（Windows環境またはCI）に影響がないことを確認する（設定差分はwinセクション非改変）。ただし本タスクで修正した`files`パス誤り・`npmRebuild`設定・`electron`依存区分の3件は`build:win`にも影響する既存バグである。この修正により`build:win`も併せて是正される。
 
 ## 完了サマリー
 
 ### 実施内容
 
-1. `electron-builder.yml` に `mac` セクションを追加（dmg/zip、arch: [x64, arm64]、`icon: build/icon.icns`、`category: public.app-category.music`、`identity: null`、`hardenedRuntime: false`、`gatekeeperAssess: false`）。署名・公証がスコープ外である旨をコメントで明記。
+1. `electron-builder.yml` に `mac` セクションを追加した。設定値はdmg/zip、arch: [x64, arm64]、`icon: build/icon.icns`、`category: public.app-category.music` を指定した。あわせて `identity: null`、`hardenedRuntime: false`、`gatekeeperAssess: false` を設定した。署名・公証がスコープ外である旨をコメントで明記。
 2. `package.json` に `"build:mac": "npm run build && electron-builder --mac"` を追加。
 3. `build/icon.icns` を新規作成（既存の `resources/icon.png`（512x512、TASK-002で追加済み）から `sips` + `iconutil` で生成）。
 4. `npm run build:mac` の実行過程で以下3件の既存バグ（Windows/macOS共通、本タスク着手前から存在）を修正しないとビルドが成立しなかったため、あわせて修正:
    - `package.json`: `electron` が `dependencies` に誤って配置されていた（electron-builderの仕様違反でビルドが即座に失敗）ため `devDependencies` に移動。
    - `electron-builder.yml`: トップレベルに `npmRebuild: false` を追加。デフォルトの自動ネイティブモジュールリビルドが `opensheetmusicdisplay` の依存 `gl`（headless-gl、Electronレンダラーでは不要）のリビルドを試みてElectron 42のV8 API非互換でコンパイル失敗するため無効化。`midi` のリビルドは既存の `postinstall` スクリプト（`electron-rebuild -f -w midi`）で個別対応済みのため影響なし。
-   - `electron-builder.yml`: `files` の `dist/**/*` を `out/**/*` に修正。electron-viteのビルド出力先は `out/`（`package.json` の `main: "out/main/index.js"` とも整合）であり、存在しない `dist/**/*` を参照していたため `app.asar` にエントリポイントが含まれずパッケージングが失敗していた。
+   - `electron-builder.yml`: `files` の `dist/**/*` を `out/**/*` に修正。electron-viteのビルド出力先は `out/`（`package.json` の `main: "out/main/index.js"` とも整合）であり、存在しない `dist/**/*` を参照していたため `app.asar` にエントリポイントが含まれず、パッケージングに失敗していた。
 5. `npm run build:mac` を実行し、`dist-electron/` に x64/arm64 それぞれの `.dmg`・`.zip`（計4ファイル、各約140MB）が生成されることを確認。
 6. arm64版の `.app` を `open` コマンドで起動し、main/gpu-process/renderer/audio/networkの各プロセスが正常に立ち上がることを `ps aux` で確認（`--lang=ja` も確認）。数秒後に `pkill` でプロセスを終了。
 7. `npm run test`（51ファイル・289テストすべてパス）、`npm run typecheck`、`npm run lint` がすべて成功することを確認。
@@ -108,7 +108,7 @@
 - 実MIDIデバイスが接続されていない検証環境のため、Web MIDI API経由のデバイス一覧取得の実機確認は未実施。
 - x64版の `.app` は本機（Apple Silicon）では直接起動確認できないため生成物の存在確認のみ。
 - コード署名・公証は本タスクのスコープ外のまま（`identity: null`）。初回起動時のGatekeeper警告は既知の制約として許容。
-- `build:win` は本タスクではWindows環境での再検証を行っていない（`win`セクション自体は無変更。ただし上記の共通バグ修正により、従前は`build:win`も同じ理由で失敗していた可能性が高い）。
+- `build:win` は本タスクではWindows環境での再検証をしていない（`win`セクション自体は無変更。ただし上記の共通バグ修正により、従前は`build:win`も同じ理由で失敗していた可能性が高い）。
 
 ## 情報の明確性
 

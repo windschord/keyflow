@@ -20,7 +20,7 @@
 ### 根本原因
 
 - **時刻の不在**: パーサー（`src/renderer/src/lib/musicxml-parser/parser.ts:120-201`）は複数パートの音符を「P1全音符→P2全音符」の順で同一 `Measure.notes` 配列に連結し、音符に発音時刻を持たせていない。practice-engineは線形インデックスで1音ずつ進むため、左右の手で同時に鳴るべき音符を「同時」と認識できない。
-- **noteId不整合**: パーサーは `currentMeasure.notes.length` によるパート横断連番でIDを振る（`parser.ts:186`: `` `${partId}-M${measureNumber}-N${currentMeasure.notes.length}` ``）のに対し、OSMD側は `noteIndexInMeasurePerPart` によるパート毎連番（`src/renderer/src/components/ScoreRenderer/osmd-controller.ts:233-243`）でIDを構築しており、2パート目以降でインデックスがずれる。
+- **noteId不整合**: パーサーは `currentMeasure.notes.length` によるパート横断連番でIDを振る（`parser.ts:186`: `` `${partId}-M${measureNumber}-N${currentMeasure.notes.length}` ``）。一方でOSMD側は `noteIndexInMeasurePerPart` によるパート毎連番（`src/renderer/src/components/ScoreRenderer/osmd-controller.ts:233-243`）でIDを構築する。この差により、2パート目以降でインデックスがずれる。
 - Synthesiaライクな「時間ベースの曲進行」は要件で明示的にスコープ外とされていた（`docs/sdd/requirements/index.md:73`、US-005備考）ため、設計段階で時刻モデルが検討されなかった。
 
 ### 関連する仕様

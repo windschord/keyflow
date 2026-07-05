@@ -22,8 +22,8 @@ MusicXMLファイルをウィンドウへドラッグ＆ドロップしても開
 ### 根本原因
 
 - Renderer にドロップハンドラが存在しない（`App.tsx` にドラッグ関連の処理なし）。楽譜未ロード時のプレースホルダ（`ScoreRenderer/index.tsx:209-213`「楽譜ファイルを開いてください」）もドロップを受け付けない
-- ファイルオープン経路はダイアログ経由の `handleOpenFile`（`App.tsx:157-211`）のみで、Main プロセスの `PathAllowlist` への登録（アノテーション書き込み許可、`path-allowlist.ts:12`）も `file:show-open-dialog` ハンドラ内（`main/index.ts:66-69`、`file-handlers.ts`）でしか行われない
-- Electron の Renderer では セキュリティ設定（contextIsolation）下で `File.path` が使えない場合があり、ドロップファイルの絶対パス取得に preload 経由の仕組みが必要
+- ファイルオープン経路はダイアログ経由の `handleOpenFile`（`App.tsx:157-211`）のみである。Main プロセスの `PathAllowlist` への登録（アノテーション書き込み許可、`path-allowlist.ts:12`）も `file:show-open-dialog` ハンドラ内（`main/index.ts:66-69`、`file-handlers.ts`）でしか行われない
+- Electron の Renderer では セキュリティ設定（contextIsolation）下で `File.path` を使えないことがある。そのためドロップファイルの絶対パス取得には preload 経由の仕組みが必要
 
 ### 関連する仕様
 
@@ -42,7 +42,7 @@ MusicXMLファイルをウィンドウへドラッグ＆ドロップしても開
     3. `handleOpenFile` のダイアログ後処理と共通化するリファクタ（例: `openMusicXmlFile(filePath)` として抽出し、ダイアログ経路と D&D 経路の両方から呼ぶ）。
     4. 未ロード時にドロップ可能であることを示すプレースホルダ表示（「ここにMusicXMLファイルをドロップ」等。既存の「楽譜ファイルを開いてください」表示を拡張）。
 - ファイル: `src/preload/index.ts`（および `src/renderer/src/types/electron-api.d.ts` / `src/preload/index.d.ts`）
-  - 変更内容: ドロップされた `File` オブジェクトから絶対パスを取得するAPIを公開する。Electron では `File.path` が使えない場合があるため、`webUtils.getPathForFile`（preload 経由）等の確実な方法を調査して採用する。
+  - 変更内容: ドロップされた `File` オブジェクトから絶対パスを取得するAPIを公開する。Electron では `File.path` を使えない場合があるため、`webUtils.getPathForFile`（preload 経由）等の確実な方法を調査して採用する。
 - ファイル: `src/main/index.ts`（および `src/main/path-allowlist.ts` / `src/main/file-handlers.ts`）
   - 変更内容: D&D で開いたファイルも `file:write`（アノテーション保存）の allowlist に載るよう、**ドロップパス登録用の安全な IPC** を追加する（例: `file:register-dropped-file`）。Main 側で拡張子検証（`.xml`/`.musicxml`/`.mxl` のみ）を必須とし、検証通過時のみ `pathAllowlist.allowMusicXml` を呼ぶ。あわせて `settingsService.addRecentFile` の呼び出し（ファイル履歴、REQ-001-006）もダイアログ経路と揃える。
 - ファイル: `docs/sdd/requirements/traceability.md`（および必要に応じて `US-001.md`）
@@ -62,7 +62,7 @@ TDDで進める。
 ### 注意事項
 
 - `contextIsolation: true` / `nodeIntegration: false` を維持し、パス取得・登録はすべて preload の contextBridge / IPC 経由で行うこと（CLAUDE.md のセキュリティ方針）。
-- Main 側の登録 IPC は Renderer からの任意パス書き込み許可にならないよう、(1) 拡張子検証、(2) `allowMusicXml`（読み込み対象の登録）に限定し、書き込み許可自体は既存の `assertAllowedAnnotationPath`（`path-allowlist.ts:16-29`、`.annotation.json` 派生のみ）の仕組みを変えないこと。
+- Main 側の登録 IPC を、Renderer からの任意パス書き込み許可へ転用できない設計とすること。具体的には (1) 拡張子検証、(2) `allowMusicXml`（読み込み対象の登録）への限定、の2点を守る。書き込み許可自体は既存の `assertAllowedAnnotationPath`（`path-allowlist.ts:16-29`、`.annotation.json` 派生のみ）の仕組みを変えないこと。
 - ブラウザ既定のドロップ挙動（ファイルをそのまま開く/ナビゲーション）を `preventDefault` で抑止すること（dragover 含む）。
 - 複数ファイルが同時にドロップされた場合は先頭の対応ファイルのみ開く（または拒否する）方針を実装コメントとテストで明確化する。
 - `.mxl` はバイナリ読み込み経路（`file.readBinary` → `extractXmlFromMxl`、`App.tsx:178-181`）を通すこと。
@@ -91,7 +91,7 @@ TDDで進める。
 
 ### 明示された情報
 
-- ドロップハンドラ不在・オープン経路・allowlist の現状（実コードで検証済み: `App.tsx:157-211`、`ScoreRenderer/index.tsx:209-213`、`main/index.ts:66-69, :82`、`path-allowlist.ts:12`、preload にパス取得APIなし）
+- ドロップハンドラ不在・オープン経路・allowlist の現状は実コードで検証済み。検証箇所: `App.tsx:157-211`、`ScoreRenderer/index.tsx:209-213`、`main/index.ts:66-69, :82`、`path-allowlist.ts:12`（preload にパス取得APIなし）
 - 修正方針: D&D→既存オープン経路への合流、`webUtils.getPathForFile` 等の調査採用、拡張子検証つき登録IPC、プレースホルダ、共通化リファクタ（分析レポート承認済み方針 TASK-053）
 
 ### 不明/要確認の情報
@@ -112,8 +112,9 @@ TDDで進める。
   それ以外は`false`を返し何も変更しない。`src/main/index.ts` に
   `file:register-dropped-file` として登録。preloadに
   `file.registerDroppedFile(path): Promise<boolean>` を追加。
-- Renderer: `src/renderer/src/App.tsx` の `handleOpenFile` 後段（パース→setScore→
-  `resetToMeasure`→アノテーション読込）を `openMusicXmlFile(filePath)` として抽出し、
+- Renderer: `src/renderer/src/App.tsx` の `handleOpenFile` 後段の一連の処理
+  （パース→setScore→`resetToMeasure`→アノテーション読込）を
+  `openMusicXmlFile(filePath)` として抽出し、
   ダイアログ経由・D&D経由の両方から呼び出す形に共通化。ルート`div`
   （`data-testid="app-container"`）に `onDragEnter`/`onDragOver`/`onDragLeave`/`onDrop`
   を設定し、アプリ全体でドロップを受け付ける。ドロップ時は
@@ -122,10 +123,12 @@ TDDで進める。
   複数ファイル同時ドロップ時は先頭ファイルのみを対象とし、それが非対応拡張子の場合は拒否する。
   `.mxl` は既存どおり `readBinary`→`extractXmlFromMxl` 経路を通す。
 - UI: ScoreRenderer自体（他エージェントがTASK-050で並行修正中のため変更対象外）とは
-  独立に、App.tsx側で楽譜未ロード時のドロップ可能バナー（`data-testid="drop-zone-hint"`、
-  「ここにMusicXMLファイルをドロップ（またはファイルを開く）」）と、ドラッグオーバー中の
-  視覚フィードバック（`data-testid="drag-active-overlay"`、破線ボーダー＋半透明ハイライト、
-  dragenter/dragleaveのカウンタで点滅を防止）を実装。
+  独立に、App.tsx側で2つの表示を実装。1つ目は楽譜未ロード時のドロップ可能バナー
+  （`data-testid="drop-zone-hint"`、
+  「ここにMusicXMLファイルをドロップ（またはファイルを開く）」）。
+  2つ目はドラッグオーバー中の視覚フィードバック
+  （`data-testid="drag-active-overlay"`、破線ボーダー＋半透明ハイライト、
+  dragenter/dragleaveのカウンタで点滅を防止）。
 - US-001.md に REQ-001-007（D&D要件のEARS化）を追加し、traceability.mdに追跡行を追加。
 - テスト: `file-handlers.test.ts`（`createRegisterDroppedFileHandler`、3件新規）、
   `App.test.tsx`（D&D関連9件新規: プレースホルダ表示、ドラッグオーバー視覚効果、

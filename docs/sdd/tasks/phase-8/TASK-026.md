@@ -21,7 +21,7 @@
 
 ### 根本原因
 
-- `src/renderer/src/lib/audio-engine/index.ts` に `loadAccompaniment`（28-68行）、`playAccompaniment`（70-72行）、`pauseAccompaniment`（78-80行）、`stopAccompaniment`（74-76行）が実装済みだが、`src/renderer/src/hooks/usePractice.ts:15` で `AudioEngineService` を生成し41-45行目で `dispose()` するだけで、他のどこからも呼び出されていない。
+- `src/renderer/src/lib/audio-engine/index.ts` には再生関連メソッドが実装済みである。具体的には `loadAccompaniment`（28-68行）、`playAccompaniment`（70-72行）、`pauseAccompaniment`（78-80行）、`stopAccompaniment`（74-76行）。しかし `src/renderer/src/hooks/usePractice.ts:15` で `AudioEngineService` を生成し41-45行目で `dispose()` するだけで、他のどこからも呼び出されていない。
 - Spaceキーハンドラは `src/renderer/src/components/Toolbar/index.tsx:15-19` の `console.log('Play/Pause toggled')` というダミー実装。
 - ブラウザ/ElectronのAudioContext解放に必要な `Tone.start()` を呼ぶ箇所がコードベースのどこにも存在しない。
 - `usePractice.ts` は `audioEngine` を返す（47行目）が、`src/renderer/src/App.tsx:19` では `practiceEngine` のみを分割代入で取得しており、`audioEngine` はUI側で未使用。
@@ -48,7 +48,7 @@
 
 TDDで進める。
 
-1. 失敗するテストを先に書く: Toolbarに再生/一時停止/停止ボタンが表示され、クリックで `audioEngine.playAccompaniment` / `pauseAccompaniment` / `stopAccompaniment` が呼ばれることを検証するテスト（`Toolbar.test.tsx` に追加、`audioEngine` はモックを注入）。
+1. 失敗するテストを先に書く。Toolbarへ再生/一時停止/停止ボタンが表示され、クリックで `audioEngine.playAccompaniment` / `pauseAccompaniment` / `stopAccompaniment` が呼ばれることを検証する。テストは `Toolbar.test.tsx` に追加し、`audioEngine` はモックを注入する。
 2. テストを実行し、失敗（red）を確認してコミットする。
 3. `Toolbar` コンポーネントに再生/一時停止/停止ボタンのUIを追加する（props経由で `audioEngine` または再生ハンドラを受け取る形にする）。
 4. Spaceキーハンドラ（`Toolbar/index.tsx:15-19`）を、再生中なら一時停止・停止中なら再生をトグルする実装に置換する。
@@ -61,7 +61,7 @@ TDDで進める。
 ### 注意事項
 
 - 本タスクは暫定実装であり、正式なユーザーストーリー化・要件定義は別タスク（フェーズB、TASK-029想定）で行う。UIとしては動作するが「お手本演奏」の詳細仕様（伴奏対象パートの選び方、再生位置とカーソルの同期等）は最小限の結線にとどめる。
-- `AudioEngineService.loadAccompaniment` は簡易的なタイムスケジューリング（`audio-engine/index.ts:54` の `${measureIndex}:0:0`）のスタブ実装であることに留意し、本タスクでは音源スケジューリングロジック自体の改善は範囲外とする（結線のみ）。
+- `AudioEngineService.loadAccompaniment` は簡易的なタイムスケジューリング（`audio-engine/index.ts:54` の `${measureIndex}:0:0`）のスタブ実装である。この点に留意し、本タスクでは音源スケジューリングロジック自体の改善は範囲外とする（結線のみ）。
 - `Tone.start()` はユーザージェスチャー（クリック等）のコールバック内で呼ぶ必要がある。useEffect等でのマウント時呼び出しは失敗する可能性が高いため避ける。
 - TASK-024（本タスクの依存）でスコア読み込み後の初期化処理が入るため、`loadAccompaniment` の呼び出しはその修正と整合する位置に追加する。
 
@@ -93,8 +93,8 @@ TDDで進める。
 TDDで以下を実装した。
 
 1. Zustandに `playback-slice.ts` を追加し、再生状態（`playbackState`: `'stopped' | 'playing' | 'paused'`）をstoreで一元管理するようにした。
-2. `Toolbar/PlaybackControls.tsx` を新設し、再生・一時停止・停止ボタン（日本語ラベル、`title`属性でツールチップ）を実装。ボタンクリックおよびSpaceキー押下で `audioEngine.playAccompaniment` / `pauseAccompaniment` / `stopAccompaniment` を呼び出し、初回の再生操作時のみ `Tone.start()` を呼ぶようにした（`Toolbar/index.tsx` のダミーconsole.log実装を置換）。
-3. `App.tsx` で `usePractice()` から `audioEngine` を取得し、`Toolbar` へpropsとして渡すとともに、`handleOpenFile` 内でスコア読み込み後に `audioEngine.loadAccompaniment(parsedScore, accompanimentHand)` を呼ぶよう結線した。`accompanimentHand` は `practiceMode` の逆（片手練習時は反対の手、両手練習時は `'unknown'` にフォールバックし全パート再生扱い）とするヘルパー `getAccompanimentHand` を実装。
+2. `Toolbar/PlaybackControls.tsx` を新設し、再生・一時停止・停止ボタン（日本語ラベル、`title`属性でツールチップ）を実装。ボタンクリックおよびSpaceキー押下で `audioEngine.playAccompaniment` / `pauseAccompaniment` / `stopAccompaniment` を呼び出す。初回の再生操作時のみ `Tone.start()` を呼ぶようにした（`Toolbar/index.tsx` のダミーconsole.log実装を置換）。
+3. `App.tsx` で `usePractice()` から `audioEngine` を取得し、`Toolbar` へpropsとして渡す。あわせて `handleOpenFile` 内でスコア読み込み後に `audioEngine.loadAccompaniment(parsedScore, accompanimentHand)` を呼ぶよう結線した。`accompanimentHand` は `practiceMode` の逆（片手練習時は反対の手、両手練習時は `'unknown'` にフォールバックし全パート再生扱い）とするヘルパー `getAccompanimentHand` を実装。
 4. テスト: `PlaybackControls.test.tsx`（新規、7件）、`Toolbar.test.tsx`（2件追加）、`store.test.ts`（2件追加）、`App.test.tsx`（1件追加）。Tone.jsは既存の他テストと同様にモックした。
 
 `npm run test`（全44ファイル・218テスト）、`npm run typecheck`、`npm run lint` すべて成功を確認済み。
@@ -105,7 +105,7 @@ TDDで以下を実装した。
 
 - 根本原因のfile:line（分析レポート原因2、実コードで検証済み: audio-engine/index.ts:20-105, usePractice.ts:15,41-47, Toolbar/index.tsx:15-19, App.tsx:19）
 - 実装対象: 再生/一時停止/停止ボタン新設、Spaceキー本実装、Tone.start()呼び出し、スコア読み込み時のloadAccompaniment、play/pause/stopAccompanimentの結線、usePractice.tsからaudioEngineのUI公開
-- 本タスクは暫定実装であり正式な要件化は別タスク（TASK-029想定）で行うという位置づけ
+- 本タスクは暫定実装であり、正式な要件化を別タスク（TASK-029想定）で行うという位置づけ
 
 ### 不明/要確認の情報
 

@@ -19,7 +19,7 @@
 
 ### 根本原因
 
-- `osmd-controller.ts:94-96`（`setPartOpacity`）、`osmd-controller.ts:98-100`（`drawLoopBracket`）、`osmd-controller.ts:111-113`（`highlightNote`）がいずれも `// Dummy implementation` コメントのみで実処理が存在しない。
+- `osmd-controller.ts` の `setPartOpacity`（94-96行目）・`drawLoopBracket`（98-100行目）・`highlightNote`（111-113行目）はいずれもダミー実装である。3メソッドとも `// Dummy implementation` コメントのみで、実処理が存在しない。
 - `App.tsx:161`: `onNoteClick={() => {}}` — 小節クリックイベントが空関数に結線され、カーソル移動（REQ-002-004）が機能しない。
 - `App.tsx:172`: `annotations={[]}` — 鍵盤コンポーネントへのアノテーションが常に空配列固定であり、運指提案結果や手動メモの指番号表示（US-005/US-008関連、REQ-005-007）が鍵盤上に反映されない。
 - 正解率・連続正解数の表示コンポーネントが存在せず、US-004の統計値（`stats.accuracy`、`stats.correctNotes` 等、`practice-engine/index.ts:77-78`で計算済み）がUIに表示されない。
@@ -49,14 +49,14 @@
 
 1. `docs/sdd/design/components/score-renderer.md`（存在する場合）またはOSMDの `GraphicalNote`/`Instrument` APIを確認し、パート単位の透明度制御・ノート単位の色付け・小節範囲への矩形/ブラケット描画の実装方法を調査する
 2. **`setPartOpacity`** を実装する: OSMDの `osmd.Sheet.Instruments` からpartIdに対応するInstrumentを取得し、SVG要素（該当パートの描画グループ）に対して `opacity` スタイルを適用する
-3. **`highlightNote`** を実装する: 既存の `noteIdToSvgCoord`（`osmd-controller.ts:239` 周辺で構築済み）を使い、対象noteIdのSVG要素またはオーバーレイ円/矩形に対して `correct`（緑）/`incorrect`（赤）/`expected`（デフォルト色に戻す等）の色を適用する
+3. **`highlightNote`** を実装する: 既存の `noteIdToSvgCoord`（`osmd-controller.ts:239` 周辺で構築済み）を使う。対象noteIdのSVG要素またはオーバーレイ円/矩形に対して `correct`（緑）/`incorrect`（赤）/`expected`（デフォルト色に戻す等）の色を適用する
 4. **`drawLoopBracket`** を実装する: 開始小節・終了小節のSVG座標を取得し、ループ範囲を示すブラケットまたは背景矩形をSVGオーバーレイとして描画・除去する
 5. `App.tsx:161` の `onNoteClick={() => {}}` を、クリックされた小節番号を受け取り `practiceEngine.resetToMeasure(measureNumber)` を呼ぶハンドラに置き換える
 6. `App.tsx:172` の `annotations={[]}` を、store（またはannotation-store）から取得した実際のアノテーション配列に置き換え、`PianoKeyboard` に指番号が渡るようにする
 7. 正解率・連続正解数を表示する `StatsDisplay` コンポーネントを新規作成し、`practiceEngine` の `stats`（`accuracy`, `correctNotes` 等）をZustand store経由で購読して表示する。日本語ラベルを付与する（NFR-U-002準拠）
 8. `App.tsx` に `StatsDisplay` を配置する
 9. 各実装に対するユニットテスト（osmd-controllerのDOM操作テスト、App.tsxの結線テスト、StatsDisplayの表示テスト）を追加する
-10. `npm run dev` で実起動し、実際に非練習パートがグレーアウトされる・正誤で楽譜が色づく・ループ範囲が表示される・小節クリックでカーソルが移動する・鍵盤に指番号が出る・統計が表示されることを目視確認する
+10. `npm run dev` で実起動し、非練習パートのグレーアウト・正誤による楽譜の色づけ・ループ範囲の表示・小節クリックでのカーソル移動・鍵盤への指番号表示・統計の表示を目視確認する
 11. `npm run typecheck` / `npm run lint` / `npm run test` を実行する
 
 ### 注意事項
@@ -81,21 +81,21 @@
 ## テスト項目
 
 - [x] 非練習パート（例: 左手モード時の右手パート）のSVG要素にopacityが適用されることをDOMテストで確認する
-- [x] 正解時・不正解時にnoteIdに対応するSVG要素の色が変化することを確認する
+- [x] 正解時・不正解時にnoteId対応のSVG要素の色が変化することを確認する
 - [x] ループ設定後、楽譜上にブラケット/矩形要素が追加され、ループ解除で除去されることを確認する（既存テストに加え、setZoom後の再適用も新規に確認）
-- [x] 小節クリックでstoreの `currentMeasure` が更新されることを確認する（ScoreRenderer.test.tsx: setOnMeasureClickコールバック経由でonNoteClickが正しいNoteで呼ばれることを確認。practiceEngine.resetToMeasureへの結線はApp.tsx側のuseCallbackとして実装）
-- [ ] アノテーションが存在するnoteIdに対応する鍵盤位置に指番号が表示されることを確認する — 未実施。下記「未完了事項」参照
+- [x] 小節クリックでstoreの `currentMeasure` が更新されることを確認する。ScoreRenderer.test.tsx では setOnMeasureClickコールバック経由でonNoteClickが正しいNoteで呼ばれることを確認した。practiceEngine.resetToMeasureへの結線はApp.tsx側のuseCallbackとして実装した
+- [ ] アノテーションが存在するnoteId対応の鍵盤位置に指番号が表示されることを確認する — 未実施。下記「未完了事項」参照
 - [x] 統計表示が `correctNotes`/`incorrectNotes`/`accuracy`/`consecutiveCorrect` の変化に追従して更新されることを確認する
 - [ ] 実機E2E: `npm run dev` 起動→曲を開く→MIDI（またはクリック）演奏→楽譜色づけ・鍵盤指番号・統計表示・ループ表示を目視確認する — 未実施（GUI環境なし）
 
 ## 未完了事項（サンドボックス制約による）
 
-本タスクの実行環境（サンドボックス）では `src/renderer/src/components/PianoKeyboard/` 配下のファイル（`keyboard-renderer.ts` 等）に対する Read/Edit/Bash（ls・cat・wc等）がすべて権限設定により拒否され、参照・変更ができなかった。調査の結果、既存の `keyboard-renderer.ts`（`git show` で内容のみ確認可能）は `annotations` プロップを受け取ってはいるが、鍵盤上に指番号テキストを描画するロジックは元々存在しないことを確認した（色付けのみ）。
+本タスクの実行環境（サンドボックス）では `src/renderer/src/components/PianoKeyboard/` 配下のファイル（`keyboard-renderer.ts` 等）に対する Read/Edit/Bash（ls・cat・wc等）がすべて権限設定により拒否された。そのため参照・変更ができなかった。調査の結果、既存の `keyboard-renderer.ts`（`git show` で内容のみ確認可能）は `annotations` プロップを受け取ってはいるが、鍵盤上に指番号テキストを描画するロジックは元々存在しないことを確認した（色付けのみ）。
 
 そのため本タスクでは:
 
 - `App.tsx` 側で `annotations={[]}` 固定を解消し、`AnnotationStoreService.getAllAnnotations()` の実データ（`keyboardAnnotations` state）を `PianoKeyboard` に渡す配線までは完了した。
-- しかし `keyboard-renderer.ts` に指番号を実際に描画する処理を追加することができず、REQ-005-007（鍵盤上の指番号表示）の視覚的な達成は未完了である。
+- しかし `keyboard-renderer.ts` に指番号を実際に描画する処理を追加できず、REQ-005-007（鍵盤上の指番号表示）の視覚的な達成は未完了である。
 - また、GUI/ディスプレイを持たないサンドボックス環境のため `npm run dev` による実機目視確認も実施できなかった。
 
 フォローアップとして、`keyboard-renderer.ts` へのアクセスが可能な環境で以下を追加実装することを推奨する: `expectedNotes` と `annotations`（noteId一致）から `fingerNumber` を解決し、対応する鍵の上部に数字を描画する。
@@ -113,18 +113,18 @@
 
 ### 不明/要確認の情報
 
-- ループブラケットの具体的な描画スタイル（矩形背景か線ブラケットか）はUXデザインの指定がないため、実装時に既存の楽譜UIと調和する簡潔な表現（半透明矩形など）を選択する。デザインレビューが必要な場合は実装後にユーザー確認を挟む
+- ループブラケットの具体的な描画スタイル（矩形背景／線ブラケットのいずれか）はUXデザインの指定がないため、実装時に既存の楽譜UIと調和する簡潔な表現（半透明矩形など）を選択する。デザインレビューが必要な場合は実装後にユーザー確認を挟む
 
 ## 完了サマリー
 
-osmd-controller.ts の3つの空実装（`setPartOpacity`/`highlightNote`/`drawLoopBracket`）のうち、`setPartOpacity` と `highlightNote` を実装し、`drawLoopBracket`（TASK-028で最小実装済み）には再描画後の再適用機構を追加した。あわせて App.tsx の未結線箇所（小節クリック・正誤ハイライトのpractice-engineからの伝搬・統計表示UI）を解消した。
+osmd-controller.ts の3つの空実装（`setPartOpacity`/`highlightNote`/`drawLoopBracket`）のうち、`setPartOpacity` と `highlightNote` を実装した。`drawLoopBracket`（TASK-028で最小実装済み）には再描画後の再適用機構を追加した。あわせて App.tsx の未結線箇所（小節クリック・正誤ハイライトのpractice-engineからの伝搬・統計表示UI）を解消した。
 
 - `setPartOpacity`: noteIdToSvgCoordから対象パートの音符座標を収集し、システム（段）ごとにY座標でクラスタリングした半透明の白色オーバーレイをSVGに重ねてグレーアウトを表現。opacity>=1で解除。
 - `highlightNote`: noteId単位で正誤ハイライト状態をMapで保持し、緑/赤の半透明円をSVGオーバーレイとして描画。usePractice.ts にてMIDI/クリック判定結果（`NoteJudgement`）から `noteHighlights`（noteId→'correct'|'incorrect'）を生成し、判定グループが進むたびにクリアする形でScoreRendererへ伝搬。
 - `drawLoopBracket`/`highlightNote`/`setPartOpacity`/運指レイヤーの状態を保持し、`setZoom`によるOSMD再描画後に再適用する`reapplyOverlays`機構を追加（既存のsetZoomのfingering再適用ロジックを拡張）。
 - 小節クリック: OSMDControllerにcontainerのclickリスナーとクリック位置→最近傍noteId解決ロジック（`findNearestNoteId`/`screenToSvgCoord`）を追加し、`setOnMeasureClick`で登録したコールバックへ小節番号を通知。ScoreRenderer側でscoreから該当小節の代表Noteを引き当ててonNoteClickを呼び出し、App.tsx側で`practiceEngine.resetToMeasure`に結線。
-- 統計表示: `PracticeStats`に`consecutiveCorrect`（連続正解数）を追加し、practice-engineで正解時に加算・不正解時に0リセットするロジックを実装。新規`StatsDisplay`コンポーネント（Toolbar内に配置）で正解率・連続正解数を日本語ラベルで表示。
-- 鍵盤指番号表示（annotations固定`[]`の解消）: App.tsx側で`AnnotationStoreService.getAllAnnotations()`の実データをPianoKeyboardへ渡す配線までは完了したが、鍵盤上に指番号を実際に描画する`keyboard-renderer.ts`側のロジックは元々存在せず、かつ本セッションのサンドボックス権限設定により`src/renderer/src/components/PianoKeyboard/`配下へのアクセス（Read/Edit/Bash）がすべて拒否されたため実装できなかった。フォローアップタスクとして別途起票することを推奨する。
+- 統計表示: `PracticeStats`に`consecutiveCorrect`（連続正解数）を追加した。practice-engineで正解時は加算し、不正解時は0リセットするロジックを実装。新規`StatsDisplay`コンポーネント（Toolbar内に配置）で正解率・連続正解数を日本語ラベルで表示。
+- 鍵盤指番号表示（annotations固定`[]`の解消）: App.tsx側で`AnnotationStoreService.getAllAnnotations()`の実データをPianoKeyboardへ渡す配線までは完了した。しかし鍵盤上に指番号を描画する`keyboard-renderer.ts`側のロジックは元々存在しなかった。加えて本セッションのサンドボックス権限設定により`src/renderer/src/components/PianoKeyboard/`配下へのアクセス（Read/Edit/Bash）がすべて拒否されたため、実装できなかった。フォローアップタスクとして別途起票することを推奨する。
 - `npm run dev`による実機目視確認: GUI/ディスプレイのないサンドボックス環境のため実施不可。
 
 ### テスト結果

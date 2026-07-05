@@ -22,7 +22,7 @@
 
 ### 根本原因
 
-1. **staleキャッシュ**: `OSMDController` は `autoResize: true` で生成され（`osmd-controller.ts:32`）、リサイズ時に OSMD が自動再レイアウトするが、クリック解決・オーバーレイ描画に使う `noteIdToSvgCoord` はロード時の `buildNoteIdMap()` 1回でしか構築されない（`ScoreRenderer/index.tsx:71`）。再レイアウト後も古い座標を使い続けるため表示・クリック解決がずれる。オーバーレイ（運指・ループ枠・グレーアウト・ハイライト）も OSMD の再描画で SVG から消えたまま再適用されない。
+1. **staleキャッシュ**: `OSMDController` は `autoResize: true` で生成される（`osmd-controller.ts:32`）。リサイズ時に OSMD が自動再レイアウトするが、クリック解決・オーバーレイ描画に使う `noteIdToSvgCoord` はロード時の `buildNoteIdMap()` 1回でしか構築されない（`ScoreRenderer/index.tsx:71`）。再レイアウト後も古い座標を使い続けるため表示・クリック解決がずれる。オーバーレイ（運指・ループ枠・グレーアウト・ハイライト）も OSMD の再描画で SVG から消えたまま再適用されない。
 2. **setZoom経路にも同種の欠陥**: `setZoom`（`osmd-controller.ts:241-248`）は `render()` 後に `reapplyOverlays()` を呼ぶが `buildNoteIdMap()` を呼ばないため、ズーム後のオーバーレイは古い座標で再描画される。
 3. **採番不整合（潜在バグ）**: `buildNoteIdMap`（`osmd-controller.ts:503-578`）はパーサとは独立に、OSMDカーソルの**タイムスタンプ順**でパート毎連番を振り直す（`:552-562`）。一方パーサは**XML文書順**（staff1全音→`<backup>`→staff2）で採番する（`parser.ts:300-302`）。多声部・2段譜の小節では順序が食い違い、同じ noteId が別の音を指す。
 4. **リソース解放漏れ**: `OSMDController` に dispose がなく、コンストラクタで登録した click/contextmenu リスナー（`osmd-controller.ts:36-37`）が解除されない。`ScoreRenderer/index.tsx:50-54` もアンマウント時に何も解放しない。
@@ -41,7 +41,7 @@
 
 - ファイル: `src/renderer/src/components/ScoreRenderer/osmd-controller.ts`
   - 変更内容:
-    1. `buildNoteIdMap`（`:503-578`）の独立採番を廃止し、**パース済み `Score` を受け取り、「小節番号・タイムスタンプ由来tick・midiNumber・staff」の照合**で OSMD 上の音と `Note.id` を対応付ける方式へ変更する（OSMDカーソルのタイムスタンプから tick を導出し、`Score.measures[].notes` の `startTick`/`midiNumber`/`staff` と突き合わせる。TASK-048 で導入した `Note.staff` を使用）。これによりパーサのXML順とOSMDのタイムスタンプ順の採番不整合を解消する。
+    1. `buildNoteIdMap`（`:503-578`）の独立採番を廃止する。**パース済み `Score` を受け取り、「小節番号・タイムスタンプ由来tick・midiNumber・staff」の照合**で OSMD 上の音と `Note.id` を対応付ける方式へ変更する。具体的には OSMDカーソルのタイムスタンプから tick を導出し、`Score.measures[].notes` の `startTick`/`midiNumber`/`staff` と突き合わせる（TASK-048 で導入した `Note.staff` を使用）。これによりパーサのXML順とOSMDのタイムスタンプ順の採番不整合を解消する。
     2. `autoResize: false` にし、コンテナの `ResizeObserver`（デバウンス 200〜300ms）で「`osmd.render()` → `buildNoteIdMap()` → `reapplyOverlays()`」を自前制御する。
     3. `setZoom`（`:241-248`）にも `render()` 後・`reapplyOverlays()` の**前**に `buildNoteIdMap()` を追加する。
     4. `dispose()` を追加する: ResizeObserver の disconnect、click/contextmenu リスナー（`:36-37`）の解除。
@@ -54,7 +54,7 @@
 
 TDDで進める。
 
-1. 失敗するテストを先に書く: TASK-048 の2段譜フィクスチャ（多声部を含む）で、`buildNoteIdMap(score)` が返すマップの noteId がパーサの `Note.id` と正しく対応する（小節番号・tick・midiNumber・staff の照合で一意に解決される）ことを検証する。red を確認してコミット。
+1. 失敗するテストを先に書く。TASK-048 の2段譜フィクスチャ（多声部を含む）で、`buildNoteIdMap(score)` が返すマップの noteId がパーサの `Note.id` と正しく対応する（小節番号・tick・midiNumber・staff の照合で一意に解決される）ことを検証する。red を確認してコミット。
 2. `buildNoteIdMap` を照合ベースへ書き換えて green にする（照合に失敗した音はスキップし warn ログ。フォールバックで誤対応を作らない）。
 3. `autoResize: false` + ResizeObserver（デバウンス 200〜300ms）を実装し、リサイズ発火で render→マップ再構築→オーバーレイ再適用が呼ばれることをテストで検証する（ResizeObserver はテストではモック発火）。
 4. `setZoom` の `render()` 直後に `buildNoteIdMap()` を追加し、`reapplyOverlays()` より前に実行されることを検証する。
@@ -76,7 +76,7 @@ TDDで進める。
 - [x] ウィンドウリサイズ後（デバウンス経過後）に noteId マップが再構築され、運指番号・ループ枠・グレーアウト・ハイライトが新レイアウト上の正しい位置に再描画される
 - [x] リサイズ後の楽譜クリック・右クリックが新レイアウトの座標で正しい noteId に解決される（noteIdToSvgCoord がbuildNoteIdMap再構築で更新されるため、findNearestNoteId解決も追随する）
 - [x] `setZoom` 後にマップ再構築→オーバーレイ再適用の順で実行され、ズーム後の表示位置が正しい
-- [x] `dispose()` が ResizeObserver の disconnect と click/contextmenu リスナー解除を行い、ScoreRenderer のアンマウントで呼ばれる
+- [x] `dispose()` が ResizeObserver の disconnect と click/contextmenu リスナーを解除し、ScoreRenderer のアンマウントで呼ばれる
 - [x] 既存のテストが通る
 - [x] 新規テストが追加されている（必要な場合）
 
@@ -108,14 +108,14 @@ TDDで進める。
    `dispose()` を追加し、`disposed`フラグでリサイズ処理を以降no-opにした。
 5. **ScoreRenderer/index.tsx**: `buildNoteIdMap()`呼び出しに`score`を渡すよう変更。OSMDController生成用effectを
    「無条件に新規生成しクロージャで保持したcontrollerをdisposeする」形に変更し、アンマウント時に確実にdispose()が
-   呼ばれるようにした（cleanup順序の都合上、`osmdControllerRef.current`はnullに戻さず、他effectのクリーンアップが
-   引き続き参照できるようにしている）。
+   呼ばれるようにした。cleanup順序の都合上、`osmdControllerRef.current`はnullに戻さず、他effectのクリーンアップが
+   引き続き参照できるようにしている。
 
 ### 検証事項
 
 - 実OSMD（jsdomの制約でrender()自体はcanvas未実装により動かせないが、`osmd.load()`後の内部データモデル（`Sheet.SourceMeasures`）は
-  構築可能なため、実際のOSMD Note オブジェクトで `halfTone`/`Pitch.getHalfTone()`/`ParentStaffEntry.ParentStaff.Id`/
-  `ParentStaffEntry.AbsoluteTimestamp.RealValue` の値を実測し、`midiNumber = halfTone + 12`、
+  構築可能）で検証した。実際のOSMD Note オブジェクトで `halfTone`/`Pitch.getHalfTone()`/`ParentStaffEntry.ParentStaff.Id`/
+  `ParentStaffEntry.AbsoluteTimestamp.RealValue` の値を実測した。`midiNumber = halfTone + 12`、
   `staff = ParentStaff.Id`（1始まり、パーサと同一基準）であることを確認した上で実装した。
 - ブラウザ実機での目視確認（実際のElectron/OSMDレンダリング）は本エージェント実行環境では実施不可（GUI起動不可）。
   ユーザー側での実機確認を推奨する。
@@ -134,7 +134,7 @@ TDDで進める。
 
 ### 明示された情報
 
-- 根本原因の file:line（実コードで検証済み: `osmd-controller.ts:32` の autoResize、`:503-578` の独立採番（`:552-562`）、`:241-248` の setZoom、`:36-37` のリスナー、`ScoreRenderer/index.tsx:71` の1回きり構築、dispose不在）
+- 根本原因の file:line を実コードで検証済み。`osmd-controller.ts:32` の autoResize、`:503-578` の独立採番（`:552-562`）、`:241-248` の setZoom、`:36-37` のリスナー、`ScoreRenderer/index.tsx:71` の1回きり構築、dispose不在を確認した
 - 修正方針: 照合ベースのマップ構築＋autoResize:false＋ResizeObserver自前制御＋dispose追加（分析レポート承認済み方針 TASK-049）
 - デバウンス値: 200〜300ms（指示で明示）
 

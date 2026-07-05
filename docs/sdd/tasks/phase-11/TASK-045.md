@@ -55,7 +55,7 @@
 
 TDDで進める。
 
-1. 失敗するテストを先に書く: (a) SettingsModalにデバイス一覧が表示され選択がsettingsに保存される、(b) `setSelectedDevice` 指定時に選択デバイスのみへバインドされる、(c) 起動時に `midi.selectedDeviceId` が適用される、(d) ズームUI操作で `setZoom` が呼ばれ `ScoreRenderer` の `zoom` propが変わる、(e) `setPianoHeight` でstoreが更新されPianoKeyboardの `height` propが変わる。
+1. 失敗するテストを先に書く。(a) SettingsModalへデバイス一覧を表示し、選択内容をsettingsに保存する。(b) `setSelectedDevice` 指定時に選択デバイスのみへバインドされる。(c) 起動時に `midi.selectedDeviceId` が適用される。(d) ズームUI操作で `setZoom` を呼び出し、`ScoreRenderer` の `zoom` propが変わる。(e) `setPianoHeight` でstoreを更新し、PianoKeyboardの `height` propが変わる。
 2. テストを実行し、失敗（red）を確認してコミットする。
 3. `web-midi.ts` にデバイス選択APIを実装する。
 4. SettingsModalにデバイス選択・鍵盤高さUIを追加する（TASK-040で確立した「electron-store保存＋store即時反映＋失敗時ロールバック」パターンに従う）。
@@ -68,7 +68,7 @@ TDDで進める。
 - 依存タスクTASK-040がSettingsModalの「store即時反映＋ロールバック」パターンを確立するため、完了後に着手し同じパターンを踏襲すること。
 - 保存済み `selectedDeviceId` のデバイスが接続されていない場合は全デバイス受付（または明示的な未接続表示）へフォールバックし、例外を出さない。
 - E2Eのズーム検証がstore直呼び（`__e2eStore__` 経由）になっている場合、UI経由の操作に置き換えるか、UIテストを別途追加する（空虚検証の温存禁止。TASK-046の方針と整合）。
-- ズームUIの配置（ToolbarかSettingsModalか）は実装時に決定してよいが、REQ-002-006の「即座に更新」を満たすこと（モーダルを閉じないと反映されない設計は不可）。
+- ズームUIの配置（ToolbarとSettingsModalのいずれか）は実装時に決定してよいが、REQ-002-006の「即座に更新」を満たすこと（モーダルを閉じないと反映されない設計は不可）。
 - pianoHeightには妥当な範囲のクランプ（例: 80〜300px）を設け、テストで固定する。
 
 ## 受入基準
@@ -111,8 +111,8 @@ TDDで進める。
 - `SettingsModal/index.tsx` にMIDI入力デバイス選択UI（`webMidiService.getDevices()` の一覧＋
   「すべてのデバイス」）と鍵盤高さスライダー（80〜300px）を追加。いずれもTASK-040で確立した
   「store即時反映＋electron-store保存＋失敗時ロールバック」パターンに従う。
-- `Toolbar` にズームUI（`ZoomControl`、select要素、50%〜400%）を追加し、`setZoom` を直接呼ぶ
-  ことでモーダルを介さず即座に反映されるようにした（REQ-002-006の「即座に更新」要件を満たす）。
+- `Toolbar` へズームUI（`ZoomControl`、select要素、50%〜400%）を追加し、`setZoom` を直接呼ぶ
+  ことでモーダルを介さず即座に反映させた。これはREQ-002-006の「即座に更新」要件を満たす。
 - SettingsModalの英語ラベルを日本語化（NFR-U-002）: 「設定」「練習」「既定のエラーモード」
   「正しい音を待つ」「誤りがあっても先へ進む」「既定でメトロノームを有効にする」
   「最近使ったファイル」「最近使ったファイルはありません」「完了」「閉じる」。
@@ -129,7 +129,7 @@ TDDで進める。
 
 ### 明示された情報
 
-- 未実装の根拠（M2・M3、実コードで検証済み: `web-midi.ts:22` 呼び出しゼロ・:32 全デバイスバインド、`ui-slice.ts:28` の `setZoom` UI呼び出しゼロ、`ui-slice.ts:25` pianoHeight setterなし、`settings.ts:13,15` の設定キー）
+- 未実装の根拠。M2・M3の実コードで検証済み: `web-midi.ts:22` 呼び出しゼロ・:32 全デバイスバインド、`ui-slice.ts:28` の `setZoom` UI呼び出しゼロ、`ui-slice.ts:25` pianoHeight setterなし、`settings.ts:13,15` の設定キー。
 - 実装方針: SettingsModalへのデバイス選択、ズームUI、pianoHeight setter追加（分析レポート承認待ち方針TASK-045）
 
 ### 不明/要確認の情報

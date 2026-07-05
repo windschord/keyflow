@@ -50,7 +50,7 @@
 
 TDDで進める。
 
-1. 失敗するテストを先に書く: partIdが `P1`（hand: 'right'）の期待ノーツで `guidRight` 色、`P2`（hand: 'left'）で `guidLeft` 色が `ctx.fillStyle` に設定されることを検証する（実際のpartId形式 `P1`/`P2` を必ず使い、`'right'` を含むpartIdでテストしないこと）。
+1. 失敗するテストを先に書く: partIdが `P1`（hand: 'right'）の期待ノーツで `guidRight` 色、`P2`（hand: 'left'）で `guidLeft` 色が `ctx.fillStyle` に設定されることを検証する。実際のpartId形式 `P1`/`P2` を必ず使い、`'right'` を含むpartIdでテストしないこと。
 2. テストを実行し、失敗（red）を確認してコミットする（現実装は `P1`/`P2` をすべて左手色にするため、右手ケースが失敗するはず）。
 3. `keyboard-renderer.ts` の `RenderOptions` に手情報を追加し、判定を `hand === 'right'` に置き換える。
 4. `PianoKeyboard/index.tsx` にpropsを追加し、`App.tsx` から `score.parts` を伝搬する。
@@ -62,7 +62,7 @@ TDDで進める。
 - `practiceMode === 'right'` の条件（:49）も合わせて廃止する。片手モードではexpectedNotes自体がそのパートにフィルタ済みのため、色はあくまで `Part.hand` に基づくべき（右手モードで左手ノーツが右手色になる副作用を残さない）。
 - 手情報が引けないpartId（マップに存在しない場合）のフォールバック色を決めて実装すること（左手色フォールバックで可。ただし挙動をテストで固定する）。
 - `KEY_COLORS`（`key-layout.ts`）の色定義自体は変更しない。
-- TASK-044（運指メモUI）が本タスクのprops形状に依存するため、propsの型（`Part[]` かマップか）はテスト容易性を優先して決定し、コメントで明記する。
+- TASK-044（運指メモUI）が本タスクのprops形状に依存するため、propsの型（`Part[]` とマップのいずれか）はテスト容易性を優先して決定し、コメントで明記する。
 
 ## 受入基準
 

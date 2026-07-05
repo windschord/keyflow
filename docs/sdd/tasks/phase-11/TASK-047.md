@@ -33,7 +33,7 @@
   - `createWindow` の重複（`src/main/index.ts:10-44` の関数と :160-189 のインライン生成が二重定義。`activate` 時のみ前者を使用）
   - `PracticeEngineService.setLoop/clearLoop`（`src/renderer/src/lib/practice-engine/index.ts:200-206`、呼び出しゼロ）
   - `FingeringEngineService.cancel`（`src/renderer/src/lib/fingering-engine/index.ts:63`、呼び出しゼロ）
-- CLAUDE.mdの「練習履歴: `history.jsonl`」記載は、実装も要件も存在しないドキュメント乖離。
+- CLAUDE.mdの「練習履歴: `history.jsonl`」記載は、実装・要件のいずれも存在しないドキュメント乖離。
 
 ### 関連する仕様
 
@@ -46,7 +46,7 @@
 ### 修正対象
 
 1. 要件整理（requirements-definingスキルを使用）
-   - ファイル: `docs/sdd/requirements/stories/US-003.md`、`docs/sdd/requirements/stories/US-010.md`、`docs/sdd/requirements/index.md`、`docs/sdd/requirements/traceability.md`
+   - ファイル: `docs/sdd/requirements/stories/US-003.md`、`docs/sdd/requirements/stories/US-010.md`。ほかに`docs/sdd/requirements/index.md`と`docs/sdd/requirements/traceability.md`。
    - 変更内容: REQ-003-004とUS-010の関係を再定義し矛盾を解消する。当面は「再生=全パート」を正とし、片手練習時の自動伴奏（REQ-003-004）は将来拡張へ降格（EARS記法のまま「将来対応」と明記、traceabilityにも反映）する方向で整理する。
 2. REQ-010-002の実装
    - ファイル: `src/renderer/src/components/Toolbar/PlaybackControls.tsx`
@@ -81,7 +81,7 @@
 ### 注意事項
 
 - 要件の再整理はrequirements-definingスキルを使い、EARS記法・既存のUS/REQ採番規則を維持すること。要件の削除ではなく「将来拡張への降格」として履歴が追える形にする。
-- `createWindow` 統合時、現在インライン生成側にしかない初期化（`session.defaultSession.setPermissionRequestHandler` のMIDI許可、:191-197）が起動経路・`activate` 経路の両方で有効なままになるよう注意する（permissionハンドラはウィンドウ生成と独立に1回設定でよい）。
+- `createWindow` 統合時、現在インライン生成側にしかない初期化（`session.defaultSession.setPermissionRequestHandler` のMIDI許可、:191-197）が起動経路・`activate` 経路の両方で有効なままになるよう注意する。permissionハンドラはウィンドウ生成と独立に1回設定でよい。
 - `window.api` 削除時は `src/preload/index.d.ts` 等の型定義・`dts` の宣言も同期して削除する。
 - REQ-005-006の発音はTone.js既存シンセの流用とし、新規音源を追加しない。AudioContext未開始（ユーザー操作前）の場合の考慮は既存の再生系実装に合わせる。
 - 削除対象が他のブランチ・タスクで使われていないか、着手時点のコードでgrep確認してから消すこと。
@@ -105,7 +105,7 @@
 - [x] （是正・結線）鍵盤クリック→クリック音の発音API呼び出し＋正誤判定（現挙動の仕様化テストを是正）
 - [x] （新規・ユニット）ScoreRenderer: 連続load時に先行loadの `setIsLoaded` / `buildNoteIdMap` が無効化される
 - [x] （回帰）死にコード削除後に `npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
-- [x] （回帰）アプリ起動・`activate` 再起動（macOS経路）でウィンドウが1枚だけ正しく生成される（`createWindow()`呼び出しへの一本化により起動経路・activate経路の双方が同一関数を使うことをコードレビューで確認。E2E（`npm run test:e2e`）で起動経路のスモークテストを実施）
+- [x] （回帰）アプリ起動・`activate` 再起動（macOS経路）でウィンドウが1枚だけ正しく生成される。根拠: `createWindow()`呼び出しへの一本化により、起動経路・activate経路の双方が同一関数を使うことをコードレビューで確認。E2E（`npm run test:e2e`）で起動経路のスモークテストを実施。
 
 ## 完了サマリー
 
@@ -113,9 +113,9 @@
 - REQ-010-002: `PlaybackControls`に`score`propを追加（`Toolbar`経由でApp.tsxの`score`を受け取る）。`score === null`のとき再生/一時停止/停止ボタンをdisabledにし、`title`に「楽譜を開くと再生できます」を表示。`score`未指定（undefined）時は後方互換のため無効化しない。
 - REQ-005-006: `usePractice.ts`の`handleKeyClick`で`audioEngine.playNote(midiNumber)`を呼び出すよう結線。正誤フィードバック音（`playCorrectSound`/`playIncorrectSound`、`clickSynth`）とは別チャンネル（`playSynth`）のため同時発音しても干渉しない。
 - M4（OSMD load再入対策）: `ScoreRenderer/index.tsx`のload effectに`cancelled`フラグを導入し、effect再実行時に古い`load()`の`.then`（`setIsLoaded`/`buildNoteIdMap`）を無効化。
-- 死にコード削除: `src/main/midi-controller.ts`、`src/renderer/src/components/Versions.tsx`/`Versions.test.tsx`、`ping` IPC、preloadの空`window.api`（`electronAPI`は維持）、`src/main/index.ts`の`createWindow()`呼び出しへの一本化（MIDI許可ハンドラの初期化順序は維持）、`PracticeEngineService.setLoop/clearLoop`、`FingeringEngineService.cancel`を削除。すべてgrep確認のうえ参照ゼロであることを確認済み。
+- 死にコード削除: `src/main/midi-controller.ts`、`src/renderer/src/components/Versions.tsx`/`Versions.test.tsx`、`ping` IPCを削除。preloadの空`window.api`（`electronAPI`は維持）と`PracticeEngineService.setLoop/clearLoop`、`FingeringEngineService.cancel`も削除。`src/main/index.ts`は`createWindow()`呼び出しへ一本化（MIDI許可ハンドラの初期化順序は維持）。すべてgrep確認のうえ参照ゼロであることを確認済み。
 - CLAUDE.mdの`history.jsonl`記載を「未実装（将来拡張）」に是正。あわせてmidi-controller.ts削除・createWindow統合を反映。
-- 設計書追随: DEC-004・`design/components/midi-controller.md`・`design/components/fingering-engine.md`（cancel削除）・`design/components/practice-engine.md`（setLoop削除）・`design/components/toolbar.md`（PlaybackControlsの無効化条件）を更新。
+- 設計書追随: DEC-004・`design/components/midi-controller.md`・`design/components/fingering-engine.md`（cancel削除）を更新。あわせて`design/components/practice-engine.md`（setLoop削除）と`design/components/toolbar.md`（PlaybackControlsの無効化条件）も更新。
 - `npm run test`（319件）/ `npm run typecheck` / `npm run lint` / `npm run test:e2e` すべて合格。
 
 ## 情報の明確性
@@ -128,4 +128,4 @@
 
 ### 不明/要確認の情報
 
-- なし（すべて確認済み。REQ-003-004の最終的な扱い（降格か削除か）はrequirements-defining実施時にユーザー確認のうえ確定する）
+- なし（すべて確認済み。REQ-003-004の最終的な扱い（降格・削除のいずれとするか）はrequirements-defining実施時にユーザー確認のうえ確定する）

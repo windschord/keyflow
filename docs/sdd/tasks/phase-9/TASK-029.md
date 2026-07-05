@@ -15,13 +15,13 @@
 
 ### 問題の概要
 
-「曲全体の再生（お手本演奏）」がユーザーストーリー（US-001〜009）に存在せず、ユーザーが曲を開いても再生して聴く手段がない。フェーズAで再生ボタン・Spaceキーの暫定結線（TASK-026）を行ったが、対応する機能要件が存在しないため、受入基準・仕様の裏付けがない状態が続いている。
+「曲全体の再生（お手本演奏）」がユーザーストーリー（US-001〜009）に存在せず、ユーザーが曲を開いても再生して聴く手段がない。フェーズAで再生ボタン・Spaceキーの暫定結線（TASK-026）を行ったものの、対応する機能要件は存在しない。そのため受入基準・仕様の裏付けを欠いた状態が続いている。
 
 ### 根本原因
 
 - 要件定義時にSynthesiaライク体験の核である「お手本演奏を聴く」ユースケースがスコープから漏れた（`docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md` 原因2）。
-- `docs/sdd/requirements/nfr/usability.md:33` に「スペース: 再生/停止」というショートカット記述があるにもかかわらず、対応する機能要件（ユーザーストーリー）が存在せず、NFRと機能要件が矛盾している。
-- `AudioEngineService`（`src/renderer/src/lib/audio-engine/index.ts`）には `loadAccompaniment` / `playAccompaniment` / `setBpm` / `setMetronomeEnabled` が実装済みだが、要件不在のため統合タスク（TASK-016）のスコープに結線が含まれなかった。
+- `docs/sdd/requirements/nfr/usability.md:33` に「スペース: 再生/停止」というショートカット記述があるにもかかわらず、対応する機能要件（ユーザーストーリー）が存在しない。その結果、NFRと機能要件が矛盾している。
+- `AudioEngineService`（`src/renderer/src/lib/audio-engine/index.ts`）には `loadAccompaniment` / `playAccompaniment` / `setBpm` / `setMetronomeEnabled` が実装済みである。しかし要件不在のため、統合タスク（TASK-016）のスコープに結線が含まれなかった。
 
 ### 関連する仕様
 

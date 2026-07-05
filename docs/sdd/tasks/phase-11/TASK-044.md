@@ -21,7 +21,7 @@ US-008（運指メモ）のユーザー向けUIが皆無。楽譜上の音符を
 
 ### 根本原因
 
-- Phase 2でannotation-storeのデータ層（`src/renderer/src/lib/annotation-store/index.ts`: `setFinger`:53、`setComment`:60、`removeFinger`:67、`getAnnotation`:78、`approveAnnotation`:101）を実装した後、UI層のタスクが起票されないまま完了扱いになった（分析レポート要因5と同型のプロセス欠落）。
+- Phase 2でannotation-storeのデータ層（`src/renderer/src/lib/annotation-store/index.ts`）を実装した。実装済みAPIは`setFinger`:53、`setComment`:60、`removeFinger`:67、`getAnnotation`:78、`approveAnnotation`:101。その後、UI層のタスクが起票されないまま完了扱いになった（分析レポート要因5と同型のプロセス欠落）。
 - 承認済み運指の色分け表示は `osmd-controller.ts:454` に実装済み（`isApproved ? '#2563eb' : '#93c5fd'`）だが、`ScoreRenderer/index.tsx:73` が常に `isApproved: false` を渡すため死に分岐になっている。
 
 ### 関連する仕様
@@ -51,11 +51,11 @@ US-008（運指メモ）のユーザー向けUIが皆無。楽譜上の音符を
 
 TDDで進める。
 
-1. 失敗するテストを先に書く: (a) osmd-controllerのcontextmenuでnoteIdが解決されコールバックされる、(b) メニューで「3」を選ぶと `setFinger(noteId, 3)` が呼ばれ保存される、(c) 「削除」で `removeFinger`、(d) コメント編集で `setComment`、(e) AI提案のある音符で「承認」すると `approveAnnotation` が呼ばれる、(f) 承認済みアノテーションが `isApproved: true` で `showFingerings` に渡る。
+1. 失敗するテストを先に書く。(a) osmd-controllerのcontextmenuでnoteIdが解決されコールバックされる。(b) メニューで「3」を選ぶと `setFinger(noteId, 3)` が呼ばれ保存される。(c) 「削除」で `removeFinger` が呼ばれる。(d) コメント編集で `setComment` が呼ばれる。(e) AI提案のある音符で「承認」すると `approveAnnotation` が呼ばれる。(f) 承認済みアノテーションが `isApproved: true` で `showFingerings` に渡る。
 2. テストを実行し、失敗（red）を確認してコミットする。
 3. osmd-controllerに `setOnNoteContextMenu` を実装する（既存 `setOnMeasureClick` のパターンを踏襲）。
 4. コンテキストメニューコンポーネントを実装する（表示位置はクリック座標、Escや外側クリックで閉じる）。
-5. App.tsxでannotation-store CRUDと結線し、変更後に `save()` と表示状態（鍵盤・楽譜の指番号）の更新を行う。
+5. App.tsxでannotation-store CRUDと結線し、変更後に `save()` と表示状態（鍵盤・楽譜の指番号）を更新する。
 6. `ScoreRenderer/index.tsx:73` の `isApproved` を実データ由来に修正し、承認済みが濃い青（`#2563eb`）で描画されることを確認する。
 7. テストが通る（green）ことを確認し、traceability.mdの REQ-008-001/003/006、REQ-009-005/006 行を更新する。
 
@@ -122,7 +122,7 @@ TDDで実装した。
 
 ### 明示された情報
 
-- UI欠落の根拠（H4、実コードで検証済み: contextmenuハンドラ0件、annotation-store API :53/:60/:67/:101、死に分岐 `osmd-controller.ts:454` と `ScoreRenderer/index.tsx:73` の `isApproved: false` 固定）
+- UI欠落の根拠。H4の実コードで検証済み: contextmenuハンドラ0件、annotation-store API :53/:60/:67/:101、死に分岐 `osmd-controller.ts:454` と `ScoreRenderer/index.tsx:73` の `isApproved: false` 固定。
 - 流用する既存実装: `findNearestNoteId`（`osmd-controller.ts:382`）、annotation-store既存API、`setOnMeasureClick` のコールバックパターン
 - AI提案の承認フローと承認済み色分けの結線も本タスクに含めること
 

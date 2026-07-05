@@ -15,7 +15,7 @@
 
 ### 問題の概要
 
-REQ-005-007（鍵盤上の指番号表示）のうち、TASK-033でApp.tsx側の配線（annotation-storeの実データを `PianoKeyboard` の `annotations` プロパティへ渡す）までは完了したが、`src/renderer/src/components/PianoKeyboard/keyboard-renderer.ts` は受け取ったannotationsを描画していない（受領のみで未使用）。
+REQ-005-007（鍵盤上の指番号表示）のうち、TASK-033でApp.tsx側の配線（annotation-storeの実データを `PianoKeyboard` の `annotations` プロパティへ渡す）までは完了した。しかし`src/renderer/src/components/PianoKeyboard/keyboard-renderer.ts` は受け取ったannotationsを描画していない（受領のみで未使用）。
 
 ### 根本原因
 

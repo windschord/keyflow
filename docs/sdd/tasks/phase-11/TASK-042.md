@@ -39,7 +39,7 @@
 - ファイル: `src/renderer/src/lib/audio-engine/metronome.ts`
   - 変更内容: `setEnabled(true)` から `Tone.getTransport().start()` を削除する。メトロノームはTransportを起動せず、シーケンスの `start`/`stop` のみを管理する（Transportが走っているとき＝再生中のみクリックが鳴る設計に変更）。
 - ファイル: `src/renderer/src/lib/audio-engine/index.ts`
-  - 変更内容: 必要に応じて `setMetronomeEnabled`（:68）まわりを調整し、「再生中にONにしたら即クリックが鳴り始める」「停止中にONにしても音は出ず、再生開始時に鳴り始める」動作を保証する。
+  - 変更内容: 必要に応じて `setMetronomeEnabled`（:68）まわりを調整する。動作の保証対象は「再生中にONへ切り替えたら即クリックが鳴り始める」「停止中はONへ切り替えても音を鳴らさず、再生開始のタイミングで鳴り始める」の2点である。
 - ファイル: `src/renderer/src/lib/audio-engine/audio-engine.test.ts`
   - 変更内容: `playbackState` との整合を検証するテストを追加する（下記テスト項目）。
 
@@ -47,7 +47,7 @@
 
 TDDで進める。
 
-1. 失敗するテストを先に書く: (a) 停止中に `setMetronomeEnabled(true)` を呼んでも `Transport.start` が呼ばれない、(b) `setMetronomeEnabled(false)` が再生中のTransportを止めない、(c) 再生中にONにするとシーケンスが開始される。
+1. 失敗するテストを先に書く。(a) 停止中に `setMetronomeEnabled(true)` を呼んでも `Transport.start` が呼ばれない。(b) `setMetronomeEnabled(false)` が再生中のTransportを止めない。(c) 再生中にONへ切り替えるとシーケンスが開始される。
 2. テストを実行し、失敗（red）を確認してコミットする（現実装は(a)で `Transport.start` が呼ばれるため失敗するはず）。
 3. `metronome.ts` から `Tone.getTransport().start()` を削除し、シーケンスの `start`/`stop` のみとする。
 4. 再生開始/停止（AudioEngineのplay/stop経路）とメトロノーム有効状態の組み合わせで正しくクリックが鳴る/止まることを確認し、必要なら `audio-engine/index.ts` 側を調整する。
@@ -95,7 +95,7 @@ TDDで進める。
 `metronome.ts` の `setEnabled(true)` から `Tone.getTransport().start()` を削除し、
 メトロノームは `Tone.Sequence.start(0)` によるスケジューリングのみを行うように修正した。
 Transportの起動/停止は `AudioEngineService.playAccompaniment/pauseAccompaniment/stopAccompaniment`
-（TASK-038で確立済み）にのみ委ねられ、メトロノームON/OFFはTransportの再生状態に
+（TASK-038で確立済み）にのみ委ねられる。メトロノームON/OFFはTransportの再生状態へ
 追従してクリックを鳴らす/止めるだけの責務に限定される。
 
 TDDでRed（`Tone.getTransport().start`が呼ばれてしまうテストの失敗）を確認したのち、

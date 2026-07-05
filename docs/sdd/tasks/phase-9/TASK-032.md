@@ -21,7 +21,7 @@
 
 - `src/renderer/src/lib/practice-engine/index.ts:104-137`（`advancePosition`）が `currentNoteIndex` をインデックスとして単純に+1し、`measure.notes.length` を超えたら次小節へ移る実装になっている。コード中のコメント自身が「In a real app we'd group chords... In true MusicXML we group by time.」（118-119行目）と簡略化を認めている。
 - `measure.notes` はTASK-031改修前まで「P1全音符→P2全音符」の連結順であり、たとえ同時刻でもパートをまたいだ判定グループ化が行われていなかった。
-- `handleNoteOn`（`index.ts:15-88`）は `expectedNotes` に対して `filterExpectedNotes`（Left/Right/Bothの練習パートフィルタ、27-31行目）と `judgeChord`（46行目、`judgement.ts`）を組み合わせているが、`expectedNotes` 自体が時刻グループ化されていないため、「同時刻の複数ノーツ（和音・両手）が揃ったら進行」という仕様を満たせない。
+- `handleNoteOn`（`index.ts:15-88`）は `expectedNotes` に対して `filterExpectedNotes`（Left/Right/Bothの練習パートフィルタ、27-31行目）と `judgeChord`（46行目、`judgement.ts`）を組み合わせている。しかし `expectedNotes` 自体が時刻グループ化されていないため、「同時刻の複数ノーツ（和音・両手）が揃ったら進行」という仕様を満たせない。
 
 ### 関連する仕様
 
@@ -64,7 +64,7 @@
 - [x] 右手＋左手が同時刻に鳴る和音（両手同時）で、両方揃うまで進行しない
 - [x] 右手モードで両手同時刻グループのうち左手ノーツのみを無視し、右手ノーツが揃えば進行する
 - [x] 単一パート内の和音（既存仕様）が引き続き正しく判定される（回帰なし）
-- [x] フィルタ適用でグループが空になった場合に自動進行する
+- [x] フィルタ適用でグループが空となった場合に自動進行する
 - [x] 既存のテスト（TASK-014記載6件）が全パス（新仕様に合わせて期待値を更新した上でパス）
 - [x] 新規テストが追加されている（両手同時判定・パートまたぎフィルタの組み合わせ）
 - [x] `npm run typecheck` / `npm run lint` がパスする
@@ -80,8 +80,8 @@
 
 ## 完了サマリー（2026-07-04）
 
-- `src/renderer/src/lib/practice-engine/note-grouping.ts` を新設し、`groupNotesByStartTick`（休符除外・startTick昇順の判定グループ導出）と `filterNotesByPracticeMode`（Left/Right/Bothフィルタ）を実装した。
-- `src/renderer/src/lib/practice-engine/index.ts` の `advancePosition`/`resetToMeasure` を、`currentNoteIndex` を「小節内の判定グループインデックス」として扱う `resolvePosition`（旧 `advanceGroupPosition` 相当）に置換。フィルタ後に空になったグループは自動スキップし、ループ境界を跨いだ場合は `pressedKeys`/`incorrectKeys`（部分押下状態）を破棄するようにした。
+- `src/renderer/src/lib/practice-engine/note-grouping.ts` を新設した。ここに `groupNotesByStartTick`（休符除外・startTick昇順の判定グループ導出）と `filterNotesByPracticeMode`（Left/Right/Bothフィルタ）を実装した。
+- `src/renderer/src/lib/practice-engine/index.ts` の `advancePosition`/`resetToMeasure` を `resolvePosition`（旧 `advanceGroupPosition` 相当）に置換した。`resolvePosition` は `currentNoteIndex` を「小節内の判定グループインデックス」として扱う。フィルタ後に空となったグループは自動スキップし、ループ境界を跨いだ場合は `pressedKeys`/`incorrectKeys`（部分押下状態）を破棄するようにした。
 - `handleNoteOn` は `expectedNotes`（現在グループの全ノーツ、フィルタ前）を保持したまま、判定時のみ `filterNotesByPracticeMode` でフィルタする設計とし、鍵盤ガイドが両手分のノーツを表示できるようにした。`advancePosition` 呼び出し後に `pressedKeys`/`incorrectKeys` を `getState()` から再取得するよう修正し、ループジャンプ時のクリアが呼び出し元の古い参照で上書きされないようにした。
 - `judgement.ts` の未使用スタブ `filterNotesByMode` を削除し、`judgeChord` はパート横断の判定グループにもそのまま対応できることをコメントで明記した。
 - `App.tsx` の `currentNoteId`（OSMDカーソル制御用）を、`currentNoteIndex` の意味変更に合わせて `groupNotesByStartTick` 経由でグループ先頭ノートのidを使うよう修正した。

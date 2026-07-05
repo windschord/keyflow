@@ -22,8 +22,8 @@
 ### 根本原因
 
 - `src/main/settings.ts:34` の `SettingsService.addRecentFile` は実装済みだが、アプリのどこからも呼び出されていない（呼び出しゼロ）。
-- ファイル選択の成功地点である `src/main/index.ts:65-75` の `file:show-open-dialog` ハンドラは `pathAllowlist.allowMusicXml(filePaths[0])` を呼ぶのみで、履歴への追加を行わない。
-- `SettingsModal.test.tsx:36` は `settingsApi.getRecentFiles.mockResolvedValue([...])` のモックデータで履歴表示を検証しており、本番経路で履歴が一切書き込まれない欠落を隠蔽してテスト緑になっていた（resetToMeasure事件・TASK-024と同型の隠蔽）。
+- ファイル選択の成功地点である `src/main/index.ts:65-75` の `file:show-open-dialog` ハンドラは `pathAllowlist.allowMusicXml(filePaths[0])` を呼ぶのみで、履歴には追加しない。
+- `SettingsModal.test.tsx:36` は `settingsApi.getRecentFiles.mockResolvedValue([...])` のモックデータで履歴表示を検証している。そのため本番経路で履歴が一切書き込まれない欠落を隠蔽してテスト緑になっていた（resetToMeasure事件・TASK-024と同型の隠蔽）。
 
 ### 関連する仕様
 
@@ -54,7 +54,7 @@ TDDで進める。
 
 ### 注意事項
 
-- `settingsService` 生成の移動に伴い、既存の `settings:get` / `settings:set` / `settings:get-recent-files` ハンドラ（`src/main/index.ts:200-203`）が同一インスタンスを参照し続けることを確認する（インスタンスを2つ作らない）。
+- `settingsService` 生成の移動に伴い、既存の `settings:get` / `settings:set` / `settings:get-recent-files` ハンドラ（`src/main/index.ts:200-203`）が同一インスタンスを参照し続けることを確認する。インスタンスを2つ作らないこと。
 - `addRecentFile` は既存実装（重複排除・先頭追加・10件上限、`src/main/settings.ts:34-52`）をそのまま使い、変更しない。
 - ダイアログがキャンセルされた場合（`canceled || filePaths.length === 0`）は履歴に追加しないこと。
 - 変更はMainプロセスのみで完結し、Renderer側のロジック変更は不要（SettingsModalは既に `getRecentFiles` を表示している）。
@@ -91,11 +91,11 @@ TDDで進める。
   既存テストがUI表示層のみの検証であることをコメント・テスト名で明確化し、本番経路の結線検証は
   `src/main/file-handlers.test.ts` が担う対応関係を明記（隠蔽の是正）。
 - `docs/sdd/requirements/traceability.md` の REQ-001-006 行を `×※` から `○` に更新。
-- 確認結果: `npx vitest run src/main/file-handlers.test.ts src/main/path-allowlist.test.ts
-  src/renderer/src/components/SettingsModal/SettingsModal.test.tsx` は 3 files / 9 tests 全件通過。
+- 確認結果: `src/main/file-handlers.test.ts` と `src/main/path-allowlist.test.ts` を `npx vitest run` で実行。
+  `src/renderer/src/components/SettingsModal/SettingsModal.test.tsx` も対象に含め、3 files / 9 tests 全件通過。
   `npm run typecheck` / 対象ファイルへの `eslint` はエラーなし。`npm run test` 全体実行では
   並行作業中の `src/renderer/src/workers/fingering/dp-solver.test.ts`（TASK-043スコープ）で
-  3件失敗が観測されたが、自スコープ外であり無関係。
+  3件失敗が観測された。ただし自スコープ外であり無関係。
 
 ## 情報の明確性
 

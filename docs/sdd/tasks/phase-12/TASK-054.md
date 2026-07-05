@@ -21,7 +21,7 @@
 
 ### 根本原因
 
-- electron-vite テンプレート残骸の `src/renderer/src/assets/base.css` が、ダークテーマ用のほぼ白のテキスト色 `--ev-c-text-1: rgba(255, 255, 245, 0.86)`（`base.css:14`）を `--color-text`（`:31`）として `body` の `color` に設定している（`:46-48`）
+- electron-vite テンプレート残骸の `src/renderer/src/assets/base.css` に、ダークテーマ用のほぼ白のテキスト色 `--ev-c-text-1: rgba(255, 255, 245, 0.86)`（`base.css:14`）が残っている。これが `--color-text`（`:31`）として `body` の `color` に設定されている（`:46-48`）
 - アプリのUIはライト前提（白背景）だが、色指定のないラベルがこの body 色を継承して薄グレー化する。`TempoControl.tsx:91-109` の「メトロノーム」ラベルと `LoopControl.tsx:46-64` の「ループ」ラベルは `color` 未指定（同ファイル内の他のラベルは `color: '#374151'` を明示しており読める）。`LoopControl.tsx:78` の「–」span も同様に `color` 未指定
 - ツールチップは既に存在する（`title` 属性、`TempoControl.tsx:92` / `LoopControl.tsx:47`）ため対応不要
 
@@ -81,7 +81,7 @@ TDDで進める（UIスタイルは可能な範囲でテストする）。
   - `--color-background` / `--color-background-soft` / `--color-background-mute`: `--ev-c-black*`（暗色）参照 → `--ev-c-white*`（明色）参照に変更
   - `--ev-button-alt-text` / `--ev-button-alt-hover-text`: `--ev-c-text-1` 参照 → `--ev-c-white` 参照に変更（未使用の残骸クラス `.action a` 向けだが、暗背景に対して読める配色を維持）
   - `--color-text` は変わらず `--ev-c-text-1` を参照するが、値自体がライト向けに是正されたため body の既定文字色が可読になった
-- 影響範囲確認: `main.css`/`base.css` を実際に参照しているのは `main.tsx` のみで、他コンポーネント（SettingsModal・StatsDisplay 等）はすべて明示的な `color`/`backgroundColor` を持つインラインスタイルのため、body色変更による劣化がないことをコード確認済み。
+- 影響範囲確認: `main.css`/`base.css` を実際に参照しているのは `main.tsx` のみ。他コンポーネント（SettingsModal・StatsDisplay 等）はすべて明示的な `color`/`backgroundColor` を持つインラインスタイルのため、body色変更による劣化がないことをコード確認済み。
 - テスト: `TempoControl.test.tsx` / `LoopControl.test.tsx` にラベル・区切り文字の `style.color` を検証する新規テストを追加し、Red（未実装で失敗）→ Green（実装後に成功）の順でTDDを実施。
 - `npm run test` 全件（327件中、スコープ外の TASK-052 進行中の audio-engine 6件を除き全通過）、`npm run typecheck`、`npm run lint` すべて通過を確認。
 
@@ -89,7 +89,7 @@ TDDで進める（UIスタイルは可能な範囲でテストする）。
 
 ### 明示された情報
 
-- 根本原因の file:line（実コードで検証済み: `base.css:14` の `--ev-c-text-1`、`:31` の `--color-text`、`:46-48` の body 継承、`TempoControl.tsx:91-109`、`LoopControl.tsx:46-64` / `:78` の color 未指定）
+- 根本原因の file:line は実コードで検証済み。検証箇所: `base.css:14` の `--ev-c-text-1`、`:31` の `--color-text`、`:46-48` の body 継承、`TempoControl.tsx:91-109`、`LoopControl.tsx:46-64` / `:78` の color 未指定
 - 修正方針: ラベル明示色 `#374151` ＋ base.css テンプレ残骸是正（分析レポート承認済み方針 TASK-054）
 - ツールチップは既存のため追加不要（分析レポート原因群D）
 

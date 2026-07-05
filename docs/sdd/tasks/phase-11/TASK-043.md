@@ -21,8 +21,8 @@ TASK-019で実装したスケール定型パターン（全24調、`scale-patter
 
 ### 根本原因
 
-- `src/renderer/src/workers/fingering/scale-patterns.ts` は `SCALE_PATTERNS`（:214）、`detectScalePattern`（:216）、`applyScalePattern`（:251）をエクスポートしているが、`fingering.worker.ts` は `computeFingering` のみをimport（`fingering.worker.ts:2`）し、`dp-solver.ts` もscale-patternsをimportしていない。ユニットテスト（`scale-patterns.test.ts`）からのみ参照されるデッドコード。
-- `dp-solver.test.ts:26-39` は「TASK-019 のスケール定型パターンを使わない純粋なDPでは 1-2-3-1-2-3-4-5 とは限らない」というコメント（:33-35）とともに、アサーションを「親指が含まれる」程度に弱体化しており、要件を実装に合わせて書き換えた形跡そのもの。
+- `src/renderer/src/workers/fingering/scale-patterns.ts` は `SCALE_PATTERNS`（:214）、`detectScalePattern`（:216）、`applyScalePattern`（:251）をエクスポートしている。しかし `fingering.worker.ts` は `computeFingering` のみをimportし（`fingering.worker.ts:2`）、`dp-solver.ts` もscale-patternsをimportしていない。ユニットテスト（`scale-patterns.test.ts`）からのみ参照されるデッドコード。
+- `dp-solver.test.ts:26-39` は「TASK-019 のスケール定型パターンを使わない純粋なDPでは 1-2-3-1-2-3-4-5 とは限らない」というコメント（:33-35）とともに、アサーションを「親指が含まれる」程度に弱体化している。要件を実装に合わせて書き換えた形跡そのもの。
 
 ### 関連する仕様
 
@@ -36,7 +36,7 @@ TASK-019で実装したスケール定型パターン（全24調、`scale-patter
 ### 修正対象
 
 - ファイル: `src/renderer/src/workers/fingering/dp-solver.ts`（または `fingering.worker.ts`）
-  - 変更内容: `detectScalePattern` / `applyScalePattern` を統合する。運指計算時にまずスケール定型パターンの検出を行い、一致した区間には定型運指を優先適用し、非該当区間はDPで解く。統合位置は `computeFingering` 内（推奨: workerとサービス双方から同じ結果が得られ、既存の `dp-solver.test.ts` がそのまま統合経路のテストになる）か、worker側のディスパッチとするかを実装時に決定し、コメントで理由を明記する。
+  - 変更内容: `detectScalePattern` / `applyScalePattern` を統合する。運指計算時にまずスケール定型パターンを検出し、一致した区間には定型運指を優先適用し、非該当区間はDPで解く。統合位置は `computeFingering` 内（推奨: workerとサービス双方から同じ結果が得られ、既存の `dp-solver.test.ts` がそのまま統合経路のテストになる）か、worker側のディスパッチとするかを実装時に決定し、コメントで理由を明記する。
 - ファイル: `src/renderer/src/workers/fingering/dp-solver.test.ts`
   - 変更内容: :26-39 の弱体化されたコメント・アサーションを、要件REQ-009-A06由来の期待値に是正する。Cメジャースケール8音（右手）で `1-2-3-1-2-3-4-5` が返ることを厳密にアサートする。
 - ファイル: `src/renderer/src/workers/fingering/scale-patterns.test.ts`
@@ -81,7 +81,7 @@ TDDで進める。
 ## 完了サマリー
 
 `src/renderer/src/workers/fingering/dp-solver.ts` の `computeFingering` 冒頭で
-`applyScalePattern`（`scale-patterns.ts`）を呼び出し、音符列全体が定型パターン
+`applyScalePattern`（`scale-patterns.ts`）を呼び出す。音符列全体が定型パターン
 （全24調・上行/下降）と一致する場合は定型運指（cost=0）を優先的に返し、一致
 しない場合は従来のDPにフォールバックする実装とした。worker/serviceのメッセージ
 型（`FingeringResponse`）は変更していない。
@@ -105,4 +105,4 @@ TDDで進める。
 
 ### 不明/要確認の情報
 
-- なし（すべて確認済み。統合位置（dp-solver内かworker内か）は実装時判断とし、判断理由をコードコメントに残す）
+- なし（すべて確認済み。統合位置（dp-solver内とworker内のいずれか）は実装時判断とし、判断理由をコードコメントに残す）

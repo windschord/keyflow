@@ -6,7 +6,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
 import { PathAllowlist } from './path-allowlist';
-import { createShowOpenDialogHandler } from './file-handlers';
+import { createRegisterDroppedFileHandler, createShowOpenDialogHandler } from './file-handlers';
 
 function createWindow(): void {
   // Create the browser window.
@@ -66,6 +66,14 @@ app.whenReady().then(() => {
   ipcMain.handle(
     'file:show-open-dialog',
     createShowOpenDialogHandler(dialog, pathAllowlist, settingsService)
+  );
+
+  // TASK-053: ドラッグ＆ドロップで開かれたファイルも file:write（アノテーション保存）の
+  // allowlist に載せ、ファイル履歴（addRecentFile）に反映するための登録専用IPC。
+  // 拡張子検証は createRegisterDroppedFileHandler 内で行う。
+  ipcMain.handle(
+    'file:register-dropped-file',
+    createRegisterDroppedFileHandler(pathAllowlist, settingsService)
   );
 
   ipcMain.handle('file:read', async (_, path: string) => {

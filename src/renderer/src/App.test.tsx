@@ -1,4 +1,4 @@
-import { screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { screen, waitFor, act, fireEvent, createEvent } from '@testing-library/react';
 import { renderWithStrictMode as render } from './tests/test-utils';
 import App from './App';
 import { vi } from 'vitest';
@@ -607,6 +607,241 @@ describe('App', () => {
     expect(scoreRenderer.getAttribute('data-looprange')).toBe(
       JSON.stringify({ start: 3, end: 7 })
     );
+  });
+});
+
+describe('App - drag & drop file open (TASK-053)', () => {
+  const SIMPLE_XML = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+  afterEach(() => {
+    usePracticeStore.setState({ score: null, musicXmlPath: null, musicXmlContent: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+  });
+
+  function dropFiles(container: HTMLElement, files: File[]): void {
+    fireEvent.drop(container, {
+      dataTransfer: { files, types: ['Files'] },
+    });
+  }
+
+  it('shows a drop hint placeholder while no score is loaded', () => {
+    render(<App />);
+    expect(
+      screen.getByText('ここにMusicXMLファイルをドロップ（またはファイルを開く）')
+    ).toBeInTheDocument();
+  });
+
+  it('shows a drag-active visual overlay on dragenter and clears it on dragleave', () => {
+    render(<App />);
+    const appRoot = screen.getByTestId('app-container');
+
+    fireEvent.dragEnter(appRoot, { dataTransfer: { types: ['Files'] } });
+    expect(screen.getByTestId('drag-active-overlay')).toBeInTheDocument();
+
+    fireEvent.dragLeave(appRoot, { dataTransfer: { types: ['Files'] } });
+    expect(screen.queryByTestId('drag-active-overlay')).not.toBeInTheDocument();
+  });
+
+  it('prevents the default browser behavior on dragover so a drop can occur', () => {
+    render(<App />);
+    const appRoot = screen.getByTestId('app-container');
+
+    const dragOverEvent = createEvent.dragOver(appRoot, { dataTransfer: { types: ['Files'] } });
+    fireEvent(appRoot, dragOverEvent);
+
+    expect(dragOverEvent.defaultPrevented).toBe(true);
+  });
+
+  it('opens a dropped .xml file through the same pipeline as the dialog and registers it for annotation writes', async () => {
+    const getDroppedFilePathMock = vi.fn().mockReturnValue('/scores/dropped.xml');
+    const registerDroppedFileMock = vi.fn().mockResolvedValue(true);
+    const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: vi.fn(),
+        read: readMock,
+        getDroppedFilePath: getDroppedFilePathMock,
+        registerDroppedFile: registerDroppedFileMock,
+      },
+    };
+
+    render(<App />);
+    const appRoot = screen.getByTestId('app-container');
+    const file = new File([SIMPLE_XML], 'dropped.xml', { type: 'application/xml' });
+
+    dropFiles(appRoot, [file]);
+
+    await waitFor(() => expect(getDroppedFilePathMock).toHaveBeenCalledWith(file));
+    await waitFor(() =>
+      expect(registerDroppedFileMock).toHaveBeenCalledWith('/scores/dropped.xml')
+    );
+    await waitFor(() => expect(readMock).toHaveBeenCalledWith('/scores/dropped.xml'));
+    await waitFor(() => expect(usePracticeStore.getState().score).not.toBeNull());
+    expect(usePracticeStore.getState().musicXmlPath).toBe('/scores/dropped.xml');
+
+    expect(screen.queryByTestId('drag-active-overlay')).not.toBeInTheDocument();
+  });
+
+  it('opens a dropped .mxl file via the binary read path', async () => {
+    const containerXml = `<?xml version="1.0" encoding="UTF-8"?>
+<container>
+  <rootfiles>
+    <rootfile full-path="score.xml" media-type="application/vnd.recordare.musicxml+xml"/>
+  </rootfiles>
+</container>`;
+
+    const { zipSync } = await import('fflate');
+    const zipped = zipSync({
+      'META-INF/container.xml': new TextEncoder().encode(containerXml),
+      'score.xml': new TextEncoder().encode(SIMPLE_XML),
+    });
+
+    const readBinaryMock = vi.fn().mockResolvedValue(zipped.buffer);
+    const getDroppedFilePathMock = vi.fn().mockReturnValue('/scores/dropped.mxl');
+    const registerDroppedFileMock = vi.fn().mockResolvedValue(true);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: vi.fn(),
+        readBinary: readBinaryMock,
+        getDroppedFilePath: getDroppedFilePathMock,
+        registerDroppedFile: registerDroppedFileMock,
+      },
+    };
+
+    render(<App />);
+    const appRoot = screen.getByTestId('app-container');
+    const file = new File(['dummy'], 'dropped.mxl');
+
+    dropFiles(appRoot, [file]);
+
+    await waitFor(() => expect(readBinaryMock).toHaveBeenCalledWith('/scores/dropped.mxl'));
+    await waitFor(() => expect(usePracticeStore.getState().score).not.toBeNull());
+  });
+
+  it('rejects a dropped file with an unsupported extension without calling the open pipeline', async () => {
+    const getDroppedFilePathMock = vi.fn();
+    const registerDroppedFileMock = vi.fn();
+    const readMock = vi.fn();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: vi.fn(),
+        read: readMock,
+        getDroppedFilePath: getDroppedFilePathMock,
+        registerDroppedFile: registerDroppedFileMock,
+      },
+    };
+
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<App />);
+    const appRoot = screen.getByTestId('app-container');
+    const file = new File(['%PDF-1.4'], 'song.pdf', { type: 'application/pdf' });
+
+    dropFiles(appRoot, [file]);
+
+    await waitFor(() =>
+      expect(alertMock).toHaveBeenCalledWith(
+        '対応していないファイル形式です。.xml / .musicxml / .mxl ファイルをドロップしてください。'
+      )
+    );
+    expect(getDroppedFilePathMock).not.toHaveBeenCalled();
+    expect(registerDroppedFileMock).not.toHaveBeenCalled();
+    expect(readMock).not.toHaveBeenCalled();
+
+    alertMock.mockRestore();
+  });
+
+  it('considers only the first dropped file when multiple files are dropped, rejecting when it is unsupported', async () => {
+    const readMock = vi.fn();
+    const getDroppedFilePathMock = vi.fn();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: vi.fn(),
+        read: readMock,
+        getDroppedFilePath: getDroppedFilePathMock,
+        registerDroppedFile: vi.fn(),
+      },
+    };
+
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<App />);
+    const appRoot = screen.getByTestId('app-container');
+    const invalidFirst = new File(['%PDF-1.4'], 'notes.pdf', { type: 'application/pdf' });
+    const validSecond = new File([SIMPLE_XML], 'valid.xml', { type: 'application/xml' });
+
+    dropFiles(appRoot, [invalidFirst, validSecond]);
+
+    await waitFor(() => expect(alertMock).toHaveBeenCalled());
+    expect(getDroppedFilePathMock).not.toHaveBeenCalled();
+    expect(readMock).not.toHaveBeenCalled();
+
+    alertMock.mockRestore();
+  });
+
+  it('notifies the user when the main process rejects registering the dropped path (defense in depth)', async () => {
+    const getDroppedFilePathMock = vi.fn().mockReturnValue('/scores/dropped.xml');
+    const registerDroppedFileMock = vi.fn().mockResolvedValue(false);
+    const readMock = vi.fn();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: vi.fn(),
+        read: readMock,
+        getDroppedFilePath: getDroppedFilePathMock,
+        registerDroppedFile: registerDroppedFileMock,
+      },
+    };
+
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<App />);
+    const appRoot = screen.getByTestId('app-container');
+    const file = new File([SIMPLE_XML], 'dropped.xml', { type: 'application/xml' });
+
+    dropFiles(appRoot, [file]);
+
+    await waitFor(() => expect(registerDroppedFileMock).toHaveBeenCalledWith('/scores/dropped.xml'));
+    await waitFor(() => expect(alertMock).toHaveBeenCalled());
+    expect(readMock).not.toHaveBeenCalled();
+
+    alertMock.mockRestore();
+  });
+
+  it('shows an alert when electronAPI is unavailable at drop time', async () => {
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<App />);
+    const appRoot = screen.getByTestId('app-container');
+    const file = new File([SIMPLE_XML], 'dropped.xml', { type: 'application/xml' });
+
+    dropFiles(appRoot, [file]);
+
+    await waitFor(() =>
+      expect(alertMock).toHaveBeenCalledWith(
+        'Electron API が利用できません。Electron アプリとして起動してください。'
+      )
+    );
+
+    alertMock.mockRestore();
   });
 });
 

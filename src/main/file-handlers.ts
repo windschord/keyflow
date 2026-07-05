@@ -41,3 +41,35 @@ export function createShowOpenDialogHandler(
     return selectedPath;
   };
 }
+
+const ACCEPTED_DROPPED_FILE_EXTENSIONS = ['.xml', '.musicxml', '.mxl'];
+
+function hasAcceptedMusicXmlExtension(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return ACCEPTED_DROPPED_FILE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+/**
+ * `file:register-dropped-file` IPCハンドラのファクトリ（TASK-053）。
+ *
+ * ドラッグ＆ドロップで開かれたファイルを PathAllowlist に登録し、
+ * ダイアログ経由（`createShowOpenDialogHandler`）と同様に SettingsService.addRecentFile を
+ * 呼び出す。Renderer から任意パスを allowlist に登録できてしまわないよう、
+ * 拡張子が `.xml` / `.musicxml` / `.mxl`（大文字小文字を区別しない）のいずれかである
+ * 場合のみ登録を行う。それ以外の拡張子は登録を拒否し false を返す
+ * （allowlist・履歴のいずれにも変更を加えない）。
+ */
+export function createRegisterDroppedFileHandler(
+  pathAllowlist: PathAllowlist,
+  settingsService: SettingsService
+): (event: unknown, filePath: string) => Promise<boolean> {
+  return async (_event: unknown, filePath: string): Promise<boolean> => {
+    if (!hasAcceptedMusicXmlExtension(filePath)) {
+      return false;
+    }
+
+    pathAllowlist.allowMusicXml(filePath);
+    settingsService.addRecentFile(filePath);
+    return true;
+  };
+}

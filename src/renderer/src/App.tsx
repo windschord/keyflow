@@ -13,9 +13,27 @@ import { AnnotationStoreService } from './lib/annotation-store';
 import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
 import type { Annotation, Finger, FingerAssignment, Note, Score } from './types';
 
+// TASK-053: ドラッグ＆ドロップで受け付けるMusicXMLの拡張子（大文字小文字を区別しない）。
+// Main側のfile:register-dropped-fileハンドラでも同様の検証を行う（多層防御）。
+const ACCEPTED_DROP_EXTENSIONS = ['.xml', '.musicxml', '.mxl'];
+
+function hasAcceptedDropExtension(fileName: string): boolean {
+  const lower = fileName.toLowerCase();
+  return ACCEPTED_DROP_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+const UNSUPPORTED_DROP_MESSAGE =
+  '対応していないファイル形式です。.xml / .musicxml / .mxl ファイルをドロップしてください。';
+
 function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = React.useState(false);
+  // TASK-053: アプリ全体へのドラッグオーバー時の視覚フィードバック用フラグ。
+  const [isDraggingOver, setIsDraggingOver] = React.useState(false);
+  // dragenter/dragleaveは子要素間の移動でも発火してバブリングするため、
+  // 単純なbooleanだけだと子要素へ入った瞬間にオーバーレイが消えてしまう（点滅）。
+  // enter/leaveの回数を数え、0に戻った時のみオーバーレイを消すことでこれを防ぐ。
+  const dragCounterRef = React.useRef(0);
   // annotation-store が保持する運指メモ（手動入力・AI提案の両方）の実データ。
   // PianoKeyboard の鍵盤上指番号表示（REQ-005-007）と ScoreRenderer の楽譜上
   // 指番号表示（REQ-008-002、承認済み/未承認の色分けを含む）の両方に渡す
@@ -163,6 +181,54 @@ function App(): React.JSX.Element {
     };
   }, [setMetronomeEnabled, setErrorMode, setZoom, setPianoHeight, setMidiDeviceId, setVolume]);
 
+  // ダイアログ経由（handleOpenFile）・ドラッグ＆ドロップ経由（handleDrop）の両方から
+  // 呼ばれる共通のオープン処理（TASK-053）。パース→setScore→初期化（練習位置リセット）
+  // →アノテーション読込、の一連の流れを一本化し、どちらの経路でも同一の挙動を保証する。
+  const openMusicXmlFile = React.useCallback(
+    async (filePath: string): Promise<void> => {
+      setIsLoadingAnnotations(true);
+      try {
+        let parsedScore: Score;
+        let xmlContent: string;
+        if (filePath.toLowerCase().endsWith('.mxl')) {
+          const buffer = await window.electronAPI.file.readBinary(filePath);
+          xmlContent = extractXmlFromMxl(buffer);
+          parsedScore = parse(xmlContent);
+        } else {
+          xmlContent = await window.electronAPI.file.read(filePath);
+          parsedScore = parse(xmlContent);
+        }
+        setScore(parsedScore, filePath, xmlContent);
+        setOriginalBpm(parsedScore.tempo);
+        // setScore が反映された後にリセットする必要がある（resetToMeasure は
+        // store.getState().score を参照するため、呼び出し順序を変更しないこと）。
+        practiceEngine.resetToMeasure(1);
+        // audioEngine.loadScore は usePractice 側の score/practiceMode 監視エフェクト
+        // （TASK-051）が同期して呼び出すため、ここでは明示的に呼ばない
+        // （二重スケジューリングを避けるため）。
+        setKeyboardAnnotations([]);
+        setNoteContextMenu(null);
+        const validNoteIds = new Set(
+          parsedScore.measures.flatMap((measure) => measure.notes.map((note) => note.id))
+        );
+        const skippedNoteIds = await annotationStore.current.load(filePath, validNoteIds);
+        if (skippedNoteIds.length > 0) {
+          console.warn(
+            `[App] noteId採番方式の変更（TASK-031）により ${skippedNoteIds.length} 件のアノテーションを読み込めませんでした:`,
+            skippedNoteIds
+          );
+        }
+        setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
+      } catch (error) {
+        console.error('Failed to parse file:', error);
+        alert('MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。');
+      } finally {
+        setIsLoadingAnnotations(false);
+      }
+    },
+    [practiceEngine, setOriginalBpm, setScore]
+  );
+
   const handleOpenFile = async () => {
     if (!window.electronAPI) {
       alert('Electron API が利用できません。Electron アプリとして起動してください。');
@@ -180,46 +246,79 @@ function App(): React.JSX.Element {
 
     if (!filePath) return;
 
-    setIsLoadingAnnotations(true);
-    try {
-      let parsedScore: Score;
-      let xmlContent: string;
-      if (filePath.endsWith('.mxl') || filePath.endsWith('.MXL')) {
-        const buffer = await window.electronAPI.file.readBinary(filePath);
-        xmlContent = extractXmlFromMxl(buffer);
-        parsedScore = parse(xmlContent);
-      } else {
-        xmlContent = await window.electronAPI.file.read(filePath);
-        parsedScore = parse(xmlContent);
-      }
-      setScore(parsedScore, filePath, xmlContent);
-      setOriginalBpm(parsedScore.tempo);
-      // setScore が反映された後にリセットする必要がある（resetToMeasure は
-      // store.getState().score を参照するため、呼び出し順序を変更しないこと）。
-      practiceEngine.resetToMeasure(1);
-      // audioEngine.loadScore は usePractice 側の score/practiceMode 監視エフェクト
-      // （TASK-051）が同期して呼び出すため、ここでは明示的に呼ばない
-      // （二重スケジューリングを避けるため）。
-      setKeyboardAnnotations([]);
-      setNoteContextMenu(null);
-      const validNoteIds = new Set(
-        parsedScore.measures.flatMap((measure) => measure.notes.map((note) => note.id))
-      );
-      const skippedNoteIds = await annotationStore.current.load(filePath, validNoteIds);
-      if (skippedNoteIds.length > 0) {
-        console.warn(
-          `[App] noteId採番方式の変更（TASK-031）により ${skippedNoteIds.length} 件のアノテーションを読み込めませんでした:`,
-          skippedNoteIds
-        );
-      }
-      setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
-    } catch (error) {
-      console.error('Failed to parse file:', error);
-      alert('MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。');
-    } finally {
-      setIsLoadingAnnotations(false);
-    }
+    await openMusicXmlFile(filePath);
   };
+
+  // TASK-053: ブラウザ既定のドラッグ挙動（ファイルをそのまま開く等）を抑止しつつ、
+  // Files のドラッグに対してのみ視覚フィードバック用のカウンタを更新する。
+  const handleDragEnter = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+    event.preventDefault();
+    dragCounterRef.current += 1;
+    setIsDraggingOver(true);
+  }, []);
+
+  // dragover は継続的に preventDefault し続けないとドロップ自体が発生しないため、
+  // ネイティブのドラッグ&ドロップ仕様に従い常に抑止する。
+  const handleDragOver = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+    event.preventDefault();
+  }, []);
+
+  const handleDragLeave = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) {
+      setIsDraggingOver(false);
+    }
+  }, []);
+
+  const handleDrop = React.useCallback(
+    async (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      dragCounterRef.current = 0;
+      setIsDraggingOver(false);
+
+      if (!window.electronAPI) {
+        alert('Electron API が利用できません。Electron アプリとして起動してください。');
+        return;
+      }
+
+      // 複数ファイルが同時にドロップされた場合は、先頭のファイルのみを対象とする
+      // （2番目以降が対応拡張子であっても開かない）。
+      const file = event.dataTransfer.files[0];
+      if (!file) return;
+
+      if (!hasAcceptedDropExtension(file.name)) {
+        alert(UNSUPPORTED_DROP_MESSAGE);
+        return;
+      }
+
+      let filePath = '';
+      try {
+        filePath = window.electronAPI.file.getDroppedFilePath(file);
+      } catch (error) {
+        console.error('Failed to resolve dropped file path:', error);
+      }
+
+      if (!filePath) {
+        alert('ドロップされたファイルのパスを取得できませんでした。');
+        return;
+      }
+
+      // D&D で開いたファイルも file:write（アノテーション保存）の allowlist・
+      // ファイル履歴に載せる必要があるため、Main 側の登録 IPC を経由する
+      // （Main 側でも拡張子検証を行う多層防御。TASK-053）。
+      const registered = await window.electronAPI.file.registerDroppedFile(filePath);
+      if (!registered) {
+        alert(UNSUPPORTED_DROP_MESSAGE);
+        return;
+      }
+
+      await openMusicXmlFile(filePath);
+    },
+    [openMusicXmlFile]
+  );
 
   const handleFingering = React.useCallback(
     async (assignments: FingerAssignment[]) => {
@@ -341,7 +440,14 @@ function App(): React.JSX.Element {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div
+      data-testid="app-container"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{ display: 'flex', flexDirection: 'column', height: '100vh', position: 'relative' }}
+    >
       {/* 1. Header bar: Open File + FingeringPanel */}
       <div style={{ flexShrink: 0 }}>
         <div
@@ -399,7 +505,15 @@ function App(): React.JSX.Element {
         子である ScoreRenderer の flexGrow:1 が有効になり、
         利用可能な高さを正しく継承できるようにする。
       */}
-      <div style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div
+        style={{
+          flexGrow: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+        }}
+      >
         <ScoreRenderer
           score={score}
           musicXmlContent={musicXmlContent}
@@ -412,7 +526,43 @@ function App(): React.JSX.Element {
           noteHighlights={noteHighlights}
           onNoteContextMenu={handleNoteContextMenu}
         />
+        {/* TASK-053: 楽譜未ロード時のドロップ可能表示（US-001 画面/UI要件）。
+            ScoreRenderer自体の「楽譜ファイルを開いてください」プレースホルダとは
+            独立に、上部バナーとして表示することで重なりを避ける。 */}
+        {!score && (
+          <div
+            data-testid="drop-zone-hint"
+            style={{
+              position: 'absolute',
+              top: 12,
+              left: 0,
+              right: 0,
+              textAlign: 'center',
+              color: '#2563eb',
+              fontSize: '14px',
+              pointerEvents: 'none',
+            }}
+          >
+            ここにMusicXMLファイルをドロップ（またはファイルを開く）
+          </div>
+        )}
       </div>
+
+      {/* TASK-053: ドラッグオーバー中の視覚フィードバック。アプリ全体への
+          ドロップを受け付けるため、ヘッダー/楽譜/鍵盤を横断してオーバーレイ表示する。 */}
+      {isDraggingOver && (
+        <div
+          data-testid="drag-active-overlay"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            border: '3px dashed #2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+            pointerEvents: 'none',
+            zIndex: 1000,
+          }}
+        />
+      )}
 
       {noteContextMenu && (
         <NoteContextMenu

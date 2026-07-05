@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 
 // Use `contextBridge` APIs to expose Electron APIs to
@@ -20,6 +20,11 @@ if (process.contextIsolated) {
           ipcRenderer.invoke('file:read-binary', path),
         write: (path: string, content: string): Promise<void> =>
           ipcRenderer.invoke('file:write', path, content),
+        // TASK-053: contextIsolation下ではドロップされたFile.pathが使えないため、
+        // webUtils.getPathForFile経由で絶対パスを取得する。
+        getDroppedFilePath: (file: File): string => webUtils.getPathForFile(file),
+        registerDroppedFile: (path: string): Promise<boolean> =>
+          ipcRenderer.invoke('file:register-dropped-file', path),
       },
       settings: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,6 +51,9 @@ if (process.contextIsolated) {
         ipcRenderer.invoke('file:read-binary', path),
       write: (path: string, content: string): Promise<void> =>
         ipcRenderer.invoke('file:write', path, content),
+      getDroppedFilePath: (file: File): string => webUtils.getPathForFile(file),
+      registerDroppedFile: (path: string): Promise<boolean> =>
+        ipcRenderer.invoke('file:register-dropped-file', path),
     },
     settings: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

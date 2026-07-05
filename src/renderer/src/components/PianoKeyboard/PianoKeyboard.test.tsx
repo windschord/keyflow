@@ -5,9 +5,9 @@ import { renderWithStrictMode as render } from '../../tests/test-utils';
 import { PianoKeyboard } from './index';
 import { getNotePosition, KEY_COLORS } from './key-layout';
 import { renderKeyboard } from './keyboard-renderer';
-import type { Annotation, Note, Part } from '../../types';
+import type { Annotation, Hand, Note } from '../../types';
 
-function createNote(midiNumber: number, id: string, partId = 'P1'): Note {
+function createNote(midiNumber: number, id: string, partId = 'P1', hand?: Hand): Note {
   return {
     id,
     partId,
@@ -23,6 +23,8 @@ function createNote(midiNumber: number, id: string, partId = 'P1'): Note {
     voice: 1,
     isChord: false,
     isRest: false,
+    staff: 1,
+    hand,
   };
 }
 
@@ -223,17 +225,10 @@ describe('鍵盤上の指番号描画（REQ-005-007 / TASK-037）', () => {
   });
 });
 
-describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041）', () => {
-  // 実際のMusicXML由来partId形式（P1/P2）を使用する。'right'/'left'を含む
-  // 合成partIdには依存しない。
-  const parts: Part[] = [
-    { id: 'P1', name: 'Right Hand', hand: 'right', clef: 'treble' },
-    { id: 'P2', name: 'Left Hand', hand: 'left', clef: 'bass' },
-  ];
-
-  it('P1（hand: right）の白鍵ノーツはguidRight色で描画される', () => {
+describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041, note.hand基準はTASK-048）', () => {
+  it('hand=rightの白鍵ノーツはguidRight色で描画される', () => {
     const { ctx, fillStyles } = createColorTrackingCtx();
-    const note = createNote(60, 'P1-M1-N0', 'P1'); // C4 white key
+    const note = createNote(60, 'P1-M1-N0', 'P1', 'right'); // C4 white key
 
     renderKeyboard({
       ctx,
@@ -242,16 +237,15 @@ describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041）', () => 
       incorrectKeys: new Set(),
       annotations: [],
       practiceMode: 'both',
-      parts,
     });
 
     expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidRight)).toHaveLength(1);
     expect(fillStyles).not.toContain(KEY_COLORS.white.guidLeft);
   });
 
-  it('P1（hand: right）の黒鍵ノーツはguidRight色で描画される', () => {
+  it('hand=rightの黒鍵ノーツはguidRight色で描画される', () => {
     const { ctx, fillStyles } = createColorTrackingCtx();
-    const note = createNote(61, 'P1-M1-N1', 'P1'); // C#4 black key
+    const note = createNote(61, 'P1-M1-N1', 'P1', 'right'); // C#4 black key
 
     renderKeyboard({
       ctx,
@@ -260,16 +254,15 @@ describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041）', () => 
       incorrectKeys: new Set(),
       annotations: [],
       practiceMode: 'both',
-      parts,
     });
 
     expect(fillStyles.filter((s) => s === KEY_COLORS.black.guidRight)).toHaveLength(1);
     expect(fillStyles).not.toContain(KEY_COLORS.black.guidLeft);
   });
 
-  it('P2（hand: left）の白鍵ノーツはguidLeft色で描画される', () => {
+  it('hand=leftの白鍵ノーツはguidLeft色で描画される', () => {
     const { ctx, fillStyles } = createColorTrackingCtx();
-    const note = createNote(48, 'P2-M1-N0', 'P2'); // C3 white key
+    const note = createNote(48, 'P2-M1-N0', 'P2', 'left'); // C3 white key
 
     renderKeyboard({
       ctx,
@@ -278,16 +271,15 @@ describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041）', () => 
       incorrectKeys: new Set(),
       annotations: [],
       practiceMode: 'both',
-      parts,
     });
 
     expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidLeft)).toHaveLength(1);
     expect(fillStyles).not.toContain(KEY_COLORS.white.guidRight);
   });
 
-  it('手情報が引けないpartId（partsに存在しない）はフォールバックでguidLeft色になる', () => {
+  it('handが未設定のノーツはフォールバックでguidLeft色になる', () => {
     const { ctx, fillStyles } = createColorTrackingCtx();
-    const note = createNote(60, 'P9-M1-N0', 'P9'); // partsマップに存在しないpartId
+    const note = createNote(60, 'P9-M1-N0', 'P9'); // hand未指定
 
     renderKeyboard({
       ctx,
@@ -296,16 +288,34 @@ describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041）', () => 
       incorrectKeys: new Set(),
       annotations: [],
       practiceMode: 'both',
-      parts,
     });
 
     expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidLeft)).toHaveLength(1);
     expect(fillStyles).not.toContain(KEY_COLORS.white.guidRight);
   });
 
-  it('片手練習モード（right）でも左手パート（P2）はguidLeft色のまま（practiceModeによる強制なし）', () => {
+  it('1パート2段譜（同一partId）でも、staff2由来のhand=leftはguidLeft色になる（TASK-048）', () => {
     const { ctx, fillStyles } = createColorTrackingCtx();
-    const note = createNote(48, 'P2-M1-N0', 'P2');
+    // 同一partId('P1')でも、上段(staff1)/下段(staff2)はnote.handで区別される。
+    const upperStaffNote = createNote(60, 'P1-M1-N0', 'P1', 'right');
+    const lowerStaffNote = createNote(48, 'P1-M1-N1', 'P1', 'left');
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [upperStaffNote, lowerStaffNote],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidRight)).toHaveLength(1);
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidLeft)).toHaveLength(1);
+  });
+
+  it('片手練習モード（right）でもhand=leftのノーツはguidLeft色のまま（practiceModeによる強制なし）', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(48, 'P2-M1-N0', 'P2', 'left');
 
     renderKeyboard({
       ctx,
@@ -314,7 +324,6 @@ describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041）', () => 
       incorrectKeys: new Set(),
       annotations: [],
       practiceMode: 'right',
-      parts,
     });
 
     expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidLeft)).toHaveLength(1);
@@ -323,7 +332,7 @@ describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041）', () => 
 
   it('押鍵中（correct）の色がガイド色より優先される', () => {
     const { ctx, fillStyles } = createColorTrackingCtx();
-    const note = createNote(60, 'P1-M1-N0', 'P1');
+    const note = createNote(60, 'P1-M1-N0', 'P1', 'right');
 
     renderKeyboard({
       ctx,
@@ -332,7 +341,6 @@ describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041）', () => 
       incorrectKeys: new Set(),
       annotations: [],
       practiceMode: 'both',
-      parts,
     });
 
     expect(fillStyles.filter((s) => s === KEY_COLORS.white.correct)).toHaveLength(1);
@@ -341,7 +349,7 @@ describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041）', () => 
 
   it('誤答（incorrect）の色がガイド色より優先される', () => {
     const { ctx, fillStyles } = createColorTrackingCtx();
-    const note = createNote(60, 'P1-M1-N0', 'P1');
+    const note = createNote(60, 'P1-M1-N0', 'P1', 'right');
 
     renderKeyboard({
       ctx,
@@ -350,7 +358,6 @@ describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041）', () => 
       incorrectKeys: new Set([60]),
       annotations: [],
       practiceMode: 'both',
-      parts,
     });
 
     expect(fillStyles.filter((s) => s === KEY_COLORS.white.incorrect)).toHaveLength(1);

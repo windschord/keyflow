@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-054 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 30分 |
 | 依存タスク | なし |
@@ -60,18 +60,30 @@ TDDで進める（UIスタイルは可能な範囲でテストする）。
 
 ## 受入基準
 
-- [ ] 「メトロノーム」「ループ」のチェックボックスラベルが白背景上で明瞭に読める（明示色 `#374151`）
-- [ ] `LoopControl.tsx:78` の「–」span も同様に読める
-- [ ] `base.css` のダークテーマ用テンプレ残骸（`--color-text` ほか `--ev-c-*` 変数群）がライトUI前提の値に是正されている
-- [ ] 他画面（SettingsModal・StatsDisplay 等）の表示に劣化がない
-- [ ] 既存のテストが通る
-- [ ] 新規テストが追加されている（必要な場合）
+- [x] 「メトロノーム」「ループ」のチェックボックスラベルが白背景上で明瞭に読める（明示色 `#374151`）
+- [x] `LoopControl.tsx:78` の「–」span も同様に読める
+- [x] `base.css` のダークテーマ用テンプレ残骸（`--color-text` ほか `--ev-c-*` 変数群）がライトUI前提の値に是正されている
+- [x] 他画面（SettingsModal・StatsDisplay 等）の表示に劣化がない
+- [x] 既存のテストが通る
+- [x] 新規テストが追加されている（必要な場合）
 
 ## テスト項目
 
-- [ ] （新規）「メトロノーム」ラベルの色スタイル検証（可能な範囲）
-- [ ] （新規）「ループ」ラベル・「–」span の色スタイル検証（可能な範囲）
-- [ ] （回帰）Toolbar 系・SettingsModal 系の既存テストが通る。`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+- [x] （新規）「メトロノーム」ラベルの色スタイル検証（可能な範囲）
+- [x] （新規）「ループ」ラベル・「–」span の色スタイル検証（可能な範囲）
+- [x] （回帰）Toolbar 系・SettingsModal 系の既存テストが通る。`npm run test` 全件グリーン、`npm run typecheck` / `npm run lint` パス
+
+## 完了サマリー
+
+- `TempoControl.tsx` のメトロノームラベル、`LoopControl.tsx` のループラベルおよび「–」span に明示色 `color: '#374151'` を追加（対症療法）。
+- `src/renderer/src/assets/base.css` のダークテーマ用テンプレ残骸を是正（根本対応）:
+  - `--ev-c-text-1/2/3`: ほぼ白の `rgba(255,255,245,...)` 系 → ライトUI向けの濃いグレー（`#1f2937` 等）に変更
+  - `--color-background` / `--color-background-soft` / `--color-background-mute`: `--ev-c-black*`（暗色）参照 → `--ev-c-white*`（明色）参照に変更
+  - `--ev-button-alt-text` / `--ev-button-alt-hover-text`: `--ev-c-text-1` 参照 → `--ev-c-white` 参照に変更（未使用の残骸クラス `.action a` 向けだが、暗背景に対して読める配色を維持）
+  - `--color-text` は変わらず `--ev-c-text-1` を参照するが、値自体がライト向けに是正されたため body の既定文字色が可読になった
+- 影響範囲確認: `main.css`/`base.css` を実際に参照しているのは `main.tsx` のみで、他コンポーネント（SettingsModal・StatsDisplay 等）はすべて明示的な `color`/`backgroundColor` を持つインラインスタイルのため、body色変更による劣化がないことをコード確認済み。
+- テスト: `TempoControl.test.tsx` / `LoopControl.test.tsx` にラベル・区切り文字の `style.color` を検証する新規テストを追加し、Red（未実装で失敗）→ Green（実装後に成功）の順でTDDを実施。
+- `npm run test` 全件（327件中、スコープ外の TASK-052 進行中の audio-engine 6件を除き全通過）、`npm run typecheck`、`npm run lint` すべて通過を確認。
 
 ## 情報の明確性
 

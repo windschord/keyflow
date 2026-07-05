@@ -52,6 +52,7 @@ export const LoopControl: React.FC = () => {
           height: '44px',
           cursor: 'pointer',
           fontSize: '15px',
+          color: '#374151',
         }}
       >
         <input
@@ -75,7 +76,7 @@ export const LoopControl: React.FC = () => {
         style={INPUT_STYLE}
         data-testid="loop-start"
       />
-      <span style={{ fontSize: '15px' }}>–</span>
+      <span style={{ fontSize: '15px', color: '#374151' }}>–</span>
       <label htmlFor="loop-end" style={{ fontSize: '14px', color: '#374151' }}>
         終了小節:
       </label>

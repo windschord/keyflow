@@ -97,6 +97,7 @@ export const TempoControl: React.FC = () => {
           height: '44px',
           cursor: 'pointer',
           fontSize: '15px',
+          color: '#374151',
         }}
       >
         <input

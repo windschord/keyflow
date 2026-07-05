@@ -30,4 +30,15 @@ describe('LoopControl labels and tooltips', () => {
     expect(screen.getByText('終了小節:')).toBeInTheDocument();
     expect(endInput.getAttribute('title')).toMatch(/終了/);
   });
+
+  it('gives the loop label and the range separator an explicit readable text color (TASK-054)', () => {
+    render(<LoopControl />);
+    const checkbox = screen.getByRole('checkbox');
+    const label = checkbox.closest('label');
+    // #374151 is the readable dark gray used elsewhere in the toolbar labels.
+    expect(label?.style.color).toBe('rgb(55, 65, 81)');
+
+    const separator = screen.getByText('–');
+    expect(separator.style.color).toBe('rgb(55, 65, 81)');
+  });
 });

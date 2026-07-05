@@ -36,4 +36,12 @@ describe('TempoControl labels and tooltips', () => {
     const label = checkbox.closest('label');
     expect(label?.getAttribute('title')).toMatch(/メトロノーム/);
   });
+
+  it('gives the metronome label an explicit readable text color (TASK-054)', () => {
+    render(<TempoControl />);
+    const checkbox = screen.getByRole('checkbox');
+    const label = checkbox.closest('label');
+    // #374151 is the readable dark gray used elsewhere in the toolbar labels.
+    expect(label?.style.color).toBe('rgb(55, 65, 81)');
+  });
 });

@@ -1,5 +1,5 @@
 import { PracticeStore } from '../../store';
-import { MidiNoteEvent, NoteJudgement, Measure, PracticeMode, Part } from '../../types';
+import { MidiNoteEvent, NoteJudgement, Measure, PracticeMode } from '../../types';
 import { judgeChord } from './judgement';
 import { checkLoopBoundary } from './loop-manager';
 import { groupNotesByStartTick, filterNotesByPracticeMode } from './note-grouping';
@@ -46,11 +46,7 @@ export class PracticeEngineService {
       return { result: 'ignored', note: null, advanced: false };
     }
 
-    const filteredExpected = filterNotesByPracticeMode(
-      expectedNotes,
-      practiceMode,
-      state.score?.parts || []
-    );
+    const filteredExpected = filterNotesByPracticeMode(expectedNotes, practiceMode);
 
     if (filteredExpected.length === 0) {
       // Skipped due to practice mode (e.g. left hand notes while right hand mode).
@@ -138,7 +134,6 @@ export class PracticeEngineService {
     const resolved = this.resolvePosition(
       state.score.measures,
       state.practiceMode,
-      state.score.parts,
       state.loopStart,
       state.loopEnd,
       state.loopEnabled,
@@ -167,7 +162,6 @@ export class PracticeEngineService {
     const resolved = this.resolvePosition(
       state.score.measures,
       state.practiceMode,
-      state.score.parts,
       state.loopStart,
       state.loopEnd,
       state.loopEnabled,
@@ -212,7 +206,6 @@ export class PracticeEngineService {
   private resolvePosition(
     measures: Measure[],
     practiceMode: PracticeMode,
-    parts: Part[],
     loopStart: number,
     loopEnd: number,
     loopEnabled: boolean,
@@ -251,7 +244,7 @@ export class PracticeEngineService {
         continue;
       }
 
-      const filtered = filterNotesByPracticeMode(groups[groupIndex].notes, practiceMode, parts);
+      const filtered = filterNotesByPracticeMode(groups[groupIndex].notes, practiceMode);
       if (filtered.length === 0) {
         groupIndex += 1;
         continue;

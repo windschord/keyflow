@@ -1,4 +1,4 @@
-import { Note, Part, PracticeMode } from '../../types';
+import { Note, PracticeMode } from '../../types';
 
 /**
  * 判定グループ（派生構造）。
@@ -43,22 +43,12 @@ export function groupNotesByStartTick(notes: Note[]): NoteGroup[] {
 /**
  * 練習パートフィルタ（Left/Right/Both）をノーツ集合へ適用する。
  *
- * `both` の場合はフィルタなし。`right`/`left` の場合は、対応する
- * `Part.hand` を持つパートのノーツのみを残す。
+ * `both` の場合はフィルタなし。`right`/`left` の場合は、`note.hand` が
+ * 一致するノーツのみを残す（TASK-048: パート単位判定からNote単位判定へ変更。
+ * 1パート2段譜でも段（手）ごとに正しくフィルタできるようにするため）。
  */
-export function filterNotesByPracticeMode(
-  notes: Note[],
-  practiceMode: PracticeMode,
-  parts: Part[]
-): Note[] {
+export function filterNotesByPracticeMode(notes: Note[], practiceMode: PracticeMode): Note[] {
   if (practiceMode === 'both') return notes;
 
-  const rightPartIds = new Set(parts.filter((p) => p.hand === 'right').map((p) => p.id));
-  const leftPartIds = new Set(parts.filter((p) => p.hand === 'left').map((p) => p.id));
-
-  return notes.filter((note) => {
-    if (practiceMode === 'right') return rightPartIds.has(note.partId);
-    if (practiceMode === 'left') return leftPartIds.has(note.partId);
-    return true;
-  });
+  return notes.filter((note) => note.hand === practiceMode);
 }

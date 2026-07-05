@@ -20,6 +20,11 @@ function makeNote(overrides: Partial<Note> & Pick<Note, 'id' | 'partId' | 'midiN
     voice: 1,
     isChord: false,
     isRest: false,
+    staff: 1,
+    // TASK-048: Note.hand is now the source of truth for practice-mode filtering
+    // (note-grouping.ts). Default it from partId to mirror mockParts (P1='right',
+    // P2='left') unless a test explicitly overrides it.
+    hand: overrides.partId === 'P2' ? 'left' : 'right',
     ...overrides,
   };
 }

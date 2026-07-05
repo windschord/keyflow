@@ -48,9 +48,20 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    if (containerRef.current && !osmdControllerRef.current) {
-      osmdControllerRef.current = new OSMDController(containerRef.current);
-    }
+    if (!containerRef.current) return undefined;
+
+    const controller = new OSMDController(containerRef.current);
+    osmdControllerRef.current = controller;
+
+    // TASK-049: アンマウント時にOSMDController.dispose()を呼び、ResizeObserverの
+    // disconnectとclick/contextmenuリスナーの解除を行う（リソース解放漏れの防止）。
+    // このeffectで生成したcontrollerをクロージャで捕捉してdisposeすることで、
+    // StrictModeのマウント→クリーンアップ→再マウントの間もosmdControllerRef.current
+    // をnullに戻さない（他のeffectのクリーンアップがcontrollerを参照できるよう保つ）。
+    // 再マウント時は本effectが無条件に新しいcontrollerを生成し直す。
+    return () => {
+      controller.dispose();
+    };
   }, []);
 
   useEffect(() => {
@@ -68,7 +79,8 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
         .then(() => {
           if (cancelled) return;
           setIsLoaded(true);
-          osmdControllerRef.current?.buildNoteIdMap();
+          // TASK-049: 独立採番をやめ、パース済みscoreとの照合でnoteIdマップを構築する。
+          osmdControllerRef.current?.buildNoteIdMap(score);
         })
         .catch((err) => {
           if (cancelled) return;

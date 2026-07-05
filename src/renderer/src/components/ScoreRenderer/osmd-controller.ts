@@ -1,13 +1,59 @@
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
+import { Score, Note } from '../../types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** ウィンドウ/コンテナのリサイズ検知後、再描画・再構築を実行するまでのデバウンス時間（ミリ秒）。 */
+const RESIZE_DEBOUNCE_MS = 250;
+/**
+ * OSMDカーソルのタイムスタンプから導出した絶対tickと、パーサ由来Note.startTickとの
+ * 照合許容差（tick単位）。divisionsがTICKS_PER_QUARTER(480)を割り切れない場合の
+ * 丸め誤差を吸収するための小さな許容値。
+ */
+const TICK_MATCH_TOLERANCE = 2;
+
+/**
+ * OSMDカーソルが返すNote（`VoiceEntry.Notes`の要素）のうち、buildNoteIdMapでの照合に
+ * 必要なプロパティだけを表す最小限の構造的型。実際にはOSMD自身の`Note`クラスの
+ * インスタンスが渡ってくるが、依存を最小化するため実クラスは直接importせず、
+ * 構造的部分型（duck typing）で受け取る。
+ */
+interface OsmdCursorNote {
+  isRest?: () => boolean;
+  /** OSMD内部の半音値（C4=48相当）。MIDIノート番号にするには+12する。 */
+  halfTone?: number;
+  ParentStaffEntry?: {
+    ParentStaff?: { Id?: number };
+    AbsoluteTimestamp?: { RealValue?: number };
+  };
+}
+
+/** buildNoteIdMapの照合処理で使う、OSMD Note 1件分の正規化済み情報。 */
+interface OsmdNoteEntry {
+  isRest: boolean;
+  /** 休符の場合は-1（比較キーとして使わない）。 */
+  midiNumber: number;
+  /** 1始まり。パーサのNote.staffと同じ基準（未指定/取得不可時は1）。 */
+  staff: number;
+  /** 曲頭からの絶対tick。導出不能な場合はNaN。 */
+  absoluteTick: number;
+}
 
 export class OSMDController {
   private osmd: OpenSheetMusicDisplay;
   private container: HTMLDivElement;
   private loaded = false;
+  private disposed = false;
   private currentIteratorIndex = 0;
   private noteIdToSvgCoord = new Map<string, { x: number; y: number }>();
+  /**
+   * buildNoteIdMapに最後に渡されたパース済みScore。autoResize:false化に伴い、
+   * ResizeObserver発火時・setZoom時に外部から改めてscoreを渡されなくても
+   * 同じ照合ロジックでマップを再構築できるよう保持する。
+   */
+  private lastScore: Score | null = null;
+  private resizeObserver: ResizeObserver | null = null;
+  private resizeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private lastFingeringAssignments: Array<{ noteId: string; finger: number; isApproved: boolean }> =
     [];
   /** ループ範囲の最後に指定された値。setZoom等の再描画後にオーバーレイを再適用するために保持する。 */
@@ -34,13 +80,26 @@ export class OSMDController {
 
   constructor(container: HTMLDivElement) {
     this.container = container;
+    // TASK-049: OSMDの自動再レイアウト（autoResize）に頼ると、noteIdToSvgCoord等の
+    // オーバーレイ用座標マップがロード時の1回きりのまま古くなる（stale）ため、
+    // autoResizeをoffにし、ResizeObserverで render→buildNoteIdMap→reapplyOverlays を
+    // 自前制御する。
     this.osmd = new OpenSheetMusicDisplay(container, {
-      autoResize: true,
+      autoResize: false,
       backend: 'svg',
       drawTitle: true,
     });
     this.container.addEventListener('click', this.handleContainerClick);
     this.container.addEventListener('contextmenu', this.handleContainerContextMenu);
+
+    // jsdom等、テスト環境にResizeObserverが存在しない場合は監視をスキップする
+    // （防御的。実行環境のブラウザ/Electronでは常に存在する）。
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.scheduleResizeHandling();
+      });
+      this.resizeObserver.observe(this.container);
+    }
   }
 
   async load(xmlContent: string): Promise<void> {
@@ -48,6 +107,55 @@ export class OSMDController {
     await this.osmd.load(xmlContent);
     this.osmd.render();
     this.loaded = true;
+  }
+
+  /**
+   * ResizeObserver発火をデバウンス（既定250ms、200〜300msの範囲）してから
+   * handleResizeを実行する。デバウンス中に連続リサイズが来てもrenderが
+   * 多重実行されないよう、直前のタイマーを毎回クリアする。
+   */
+  private scheduleResizeHandling(): void {
+    if (this.disposed) return;
+    if (this.resizeDebounceTimer !== null) {
+      clearTimeout(this.resizeDebounceTimer);
+    }
+    this.resizeDebounceTimer = setTimeout(() => {
+      this.resizeDebounceTimer = null;
+      this.handleResize();
+    }, RESIZE_DEBOUNCE_MS);
+  }
+
+  /**
+   * リサイズデバウンス経過後の実処理: OSMDを再描画し、noteIdマップを再構築してから
+   * 既存のオーバーレイ（運指・ループ・グレーアウト・ハイライト）を再適用する。
+   * load()完了前（this.loaded=false）には何もしない。
+   */
+  private handleResize(): void {
+    if (this.disposed || !this.loaded) return;
+    this.osmd.render();
+    if (this.lastScore) {
+      this.buildNoteIdMap(this.lastScore);
+    }
+    this.reapplyOverlays();
+  }
+
+  /**
+   * OSMDControllerが保持するリソースを解放する（TASK-049）。
+   * ResizeObserverのdisconnect、click/contextmenuリスナーの解除、保留中の
+   * デバウンスタイマーのクリアを行う。ScoreRendererのアンマウント時に呼ばれる。
+   * dispose後に他のメソッドが呼ばれてもクラッシュしないよう、以降のリサイズ処理は
+   * no-opにする（disposedフラグ）。
+   */
+  dispose(): void {
+    if (this.resizeDebounceTimer !== null) {
+      clearTimeout(this.resizeDebounceTimer);
+      this.resizeDebounceTimer = null;
+    }
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    this.container.removeEventListener('click', this.handleContainerClick);
+    this.container.removeEventListener('contextmenu', this.handleContainerContextMenu);
+    this.disposed = true;
   }
 
   private noteIdToCursorState = new Map<string, { iteratorIndex: number }>();
@@ -236,6 +344,11 @@ export class OSMDController {
     this.osmd.zoom = factor;
     if (this.loaded) {
       this.osmd.render();
+      // OSMDのrender()はSVG上の座標を変えるため、オーバーレイ再適用の前に
+      // noteIdマップを再構築する（TASK-049: 座標のstale化防止）。
+      if (this.lastScore) {
+        this.buildNoteIdMap(this.lastScore);
+      }
       // OSMDのrender()はSVG子要素を再構築するため、既存のオーバーレイをすべて再適用する。
       this.reapplyOverlays();
     }
@@ -455,7 +568,21 @@ export class OSMDController {
     this.container.querySelector('#fingering-layer')?.remove();
   }
 
-  buildNoteIdMap(): Map<string, { iteratorIndex: number }> {
+  /**
+   * OSMDカーソルが辿るVoiceEntry群と、パース済み `Score` の `Note` を
+   * 「小節番号・タイムスタンプ由来tick・midiNumber・staff」で照合し、
+   * noteIdごとのカーソル位置・SVG座標マップを構築する（TASK-049）。
+   *
+   * 従来はOSMDカーソルのタイムスタンプ順で独自にnoteId（`{partId}-M{measure}-N{index}`）を
+   * 振り直していたが、パーサはXML文書順（staff1全音→backup→staff2）で採番するため、
+   * 多声部・2段譜の小節では順序が食い違い、同じnoteIdが別の音を指す不整合があった。
+   * 本実装はパーサ側で確定済みの `Note.id` を照合によって引き当てるため、この不整合を解消する。
+   *
+   * 照合に失敗した音（対応するNoteが見つからない）はマップに含めず、警告ログのみ出す
+   * （フォールバックで誤対応を作らない）。
+   */
+  buildNoteIdMap(score: Score): Map<string, { iteratorIndex: number }> {
+    this.lastScore = score;
     this.noteIdToCursorState.clear();
     this.noteIdToSvgCoord.clear();
     if (!this.osmd.cursor || !this.loaded) return this.noteIdToCursorState;
@@ -468,55 +595,51 @@ export class OSMDController {
     this.currentIteratorIndex = 0;
     let iteratorIndex = 0;
 
-    // OSMD's cursor traverses timestamps (VoiceEntries). A timestamp might have multiple notes (e.g. chords).
-    // We will map based on measure number, part ID from VoiceEntry.ParentVoice.Parent.IdString, and VoiceEntry order.
-    let currentMeasure = -1;
-    // Track note index per part (not globally) to match musicxml-parser behavior
-    const noteIndexInMeasurePerPart = new Map<string, number>();
+    // 小節番号ごとの未消費（未マッチ）候補Noteリスト。マッチした候補はここから
+    // 取り除き、同一小節内で同じNoteが二重に割り当てられないようにする。
+    const remainingNotesByMeasure = new Map<number, Note[]>();
+    for (const measure of score.measures) {
+      remainingNotesByMeasure.set(measure.number, [...measure.notes]);
+    }
 
     while (!this.osmd.cursor.Iterator.EndReached) {
       const coord = this.getCursorSvgCoord();
       const measureIndex = this.osmd.cursor.Iterator.CurrentMeasureIndex;
-      if (measureIndex !== currentMeasure) {
-        currentMeasure = measureIndex;
-        noteIndexInMeasurePerPart.clear();
-      }
-
+      const measureNumber = measureIndex + 1;
       const voiceEntries = this.osmd.cursor.Iterator.CurrentVoiceEntries;
+
       if (voiceEntries) {
-        const measureNumber = measureIndex + 1;
+        const osmdEntries: OsmdNoteEntry[] = [];
 
         voiceEntries.forEach((ve) => {
-          if (ve && ve.Notes) {
-            // Derive partId from VoiceEntry.ParentVoice.Parent.IdString
-            // Use type-safe access with fallback to 'P1'
-            let partId = 'P1'; // default fallback
-            try {
-              const parentVoice = ve.ParentVoice;
-              if (parentVoice) {
-                const parent = parentVoice.Parent;
-                if (parent && parent.IdString) {
-                  partId = parent.IdString;
-                }
-              }
-            } catch (e) {
-              // Fallback to 'P1' if chain is unavailable
-            }
-
-            // Get or initialize note index for this part
-            const currentNoteIndex = noteIndexInMeasurePerPart.get(partId) ?? 0;
-
-            // Map each note in this VoiceEntry
-            for (let i = 0; i < ve.Notes.length; i++) {
-              const noteId = `${partId}-M${measureNumber}-N${currentNoteIndex + i}`;
-              this.noteIdToCursorState.set(noteId, { iteratorIndex });
-              if (coord) this.noteIdToSvgCoord.set(noteId, coord);
-            }
-
-            // Update note index for this part
-            noteIndexInMeasurePerPart.set(partId, currentNoteIndex + ve.Notes.length);
-          }
+          if (!ve || !ve.Notes) return;
+          ve.Notes.forEach((note) => {
+            osmdEntries.push(this.describeOsmdNote(note, score.ticksPerQuarter));
+          });
         });
+
+        if (osmdEntries.length > 0) {
+          const candidates = remainingNotesByMeasure.get(measureNumber);
+          const matched = this.matchNotesForTimestamp(osmdEntries, candidates ?? []);
+
+          osmdEntries.forEach((entry, i) => {
+            const matchedNote = matched[i];
+            if (!matchedNote) {
+              console.warn(
+                '[OSMDController] buildNoteIdMap: could not resolve a matching Note ' +
+                  `(measure=${measureNumber}, tick=${entry.absoluteTick}, ` +
+                  `isRest=${entry.isRest}, midiNumber=${entry.midiNumber}, staff=${entry.staff}); skipping.`
+              );
+              return;
+            }
+            this.noteIdToCursorState.set(matchedNote.id, { iteratorIndex });
+            if (coord) this.noteIdToSvgCoord.set(matchedNote.id, coord);
+            if (candidates) {
+              const idx = candidates.indexOf(matchedNote);
+              if (idx >= 0) candidates.splice(idx, 1);
+            }
+          });
+        }
       }
 
       this.osmd.cursor.next();
@@ -530,5 +653,99 @@ export class OSMDController {
     if (wasHidden) this.osmd.cursor.hide();
 
     return this.noteIdToCursorState;
+  }
+
+  /**
+   * OSMDのNote（VoiceEntry.Notes要素）から照合に必要な情報を抽出する。
+   * - isRest: 休符かどうか（Note.isRest()）
+   * - midiNumber: 休符でない場合、OSMDの内部半音値（Note.halfTone、C4=48相当）に
+   *   12を加算してMIDIノート番号（C4=60）に正規化した値（パーサのtoMidiNumberと同じ基準）
+   * - staff: Note.ParentStaffEntry.ParentStaff.Id（1始まり。パーサのNote.staffと同じ基準）
+   * - absoluteTick: Note.ParentStaffEntry.AbsoluteTimestamp（全音符=1のFraction）を
+   *   4分音符=1に変換し、score.ticksPerQuarterを掛けて絶対tickに正規化した値
+   */
+  private describeOsmdNote(note: OsmdCursorNote, ticksPerQuarter: number): OsmdNoteEntry {
+    const isRest = typeof note.isRest === 'function' ? note.isRest() : false;
+    const parentStaff = note.ParentStaffEntry?.ParentStaff;
+    const staff = typeof parentStaff?.Id === 'number' ? parentStaff.Id : 1;
+    const absTimestampRealValue = note.ParentStaffEntry?.AbsoluteTimestamp?.RealValue;
+    const absoluteTick =
+      typeof absTimestampRealValue === 'number'
+        ? Math.round(absTimestampRealValue * 4 * ticksPerQuarter)
+        : NaN;
+
+    return {
+      isRest,
+      midiNumber: isRest ? -1 : (note.halfTone ?? 0) + 12,
+      staff,
+      absoluteTick,
+    };
+  }
+
+  /**
+   * 同一タイムスタンプ（OSMDカーソルの1ステップ）に属するOSMD Note群を、同じ小節の
+   * 未消費candidate（パーサNote）群と照合する。
+   *
+   * 手順:
+   * 1. (isRest, midiNumber) の組でグルーピングする（休符同士、同じ音高同士のみ照合対象にする）。
+   * 2. 各グループについて、tickがtick許容差内で一致するcandidateに絞り込む。
+   * 3. OSMD側1件・candidate側1件ならそのまま対応付ける。
+   * 4. 複数件（和音・複数staffでの同時発音）の場合はstaff昇順でzipし、誤対応を減らす
+   *    （staff番号が同じ意味を持つことはOSMD Staff.Idとパーサ Note.staff の両方が
+   *    1始まりの一致した番号であることを前提とする）。
+   * 5. 候補が見つからない場合は当該インデックスをundefinedのまま返す（呼び出し元でwarn）。
+   */
+  private matchNotesForTimestamp(
+    osmdEntries: OsmdNoteEntry[],
+    candidates: Note[]
+  ): Array<Note | undefined> {
+    const result: Array<Note | undefined> = new Array(osmdEntries.length).fill(undefined);
+    const usedCandidates = new Set<Note>();
+
+    const groupKey = (entry: OsmdNoteEntry): string =>
+      entry.isRest ? 'rest' : `n${entry.midiNumber}`;
+
+    const groups = new Map<string, number[]>();
+    osmdEntries.forEach((entry, idx) => {
+      const key = groupKey(entry);
+      const list = groups.get(key) ?? [];
+      list.push(idx);
+      groups.set(key, list);
+    });
+
+    for (const [key, osmdIdxList] of groups.entries()) {
+      const referenceTick = osmdEntries[osmdIdxList[0]].absoluteTick;
+      const isRestGroup = key === 'rest';
+
+      const candidateList = candidates.filter((c) => {
+        if (usedCandidates.has(c)) return false;
+        if (isRestGroup) {
+          if (!c.isRest) return false;
+        } else {
+          if (c.isRest || c.midiNumber !== Number(key.slice(1))) return false;
+        }
+        if (!Number.isFinite(referenceTick)) return true;
+        return Math.abs(c.startTick - referenceTick) <= TICK_MATCH_TOLERANCE;
+      });
+
+      if (candidateList.length === 0) continue;
+
+      const sortedOsmdIdx = [...osmdIdxList].sort(
+        (a, b) => osmdEntries[a].staff - osmdEntries[b].staff
+      );
+      const sortedCandidates = [...candidateList].sort(
+        (a, b) => (a.staff ?? 1) - (b.staff ?? 1) || a.noteIndex - b.noteIndex
+      );
+
+      const pairCount = Math.min(sortedOsmdIdx.length, sortedCandidates.length);
+      for (let i = 0; i < pairCount; i++) {
+        const osmdIdx = sortedOsmdIdx[i];
+        const candidate = sortedCandidates[i];
+        result[osmdIdx] = candidate;
+        usedCandidates.add(candidate);
+      }
+    }
+
+    return result;
   }
 }

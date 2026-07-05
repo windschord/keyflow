@@ -1,5 +1,47 @@
 import { describe, it, expect, vi } from 'vitest';
 import { OSMDController } from './osmd-controller';
+import type { Score, Note } from '../../types';
+
+/**
+ * テスト用の最小限のScoreを組み立てるヘルパー。
+ * 指定した小節ごとのnoteId配列から、midiNumber=12・staff=1・isRest=falseで
+ * 統一されたNoteリストを生成する（OSMDカーソルのモックNote `{}` がhalfTone未設定＝0の
+ * ため、midiNumber = halfTone(0) + 12 = 12 になることに合わせている）。
+ */
+function makeScore(measures: Array<{ number: number; noteIds: string[] }>): Score {
+  return {
+    title: 'Test Score',
+    parts: [{ id: 'P1', name: 'Piano', hand: 'right', clef: 'treble' }],
+    tempo: 120,
+    ticksPerQuarter: 480,
+    tempoMap: [{ tick: 0, bpm: 120 }],
+    timeSignature: { beats: 4, beatType: 4 },
+    keySignature: 0,
+    measures: measures.map(({ number, noteIds }) => ({
+      number,
+      startTick: 0,
+      notes: noteIds.map(
+        (id, noteIndex): Note => ({
+          id,
+          partId: 'P1',
+          measureNumber: number,
+          noteIndex,
+          pitch: { step: 'C', octave: 4 },
+          midiNumber: 12,
+          duration: 1,
+          startTick: 0,
+          durationTicks: 480,
+          startSeconds: 0,
+          durationSeconds: 0,
+          voice: 1,
+          isChord: false,
+          isRest: false,
+          staff: 1,
+        })
+      ),
+    })),
+  };
+}
 
 describe('OSMDController moveCursor and buildNoteIdMap', () => {
   it('moves cursor to target note based on iteratorIndex map', () => {
@@ -46,7 +88,15 @@ describe('OSMDController moveCursor and buildNoteIdMap', () => {
     // @ts-expect-error test mock access
     controller.osmd = { cursor: mockCursor };
 
-    const map = controller.buildNoteIdMap();
+    // 5イテレータステップ: 小節1に2音、小節2に2音、小節3に1音（moveCursorの
+    // インクリメンタル移動を検証するテストの前提を維持する）。
+    const score = makeScore([
+      { number: 1, noteIds: ['P1-M1-N0', 'P1-M1-N1'] },
+      { number: 2, noteIds: ['P1-M2-N0', 'P1-M2-N1'] },
+      { number: 3, noteIds: ['P1-M3-N0'] },
+    ]);
+
+    const map = controller.buildNoteIdMap(score);
     expect(map.size).toBe(5); // 0 to 4 steps before EndReached = true
 
     // After buildNoteIdMap, cursor was reset twice (once at start, once at end)
@@ -431,5 +481,493 @@ describe('OSMDController note context menu (REQ-008-001/003/006, REQ-009-005)', 
     );
 
     expect(onNoteContextMenu).not.toHaveBeenCalled();
+  });
+});
+
+describe('OSMDController buildNoteIdMap 照合ベース採番 (TASK-049)', () => {
+  /**
+   * OSMDカーソルが返すNoteのモックを構成する。実際のOSMD Noteの構造的部分型
+   * （isRest()メソッド、halfTone、ParentStaffEntry.ParentStaff.Id、
+   * ParentStaffEntry.AbsoluteTimestamp.RealValue）に合わせる。
+   */
+  function makeOsmdNote(opts: {
+    isRest?: boolean;
+    halfTone?: number;
+    staffId: number;
+    absTimestamp: number;
+  }): unknown {
+    return {
+      isRest: () => opts.isRest ?? false,
+      halfTone: opts.halfTone,
+      ParentStaffEntry: {
+        ParentStaff: { Id: opts.staffId },
+        AbsoluteTimestamp: { RealValue: opts.absTimestamp },
+      },
+    };
+  }
+
+  it('resolves noteIds by matching (measure, tick, midiNumber, staff) even when OSMD returns voice entries in an order different from the parser XML order (2段譜・多声部)', () => {
+    // パーサ採番: 1パート2段譜（staves=2）。XML文書順は
+    // staff1のC4(chord開始)→staff1のE4(chord構成音)→<backup>→staff2のC2。
+    // よってパーサのnoteIdは P1-M1-N0=C4(staff1) / N1=E4(staff1) / N2=C2(staff2)。
+    const score: Score = {
+      title: 'Two-Stave',
+      parts: [{ id: 'P1', name: 'Piano', hand: 'right', clef: 'treble' }],
+      tempo: 120,
+      ticksPerQuarter: 480,
+      tempoMap: [{ tick: 0, bpm: 120 }],
+      timeSignature: { beats: 4, beatType: 4 },
+      keySignature: 0,
+      measures: [
+        {
+          number: 1,
+          startTick: 0,
+          notes: [
+            {
+              id: 'P1-M1-N0',
+              partId: 'P1',
+              measureNumber: 1,
+              noteIndex: 0,
+              pitch: { step: 'C', octave: 4 },
+              midiNumber: 60,
+              duration: 1,
+              startTick: 0,
+              durationTicks: 480,
+              startSeconds: 0,
+              durationSeconds: 0,
+              voice: 1,
+              isChord: false,
+              isRest: false,
+              staff: 1,
+              hand: 'right',
+            },
+            {
+              id: 'P1-M1-N1',
+              partId: 'P1',
+              measureNumber: 1,
+              noteIndex: 1,
+              pitch: { step: 'E', octave: 4 },
+              midiNumber: 64,
+              duration: 1,
+              startTick: 0,
+              durationTicks: 480,
+              startSeconds: 0,
+              durationSeconds: 0,
+              voice: 1,
+              isChord: true,
+              isRest: false,
+              staff: 1,
+              hand: 'right',
+            },
+            {
+              id: 'P1-M1-N2',
+              partId: 'P1',
+              measureNumber: 1,
+              noteIndex: 0,
+              pitch: { step: 'C', octave: 2 },
+              midiNumber: 36,
+              duration: 1,
+              startTick: 0,
+              durationTicks: 480,
+              startSeconds: 0,
+              durationSeconds: 0,
+              voice: 2,
+              isChord: false,
+              isRest: false,
+              staff: 2,
+              hand: 'left',
+            },
+          ],
+        },
+      ],
+    };
+
+    // OSMDカーソル: 単一のイテレータステップ（tick=0）で、staff2(左手)のVoiceEntryを
+    // staff1(右手・和音)より先に返す。パーサのXML順（staff1が先）とは逆順であり、
+    // 旧実装（OSMDの走査順で連番を振り直す方式）ならP1-M1-N0が左手C2に、
+    // P1-M1-N1/N2が右手のC4/E4に誤って対応してしまう状況を再現する。
+    let idx = 0;
+    const mockCursor = {
+      Hidden: true,
+      show: vi.fn(),
+      hide: vi.fn(),
+      reset: vi.fn(() => {
+        idx = 0;
+      }),
+      next: vi.fn(() => {
+        idx++;
+      }),
+      get Iterator() {
+        return {
+          CurrentMeasureIndex: 0,
+          EndReached: idx >= 1,
+          get CurrentVoiceEntries() {
+            return [
+              { Notes: [makeOsmdNote({ staffId: 2, absTimestamp: 0, halfTone: 24 })] }, // staff2 C2 (先に出現)
+              {
+                Notes: [
+                  makeOsmdNote({ staffId: 1, absTimestamp: 0, halfTone: 48 }), // staff1 C4
+                  makeOsmdNote({ staffId: 1, absTimestamp: 0, halfTone: 52 }), // staff1 E4 (chord)
+                ],
+              },
+            ];
+          },
+        };
+      },
+    };
+
+    const controller = new OSMDController(document.createElement('div'));
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+    // @ts-expect-error test mock access
+    controller.osmd = { cursor: mockCursor };
+
+    const map = controller.buildNoteIdMap(score);
+
+    expect(map.size).toBe(3);
+    expect(map.has('P1-M1-N0')).toBe(true); // C4 (staff1)
+    expect(map.has('P1-M1-N1')).toBe(true); // E4 (staff1, chord)
+    expect(map.has('P1-M1-N2')).toBe(true); // C2 (staff2)
+  });
+
+  it('skips notes it cannot resolve and logs a warning instead of guessing (誤対応を作らない)', () => {
+    const score: Score = {
+      title: 'Unmatched',
+      parts: [{ id: 'P1', name: 'Piano', hand: 'right', clef: 'treble' }],
+      tempo: 120,
+      ticksPerQuarter: 480,
+      tempoMap: [{ tick: 0, bpm: 120 }],
+      timeSignature: { beats: 4, beatType: 4 },
+      keySignature: 0,
+      measures: [
+        {
+          number: 1,
+          startTick: 0,
+          notes: [
+            {
+              id: 'P1-M1-N0',
+              partId: 'P1',
+              measureNumber: 1,
+              noteIndex: 0,
+              pitch: { step: 'C', octave: 4 },
+              midiNumber: 60,
+              duration: 1,
+              startTick: 0,
+              durationTicks: 480,
+              startSeconds: 0,
+              durationSeconds: 0,
+              voice: 1,
+              isChord: false,
+              isRest: false,
+              staff: 1,
+            },
+          ],
+        },
+      ],
+    };
+
+    let idx = 0;
+    const mockCursor = {
+      Hidden: true,
+      show: vi.fn(),
+      hide: vi.fn(),
+      reset: vi.fn(() => {
+        idx = 0;
+      }),
+      next: vi.fn(() => {
+        idx++;
+      }),
+      get Iterator() {
+        return {
+          CurrentMeasureIndex: 0,
+          EndReached: idx >= 1,
+          get CurrentVoiceEntries() {
+            // score上に存在しない音高(D4=midi62)なので照合できない。
+            return [{ Notes: [makeOsmdNote({ staffId: 1, absTimestamp: 0, halfTone: 50 })] }];
+          },
+        };
+      },
+    };
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const controller = new OSMDController(document.createElement('div'));
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+    // @ts-expect-error test mock access
+    controller.osmd = { cursor: mockCursor };
+
+    const map = controller.buildNoteIdMap(score);
+
+    expect(map.size).toBe(0);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+});
+
+describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
+  function installFakeResizeObserver(): {
+    getCallback: () => (() => void) | undefined;
+    disconnectMock: ReturnType<typeof vi.fn>;
+    observeMock: ReturnType<typeof vi.fn>;
+    restore: () => void;
+  } {
+    let callback: (() => void) | undefined;
+    const disconnectMock = vi.fn();
+    const observeMock = vi.fn();
+    class FakeResizeObserver {
+      constructor(cb: () => void) {
+        callback = cb;
+      }
+      observe = observeMock;
+      disconnect = disconnectMock;
+    }
+    const original = globalThis.ResizeObserver;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).ResizeObserver = FakeResizeObserver;
+    return {
+      getCallback: () => callback,
+      disconnectMock,
+      observeMock,
+      restore: () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (globalThis as any).ResizeObserver = original;
+      },
+    };
+  }
+
+  it('re-renders, rebuilds the noteId map, and reapplies overlays (in that order) after a debounced resize (200-300ms)', () => {
+    vi.useFakeTimers();
+    const ro = installFakeResizeObserver();
+
+    try {
+      const container = document.createElement('div');
+      const controller = new OSMDController(container);
+      expect(ro.observeMock).toHaveBeenCalledWith(container);
+
+      const mockRender = vi.fn();
+      // @ts-expect-error test mock access to private osmd
+      controller.osmd = { cursor: null, render: mockRender, zoom: 1 };
+      // @ts-expect-error test mock access
+      controller.loaded = true;
+
+      const score: Score = {
+        title: 'T',
+        parts: [],
+        tempo: 120,
+        ticksPerQuarter: 480,
+        tempoMap: [{ tick: 0, bpm: 120 }],
+        timeSignature: { beats: 4, beatType: 4 },
+        keySignature: 0,
+        measures: [],
+      };
+      // lastScoreを設定するため、一度素通しで呼んでおく（cursor==nullのため即return）。
+      controller.buildNoteIdMap(score);
+
+      const buildSpy = vi.spyOn(controller, 'buildNoteIdMap');
+      const reapplySpy = vi.spyOn(
+        controller as unknown as { reapplyOverlays: () => void },
+        'reapplyOverlays'
+      );
+
+      const callback = ro.getCallback();
+      expect(callback).toBeDefined();
+      callback?.();
+
+      // デバウンス中は何も実行されない。
+      expect(mockRender).not.toHaveBeenCalled();
+      expect(buildSpy).not.toHaveBeenCalled();
+      expect(reapplySpy).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(249);
+      expect(mockRender).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1); // 250ms経過
+      expect(mockRender).toHaveBeenCalledTimes(1);
+      expect(buildSpy).toHaveBeenCalledTimes(1);
+      expect(reapplySpy).toHaveBeenCalledTimes(1);
+
+      const renderOrder = mockRender.mock.invocationCallOrder[0];
+      const buildOrder = buildSpy.mock.invocationCallOrder[0];
+      const reapplyOrder = reapplySpy.mock.invocationCallOrder[0];
+      expect(renderOrder).toBeLessThan(buildOrder);
+      expect(buildOrder).toBeLessThan(reapplyOrder);
+    } finally {
+      ro.restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not run render multiple times when resize fires repeatedly within the debounce window', () => {
+    vi.useFakeTimers();
+    const ro = installFakeResizeObserver();
+
+    try {
+      const container = document.createElement('div');
+      const controller = new OSMDController(container);
+      const mockRender = vi.fn();
+      // @ts-expect-error test mock access
+      controller.osmd = { cursor: null, render: mockRender, zoom: 1 };
+      // @ts-expect-error test mock access
+      controller.loaded = true;
+
+      const callback = ro.getCallback();
+      callback?.();
+      vi.advanceTimersByTime(100);
+      callback?.(); // タイマーがリセットされるはず
+      vi.advanceTimersByTime(100);
+      callback?.(); // 再度リセット
+      vi.advanceTimersByTime(249);
+      expect(mockRender).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(mockRender).toHaveBeenCalledTimes(1);
+    } finally {
+      ro.restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('does nothing before load() completes (loaded=false)', () => {
+    vi.useFakeTimers();
+    const ro = installFakeResizeObserver();
+
+    try {
+      const container = document.createElement('div');
+      const controller = new OSMDController(container);
+      const mockRender = vi.fn();
+      // @ts-expect-error test mock access
+      controller.osmd = { cursor: null, render: mockRender, zoom: 1 };
+      // loaded は既定でfalse
+
+      const callback = ro.getCallback();
+      callback?.();
+      vi.advanceTimersByTime(1000);
+
+      expect(mockRender).not.toHaveBeenCalled();
+    } finally {
+      ro.restore();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('OSMDController setZoom rebuilds the noteId map before reapplying overlays (TASK-049)', () => {
+  it('calls render, then buildNoteIdMap, then reapplyOverlays in that order', () => {
+    const container = document.createElement('div');
+    const controller = new OSMDController(container);
+    const mockRender = vi.fn();
+    // @ts-expect-error test mock access
+    controller.osmd = { cursor: null, render: mockRender, zoom: 1 };
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+
+    const score: Score = {
+      title: 'T',
+      parts: [],
+      tempo: 120,
+      ticksPerQuarter: 480,
+      tempoMap: [{ tick: 0, bpm: 120 }],
+      timeSignature: { beats: 4, beatType: 4 },
+      keySignature: 0,
+      measures: [],
+    };
+    controller.buildNoteIdMap(score); // lastScoreを設定しておく
+
+    const buildSpy = vi.spyOn(controller, 'buildNoteIdMap');
+    const reapplySpy = vi.spyOn(
+      controller as unknown as { reapplyOverlays: () => void },
+      'reapplyOverlays'
+    );
+
+    controller.setZoom(1.5);
+
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    expect(buildSpy).toHaveBeenCalledTimes(1);
+    expect(reapplySpy).toHaveBeenCalledTimes(1);
+    expect(buildSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      reapplySpy.mock.invocationCallOrder[0]
+    );
+    // @ts-expect-error test access to private osmd field
+    expect(controller.osmd.zoom).toBe(1.5);
+  });
+});
+
+describe('OSMDController dispose (TASK-049)', () => {
+  it('disconnects the ResizeObserver and removes click/contextmenu listeners from the container', () => {
+    let callback: (() => void) | undefined;
+    const disconnectMock = vi.fn();
+    const observeMock = vi.fn();
+    class FakeResizeObserver {
+      constructor(cb: () => void) {
+        callback = cb;
+      }
+      observe = observeMock;
+      disconnect = disconnectMock;
+    }
+    const original = globalThis.ResizeObserver;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).ResizeObserver = FakeResizeObserver;
+
+    try {
+      const container = document.createElement('div');
+      const removeEventListenerSpy = vi.spyOn(container, 'removeEventListener');
+      const controller = new OSMDController(container);
+      expect(callback).toBeDefined();
+
+      controller.dispose();
+
+      expect(disconnectMock).toHaveBeenCalledTimes(1);
+      expect(removeEventListenerSpy).toHaveBeenCalledWith('click', expect.any(Function));
+      expect(removeEventListenerSpy).toHaveBeenCalledWith('contextmenu', expect.any(Function));
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).ResizeObserver = original;
+    }
+  });
+
+  it('does not throw when a pending debounced resize fires after dispose (defensive no-op)', () => {
+    vi.useFakeTimers();
+    let callback: (() => void) | undefined;
+    class FakeResizeObserver {
+      constructor(cb: () => void) {
+        callback = cb;
+      }
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+    const original = globalThis.ResizeObserver;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).ResizeObserver = FakeResizeObserver;
+
+    try {
+      const container = document.createElement('div');
+      const controller = new OSMDController(container);
+      const mockRender = vi.fn();
+      // @ts-expect-error test mock access
+      controller.osmd = { cursor: null, render: mockRender, zoom: 1 };
+      // @ts-expect-error test mock access
+      controller.loaded = true;
+
+      callback?.();
+      controller.dispose();
+
+      expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
+      expect(mockRender).not.toHaveBeenCalled();
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).ResizeObserver = original;
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not throw when public methods are called after dispose', () => {
+    const container = document.createElement('div');
+    const controller = new OSMDController(container);
+
+    controller.dispose();
+
+    expect(() => controller.moveCursor('P1-M1-N0')).not.toThrow();
+    expect(() => controller.highlightNote('P1-M1-N0', 'correct')).not.toThrow();
+    expect(() => controller.setGrayedOutNotes(new Set())).not.toThrow();
   });
 });

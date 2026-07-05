@@ -14,6 +14,7 @@ const mockSetOnNoteContextMenu = vi.fn();
 const mockShowFingerings = vi.fn();
 const mockClearFingerings = vi.fn();
 const mockBuildNoteIdMap = vi.fn();
+const mockDispose = vi.fn();
 // デフォルトは即時解決（既存テストの前提を維持）。M4の再入テストのみ
 // mockImplementationOnce で解決タイミングを個別に制御する。
 const mockLoad = vi.fn().mockResolvedValue(undefined);
@@ -34,6 +35,7 @@ vi.mock('./osmd-controller', () => {
         buildNoteIdMap: mockBuildNoteIdMap,
         showFingerings: mockShowFingerings,
         clearFingerings: mockClearFingerings,
+        dispose: mockDispose,
       };
     }),
   };
@@ -53,6 +55,7 @@ describe('ScoreRenderer', () => {
     mockShowFingerings.mockClear();
     mockClearFingerings.mockClear();
     mockBuildNoteIdMap.mockClear();
+    mockDispose.mockClear();
     mockLoad.mockClear();
     mockLoad.mockResolvedValue(undefined);
   });
@@ -455,5 +458,41 @@ describe('ScoreRenderer', () => {
     await Promise.resolve();
 
     expect(mockBuildNoteIdMap).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls OSMDController.dispose() on unmount (TASK-049: resource cleanup)', () => {
+    const { unmount } = renderPlain(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    expect(mockDispose).not.toHaveBeenCalled();
+
+    unmount();
+
+    expect(mockDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the parsed score to OSMDController.buildNoteIdMap once loading resolves (TASK-049: 照合ベースnoteIdマップ)', async () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+
+    await waitFor(() => expect(mockBuildNoteIdMap).toHaveBeenCalledWith(mockScore));
   });
 });

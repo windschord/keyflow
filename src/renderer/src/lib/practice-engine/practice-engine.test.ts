@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { create, StoreApi } from 'zustand';
 import { PracticeEngineService } from './index';
 import { PracticeStore } from '../../store';
+import { createPracticeSlice, PracticeSlice } from '../../store/slices/practice-slice';
 import { Score, Part, Note } from '../../types';
 
 /**
@@ -395,6 +397,35 @@ describe('PracticeEngineService', () => {
     expect(mockStore.expectedNotes).toEqual([rOnly]);
   });
 
+  it('レガート奏法: 前グループの鍵を離さずに次グループの正しい鍵を押しても、残留押鍵から誤ってincorrectにならない（グループ確定時にpressedKeys/incorrectKeysをクリア, CodeRabbit指摘）', () => {
+    mockStore.practiceMode = 'right';
+    mockStore.currentMeasure = 1;
+    mockStore.currentNoteIndex = 0;
+    mockStore.expectedNotes = [chordC4, chordE4]; // group@tick0 (right-hand chord)
+
+    engine.handleNoteOn({ midiNumber: 60, velocity: 100, type: 'note-on', timestamp: 0 }); // C4
+    const advanceJudgement = engine.handleNoteOn({
+      midiNumber: 64,
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    }); // E4, completes the chord and advances to group@tick480 (rightD4)
+
+    expect(advanceJudgement.advanced).toBe(true);
+    expect(mockStore.currentNoteIndex).toBe(1);
+
+    // レガート: C4/E4を物理的に離さないまま(note-offを送らないまま)、次グループの音を押す。
+    const judgement = engine.handleNoteOn({
+      midiNumber: 62, // D4, expected for group@tick480
+      velocity: 100,
+      type: 'note-on',
+      timestamp: 0,
+    });
+
+    expect(judgement.result).toBe('correct');
+    expect(judgement.advanced).toBe(true);
+  });
+
   it('ループ終端で先頭に戻り、部分押下状態が破棄される', () => {
     mockStore.expectedNotes = [measure2Note];
     mockStore.currentMeasure = 2;
@@ -528,6 +559,28 @@ describe('PracticeEngineService', () => {
       mockStore.currentMeasure = 999;
 
       expect(engine.getCurrentPositionTick()).toBeNull();
+    });
+  });
+
+  describe('statsの初期値汚染防止（CodeRabbit指摘: initialStatsのインプレース変更回帰）', () => {
+    it('あるストアでhandleNoteOnが統計を更新しても、新規に生成した別ストアの初期statsに影響しない', () => {
+      const store1 = create<PracticeSlice>()(createPracticeSlice) as unknown as StoreApi<PracticeStore>;
+      store1.setState({
+        expectedNotes: [makeNote({ id: 'x1', partId: 'P1', midiNumber: 60 })],
+      });
+      // @ts-expect-error PracticeSlice単体のストアはPracticeStoreの全フィールドを持たない。
+      // ただし本テストでhandleNoteOnが参照するフィールド（expectedNotes/pressedKeys/
+      // incorrectKeys/stats/practiceMode/errorMode/playbackState）は充足しているため許容する。
+      const engine1 = new PracticeEngineService(store1);
+
+      // 誤った音符を押してincorrectNotesを1にする（正誤判定のためだけにscoreは不要）。
+      engine1.handleNoteOn({ midiNumber: 61, velocity: 100, type: 'note-on', timestamp: 0 });
+      expect(store1.getState().stats.incorrectNotes).toBe(1);
+
+      const store2 = create<PracticeSlice>()(createPracticeSlice);
+      expect(store2.getState().stats.incorrectNotes).toBe(0);
+      expect(store2.getState().stats.totalNotes).toBe(0);
+      expect(store2.getState().stats.correctNotes).toBe(0);
     });
   });
 

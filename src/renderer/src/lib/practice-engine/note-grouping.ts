@@ -40,6 +40,29 @@ export function groupNotesByStartTick(notes: Note[]): NoteGroup[] {
     .map(([startTick, groupNotes]) => ({ startTick, notes: groupNotes }));
 }
 
+const groupCache = new WeakMap<Note[], NoteGroup[]>();
+
+/**
+ * `groupNotesByStartTick` のメモ化版。`Measure.notes` 配列そのものの参照をキーに
+ * キャッシュする（CodeRabbit指摘: resolvePositionが押鍵のたびに全小節をO(n)で
+ * 再グルーピングしていたホットパスのコスト対応）。
+ *
+ * `Measure.notes` がMusicXMLパース後は不変（同一の配列インスタンスが使い回される）
+ * という前提のもとで成立する。resolvePosition・getCurrentPositionTick等、同じ
+ * `measure.notes` 配列に対して繰り返しグルーピングを行う呼び出し元はこちらを使う。
+ *
+ * 戻り値はキャッシュされた配列そのものを返すため、呼び出し側で内容を変更しないこと
+ * （キャッシュを汚染してしまうため）。
+ */
+export function getGroupsForNotes(notes: Note[]): NoteGroup[] {
+  const cached = groupCache.get(notes);
+  if (cached) return cached;
+
+  const groups = groupNotesByStartTick(notes);
+  groupCache.set(notes, groups);
+  return groups;
+}
+
 /**
  * 練習パートフィルタ（Left/Right/Both）をノーツ集合へ適用する。
  *

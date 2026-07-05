@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterNotesByPracticeMode, groupNotesByStartTick } from './note-grouping';
+import { filterNotesByPracticeMode, groupNotesByStartTick, getGroupsForNotes } from './note-grouping';
 import { Note } from '../../types';
 
 function makeNote(overrides: Partial<Note> & Pick<Note, 'id' | 'partId' | 'midiNumber'>): Note {
@@ -53,5 +53,31 @@ describe('groupNotesByStartTick (回帰確認: 変更なし)', () => {
     const b = makeNote({ id: 'P1-M1-N1', partId: 'P1', midiNumber: 64, startTick: 0 });
     const groups = groupNotesByStartTick([a, b]);
     expect(groups).toEqual([{ startTick: 0, notes: [a, b] }]);
+  });
+});
+
+describe('getGroupsForNotes (メモ化ヘルパー, CodeRabbit指摘: resolvePositionの押鍵ごとの再計算コスト対応)', () => {
+  it('同一のnotes配列参照に対して呼び出すと、同じ結果オブジェクト参照を返す（キャッシュヒット）', () => {
+    const a = makeNote({ id: 'P1-M1-N0', partId: 'P1', midiNumber: 60, startTick: 0 });
+    const b = makeNote({ id: 'P1-M1-N1', partId: 'P1', midiNumber: 64, startTick: 480 });
+    const notes = [a, b];
+
+    const first = getGroupsForNotes(notes);
+    const second = getGroupsForNotes(notes);
+
+    expect(second).toBe(first);
+    expect(first).toEqual(groupNotesByStartTick(notes));
+  });
+
+  it('異なるnotes配列参照には独立した結果を返す（キャッシュの取り違えがない）', () => {
+    const a = makeNote({ id: 'P1-M1-N0', partId: 'P1', midiNumber: 60, startTick: 0 });
+    const b = makeNote({ id: 'P1-M2-N0', partId: 'P1', midiNumber: 62, startTick: 0 });
+
+    const groupsA = getGroupsForNotes([a]);
+    const groupsB = getGroupsForNotes([b]);
+
+    expect(groupsA).not.toBe(groupsB);
+    expect(groupsA[0].notes[0].midiNumber).toBe(60);
+    expect(groupsB[0].notes[0].midiNumber).toBe(62);
   });
 });

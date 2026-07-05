@@ -13,6 +13,33 @@ describe('createPracticeSlice initial state', () => {
   });
 });
 
+describe('createPracticeSlice statsの初期値汚染防止（CodeRabbit指摘: モジュール定数initialStatsの直接参照回帰）', () => {
+  it('スライスを複数回生成しても、あるインスタンスのstatsを書き換えた影響が次のインスタンスに残らない', () => {
+    const set1 = vi.fn();
+    const get1 = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api1 = {} as any;
+    const slice1 = createPracticeSlice(set1, get1, api1);
+
+    // practice-engineのhandleNoteOnが行うような、stats内部フィールドへの直接変更を模倣する。
+    // stats: initialStats のように初期値がモジュール定数への直接参照のままだと、
+    // このミューテーションが定数自体を汚染し、以降に生成される全スライスへ波及する。
+    slice1.stats.correctNotes = 999;
+    slice1.stats.totalNotes = 999;
+    slice1.stats.accuracy = 1;
+
+    const set2 = vi.fn();
+    const get2 = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api2 = {} as any;
+    const slice2 = createPracticeSlice(set2, get2, api2);
+
+    expect(slice2.stats.correctNotes).toBe(0);
+    expect(slice2.stats.totalNotes).toBe(0);
+    expect(slice2.stats.accuracy).toBe(0);
+  });
+});
+
 describe('createPracticeSlice setErrorMode', () => {
   it('updates errorMode in the store when called (TASK-040)', () => {
     let state: { errorMode: string } = { errorMode: 'wait' };

@@ -93,6 +93,27 @@ function generateCombinations(k: number): Finger[][] {
   return result;
 }
 
+/**
+ * 0..k-1のインデックスから全ペア（C(k,2)通り）を列挙する。
+ * `unitInternalCost`/`unitInternalCostRelaxed`が和音内の全構成音ペアの
+ * スパン実行可能性を検証するために使う（k<=MAX_UNIT_SIZE=5なので最大C(5,2)=10通り）。
+ */
+const pairsCache = new Map<number, Array<[number, number]>>();
+
+function generateAllPairs(k: number): Array<[number, number]> {
+  const cached = pairsCache.get(k);
+  if (cached) return cached;
+
+  const pairs: Array<[number, number]> = [];
+  for (let i = 0; i < k; i++) {
+    for (let j = i + 1; j < k; j++) {
+      pairs.push([i, j]);
+    }
+  }
+  pairsCache.set(k, pairs);
+  return pairs;
+}
+
 const combinationsCache = new Map<number, Finger[][]>();
 
 function getCombinations(k: number): Finger[][] {
@@ -142,8 +163,12 @@ function toFingerSeq(primary: Note[], combo: Finger[], hand: FingeringHand): Not
  *
  * - 各構成音について weakFingerCost / thumbOnBlackCost / fiveOnBlackCost を加算する
  *   （どのユニットに属する音であっても、静的コストはここで一度だけ計上する）。
- * - ユニット内が2音以上の場合、ピッチ順で隣接するペアと、3音以上のときは端点ペア
- *   （最低音・最高音）についてSPAN_TABLEで実行可能性をチェックする。
+ * - ユニット内が2音以上の場合、構成音の全ペア（C(k,2)通り。k<=MAX_UNIT_SIZE=5なので
+ *   最大でもC(5,2)=10通り）についてSPAN_TABLEで実行可能性をチェックする。隣接ペア＋
+ *   端点ペアのみのチェックでは、4音以上の和音で非隣接ペア（例: 4音中の(0,2)や(1,3)）の
+ *   スパン上限超過を取りこぼす（CodeRabbit指摘）。例えば4音でも(0,1)(1,2)(2,3)(0,3)が
+ *   全て実行可能範囲内でも、(0,2)や(1,3)だけが物理的に演奏不可能なスパンになる
+ *   組み合わせが存在するため、全ペアの検証が必要。
  *   物理的なスパン上限（max）を超える組み合わせはInfinityとし、DPの選択肢から排除する。
  *   comfortable超・max以内の場合は超過分をコストとして加算する。
  */
@@ -160,10 +185,7 @@ function unitInternalCost(
   const k = fingerSeq.length;
   if (k < 2) return cost;
 
-  const pairs: Array<[number, number]> = [];
-  for (let i = 0; i < k - 1; i++) pairs.push([i, i + 1]);
-  // 3音以上のときは、隣接ペアだけでは捉えきれない全体スパン（端点ペア）も確認する。
-  if (k >= 3) pairs.push([0, k - 1]);
+  const pairs = generateAllPairs(k);
 
   for (const [a, b] of pairs) {
     const fa = fingerSeq[a].finger;
@@ -206,9 +228,7 @@ function unitInternalCostRelaxed(
   const k = fingerSeq.length;
   if (k < 2) return cost;
 
-  const pairs: Array<[number, number]> = [];
-  for (let i = 0; i < k - 1; i++) pairs.push([i, i + 1]);
-  if (k >= 3) pairs.push([0, k - 1]);
+  const pairs = generateAllPairs(k);
 
   for (const [a, b] of pairs) {
     const fa = fingerSeq[a].finger;

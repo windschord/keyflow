@@ -56,6 +56,20 @@ function parseNumberOrDefault(text: string | undefined, fallback: number): numbe
   return Number.isNaN(value) ? fallback : value;
 }
 
+/**
+ * MusicXMLの`duration`（`divisions`単位）を正規化tick（PPQ=480）へ変換する。
+ *
+ * `divisions`が480の約数でない譜面（例: divisions=7）では`duration * (480/divisions)`が
+ * 浮動小数になる。丸めずに`cursor`へ加減算し続けると、backup/forwardを挟んだ別ボイス・
+ * 別パートが同一の音楽的時刻に到達しても、加算順序の違いによる浮動小数点誤差で
+ * `startTick`が完全一致しなくなり、「同一startTick=同時発音」という同時判定が崩れる
+ * （CodeRabbit指摘）。各ステップ（note/backup/forward）でこの関数を通じて必ず整数へ
+ * 丸めてから`cursor`を加減算することで、常に整数tick上で計算が閉じるようにする。
+ */
+function toTicks(duration: number, divisions: number): number {
+  return Math.round((duration * TICKS_PER_QUARTER) / divisions);
+}
+
 export function parse(xmlContent: string): Score {
   if (!xmlContent || xmlContent.trim().length === 0) {
     throw new MusicXMLParseError('Empty XML content');
@@ -190,19 +204,16 @@ export function parse(xmlContent: string): Score {
         } else if (child.tagName === 'note') {
           const isChordNote = getDirectChildByTag(child, 'chord') !== null;
           const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
-          const scale = TICKS_PER_QUARTER / divisions;
           if (!isChordNote) {
-            cursor += duration * scale;
+            cursor += toTicks(duration, divisions);
             if (cursor > maxCursor) maxCursor = cursor;
           }
         } else if (child.tagName === 'backup') {
           const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
-          const scale = TICKS_PER_QUARTER / divisions;
-          cursor -= duration * scale;
+          cursor -= toTicks(duration, divisions);
         } else if (child.tagName === 'forward') {
           const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
-          const scale = TICKS_PER_QUARTER / divisions;
-          cursor += duration * scale;
+          cursor += toTicks(duration, divisions);
           if (cursor > maxCursor) maxCursor = cursor;
         }
       }
@@ -281,8 +292,7 @@ export function parse(xmlContent: string): Score {
           const isChord = getDirectChildByTag(child, 'chord') !== null;
           const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
           const voice = parseNumberOrDefault(getDirectChildText(child, 'voice'), 1);
-          const scale = TICKS_PER_QUARTER / divisions;
-          const durationTicks = duration * scale;
+          const durationTicks = toTicks(duration, divisions);
 
           let pitchObj = { step: 'C', octave: 4, alter: 0 };
           let midiNumber = 0;
@@ -340,12 +350,10 @@ export function parse(xmlContent: string): Score {
           });
         } else if (tag === 'backup') {
           const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
-          const scale = TICKS_PER_QUARTER / divisions;
-          cursor -= duration * scale;
+          cursor -= toTicks(duration, divisions);
         } else if (tag === 'forward') {
           const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
-          const scale = TICKS_PER_QUARTER / divisions;
-          cursor += duration * scale;
+          cursor += toTicks(duration, divisions);
         }
       }
     }

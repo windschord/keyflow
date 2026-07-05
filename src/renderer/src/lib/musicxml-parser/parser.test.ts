@@ -429,6 +429,90 @@ describe('MusicXML Parser - v2 tick/time model (TASK-031)', () => {
   });
 });
 
+describe('MusicXML Parser - divisionsが480の約数でない場合のtick丸め（CodeRabbit指摘）', () => {
+  it('divisions=7（480の約数でない）では、音価の合計が同じ2パートのstartTickが浮動小数点誤差で食い違う（丸めなしの回帰再現）', () => {
+    // P1: duration [1,1,1,1,3] (合計7=四分音符1つ分)。
+    // P2: duration [3,1,1,1,1] (同じ合計7を逆順に並べただけ)。
+    // 両者は数学的に全く同じ時刻（合計7/divisions=1拍分）に到達するはずである。
+    // しかしtickをMath.roundで整数化せず浮動小数のまま加算すると、加算順序の違いにより
+    // 480/7の丸め誤差が異なる形で蓄積する。
+    // その結果、最終的なcheckpoint音符のstartTickが1ULP未満の差でずれてしまい、
+    // 本来"同時"のはずの2音が===で一致しなくなる。
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list>
+    <score-part id="P1"><part-name>Piano Right</part-name></score-part>
+    <score-part id="P2"><part-name>Piano Left</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>7</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration></note>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+  <part id="P2">
+    <measure number="1">
+      <attributes><divisions>7</divisions></attributes>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>3</duration></note>
+      <note><pitch><step>D</step><octave>3</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>E</step><octave>3</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>F</step><octave>3</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>A</step><octave>3</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+
+    const checkpointP1 = notes.find((n) => n.partId === 'P1' && n.pitch.step === 'A')!;
+    const checkpointP2 = notes.find((n) => n.partId === 'P2' && n.pitch.step === 'A')!;
+
+    // 両パートとも「小節頭から合計7/7拍(=四分音符1つ)進んだ位置」のはずなので、
+    // startTickは完全に一致しなければならない(同時判定=完全一致で用いられるため)。
+    expect(checkpointP1.startTick).toBe(checkpointP2.startTick);
+    // tickは整数(PPQ=480の格子上)に丸められていること。
+    expect(Number.isInteger(checkpointP1.startTick)).toBe(true);
+    expect(Number.isInteger(checkpointP2.startTick)).toBe(true);
+  });
+
+  it('divisions=7でbackup/forwardを挟んでも、durationTicksとstartTickは整数(PPQ格子上)になる', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>7</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>5</duration><voice>1</voice></note>
+      <backup><duration>5</duration></backup>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>3</duration><voice>2</voice></note>
+      <forward><duration>2</duration></forward>
+      <note><pitch><step>D</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+
+    for (const note of notes) {
+      expect(Number.isInteger(note.startTick)).toBe(true);
+      expect(Number.isInteger(note.durationTicks)).toBe(true);
+    }
+
+    // voice1の音符(C4)は小節頭(0)から開始。backupで巻き戻した後のvoice2先頭(C3)も
+    // 同じく小節頭(0)から開始するはずである。
+    const c4 = notes.find((n) => n.pitch.step === 'C' && n.pitch.octave === 4)!;
+    const c3 = notes.find((n) => n.pitch.step === 'C' && n.pitch.octave === 3)!;
+    expect(c4.startTick).toBe(0);
+    expect(c3.startTick).toBe(0);
+  });
+});
+
 describe('MusicXML Parser - 2段譜のNote.staff/hand（TASK-048）', () => {
   it('1パート2段譜（staves=2）で、staff1の音はhand=right、staff2の音はhand=leftになる（和音・backup含む）', () => {
     const xml = `<?xml version="1.0"?>

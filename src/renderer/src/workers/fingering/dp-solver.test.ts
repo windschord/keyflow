@@ -218,6 +218,31 @@ describe('dp-solver: コードユニットDP（和音対応、TASK-050）', () =
     expect(byId.get('n0')!).toBeLessThan(byId.get('n1')!);
   });
 
+  it('4音和音で非隣接ペア（(0,2)）のスパン超過が隣接ペア・端点ペアのみのチェックでは見逃される（CodeRabbit指摘: 全ペアC(k,2)を検証すべき）', () => {
+    // 音高昇順: C4(60), A4(69), C#5(73), D5(74)。
+    // 指の組み合わせ{1,2,3,5}（右手）を割り当てた場合を考える。
+    // 隣接ペアと端点ペアだけを見ると、(0,1)(1,2)(2,3)(0,3)のいずれもスパン上限内である。
+    // そのため従来実装ではこのコンボが実行可能と判定され、選ばれてしまう。
+    // しかし非隣接ペア(0,2)（指1と指3）のスパンは13半音あり、指1-3の上限11半音を超える。
+    // C4を1指・C#5を3指で同時に押さえるのは物理的に不可能なスパンである。
+    // 全ペア（C(4,2)=6通り）を検証する修正後は、このコンボが除外される。
+    // 代わりに{1,2,4,5}（コスト27）が選ばれるようになる。
+    const chord = makeChord(['n0', 'n1', 'n2', 'n3'], [60, 69, 73, 74]);
+    const result = computeFingering(chord, 'right', DEFAULT_SETTINGS);
+
+    expect(result.assignments).toHaveLength(4);
+    const byId = new Map(result.assignments.map((a) => [a.noteId, a.finger]));
+
+    // 修正前の実装は{1,2,3,5}（n2=3指）をコスト18の最適解として選んでしまう。
+    // 修正後は非隣接ペア(0,2)のスパン超過により除外され、{1,2,4,5}（n2=4指）が選ばれる。
+    expect(byId.get('n2')).not.toBe(3);
+    expect(byId.get('n0')).toBe(1);
+    expect(byId.get('n1')).toBe(2);
+    expect(byId.get('n2')).toBe(4);
+    expect(byId.get('n3')).toBe(5);
+    expect(result.totalCost).toBe(27);
+  });
+
   it('deadline到達時にユニット境界までの部分結果が返る', () => {
     // 150ユニット(単音)の旋律。deadline判定はユニット単位(u % 100 === 0)で
     // 行われるため、100ユニット目で打ち切られ、部分結果(100音分)が返る。

@@ -2,7 +2,7 @@ import { PracticeStore } from '../../store';
 import { MidiNoteEvent, NoteJudgement, Measure, PracticeMode } from '../../types';
 import { judgeChord } from './judgement';
 import { checkLoopBoundary } from './loop-manager';
-import { groupNotesByStartTick, filterNotesByPracticeMode } from './note-grouping';
+import { getGroupsForNotes, filterNotesByPracticeMode } from './note-grouping';
 
 import { StoreApi } from 'zustand';
 
@@ -36,7 +36,12 @@ export class PracticeEngineService {
       return { result: 'ignored', note: null, advanced: false };
     }
 
-    const { practiceMode, errorMode, expectedNotes, pressedKeys, incorrectKeys, stats } = state;
+    const { practiceMode, errorMode, expectedNotes, pressedKeys, incorrectKeys } = state;
+    // stats: state.stats を直接インプレース変更すると、それがストア初期値のモジュール定数
+    // (practice-slice.tsのinitialStats)への参照だった場合に定数自体を汚染してしまう
+    // (CodeRabbit指摘)。読み取り専用のコピーを起点に、更新のたびに新しいオブジェクトを
+    // 生成する（`+=`のようなインプレース変更は行わない）。
+    let stats = { ...state.stats };
 
     // Add to pressed keys
     pressedKeys.add(event.midiNumber);
@@ -68,8 +73,11 @@ export class PracticeEngineService {
 
       if (chordStatus === 'correct') {
         result = 'correct';
-        stats.correctNotes += 1;
-        stats.consecutiveCorrect += 1;
+        stats = {
+          ...stats,
+          correctNotes: stats.correctNotes + 1,
+          consecutiveCorrect: stats.consecutiveCorrect + 1,
+        };
         this.advancePosition();
         advanced = true;
       } else if (chordStatus === 'partial') {
@@ -83,14 +91,12 @@ export class PracticeEngineService {
             incorrectKeys.add(key);
           }
         }
-        stats.incorrectNotes += 1;
-        stats.consecutiveCorrect = 0;
+        stats = { ...stats, incorrectNotes: stats.incorrectNotes + 1, consecutiveCorrect: 0 };
       }
     } else {
       result = 'incorrect';
       incorrectKeys.add(event.midiNumber);
-      stats.incorrectNotes += 1;
-      stats.consecutiveCorrect = 0;
+      stats = { ...stats, incorrectNotes: stats.incorrectNotes + 1, consecutiveCorrect: 0 };
 
       if (errorMode === 'pass') {
         this.advancePosition();
@@ -98,8 +104,13 @@ export class PracticeEngineService {
       }
     }
 
-    stats.totalNotes = stats.correctNotes + stats.incorrectNotes;
-    stats.accuracy = stats.totalNotes > 0 ? stats.correctNotes / stats.totalNotes : 0;
+    stats = {
+      ...stats,
+      totalNotes: stats.correctNotes + stats.incorrectNotes,
+      accuracy: stats.correctNotes + stats.incorrectNotes > 0
+        ? stats.correctNotes / (stats.correctNotes + stats.incorrectNotes)
+        : 0,
+    };
 
     // Re-read pressedKeys/incorrectKeys from the store rather than relying on the
     // local variables captured above: advancePosition() may have replaced them with
@@ -109,7 +120,7 @@ export class PracticeEngineService {
     this.store.setState({
       pressedKeys: new Set(latest.pressedKeys),
       incorrectKeys: new Set(latest.incorrectKeys),
-      stats: { ...stats },
+      stats,
     });
 
     return { result, note: filteredExpected[0] || null, advanced };
@@ -209,7 +220,7 @@ export class PracticeEngineService {
     const measure = state.score.measures.find((m) => m.number === state.currentMeasure);
     if (!measure) return null;
 
-    const groups = groupNotesByStartTick(measure.notes);
+    const groups = getGroupsForNotes(measure.notes);
     const group = groups[state.currentNoteIndex];
     return group ? group.startTick : measure.startTick;
   }
@@ -255,7 +266,7 @@ export class PracticeEngineService {
     // cases (e.g. an entire loop range has no notes matching the current
     // practice mode filter).
     const totalGroupSlots = measures.reduce(
-      (sum, m) => sum + Math.max(groupNotesByStartTick(m.notes).length, 1),
+      (sum, m) => sum + Math.max(getGroupsForNotes(m.notes).length, 1),
       0
     );
     const maxIterations = totalGroupSlots + measures.length + 1;
@@ -266,7 +277,7 @@ export class PracticeEngineService {
         return { measure, groupIndex: 0, loopJumped, found: false };
       }
 
-      const groups = groupNotesByStartTick(measureData.notes);
+      const groups = getGroupsForNotes(measureData.notes);
 
       if (groupIndex >= groups.length) {
         const nextMeasure = measure + 1;
@@ -292,20 +303,18 @@ export class PracticeEngineService {
   }
 
   private applyResolvedPosition(resolved: ResolvedPosition): void {
-    const update: Partial<PracticeStore> = {
+    // グループが確定して次の判定グループへ進むたびに、pressedKeys/incorrectKeysを
+    // 常にクリアする。ループ境界/小節ジャンプ(loopJumped)の場合だけでなく、通常の
+    // グループ確定遷移でもクリアしないと、レガート奏法（前グループの鍵を離さずに
+    // 次グループの鍵を押す）で前グループの残留押鍵がjudgeChordに混入し、次グループが
+    // 誤ってincorrect判定される(CodeRabbit指摘)。resetToPosition/resetToMeasureも
+    // 同様に移動のたびに無条件でクリアしており、本メソッドもそれに合わせる。
+    this.store.setState({
       currentMeasure: resolved.measure,
       currentNoteIndex: resolved.groupIndex,
-    };
-
-    if (resolved.loopJumped) {
-      // Loop boundary/measure jump crossed before the previous group's partial
-      // key-press state was ever meant to carry over: discard it (data-model-v2
-      // design doc, judgement spec item 5).
-      update.pressedKeys = new Set();
-      update.incorrectKeys = new Set();
-    }
-
-    this.store.setState(update);
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+    });
   }
 
   private updateExpectedNotes(): void {
@@ -327,7 +336,7 @@ export class PracticeEngineService {
     // 「鍵盤ガイドは現在グループの全ノーツ」). Practice-mode filtering is
     // applied at judgement time in handleNoteOn() via
     // filterNotesByPracticeMode().
-    const groups = groupNotesByStartTick(measure.notes);
+    const groups = getGroupsForNotes(measure.notes);
     const currentGroup = groups[state.currentNoteIndex];
 
     this.store.setState({ expectedNotes: currentGroup ? currentGroup.notes : [] });

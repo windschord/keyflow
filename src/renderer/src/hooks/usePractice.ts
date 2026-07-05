@@ -61,6 +61,7 @@ export function usePractice() {
 
   const bpm = usePracticeStore((s) => s.bpm);
   const metronomeEnabled = usePracticeStore((s) => s.metronomeEnabled);
+  const volume = usePracticeStore((s) => s.volume);
   const currentMeasure = usePracticeStore((s) => s.currentMeasure);
   const currentNoteIndex = usePracticeStore((s) => s.currentNoteIndex);
   const score = usePracticeStore((s) => s.score);
@@ -89,6 +90,13 @@ export function usePractice() {
   useEffect(() => {
     audioEngine.setMetronomeEnabled(metronomeEnabled);
   }, [audioEngine, metronomeEnabled]);
+
+  // ストアの volume（マスターボリューム、TASK-052）変更を AudioEngine に同期する。
+  // bpm/metronomeEnabled と同じパターン（AudioEngine側のメソッドはストアを変更しない
+  // ため無限ループは発生しない）。
+  useEffect(() => {
+    audioEngine.setMasterVolume(volume);
+  }, [audioEngine, volume]);
 
   // ループ有効時、audioEngine（Tone.Transport）側のループ範囲を同期する
   // （REQ-010-008）。無効時やスコア未読み込み時は audioEngine 側で解除される。

@@ -207,5 +207,8 @@ export function usePractice() {
     };
   }, [audioEngine]);
 
-  return { practiceEngine, audioEngine, handleKeyClick, noteHighlights };
+  // TASK-045: SettingsModalがMIDI入力デバイス一覧の表示・選択（REQ-004-008）を
+  // 行うには、useMidi/webMidiServiceと同一のインスタンスに直接アクセスできる
+  // 必要があるため、公開する（App.tsxからpropとして渡す）。
+  return { practiceEngine, audioEngine, webMidiService, handleKeyClick, noteHighlights };
 }

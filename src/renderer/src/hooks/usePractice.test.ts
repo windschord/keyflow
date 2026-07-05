@@ -41,11 +41,14 @@ vi.mock('../lib/audio-engine', () => ({
   })),
 }));
 
+const setSelectedDeviceMock = vi.fn();
+
 vi.mock('../lib/midi/web-midi', () => ({
   WebMidiService: vi.fn().mockImplementation(() => ({
     initialize: initializeMock,
     onNoteOn: onNoteOnMock,
     onNoteOff: onNoteOffMock,
+    setSelectedDevice: setSelectedDeviceMock,
   })),
 }));
 
@@ -304,5 +307,15 @@ describe('usePractice', () => {
     renderHook(() => usePractice());
 
     expect(setLoopPointsMock).toHaveBeenCalledWith(null, true, 2, 4);
+  });
+
+  // TASK-045: SettingsModalがMIDI入力デバイス一覧（webMidiService.getDevices）を
+  // 表示・操作するには、usePractice内で生成された同一のWebMidiServiceインスタンスに
+  // アクセスできる必要がある。App.tsxからSettingsModalへpropとして渡すため公開する。
+  it('exposes the webMidiService instance used for MIDI input (TASK-045)', () => {
+    const { result } = renderHook(() => usePractice());
+
+    expect(result.current.webMidiService).toBeDefined();
+    expect(result.current.webMidiService.setSelectedDevice).toBe(setSelectedDeviceMock);
   });
 });

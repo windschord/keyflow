@@ -20,7 +20,8 @@ function App(): React.JSX.Element {
   // PianoKeyboard に渡し、鍵盤上の指番号表示に反映する（REQ-005-007）。
   const [keyboardAnnotations, setKeyboardAnnotations] = React.useState<Annotation[]>([]);
 
-  const { practiceEngine, audioEngine, handleKeyClick, noteHighlights } = usePractice();
+  const { practiceEngine, audioEngine, webMidiService, handleKeyClick, noteHighlights } =
+    usePractice();
 
   const annotationStore = React.useRef(new AnnotationStoreService());
 
@@ -38,6 +39,9 @@ function App(): React.JSX.Element {
     setOriginalBpm,
     setMetronomeEnabled,
     setErrorMode,
+    setZoom,
+    setPianoHeight,
+    setMidiDeviceId,
     currentMeasure,
     currentNoteIndex,
     loopEnabled,
@@ -58,6 +62,9 @@ function App(): React.JSX.Element {
       setOriginalBpm: s.setOriginalBpm,
       setMetronomeEnabled: s.setMetronomeEnabled,
       setErrorMode: s.setErrorMode,
+      setZoom: s.setZoom,
+      setPianoHeight: s.setPianoHeight,
+      setMidiDeviceId: s.setMidiDeviceId,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
       loopEnabled: s.loopEnabled,
@@ -91,34 +98,53 @@ function App(): React.JSX.Element {
       usePracticeStore;
   }, []);
 
-  // アプリ起動時に、SettingsModal（electron-store）で設定された
-  // 「Enable Metronome by Default」「Default Error Mode」の既定値を、それぞれ
-  // ui-slice の metronomeEnabled / practice-slice の errorMode へ反映する
-  // （TASK-040: これを行わないと practice-engine の 'pass' 分岐が本番経路で
-  // 到達不能になる）。単一の真実源とし、起動後はツールバー/SettingsModal での
-  // 変更がこれらの値を更新する。
+  // アプリ起動時に、SettingsModal（electron-store）で設定された既定値を、
+  // それぞれ対応するstoreへ反映する（単一の真実源とし、起動後はツールバー/
+  // SettingsModal での変更がこれらの値を更新する）。
+  // - practice.metronomeEnabled / practice.defaultErrorMode
+  //   → ui-slice.metronomeEnabled / practice-slice.errorMode
+  //   （TASK-040: これを行わないと practice-engine の 'pass' 分岐が本番経路で
+  //   到達不能になる）。
+  // - ui.zoom / ui.pianoHeight → ui-slice.zoom / ui-slice.pianoHeight
+  //   （TASK-045: ズームUI・鍵盤高さ設定UIの永続化された値を反映する）。
+  // - midi.selectedDeviceId → ui-slice.midiDeviceId
+  //   （TASK-045, REQ-004-008: useMidiがmidiDeviceIdの変更を購読し、
+  //   WebMidiService.setSelectedDeviceへ反映する）。
   React.useEffect(() => {
     if (!window.electronAPI?.settings) return;
 
     let cancelled = false;
-    const loadDefaultPracticeSettings = async (): Promise<void> => {
+    const loadPersistedSettings = async (): Promise<void> => {
       try {
-        const practiceSettings = await window.electronAPI.settings.get('practice');
-        if (!cancelled && practiceSettings) {
+        const [practiceSettings, uiSettings, midiSettings] = await Promise.all([
+          window.electronAPI.settings.get('practice'),
+          window.electronAPI.settings.get('ui'),
+          window.electronAPI.settings.get('midi'),
+        ]);
+        if (cancelled) return;
+
+        if (practiceSettings) {
           setMetronomeEnabled(practiceSettings.metronomeEnabled);
           setErrorMode(practiceSettings.defaultErrorMode);
         }
+        if (uiSettings) {
+          setZoom(uiSettings.zoom);
+          setPianoHeight(uiSettings.pianoHeight);
+        }
+        if (midiSettings) {
+          setMidiDeviceId(midiSettings.selectedDeviceId);
+        }
       } catch (error) {
-        console.error('Failed to load default practice settings:', error);
+        console.error('Failed to load persisted settings:', error);
       }
     };
 
-    loadDefaultPracticeSettings();
+    loadPersistedSettings();
 
     return () => {
       cancelled = true;
     };
-  }, [setMetronomeEnabled, setErrorMode]);
+  }, [setMetronomeEnabled, setErrorMode, setZoom, setPianoHeight, setMidiDeviceId]);
 
   const handleOpenFile = async () => {
     if (!window.electronAPI) {
@@ -241,7 +267,11 @@ function App(): React.JSX.Element {
         <Toolbar onOpenSettings={() => setIsSettingsOpen(true)} audioEngine={audioEngine} />
       </div>
 
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        webMidiService={webMidiService}
+      />
 
       {/* 2. ScoreRenderer (Flex Grow) */}
       {/*

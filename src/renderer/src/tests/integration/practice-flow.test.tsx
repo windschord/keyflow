@@ -215,7 +215,7 @@ describe('SettingsModal→store→practice-engineの結線（TASK-040）', () =>
     vi.spyOn(window, 'alert').mockImplementation(() => {});
   });
 
-  it('SettingsModalで"Pass through on error"を選択すると、誤入力時にpractice-engineが自動で次へ進行する（UI→store→engineの本番経路）', async () => {
+  it('SettingsModalで"誤りがあっても先へ進む"を選択すると、誤入力時にpractice-engineが自動で次へ進行する（UI→store→engineの本番経路）', async () => {
     const score = parse(LOOP_TEST_XML);
     usePracticeStore.getState().setScore(score, '/test/loop.xml', LOOP_TEST_XML);
 
@@ -243,7 +243,7 @@ describe('SettingsModal→store→practice-engineの結線（TASK-040）', () =>
 
     render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-    const select = (await screen.findByLabelText('Default Error Mode')) as HTMLSelectElement;
+    const select = (await screen.findByLabelText('既定のエラーモード')) as HTMLSelectElement;
     await waitFor(() => expect(select.value).toBe('wait'));
 
     fireEvent.change(select, { target: { value: 'pass' } });

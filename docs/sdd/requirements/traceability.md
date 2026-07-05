@@ -17,7 +17,7 @@
 | REQ-002-003 | △ | osmd-controller.test（scrollIntoView、モック）+ E2Eカーソル移動 |
 | REQ-002-004 | △ | osmd-controller.test + ScoreRenderer.test。E2Eクリックなし |
 | REQ-002-005 | × | showFingerings テストゼロ |
-| REQ-002-006 | ×※ | ズームUIが存在しない（E2Eはstore直接操作）。TASK-045で対応 |
+| REQ-002-006 | ○ | ZoomControl.test（Toolbar常設、Japanese label・値反映）+ Toolbar.test（統合）+ ScoreRenderer/osmd-controller.test（zoom prop→setZoom結線、既存）+ E2E（`zoom-select`のUI操作でストアのzoomが変わることを検証、store直接呼び出しを廃止）。TASK-045で対応済み |
 | REQ-002-007 | △ | osmd-controller.test（overlay描画）。ScoreRenderer結線は未アサート（TASK-046） |
 | REQ-003-001〜003 | ○ | practice-engine.test（モードフィルタ、スキップ） |
 | REQ-003-004 | ×※ | 非練習パート自動伴奏が未実装。TASK-047で要件再整理 |
@@ -29,7 +29,7 @@
 | REQ-004-005 | △ | 正解率statsは○。タイミング記録は無検証 |
 | REQ-004-006 | ○ | practice-slice.test（setErrorMode）+ SettingsModal.test（変更即時反映・ロールバック）+ App.test（起動時ロード）+ practice-flow.test（SettingsModal→store→practice-engineのUI→store→engine結線）。TASK-040で対応済み |
 | REQ-004-007 | △ | handleKeyClick（モック経由）。座標→MIDI変換未検証 |
-| REQ-004-008 | ×※ | MIDIデバイス選択UIなし。TASK-045で対応 |
+| REQ-004-008 | ○ | web-midi.test（setSelectedDeviceによる選択デバイスのみバインド・未接続時フォールバック）+ SettingsModal.test（デバイス一覧表示・選択・保存・ロールバック）+ useMidi.test（storeのmidiDeviceId→WebMidiService.setSelectedDeviceの結線、起動時反映）+ App.test（起動時ロード）。TASK-045で対応済み |
 | REQ-005-001/002 | ○ | PianoKeyboard.test（keyboard-renderer.tsのfillStyleアサーション）。Part.hand（parser算出済み）に基づきguidRight/guidLeft色を検証。partId文字列ヒューリスティックのバグを修正（TASK-041） |
 | REQ-005-003/004 | △ | ロジックは○、鍵盤描画は× |
 | REQ-005-005 | △ | getNotePosition範囲外throwのみ |

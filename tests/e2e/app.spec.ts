@@ -41,7 +41,7 @@ interface E2EPracticeStoreState {
   currentNoteIndex: number;
   playbackState: 'stopped' | 'paused' | 'playing';
   stats: E2EPracticeStats;
-  setZoom: (zoom: number) => void;
+  zoom: number;
 }
 
 declare global {
@@ -169,11 +169,15 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
     })
     .toEqual({ measure: 1, noteIndex: 0 });
 
-  // 5. 手動スクロール: ズームを引き上げてスクロール可能な状態を作った上で、
-  // scrollTopが実際に変化することを確認する（TASK-025のスクロール対応）。
-  await window.evaluate(() => {
-    window.__e2eStore__?.getState().setZoom(4);
-  });
+  // 5. 手動スクロール: ズームUI（Toolbar、REQ-002-006・TASK-045）を実際に操作して
+  // 表示倍率を引き上げ、スクロール可能な状態を作った上で、scrollTopが実際に
+  // 変化することを確認する（TASK-025のスクロール対応）。ストアを直接呼ぶのではなく
+  // UI操作経由で検証することで、ズームUIの結線漏れ（TASK-045の背景参照）を
+  // 再発防止する。
+  await window.getByTestId('zoom-select').selectOption('4');
+  await expect
+    .poll(() => window.evaluate(() => window.__e2eStore__?.getState().zoom))
+    .toBe(4);
 
   const scrollContainer = window.getByTestId('score-scroll-container');
   await expect

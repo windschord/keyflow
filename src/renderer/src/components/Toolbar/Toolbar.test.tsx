@@ -101,6 +101,16 @@ describe('Toolbar UI', () => {
     expect(audioEngine.stopAccompaniment).toHaveBeenCalledTimes(1);
   });
 
+  it('changes the score zoom level via the ZoomControl select (REQ-002-006, TASK-045)', () => {
+    usePracticeStore.setState({ zoom: 1.0 });
+    render(<Toolbar />);
+
+    const zoomSelect = screen.getByTestId('zoom-select') as HTMLSelectElement;
+    fireEvent.change(zoomSelect, { target: { value: '4' } });
+
+    expect(usePracticeStore.getState().zoom).toBe(4);
+  });
+
   it('shows a Japanese tooltip/aria-label for the settings button', () => {
     render(<Toolbar />);
     const settingsButton = screen.getByLabelText('設定');

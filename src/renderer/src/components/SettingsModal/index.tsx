@@ -1,26 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings, ErrorMode } from '../../types';
 import { usePracticeStore } from '../../store';
+import type { WebMidiService } from '../../lib/midi/web-midi';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /**
+   * MIDI入力デバイス一覧の取得元（REQ-004-008）。App.tsxのusePractice()が
+   * 生成した実際のWebMidiServiceインスタンスを渡すことで、SettingsModalは
+   * useMidi/practice-engineが受け取るのと同一のデバイス集合を表示できる。
+   * 未指定時（テスト等）は「すべてのデバイス」のみを表示し、クラッシュしない。
+   */
+  webMidiService?: Pick<WebMidiService, 'getDevices'>;
 }
 
-type SettingsModalState = Pick<AppSettings, 'ui' | 'practice'>;
+type SettingsModalState = Pick<AppSettings, 'ui' | 'practice' | 'midi'>;
 
 const DEFAULT_SETTINGS: SettingsModalState = {
   ui: { theme: 'light', language: 'ja', zoom: 1.0, pianoHeight: 120 },
   practice: { defaultErrorMode: 'wait', metronomeEnabled: false },
+  midi: { selectedDeviceId: null, selectedDeviceIndex: 0 },
 };
+
+// 鍵盤の高さ（px）の妥当な範囲。ui-slice.setPianoHeightのクランプと一致させる
+// （注意事項: 範囲を外れるとPianoKeyboardのレイアウトが崩れるため）。
+const PIANO_HEIGHT_MIN = 80;
+const PIANO_HEIGHT_MAX = 300;
 
 function showSettingsError(message: string): void {
   window.alert(message);
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  webMidiService,
+}) => {
   const [settings, setSettings] = useState<SettingsModalState>(DEFAULT_SETTINGS);
   const [recentFiles, setRecentFiles] = useState<Array<{ path: string; openedAt: string }>>([]);
+  const [midiDevices, setMidiDevices] = useState<Array<{ id: string; name: string }>>([]);
   const requestIdRef = React.useRef<number>(0);
 
   useEffect(() => {
@@ -29,6 +48,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         try {
           const ui = await window.electronAPI.settings.get('ui');
           const practice = await window.electronAPI.settings.get('practice');
+          const midi = await window.electronAPI.settings.get('midi');
           const files = await window.electronAPI.settings.getRecentFiles();
 
           const finalUi = ui || DEFAULT_SETTINGS.ui;
@@ -36,6 +56,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           setSettings({
             ui: finalUi,
             practice: practice || DEFAULT_SETTINGS.practice,
+            midi: midi || DEFAULT_SETTINGS.midi,
           });
           setRecentFiles(files || []);
         } catch {
@@ -45,8 +66,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         }
       };
       loadSettings();
+
+      // MIDI入力デバイス一覧（REQ-004-008）。webMidiServiceが未指定の場合は
+      // 「すべてのデバイス」のみを表示する（クラッシュしない）。
+      setMidiDevices(webMidiService?.getDevices() ?? []);
     }
-  }, [isOpen]);
+  }, [isOpen, webMidiService]);
 
   if (!isOpen) return null;
 
@@ -58,9 +83,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     // Save the previous state to revert to if the API call fails
     const previousValue = settings.ui[key];
+    const previousPianoHeight = usePracticeStore.getState().pianoHeight;
 
     const updatedUi = { ...settings.ui, [key]: value };
     setSettings({ ...settings, ui: updatedUi });
+
+    // 「鍵盤の高さ」の変更は、単一の真実源である ui-slice の pianoHeight に
+    // 即座に反映し、PianoKeyboardへ反映する（TASK-045。metronomeEnabledの
+    // 既存パターン踏襲）。
+    if (key === 'pianoHeight') {
+      usePracticeStore.getState().setPianoHeight(value as number);
+    }
 
     try {
       await window.electronAPI.settings.set('ui', updatedUi);
@@ -71,6 +104,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           ...currentSettings,
           ui: { ...currentSettings.ui, [key]: previousValue },
         }));
+        if (key === 'pianoHeight') {
+          usePracticeStore.getState().setPianoHeight(previousPianoHeight);
+        }
         showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
       }
     }
@@ -90,13 +126,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     const updatedPractice = { ...settings.practice, [key]: value };
     setSettings({ ...settings, practice: updatedPractice });
 
-    // 「Enable Metronome by Default」の変更は、単一の真実源である ui-slice の
+    // 「既定でメトロノームを有効にする」の変更は、単一の真実源である ui-slice の
     // metronomeEnabled に即座に反映し、ツールバーのチェックボックスへ反映する。
     if (key === 'metronomeEnabled') {
       usePracticeStore.getState().setMetronomeEnabled(value as boolean);
     }
 
-    // 「Default Error Mode」の変更は、practice-slice の errorMode に即座に反映する
+    // 「既定のエラーモード」の変更は、practice-slice の errorMode に即座に反映する
     // （TASK-040: 設定UI→storeの結線がないと practice-engine の 'pass' 分岐が
     // 本番経路で到達不能になる）。
     if (key === 'defaultErrorMode') {
@@ -118,6 +154,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         if (key === 'defaultErrorMode') {
           usePracticeStore.getState().setErrorMode(previousErrorMode);
         }
+        showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+      }
+    }
+  };
+
+  // MIDI入力デバイスの選択（REQ-004-008）。`deviceId` が null の場合は
+  // 「すべてのデバイス」を意味する。metronomeEnabled/defaultErrorModeと同じ
+  // 即時反映＋保存失敗時ロールバックのパターンに揃える（TASK-040踏襲）。
+  const updateMidiDevice = async (deviceId: string | null): Promise<void> => {
+    const requestId = ++requestIdRef.current;
+
+    const previousDeviceId = settings.midi.selectedDeviceId;
+    const previousStoreDeviceId = usePracticeStore.getState().midiDeviceId;
+
+    const updatedMidi = { ...settings.midi, selectedDeviceId: deviceId };
+    setSettings({ ...settings, midi: updatedMidi });
+    usePracticeStore.getState().setMidiDeviceId(deviceId);
+
+    try {
+      await window.electronAPI.settings.set('midi', updatedMidi);
+    } catch {
+      if (requestId === requestIdRef.current) {
+        setSettings((currentSettings) => ({
+          ...currentSettings,
+          midi: { ...currentSettings.midi, selectedDeviceId: previousDeviceId },
+        }));
+        usePracticeStore.getState().setMidiDeviceId(previousStoreDeviceId);
         showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
       }
     }
@@ -165,10 +228,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             alignItems: 'center',
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>Settings</h2>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>設定</h2>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label="閉じる"
             style={{
               background: 'transparent',
               border: 'none',
@@ -201,7 +264,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 marginBottom: '12px',
               }}
             >
-              Practice
+              練習
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -210,7 +273,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   htmlFor="errorMode"
                   style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
                 >
-                  Default Error Mode
+                  既定のエラーモード
                 </label>
                 <select
                   id="errorMode"
@@ -228,8 +291,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     border: '1px solid #d1d5db',
                   }}
                 >
-                  <option value="wait">Wait for correct note</option>
-                  <option value="pass">Pass through on error</option>
+                  <option value="wait">正しい音を待つ</option>
+                  <option value="pass">誤りがあっても先へ進む</option>
                 </select>
               </div>
 
@@ -245,9 +308,93 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   htmlFor="metronomeEnabled"
                   style={{ marginLeft: '8px', fontSize: '0.875rem' }}
                 >
-                  Enable Metronome by Default
+                  既定でメトロノームを有効にする
                 </label>
               </div>
+            </div>
+          </section>
+
+          {/* Display Settings (TASK-045) */}
+          <section style={{ marginBottom: '24px' }}>
+            <h3
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                marginBottom: '12px',
+              }}
+            >
+              表示
+            </h3>
+
+            <div>
+              <label
+                htmlFor="pianoHeight"
+                style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
+              >
+                鍵盤の高さ
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  id="pianoHeight"
+                  type="range"
+                  min={PIANO_HEIGHT_MIN}
+                  max={PIANO_HEIGHT_MAX}
+                  value={settings.ui.pianoHeight}
+                  onChange={(e) => updateUiSetting('pianoHeight', Number(e.target.value))}
+                  title="ピアノ鍵盤の表示の高さを変更します（80〜300px）"
+                  style={{ flex: 1, cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.875rem', color: '#6b7280', minWidth: '48px' }}>
+                  {settings.ui.pianoHeight}px
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* MIDI Settings (TASK-045, REQ-004-008) */}
+          <section style={{ marginBottom: '24px' }}>
+            <h3
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                marginBottom: '12px',
+              }}
+            >
+              MIDI
+            </h3>
+
+            <div>
+              <label
+                htmlFor="midiDevice"
+                style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
+              >
+                MIDI入力デバイス
+              </label>
+              <select
+                id="midiDevice"
+                value={settings.midi.selectedDeviceId ?? ''}
+                onChange={(e) =>
+                  updateMidiDevice(e.target.value === '' ? null : e.target.value)
+                }
+                title="使用するMIDI入力デバイスを選択します（複数接続時）"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                }}
+              >
+                <option value="">すべてのデバイス</option>
+                {midiDevices.map((device) => (
+                  <option key={device.id} value={device.id}>
+                    {device.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </section>
 
@@ -262,11 +409,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 marginBottom: '12px',
               }}
             >
-              Recent Files
+              最近使ったファイル
             </h3>
             {recentFiles.length === 0 ? (
               <p style={{ fontSize: '0.875rem', color: '#6b7280', fontStyle: 'italic' }}>
-                No recent files
+                最近使ったファイルはありません
               </p>
             ) : (
               <ul
@@ -357,7 +504,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               fontWeight: 500,
             }}
           >
-            Done
+            完了
           </button>
         </div>
       </div>

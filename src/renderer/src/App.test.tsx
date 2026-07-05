@@ -83,6 +83,9 @@ describe('App', () => {
       loopEnabled: false,
       loopStart: 1,
       loopEnd: 2,
+      zoom: 1.0,
+      pianoHeight: 120,
+      midiDeviceId: null,
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).electronAPI;
@@ -431,6 +434,69 @@ describe('App', () => {
 
     await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('practice'));
     await waitFor(() => expect(usePracticeStore.getState().errorMode).toBe('pass'));
+  });
+
+  it('applies the persisted ui.zoom / ui.pianoHeight settings to the store on startup (TASK-045)', async () => {
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      }
+      if (key === 'ui') {
+        return Promise.resolve({ theme: 'light', language: 'ja', zoom: 2.5, pianoHeight: 200 });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('ui'));
+    await waitFor(() => expect(usePracticeStore.getState().zoom).toBe(2.5));
+    expect(usePracticeStore.getState().pianoHeight).toBe(200);
+  });
+
+  it('applies the persisted midi.selectedDeviceId setting to WebMidiService via useMidi on startup (TASK-045, REQ-004-008)', async () => {
+    const setSelectedDeviceSpy = vi.spyOn(WebMidiService.prototype, 'setSelectedDevice');
+
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      }
+      if (key === 'midi') {
+        return Promise.resolve({ selectedDeviceId: 'device-9', selectedDeviceIndex: 0 });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('midi'));
+    await waitFor(() => expect(setSelectedDeviceSpy).toHaveBeenCalledWith('device-9'));
+
+    setSelectedDeviceSpy.mockRestore();
   });
 
   it('does not throw when electronAPI is unavailable while loading the default metronome setting', () => {

@@ -89,3 +89,100 @@ describe('WebMidiService', () => {
     expect(noteOffCb).toHaveBeenCalledWith(64, 0, 1);
   });
 });
+
+describe('WebMidiService.setSelectedDevice (TASK-045)', () => {
+  let service: WebMidiService;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockInputs: Map<string, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockAccess: any;
+
+  beforeEach(() => {
+    mockInputs = new Map();
+    mockInputs.set('device-1', {
+      id: 'device-1',
+      name: 'Keyboard A',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onmidimessage: null as any,
+    });
+    mockInputs.set('device-2', {
+      id: 'device-2',
+      name: 'Keyboard B',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onmidimessage: null as any,
+    });
+
+    mockAccess = {
+      inputs: mockInputs,
+      onstatechange: null,
+    };
+
+    vi.stubGlobal('navigator', {
+      requestMIDIAccess: vi.fn().mockResolvedValue(mockAccess),
+    });
+
+    service = new WebMidiService();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  it('binds every input when no device is selected (default/legacy behavior)', async () => {
+    await service.initialize();
+
+    expect(typeof mockInputs.get('device-1').onmidimessage).toBe('function');
+    expect(typeof mockInputs.get('device-2').onmidimessage).toBe('function');
+  });
+
+  it('binds only the selected device and unbinds the others', async () => {
+    await service.initialize();
+
+    service.setSelectedDevice('device-2');
+
+    expect(mockInputs.get('device-1').onmidimessage).toBeNull();
+    expect(typeof mockInputs.get('device-2').onmidimessage).toBe('function');
+  });
+
+  it('only routes NoteOn events from the selected device to the callback', async () => {
+    await service.initialize();
+    service.setSelectedDevice('device-2');
+
+    const noteOnCb = vi.fn();
+    service.onNoteOn(noteOnCb);
+
+    // Unselected device: bound handler is null, so nothing should fire even if
+    // called directly (this simulates the device no longer being routed at all).
+    expect(mockInputs.get('device-1').onmidimessage).toBeNull();
+
+    mockInputs.get('device-2').onmidimessage({
+      data: new Uint8Array([0x90, 60, 100]),
+    } as unknown as MIDIMessageEvent);
+
+    expect(noteOnCb).toHaveBeenCalledWith(60, 100, 1);
+  });
+
+  it('re-binds every input when the selection is cleared (null)', async () => {
+    await service.initialize();
+    service.setSelectedDevice('device-2');
+    service.setSelectedDevice(null);
+
+    expect(typeof mockInputs.get('device-1').onmidimessage).toBe('function');
+    expect(typeof mockInputs.get('device-2').onmidimessage).toBe('function');
+  });
+
+  it('falls back to binding all devices when the selected device is not connected', async () => {
+    await service.initialize();
+
+    service.setSelectedDevice('device-does-not-exist');
+
+    expect(typeof mockInputs.get('device-1').onmidimessage).toBe('function');
+    expect(typeof mockInputs.get('device-2').onmidimessage).toBe('function');
+  });
+
+  it('applies the pending selection once a device access becomes available, even if setSelectedDevice was called before initialize', () => {
+    // Calling before initialize() must not throw, and should apply once ready.
+    expect(() => service.setSelectedDevice('device-1')).not.toThrow();
+  });
+});

@@ -4,6 +4,13 @@ export class WebMidiService {
   private access: MIDIAccess | null = null;
   private onNoteOnCallback: MidiNoteCallback | null = null;
   private onNoteOffCallback: MidiNoteCallback | null = null;
+  /**
+   * ユーザーが選択したMIDI入力デバイスのid（REQ-004-008）。
+   * `null` は「すべてのデバイス」を意味し、従来どおり全入力をバインドする
+   * （後方互換のデフォルト動作）。SettingsModalでの変更をこのフィールドに
+   * 反映し、`rebindInputs` を呼び直すことで即座に反映する。
+   */
+  private selectedDeviceId: string | null = null;
 
   async initialize(): Promise<void> {
     this.access = await navigator.requestMIDIAccess({ sysex: false });
@@ -27,10 +34,36 @@ export class WebMidiService {
     }));
   }
 
+  /**
+   * 使用するMIDI入力デバイスを選択する（REQ-004-008）。`deviceId` が
+   * `null` の場合は「すべてのデバイス」を意味し、従来どおり全入力から受け付ける。
+   * `initialize()` が完了する前に呼ばれても例外を投げず、選択は保持され
+   * 次回の `rebindInputs` （`initialize`完了時）で適用される。
+   */
+  setSelectedDevice(deviceId: string | null): void {
+    this.selectedDeviceId = deviceId;
+    this.rebindInputs();
+  }
+
+  getSelectedDevice(): string | null {
+    return this.selectedDeviceId;
+  }
+
   private rebindInputs(): void {
     if (!this.access) return;
-    this.access.inputs.forEach((input) => {
-      input.onmidimessage = (event: MIDIMessageEvent) => this.handleMessage(event);
+    const inputs = Array.from(this.access.inputs.values());
+
+    // 保存済みの選択デバイスが現在接続されていない場合は、例外を出さずに
+    // 「すべてのデバイス」動作へフォールバックする（注意事項参照）。選択自体は
+    // 保持されるため、該当デバイスが再接続されれば次回のonstatechangeで
+    // 再度そのデバイスのみへ絞り込まれる。
+    const selectedIsConnected =
+      this.selectedDeviceId !== null && inputs.some((input) => input.id === this.selectedDeviceId);
+    const effectiveDeviceId = selectedIsConnected ? this.selectedDeviceId : null;
+
+    inputs.forEach((input) => {
+      const shouldBind = effectiveDeviceId === null || input.id === effectiveDeviceId;
+      input.onmidimessage = shouldBind ? (event: MIDIMessageEvent) => this.handleMessage(event) : null;
     });
   }
 

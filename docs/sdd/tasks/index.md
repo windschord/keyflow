@@ -38,7 +38,7 @@
 | Phase 8: 結線修正・UX改善（フェーズA） | 5 | 0 | 0 | 0 | [詳細](phase-8/) @phase-8/ |
 | Phase 9: 仕様再定義・データモデル刷新（フェーズB） | 7 | 0 | 0 | 0 | [詳細](phase-9/) @phase-9/ |
 | Phase 10: QA・プロセス改善（フェーズC） | 3 | 0 | 0 | 0 | [詳細](phase-10/) @phase-10/ |
-| Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 5 | 0 | 4 | 0 | [詳細](phase-11/) @phase-11/ |
+| Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 6 | 0 | 3 | 0 | [詳細](phase-11/) @phase-11/ |
 
 **合計**: 47タスク / 推定合計: 約1940分（AIエージェント作業時間）
 
@@ -220,7 +220,7 @@
 | TASK-042 | [BugFix] メトロノームのTransport起動/停止の非対称修正 | DONE | - | 30min | [詳細](phase-11/TASK-042.md) @phase-11/TASK-042.md |
 | TASK-043 | 運指エンジンへのscale-patterns統合 | DONE | - | 50min | [詳細](phase-11/TASK-043.md) @phase-11/TASK-043.md |
 | TASK-044 | US-008 運指メモ手動編集UIの実装 | TODO | TASK-041 | 90min | [詳細](phase-11/TASK-044.md) @phase-11/TASK-044.md |
-| TASK-045 | MIDIデバイス選択とズーム/鍵盤高さ設定UI | TODO | TASK-040 | 60min | [詳細](phase-11/TASK-045.md) @phase-11/TASK-045.md |
+| TASK-045 | MIDIデバイス選択とズーム/鍵盤高さ設定UI | DONE | TASK-040 | 60min | [詳細](phase-11/TASK-045.md) @phase-11/TASK-045.md |
 | TASK-046 | テストスイート是正（再発防止策の適用） | TODO | TASK-043 | 60min | [詳細](phase-11/TASK-046.md) @phase-11/TASK-046.md |
 | TASK-047 | 残課題の要件整理と死にコード掃除 | TODO | TASK-044 | 50min | [詳細](phase-11/TASK-047.md) @phase-11/TASK-047.md |
 

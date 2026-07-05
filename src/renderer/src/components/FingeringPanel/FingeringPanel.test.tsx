@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { FingeringPanel } from './index';
@@ -46,6 +46,10 @@ describe('FingeringPanel label', () => {
 });
 
 describe('FingeringPanel note.hand-based filtering (TASK-048)', () => {
+  afterEach(() => {
+    computeFingeringMock.mockReset();
+  });
+
   it('1パート2段譜（同一partId）で左手選択時にstaff2由来のNote.hand=leftの音のみ計算対象になる', async () => {
     computeFingeringMock.mockResolvedValue({ assignments: [], totalCost: 0 });
 

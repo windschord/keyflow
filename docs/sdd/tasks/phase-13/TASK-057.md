@@ -49,7 +49,7 @@
 
 ## 受入基準
 
-- [x] 再生中、長音のキーは音価の長さだけ点灯し続け、短音のキーは短く点灯する（audio-engine.testの「fires onSoundingNotesChange via Tone.getDraw().schedule with the currently sounding note set as boundary ticks are reached」で検証）
+- [x] 再生中、長音のキーは音価の長さだけ点灯し続け、短音のキーは短く点灯する。audio-engine.testの境界tick到達時に発音中集合が遷移することを検証するテストで確認済み
 - [x] 停止・一時停止で発音中表示がクリアされる（audio-engine.testの「clears sounding notes when stopAccompaniment/pauseAccompaniment is called」で検証）
 - [x] 練習モードの判定グループ表示（次に弾く鍵のガイド）は従来どおり動作する（既存のexpectedNotes/ガイド色関連テストは変更なしで全通過。keyboard-renderer.testで新色soundingが既存ガイド色と独立に優先度制御されることも検証）
 - [x] 既存テストが通り、新規テストが追加されている（`npm run test` 514件全通過。audio-engine.test 7件、usePractice.test 3件、keyboard-renderer.test 6件、PianoKeyboard.test 2件、App.test 1件を新規追加）
@@ -64,20 +64,20 @@
 
 ### 設計方針
 
-- **発音中集合の導出**: audio-engineの`loadScore()`内で、既存の判定グループ（同一startTick）スケジュールとは別に、`scheduledNotes`（休符除外・practiceModeフィルタ適用後）の各ノーツについて`startTick`（開始境界）と`startTick + durationTicks`（終了境界）を`boundaryEvents: Map<tick, {starts, ends}>`へ集約する。同一tickに複数ノーツの開始/終了が重なっても、そのtickにつき`Tone.getTransport().schedule`は1回だけ登録する（過剰スケジュール防止）。
-- **状態更新**: 各境界tickのTransportコールバック内で、`ends`を`currentSoundingNotes`から削除→`starts`を追加という順序で処理し、直後に`new Set(...)`でスナップショットを取ってから`Tone.getDraw().schedule`経由でコールバックへ渡す（描画タイミングをメインスレッドの描画パスに乗せつつ、状態競合を避ける）。
+- **発音中集合の導出**: audio-engineの`loadScore()`内で、既存の判定グループ（同一startTick）スケジュールとは別に、発音中集合の境界イベントを導出する。対象は`scheduledNotes`（休符除外・practiceModeフィルタ適用後）の各ノーツで、`startTick`（開始境界）と`startTick + durationTicks`（終了境界）を`boundaryEvents: Map<tick, {starts, ends}>`へ集約する。同一tickに複数ノーツの開始/終了が重なっても、そのtickにつき`Tone.getTransport().schedule`は1回だけ登録する（過剰スケジュール防止）。
+- **状態更新**: 各境界tickのTransportコールバック内で、`ends`を`currentSoundingNotes`から削除→`starts`を追加という順序で処理する。直後に`new Set(...)`でスナップショットを取ってから`Tone.getDraw().schedule`経由でコールバックへ渡す（描画タイミングをメインスレッドの描画パスに乗せつつ、状態競合を避ける）。
 - **クリア**: `stopAccompaniment`/`pauseAccompaniment`/スコア差し替え時（`loadScore`冒頭）に発音中集合をリセットし、空集合を通知する。
 - **表示系の分離**: `PianoKeyboard`/`keyboard-renderer.ts`に新規`soundingNotes`propを追加し、既存の`expectedNotes`（判定グループガイド）とは独立した表示（新色`KEY_COLORS.*.sounding`）として描画する。優先順位は「誤答 > 正解押鍵 > 発音中 > ガイド > 通常」。`usePractice`は`audioEngine.setSoundingNotesCallback`で受け取った集合をそのままReact state化し、`App.tsx`経由で`PianoKeyboard`へ伝搬する。
 
 ### 変更ファイル
 
-- `src/renderer/src/lib/audio-engine/index.ts`: 発音中ノーツ境界スケジュール（`SoundingNotesChangeCallback`/`setSoundingNotesCallback`/`clearSoundingNoteEvents`/`resetSoundingNotes`）を追加
+- `src/renderer/src/lib/audio-engine/index.ts`: 発音中ノーツ境界スケジュールを追加。追加API: `SoundingNotesChangeCallback`/`setSoundingNotesCallback`/`clearSoundingNoteEvents`/`resetSoundingNotes`
 - `src/renderer/src/hooks/usePractice.ts`: `soundingNotes` stateとコールバック登録/解除effectを追加し、戻り値に公開
 - `src/renderer/src/App.tsx`: `usePractice().soundingNotes`を`PianoKeyboard`へ伝搬
 - `src/renderer/src/components/PianoKeyboard/index.tsx`: `soundingNotes` propを追加し`renderKeyboard`へ伝搬
 - `src/renderer/src/components/PianoKeyboard/keyboard-renderer.ts`: `soundingNotes`引数と新色描画ロジックを追加
 - `src/renderer/src/components/PianoKeyboard/key-layout.ts`: `KEY_COLORS.white/black.sounding`を追加
-- テスト: `audio-engine.test.ts`、`usePractice.test.ts`、`keyboard-renderer.test.ts`、`PianoKeyboard.test.tsx`、`App.test.tsx`に新規テストを追加（既存テストのうち、Transport.schedule呼び出し総数を厳密比較していた3件は、新規追加された境界スケジュール分を除いた先頭N件のみを検証するよう更新。検証対象・意図は変更なし）
+- テスト: `audio-engine.test.ts`、`usePractice.test.ts`、`keyboard-renderer.test.ts`、`PianoKeyboard.test.tsx`、`App.test.tsx`に新規テストを追加。既存テストのうちTransport.schedule呼び出し総数を厳密比較していた3件は、境界スケジュール分を除いた先頭N件のみを検証するよう更新（検証対象・意図は変更なし）
 
 ## 情報の明確性
 

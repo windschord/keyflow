@@ -54,9 +54,9 @@ export interface UiSlice {
   /**
    * 画面下鍵盤の鍵盤数プリセットを設定する（TASK-056）。既知のプリセット
    * （88/76/61/49）以外の値が渡された場合は88へフォールバックする
-   * （electron-store側の破損・想定外データに対する防御。値はユーザー入力
+   * （electron-store側の破損・想定外データに対する防御）。値はユーザー入力
    * ではなくSettingsModalのselect経由のみのため通常は発生しないが、
-   * 起動時ロードが外部JSONを読むため念のためガードする）。
+   * 起動時ロードが外部JSONを読むため念のためガードする。
    */
   setKeyboardSize: (size: KeyboardSize) => void;
   /**

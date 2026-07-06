@@ -162,9 +162,9 @@ function App(): React.JSX.Element {
   // - ui.showFingerings → ui-slice.showFingerings
   //   （TASK-055: 運指の一括表示/非表示トグルの永続化された値を反映する）。
   // - ui.keyboardSize → ui-slice.keyboardSize
-  //   （TASK-056: 画面下鍵盤の鍵盤数プリセットの永続化された値を反映する。
+  //   （TASK-056: 画面下鍵盤の鍵盤数プリセットの永続化された値を反映する）。
   //   PianoKeyboardの表示範囲にのみ影響し、practice-engineの判定ロジックには
-  //   影響しない）。
+  //   影響しない。
   // - midi.selectedDeviceId → ui-slice.midiDeviceId
   //   （TASK-045, REQ-004-008: useMidiがmidiDeviceIdの変更を購読し、
   //   WebMidiService.setSelectedDeviceへ反映する）。

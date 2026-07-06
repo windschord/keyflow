@@ -78,10 +78,10 @@ export function usePractice() {
 
   // TASK-057: 再生中の鍵盤表示を音価（durationTicks）に追随させるための
   // 発音中ノーツ集合（MIDI番号のSet）。audioEngine側でノーツ単位の発音開始/
-  // 終了境界を追跡し、変化のたびに setSoundingNotesCallback 経由で通知される
-  // （判定グループ単位で入れ替わる noteHighlights/カーソル連動とは別系統の
-  // 表示系。再生中のみ非空になり、停止・一時停止・スコア差し替え時は
-  // audioEngine側で自動的に空集合へ戻る）。
+  // 終了境界を追跡し、変化のたびに setSoundingNotesCallback 経由で通知される。
+  // 判定グループ単位で入れ替わる noteHighlights/カーソル連動とは別系統の表示系。
+  // 再生中のみ非空になり、停止・一時停止・スコア差し替え時はaudioEngine側で
+  // 自動的に空集合へ戻る。
   const [soundingNotes, setSoundingNotes] = useState<Set<number>>(new Set());
 
   // 正誤判定結果に応じた楽譜上のハイライト（REQ-004-003/004）。

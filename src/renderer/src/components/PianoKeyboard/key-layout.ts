@@ -40,7 +40,7 @@ export const KEY_COLORS = {
     guidLeft: '#70AD47',
     correct: '#FFD966',
     incorrect: '#FF6B6B',
-    // TASK-057: 再生中に実際に鳴っているノーツの表示色。ガイド色（guidRight/
+    // TASK-057: 再生中、実際に鳴っているノーツの表示色。ガイド色（guidRight/
     // guidLeft）・押鍵フィードバック色（correct/incorrect）のいずれとも
     // 区別できるよう独立した色相（オレンジ系）にする。
     sounding: '#FF9800',

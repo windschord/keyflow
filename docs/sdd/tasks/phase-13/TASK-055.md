@@ -53,8 +53,8 @@
 
 ## テスト項目
 
-- [x] トグルOFFで `fingering-layer` が描画されない（ユニット。App.test.tsxのTASK-055結線テストでScoreRendererへ空配列が渡ることを検証し、既存のScoreRenderer.test.tsx「clears fingerings when no annotation has a fingerNumber」でclearFingerings呼び出しを検証）
-- [x] トグルOFFで keyboard-renderer の指番号 fillText が呼ばれない（ユニット。App.test.tsxでPianoKeyboardへ空配列が渡ることを検証し、既存のPianoKeyboard.test.tsx「アノテーションのないノーツには指番号を描画しない」でfillText未呼び出しを検証）
+- [x] トグルOFFで `fingering-layer` が描画されない（ユニット）。App.test.tsxのTASK-055結線テストでScoreRendererへ空配列が渡ることを検証する。加えて既存のScoreRenderer.test.tsxの空アノテーション時テストでclearFingerings呼び出しを検証する
+- [x] トグルOFFで keyboard-renderer の指番号 fillText が呼ばれない（ユニット）。App.test.tsxでPianoKeyboardへ空配列が渡ることを検証する。加えて既存のPianoKeyboard.test.tsx「アノテーションのないノーツには指番号を描画しない」でfillText未呼び出しを検証する
 - [x] 永続化の読み書き（ユニット。FingeringToggle.test.tsx、App.test.tsx起動時ロードテスト）
 - [ ] 実機での表示切替（手動E2E）: 実機確認は手動E2Eで実施予定
 
@@ -62,7 +62,7 @@
 
 - ui-slice に `showFingerings`（初期値true）と `setShowFingerings` を追加（TDD、ui-slice.test.ts）
 - ツールバーに `FingeringToggle`（日本語ラベル「運指」・ツールチップ・aria-pressedによる視覚的トグル状態・electron-store永続化）を新設
-- App.tsx で `displayedAnnotations = showFingerings ? keyboardAnnotations : []` を計算し、ScoreRenderer/PianoKeyboardの両方へ渡すことで表示レイヤのみを制御（annotation-store本体・保存ファイルは無変更）
+- App.tsx で `displayedAnnotations = showFingerings ? keyboardAnnotations : []` を計算する。これをScoreRenderer/PianoKeyboardの両方へ渡すことで表示レイヤのみを制御する（annotation-store本体・保存ファイルは無変更）
 - 運指提案（FingeringPanel.onSuggested→handleFingering）の実行時、OFFであれば自動でONへ切り替え（結果が見えなくならないようにするため。理由をコード内コメントに明記）
 - electron-store（`ui.showFingerings`）への永続化と起動時ロードをvolume等と同一パターンで実装
 - 関連: docs/sdd/tasks/index.md（TASK-055ステータス更新）、docs/sdd/requirements/traceability.md（REQ-005-007/REQ-008-002へ追記）

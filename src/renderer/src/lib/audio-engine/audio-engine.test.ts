@@ -15,6 +15,10 @@ vi.mock('tone', () => {
     schedule: vi.fn(() => scheduleIdSeq++),
     clear: vi.fn(),
     setLoopPoints: vi.fn(),
+    // TASK-062: アクセント判定はgetTicksAtTime(time)を丸めた値で行う。既定では
+    // time自体をtickとして返す（テストごとにmockReturnValueOnce/mockImplementation
+    // で上書きする）。
+    getTicksAtTime: vi.fn((time: number) => time),
   };
   const mockDraw = {
     // Draw.schedule は本来 requestAnimationFrame タイミングで呼ばれるが、テストでは
@@ -755,6 +759,104 @@ describe('AudioEngineService', () => {
       const sequence = service.metronome.sequence as { events: unknown[] };
 
       expect(sequence.events.some((value) => value !== null)).toBe(true);
+    });
+  });
+
+  describe('metronome accent (TASK-062, REQ-006-008)', () => {
+    /** measures[].startTickの集合を指定した最小構成のスコアを作る（アクセント判定用）。 */
+    function makeScoreWithMeasureStarts(startTicks: number[]): Score {
+      return {
+        title: 'Accent Test',
+        parts: [{ id: 'P1', name: 'Right', hand: 'right', clef: 'treble' }],
+        measures: startTicks.map((startTick, index) => ({
+          number: index + 1,
+          startTick,
+          notes: [],
+        })),
+        tempo: 120,
+        ticksPerQuarter: 480,
+        tempoMap: [{ tick: 0, bpm: 120 }],
+        timeSignature: { beats: 4, beatType: 4 },
+        keySignature: 0,
+      };
+    }
+
+    function fireAtTick(tick: number): void {
+      (Tone.getTransport().getTicksAtTime as Mock).mockReturnValueOnce(tick);
+      // @ts-expect-error private
+      const sequence = service.metronome.sequence as {
+        callback: (time: number, value: unknown) => void;
+        events: unknown[];
+      };
+      fireSequenceTick(sequence, tick);
+    }
+
+    function getSynthMock(): Mock {
+      // @ts-expect-error private
+      return (service.metronome.synth as { triggerAttackRelease: Mock }).triggerAttackRelease;
+    }
+
+    it('plays the accent (C6, velocity 1.0) when the click tick matches a measure startTick', () => {
+      service.loadScore(makeScoreWithMeasureStarts([0, 1920, 3840]));
+      service.setMetronomeEnabled(true);
+
+      fireAtTick(1920);
+
+      expect(getSynthMock()).toHaveBeenCalledWith('C6', '32n', 1920, 1.0);
+    });
+
+    it('plays the regular click (C5, velocity 0.6) when the click tick does not match a measure startTick', () => {
+      service.loadScore(makeScoreWithMeasureStarts([0, 1920, 3840]));
+      service.setMetronomeEnabled(true);
+
+      fireAtTick(480);
+
+      expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 480, 0.6);
+    });
+
+    it('plays the regular click even at a measure startTick when accent is disabled via setMetronomeAccentEnabled(false)', () => {
+      service.loadScore(makeScoreWithMeasureStarts([0, 1920, 3840]));
+      service.setMetronomeAccentEnabled(false);
+      service.setMetronomeEnabled(true);
+
+      fireAtTick(1920);
+
+      expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 1920, 0.6);
+    });
+
+    it('correctly accents an irregular (pickup-measure-like) set of measure startTicks', () => {
+      service.loadScore(makeScoreWithMeasureStarts([0, 480, 2400]));
+      service.setMetronomeEnabled(true);
+
+      fireAtTick(2400);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 2400, 1.0);
+
+      fireAtTick(960);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 960, 0.6);
+    });
+
+    it('links score measure startTicks to the metronome via loadScore (結線テスト)', () => {
+      const score = makeScoreWithMeasureStarts([0, 1920]);
+
+      service.loadScore(score);
+
+      // @ts-expect-error private
+      const measureStartTicks = service.metronome.measureStartTicks as Set<number>;
+      expect(measureStartTicks.has(0)).toBe(true);
+      expect(measureStartTicks.has(1920)).toBe(true);
+    });
+
+    it('retains the accent-enabled flag and measure startTicks after dispose() and re-initialization (StrictMode resilience)', () => {
+      service.loadScore(makeScoreWithMeasureStarts([0, 1920]));
+      service.setMetronomeAccentEnabled(false);
+
+      service.dispose();
+      service.setMetronomeEnabled(true);
+
+      fireAtTick(1920);
+
+      // accent無効設定が再初期化後も維持され、小節頭tickでもC5・0.6で鳴る
+      expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 1920, 0.6);
     });
   });
 });

@@ -41,9 +41,9 @@
 | Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 9 | 0 | 0 | 0 | [詳細](phase-11/) @phase-11/ |
 | Phase 12: 実機フィードバック対応（2026-07-05） | 7 | 0 | 0 | 0 | [詳細](phase-12/) @phase-12/ |
 | Phase 13: UI改善要望（2026-07-06） | 6 | 0 | 0 | 0 | [詳細](phase-13/) @phase-13/ |
-| Phase 14: メトロノーム修正・アクセント（2026-07-07） | 3 | 0 | 0 | 0 | [詳細](phase-14/) @phase-14/ |
+| Phase 14: メトロノーム修正・アクセント（2026-07-07） | 3 | 0 | 1 | 0 | [詳細](phase-14/) @phase-14/ |
 
-**合計**: 63タスク / 推定合計: 約2840分（AIエージェント作業時間）
+**合計**: 64タスク / 推定合計: 約2870分（AIエージェント作業時間）
 
 > Phase 8〜10 は 2026-07-04 のトラブルシューティング分析
 > （[docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md](../troubleshooting/2026-07-04-app-unusable/analysis.md)）
@@ -284,6 +284,7 @@
 | TASK-061 | [BugFix] メトロノーム無音の修正（Sequence nullイベント） | DONE | - | 30min | [詳細](phase-14/TASK-061.md) @phase-14/TASK-061.md |
 | TASK-062 | メトロノーム一拍目アクセント（エンジン実装） | DONE | TASK-061 | 40min | [詳細](phase-14/TASK-062.md) @phase-14/TASK-062.md |
 | TASK-063 | 一拍目アクセントのUIオプションと永続化 | DONE | TASK-062 | 40min | [詳細](phase-14/TASK-063.md) @phase-14/TASK-063.md |
+| TASK-064 | [BugFix] クリック間隔のPPQ追随（Sequence再生成） | TODO | TASK-062 | 30min | [詳細](phase-14/TASK-064.md) @phase-14/TASK-064.md |
 
 ---
 

@@ -45,13 +45,17 @@ vi.mock('tone', () => {
       triggerAttackRelease: vi.fn(),
       dispose: vi.fn(),
     })),
-    Sequence: vi.fn().mockImplementation((callback: (time: number, value: unknown) => void, events: unknown[]) => ({
-      callback,
-      events,
-      start: vi.fn(),
-      stop: vi.fn(),
-      dispose: vi.fn(),
-    })),
+    Sequence: vi
+      .fn()
+      .mockImplementation(
+        (callback: (time: number, value: unknown) => void, events: unknown[]) => ({
+          callback,
+          events,
+          start: vi.fn(),
+          stop: vi.fn(),
+          dispose: vi.fn(),
+        })
+      ),
     Part: vi.fn().mockImplementation((_callback, events) => ({
       events,
       start: vi.fn().mockReturnThis(),
@@ -71,7 +75,7 @@ vi.mock('tone', () => {
 /**
  * tone@15.1.22 の Tone.Sequence._seqCallback（node_modules/tone/build/esm/event/Sequence.js:67）
  * の仕様をエミュレートするテストヘルパー（TASK-061）。events を走査し、
- * `value !== null` の場合のみ `callback(time, value)` を呼ぶ。この判定こそが
+ * value が null でない場合のみ `callback(time, value)` を呼ぶ。この判定こそが
  * 「イベント配列に null が含まれるとコールバックが発火しない」という
  * 無音バグの再現条件であり、判定ロジックを弱めてはならない。
  */

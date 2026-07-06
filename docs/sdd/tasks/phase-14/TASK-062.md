@@ -14,7 +14,7 @@
 ## 背景
 
 小節の一拍目だけクリック音を強めにするオプションを追加する（2026-07-07ユーザー要望、
-REQ-006-008）。本タスクはエンジン側（Metronome / AudioEngineService）の実装を行う。
+REQ-006-008）。本タスクはエンジン側（Metronome / AudioEngineService）を実装する。
 UIオプションと永続化は TASK-063 で行う。
 
 （分析レポート: `docs/sdd/troubleshooting/2026-07-07-metronome-no-sound/analysis.md`）
@@ -26,7 +26,7 @@ UIオプションと永続化は TASK-063 で行う。
   弱起（ピックアップ小節）や途中再生で狂うため採用しない。
 - **音の差別化**: 一拍目 `'C6'`・velocity `1.0` / 他拍 `'C5'`・velocity `0.6`。
 - **既知の制約**: クリックは4分音符グリッドで発火するため、小節頭が4分グリッドに
-  乗らない拍子（例: 3/8）ではアクセントが付かない小節が生じ得る（許容。分析レポート参照）。
+  乗らない拍子（例: 3/8）ではアクセントの付かない小節が生じ得る。許容とする（分析レポート参照）。
 
 ### 関連する仕様
 
@@ -56,9 +56,9 @@ UIオプションと永続化は TASK-063 で行う。
     先行して発火するため、`transport.ticks`（現在値）では発火予定時刻の tick と
     ずれるからである。浮動小数の誤差を吸収するため `Math.round` で整数化して照合する。
 - ファイル: `src/renderer/src/lib/audio-engine/index.ts`
-  - `setMetronomeAccentEnabled(enabled: boolean): void` を公開メソッドとして追加
-    （`ensureInitialized()` を先頭で呼び、`this.metronome.setAccentEnabled(enabled)` へ委譲。
-    `setMetronomeEnabled` と同一パターン）。
+  - `setMetronomeAccentEnabled(enabled: boolean): void` を公開メソッドとして追加する。
+    `ensureInitialized()` を先頭で呼び、`this.metronome.setAccentEnabled(enabled)` へ
+    委譲する（`setMetronomeEnabled` と同一パターン）。
   - AudioEngineService に希望状態フィールド（accent有効フラグ・小節頭tick配列）を保持し、
     `ensureInitialized()` での Metronome 再生成後にも再適用されるようにする
     （dispose→再初期化で設定が失われないこと。StrictMode耐性の既存設計に合わせる）。

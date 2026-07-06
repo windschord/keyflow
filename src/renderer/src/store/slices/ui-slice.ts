@@ -7,9 +7,9 @@ export interface UiSlice {
   metronomeEnabled: boolean;
   /**
    * メトロノームの一拍目アクセント有効/無効（REQ-006-008、TASK-063）。初期値true。
-   * electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.practice.
-   * metronomeAccentEnabled）と一致させる。usePractice.ts が変更を購読し
-   * audioEngine.setMetronomeAccentEnabledへ反映する。
+   * electron-store側のデフォルト（src/main/settings.ts の
+   * DEFAULT_SETTINGS.practice.metronomeAccentEnabled）と一致させる。
+   * usePractice.ts が変更を購読しaudioEngine.setMetronomeAccentEnabledへ反映する。
    */
   metronomeAccentEnabled: boolean;
   zoom: number;

@@ -157,9 +157,7 @@ describe('SettingsModal', () => {
 
     render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-    const checkbox = (await screen.findByLabelText(
-      '既定で1拍目を強調する'
-    )) as HTMLInputElement;
+    const checkbox = (await screen.findByLabelText('既定で1拍目を強調する')) as HTMLInputElement;
     await waitFor(() => expect(checkbox.checked).toBe(true));
     expect(usePracticeStore.getState().metronomeAccentEnabled).toBe(true);
 

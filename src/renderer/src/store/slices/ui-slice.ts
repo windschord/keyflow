@@ -5,6 +5,13 @@ export interface UiSlice {
   bpm: number;
   originalBpm: number;
   metronomeEnabled: boolean;
+  /**
+   * メトロノームの一拍目アクセント有効/無効（REQ-006-008、TASK-063）。初期値true。
+   * electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.practice.
+   * metronomeAccentEnabled）と一致させる。usePractice.ts が変更を購読し
+   * audioEngine.setMetronomeAccentEnabledへ反映する。
+   */
+  metronomeAccentEnabled: boolean;
   zoom: number;
   pianoHeight: number;
   /**
@@ -40,6 +47,8 @@ export interface UiSlice {
   keyboardSize: KeyboardSize;
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
+  /** メトロノームの一拍目アクセントの有効/無効を切り替える（TASK-063）。 */
+  setMetronomeAccentEnabled: (enabled: boolean) => void;
   setZoom: (zoom: number) => void;
   /**
    * 鍵盤の高さ（px）を設定する。80〜300pxにクランプする
@@ -71,6 +80,7 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   bpm: 120,
   originalBpm: 120,
   metronomeEnabled: false,
+  metronomeAccentEnabled: true,
   zoom: 1.0,
   // electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.pianoHeight）
   // と一致させる（TASK-045）。以前は150固定でelectron-storeの120と食い違っており、
@@ -98,6 +108,7 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
     set({ bpm: Math.max(min, Math.min(max, bpm)) });
   },
   setMetronomeEnabled: (enabled) => set({ metronomeEnabled: enabled }),
+  setMetronomeAccentEnabled: (enabled) => set({ metronomeAccentEnabled: enabled }),
   setZoom: (zoom) => set({ zoom }),
   setPianoHeight: (height) => set({ pianoHeight: Math.max(80, Math.min(300, height)) }),
   setMidiDeviceId: (deviceId) => set({ midiDeviceId: deviceId }),

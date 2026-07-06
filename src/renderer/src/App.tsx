@@ -72,6 +72,7 @@ function App(): React.JSX.Element {
     setScore,
     setOriginalBpm,
     setMetronomeEnabled,
+    setMetronomeAccentEnabled,
     setErrorMode,
     setZoom,
     setPianoHeight,
@@ -101,6 +102,7 @@ function App(): React.JSX.Element {
       setScore: s.setScore,
       setOriginalBpm: s.setOriginalBpm,
       setMetronomeEnabled: s.setMetronomeEnabled,
+      setMetronomeAccentEnabled: s.setMetronomeAccentEnabled,
       setErrorMode: s.setErrorMode,
       setZoom: s.setZoom,
       setPianoHeight: s.setPianoHeight,
@@ -184,6 +186,12 @@ function App(): React.JSX.Element {
         if (practiceSettings) {
           setMetronomeEnabled(practiceSettings.metronomeEnabled);
           setErrorMode(practiceSettings.defaultErrorMode);
+          // TASK-063: metronomeAccentEnabledはキー追加前に永続化された既存ストアには
+          // 存在しない可能性があるため、typeof===booleanガードで後方互換を保つ
+          // （未定義ならui-sliceの初期値true を維持する）。
+          if (typeof practiceSettings.metronomeAccentEnabled === 'boolean') {
+            setMetronomeAccentEnabled(practiceSettings.metronomeAccentEnabled);
+          }
         }
         if (uiSettings) {
           setZoom(uiSettings.zoom);
@@ -213,6 +221,7 @@ function App(): React.JSX.Element {
     };
   }, [
     setMetronomeEnabled,
+    setMetronomeAccentEnabled,
     setErrorMode,
     setZoom,
     setPianoHeight,

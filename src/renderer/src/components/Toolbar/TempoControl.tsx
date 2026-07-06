@@ -11,7 +11,15 @@ const INPUT_STYLE: React.CSSProperties = {
 };
 
 export const TempoControl: React.FC = () => {
-  const { bpm, originalBpm, setBpm, metronomeEnabled, setMetronomeEnabled } = usePracticeStore();
+  const {
+    bpm,
+    originalBpm,
+    setBpm,
+    metronomeEnabled,
+    setMetronomeEnabled,
+    metronomeAccentEnabled,
+    setMetronomeAccentEnabled,
+  } = usePracticeStore();
   const [inputValue, setInputValue] = useState(bpm.toString());
 
   useEffect(() => {
@@ -105,8 +113,30 @@ export const TempoControl: React.FC = () => {
           checked={metronomeEnabled}
           onChange={(e) => setMetronomeEnabled(e.target.checked)}
           style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+          data-testid="metronome-checkbox"
         />
         メトロノーム
+      </label>
+      <label
+        title="メトロノームの一拍目のクリック音を他拍より強く鳴らします"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          height: '44px',
+          cursor: 'pointer',
+          fontSize: '15px',
+          color: '#374151',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={metronomeAccentEnabled}
+          onChange={(e) => setMetronomeAccentEnabled(e.target.checked)}
+          style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+          data-testid="metronome-accent-checkbox"
+        />
+        1拍目強調
       </label>
     </div>
   );

@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-063 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 40分 |
 | 依存タスク | TASK-062 |
@@ -83,22 +83,22 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] ツールバーのメトロノームチェックボックス横に「1拍目強調」チェックボックスが表示される
-- [ ] 既定でONになっている
-- [ ] チェック操作が AudioEngine まで結線されている（usePractice の同期エフェクト）
-- [ ] SettingsModal で既定値を変更でき、electron-store に永続化される
-- [ ] 起動時に永続化値が store へ反映される（キー欠落時は `true`）
-- [ ] `docs/sdd/requirements/traceability.md` の REQ-006-008 行が更新されている
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` が全てパスする
+- [x] ツールバーのメトロノームチェックボックス横に「1拍目強調」チェックボックスが表示される
+- [x] 既定でONになっている
+- [x] チェック操作が AudioEngine まで結線されている（usePractice の同期エフェクト）
+- [x] SettingsModal で既定値を変更でき、electron-store に永続化される
+- [x] 起動時に永続化値が store へ反映される（キー欠落時は `true`）
+- [x] `docs/sdd/requirements/traceability.md` の REQ-006-008 行が更新されている
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` が全てパスする
 
 ## テスト項目
 
-- [ ] （新規・ユニット）store 初期値 `true`・setter 動作
-- [ ] （新規・UI）TempoControl のチェックボックス表示・操作・store 反映
-- [ ] （新規・結線）store 変更 → `audioEngine.setMetronomeAccentEnabled` 呼び出し
-- [ ] （新規・UI）SettingsModal の既定値変更 → 保存＋store 即時反映
-- [ ] （新規・結線）App 起動時反映（永続化値 `false` の反映、キー欠落時のフォールバック）
-- [ ] （回帰）`npm run test` 全件グリーン、既存E2Eが通る
+- [x] （新規・ユニット）store 初期値 `true`・setter 動作
+- [x] （新規・UI）TempoControl のチェックボックス表示・操作・store 反映
+- [x] （新規・結線）store 変更 → `audioEngine.setMetronomeAccentEnabled` 呼び出し
+- [x] （新規・UI）SettingsModal の既定値変更 → 保存＋store 即時反映
+- [x] （新規・結線）App 起動時反映（永続化値 `false` の反映、キー欠落時のフォールバック）
+- [x] （回帰）`npm run test` 全件グリーン、既存E2Eが通る
 
 ## 情報の明確性
 

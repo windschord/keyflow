@@ -33,7 +33,7 @@
 | REQ-004-008 | ○ | web-midi.test（setSelectedDeviceによる選択デバイスのみバインド・未接続時フォールバック）+ SettingsModal.test（デバイス一覧表示・選択・保存・ロールバック）+ useMidi.test（storeのmidiDeviceId→WebMidiService.setSelectedDeviceの結線、起動時反映）+ App.test（起動時ロード）。TASK-045で対応済み |
 | REQ-005-001/002 | ○ | PianoKeyboard.test（keyboard-renderer.tsのfillStyleアサーション）。Note.hand（parser算出済み、TASK-048でPart.hand単位からNote単位に変更）に基づきguidRight/guidLeft色を検証。partId文字列ヒューリスティックのバグを修正（TASK-041）。1パート2段譜（同一partId・staff違い）の色分けも検証（TASK-048） |
 | REQ-005-003/004 | △ | ロジックは○、鍵盤描画は× |
-| REQ-005-005 | △ | getNotePosition範囲外throwのみ |
+| REQ-005-005 | △ | getNotePosition範囲外throwのみ。TASK-056で88鍵（既定・後方互換）に加え76/61/49鍵のプリセット選択に対応（KEYBOARD_PRESETS、key-layout.test/keyboard-renderer.test/PianoKeyboard.test）。「最低でも88鍵」の既定は変更なし（keyboardSize省略時は従来通り88鍵）。「スクロール可能」部分は引き続き無検証 |
 | REQ-005-006 | ○ | usePractice.test（handleKeyClickがaudioEngine.playNote(midiNumber)を呼ぶことを検証）+ 従来通りの正誤判定・note-offスケジュール検証。TASK-047で対応済み |
 | REQ-005-007 | ○ | PianoKeyboard.test（実描画関数への座標アサーション）。TASK-055で運指の一括表示/非表示トグル追加。App.test（showFingerings=false時にPianoKeyboardへ空のannotationsが渡ることを結線検証、ONで復元） |
 | REQ-006-001 | ○ | parser + practice-flow.test（App経路） |

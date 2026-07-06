@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, MouseEvent } from 'react';
-import { PracticeMode, Note, Annotation } from '../../types';
+import { PracticeMode, Note, Annotation, KeyboardSize } from '../../types';
 import { renderKeyboard } from './keyboard-renderer';
-import { WHITE_KEY_WIDTH, getNotePosition, MIDI_MIN, MIDI_MAX } from './key-layout';
+import { WHITE_KEY_WIDTH, getNotePosition, countWhiteKeys, KEYBOARD_PRESETS } from './key-layout';
 
 export interface PianoKeyboardProps {
   expectedNotes: Note[];
@@ -11,6 +11,13 @@ export interface PianoKeyboardProps {
   practiceMode: PracticeMode;
   onKeyClick: (midiNumber: number) => void;
   height: number;
+  /**
+   * 鍵盤数プリセット（TASK-056）。未指定時は88鍵（既存動作の後方互換）。
+   * canvas幅・クリック座標→MIDI変換・範囲外ノーツのインジケータの表示範囲を決める。
+   * practice-engineの判定ロジック（expectedNotes・正誤判定）には影響しない
+   * （あくまで表示だけの制約）。
+   */
+  keyboardSize?: KeyboardSize;
 }
 
 export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
@@ -21,9 +28,11 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
   practiceMode,
   onKeyClick,
   height,
+  keyboardSize = 88,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const totalWidth = 52 * WHITE_KEY_WIDTH; // 52 white keys for 88 key piano
+  const { midiMin, midiMax } = KEYBOARD_PRESETS[keyboardSize];
+  const totalWidth = countWhiteKeys(midiMin, midiMax) * WHITE_KEY_WIDTH;
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -36,10 +45,21 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
           incorrectKeys,
           annotations,
           practiceMode,
+          midiMin,
+          midiMax,
         });
       }
     }
-  }, [expectedNotes, pressedKeys, incorrectKeys, annotations, practiceMode, height]);
+  }, [
+    expectedNotes,
+    pressedKeys,
+    incorrectKeys,
+    annotations,
+    practiceMode,
+    height,
+    midiMin,
+    midiMax,
+  ]);
 
   const handleCanvasClick = (e: MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;
@@ -49,8 +69,8 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
 
     let clickedMidi = -1;
     // Check black keys first (they are drawn on top)
-    for (let midi = MIDI_MIN; midi <= MIDI_MAX; midi++) {
-      const pos = getNotePosition(midi);
+    for (let midi = midiMin; midi <= midiMax; midi++) {
+      const pos = getNotePosition(midi, midiMin, midiMax);
       if (
         pos.isBlack &&
         x >= pos.x &&
@@ -65,8 +85,8 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
 
     if (clickedMidi === -1) {
       // Check white keys
-      for (let midi = MIDI_MIN; midi <= MIDI_MAX; midi++) {
-        const pos = getNotePosition(midi);
+      for (let midi = midiMin; midi <= midiMax; midi++) {
+        const pos = getNotePosition(midi, midiMin, midiMax);
         if (
           !pos.isBlack &&
           x >= pos.x &&

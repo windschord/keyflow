@@ -1,4 +1,5 @@
 import { StateCreator } from 'zustand';
+import { KEYBOARD_SIZES, KeyboardSize } from '../../types';
 
 export interface UiSlice {
   bpm: number;
@@ -29,6 +30,14 @@ export interface UiSlice {
    * annotation-storeの実データやサイドカーJSONには影響しない。
    */
   showFingerings: boolean;
+  /**
+   * 画面下鍵盤の鍵盤数プリセット（88/76/61/49、TASK-056）。初期値88。
+   * electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.keyboardSize）
+   * と一致させる。PianoKeyboardの表示範囲（canvas幅・クリック座標→MIDI変換・
+   * 範囲外ノーツのインジケータ）にのみ影響し、practice-engineの判定ロジック
+   * （expectedNotes・正誤判定）には一切影響しない（表示だけの制約）。
+   */
+  keyboardSize: KeyboardSize;
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
   setZoom: (zoom: number) => void;
@@ -42,6 +51,14 @@ export interface UiSlice {
   setVolume: (volume: number) => void;
   /** 運指の一括表示/非表示を切り替える（TASK-055）。 */
   setShowFingerings: (show: boolean) => void;
+  /**
+   * 画面下鍵盤の鍵盤数プリセットを設定する（TASK-056）。既知のプリセット
+   * （88/76/61/49）以外の値が渡された場合は88へフォールバックする
+   * （electron-store側の破損・想定外データに対する防御。値はユーザー入力
+   * ではなくSettingsModalのselect経由のみのため通常は発生しないが、
+   * 起動時ロードが外部JSONを読むため念のためガードする）。
+   */
+  setKeyboardSize: (size: KeyboardSize) => void;
   /**
    * 楽譜由来のテンポをセッションの基準テンポとして設定する。
    * Reset操作の戻し先である originalBpm と、現在の再生テンポ bpm を
@@ -67,6 +84,9 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   // electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.showFingerings）
   // と一致させる（TASK-055）。
   showFingerings: true,
+  // electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.keyboardSize）
+  // と一致させる（TASK-056）。
+  keyboardSize: 88,
   // REQ-006-003: 元のテンポ（originalBpm）の20%〜200%の範囲でクランプする。
   // originalBpmが未設定（0以下）の場合は初期値120を基準にする。
   // originalBpm自体のクランプ（絶対値20〜400）はsetOriginalBpm側の責務であり、
@@ -83,6 +103,8 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   setMidiDeviceId: (deviceId) => set({ midiDeviceId: deviceId }),
   setVolume: (volume) => set({ volume: Math.max(0, Math.min(100, volume)) }),
   setShowFingerings: (show) => set({ showFingerings: show }),
+  setKeyboardSize: (size) =>
+    set({ keyboardSize: (KEYBOARD_SIZES as readonly number[]).includes(size) ? size : 88 }),
   setOriginalBpm: (bpm) => {
     const clamped = Math.max(20, Math.min(400, bpm));
     set({ originalBpm: clamped, bpm: clamped });

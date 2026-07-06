@@ -115,6 +115,7 @@ describe('App', () => {
       zoom: 1.0,
       pianoHeight: 120,
       midiDeviceId: null,
+      keyboardSize: 88,
       // TASK-051: usePractice の score/practiceMode 監視エフェクト（audioEngine.loadScore
       // の再スケジュール）を追加したことで、score がテスト間に残留していると次のテストの
       // マウント時に意図しない loadScore 呼び出しが発生してしまう。他のテストが
@@ -771,6 +772,77 @@ describe('App - TASK-055: 運指の一括表示/非表示トグル', () => {
 
     await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('ui'));
     await waitFor(() => expect(usePracticeStore.getState().showFingerings).toBe(false));
+  });
+});
+
+describe('App - TASK-056: 画面下キーボードの鍵盤数指定', () => {
+  afterEach(() => {
+    act(() => {
+      usePracticeStore.setState({ keyboardSize: 88 });
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+  });
+
+  it('passes the current ui-slice keyboardSize to PianoKeyboard (default 88)', () => {
+    render(<App />);
+    expect(latestPianoKeyboardProps.keyboardSize).toBe(88);
+  });
+
+  it('passes the updated keyboardSize to PianoKeyboard immediately when the store changes (SettingsModal結線の検証)', () => {
+    render(<App />);
+    expect(latestPianoKeyboardProps.keyboardSize).toBe(88);
+
+    act(() => {
+      usePracticeStore.getState().setKeyboardSize(61);
+    });
+
+    expect(latestPianoKeyboardProps.keyboardSize).toBe(61);
+  });
+
+  it('applies the persisted ui.keyboardSize setting to the store (and to PianoKeyboard) on startup', async () => {
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      }
+      if (key === 'ui') {
+        return Promise.resolve({
+          theme: 'light',
+          language: 'ja',
+          zoom: 1,
+          pianoHeight: 120,
+          volume: 80,
+          showFingerings: true,
+          keyboardSize: 49,
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('ui'));
+    await waitFor(() => expect(usePracticeStore.getState().keyboardSize).toBe(49));
+    expect(latestPianoKeyboardProps.keyboardSize).toBe(49);
+  });
+
+  it('does not throw when electronAPI is unavailable while loading the default keyboardSize setting', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+
+    expect(() => render(<App />)).not.toThrow();
   });
 });
 

@@ -1,5 +1,13 @@
 import Store from 'electron-store';
 
+/**
+ * 画面下鍵盤の鍵盤数プリセット（TASK-056）。renderer側
+ * （src/renderer/src/types/keyboard.ts）と同じ値だが、main/rendererは
+ * 別プロセス・別バンドルのため型定義は独立して持つ（showFingerings等の
+ * 他フィールドと同じ既存パターン）。
+ */
+type KeyboardSize = 88 | 76 | 61 | 49;
+
 interface AppSettings {
   recentFiles: Array<{ path: string; openedAt: string }>;
   midi: { selectedDeviceId: string | null; selectedDeviceIndex: number };
@@ -13,6 +21,8 @@ interface AppSettings {
     volume: number;
     /** 楽譜上・鍵盤上の指番号を一括で表示するかどうか（TASK-055）。 */
     showFingerings: boolean;
+    /** 画面下鍵盤の鍵盤数プリセット（TASK-056）。 */
+    keyboardSize: KeyboardSize;
   };
   practice: { defaultErrorMode: 'wait' | 'pass'; metronomeEnabled: boolean };
 }
@@ -28,6 +38,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     language: 'ja',
     volume: 80,
     showFingerings: true,
+    keyboardSize: 88,
   },
   practice: { defaultErrorMode: 'wait', metronomeEnabled: false },
 };

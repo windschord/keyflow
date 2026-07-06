@@ -1,3 +1,5 @@
+import type { KeyboardSize } from './keyboard';
+
 export interface HandSettings {
   maxSpanSemitones: number;
   leftHandScaleFactor: number;
@@ -16,6 +18,8 @@ export interface AppSettings {
     volume: number;
     /** 楽譜上・鍵盤上の指番号を一括で表示するかどうか（TASK-055）。 */
     showFingerings: boolean;
+    /** 画面下鍵盤の鍵盤数プリセット（TASK-056）。 */
+    keyboardSize: KeyboardSize;
   };
   practice: { defaultErrorMode: 'wait' | 'pass'; metronomeEnabled: boolean };
 }

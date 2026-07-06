@@ -62,6 +62,7 @@ function App(): React.JSX.Element {
     zoom,
     pianoHeight,
     showFingerings,
+    keyboardSize,
     setScore,
     setOriginalBpm,
     setMetronomeEnabled,
@@ -71,6 +72,7 @@ function App(): React.JSX.Element {
     setMidiDeviceId,
     setVolume,
     setShowFingerings,
+    setKeyboardSize,
     currentMeasure,
     currentNoteIndex,
     loopEnabled,
@@ -89,6 +91,7 @@ function App(): React.JSX.Element {
       zoom: s.zoom,
       pianoHeight: s.pianoHeight,
       showFingerings: s.showFingerings,
+      keyboardSize: s.keyboardSize,
       setScore: s.setScore,
       setOriginalBpm: s.setOriginalBpm,
       setMetronomeEnabled: s.setMetronomeEnabled,
@@ -98,6 +101,7 @@ function App(): React.JSX.Element {
       setMidiDeviceId: s.setMidiDeviceId,
       setVolume: s.setVolume,
       setShowFingerings: s.setShowFingerings,
+      setKeyboardSize: s.setKeyboardSize,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
       loopEnabled: s.loopEnabled,
@@ -151,6 +155,10 @@ function App(): React.JSX.Element {
   //   （TASK-052: usePractice側のuseEffectがaudioEngine.setMasterVolumeへ反映する）。
   // - ui.showFingerings → ui-slice.showFingerings
   //   （TASK-055: 運指の一括表示/非表示トグルの永続化された値を反映する）。
+  // - ui.keyboardSize → ui-slice.keyboardSize
+  //   （TASK-056: 画面下鍵盤の鍵盤数プリセットの永続化された値を反映する。
+  //   PianoKeyboardの表示範囲にのみ影響し、practice-engineの判定ロジックには
+  //   影響しない）。
   // - midi.selectedDeviceId → ui-slice.midiDeviceId
   //   （TASK-045, REQ-004-008: useMidiがmidiDeviceIdの変更を購読し、
   //   WebMidiService.setSelectedDeviceへ反映する）。
@@ -180,6 +188,9 @@ function App(): React.JSX.Element {
           if (typeof uiSettings.showFingerings === 'boolean') {
             setShowFingerings(uiSettings.showFingerings);
           }
+          if (typeof uiSettings.keyboardSize === 'number') {
+            setKeyboardSize(uiSettings.keyboardSize);
+          }
         }
         if (midiSettings) {
           setMidiDeviceId(midiSettings.selectedDeviceId);
@@ -202,6 +213,7 @@ function App(): React.JSX.Element {
     setMidiDeviceId,
     setVolume,
     setShowFingerings,
+    setKeyboardSize,
   ]);
 
   // ダイアログ経由（handleOpenFile）・ドラッグ＆ドロップ経由（handleDrop）の両方から
@@ -617,6 +629,7 @@ function App(): React.JSX.Element {
           practiceMode={practiceMode}
           onKeyClick={handleKeyClick}
           height={pianoHeight}
+          keyboardSize={keyboardSize}
         />
       </div>
     </div>

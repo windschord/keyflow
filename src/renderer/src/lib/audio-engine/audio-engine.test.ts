@@ -5,9 +5,13 @@ import type { Score } from '../../types';
 
 vi.mock('tone', () => {
   let scheduleIdSeq = 0;
+  let ppqValue = 480;
+  // TASK-064: 「PPQ設定 → Sequence再生成」の順序を検証するための呼び出し順記録。
+  // mockTransportに載せることで、テスト側からはTone.getTransport()経由でのみ
+  // 参照できる（既存のgetTransportモック取得経路をそのまま使える）。
+  const callOrder: string[] = [];
   const mockTransport = {
     bpm: { value: 120 },
-    PPQ: 480,
     loop: false,
     start: vi.fn(),
     stop: vi.fn(),
@@ -19,7 +23,20 @@ vi.mock('tone', () => {
     // time自体をtickとして返す（テストごとにmockReturnValueOnce/mockImplementation
     // で上書きする）。
     getTicksAtTime: vi.fn((time: number) => time),
+    __callOrder: callOrder,
   };
+  // TASK-064: tone@15.1.22のSequenceは生成時点のPPQでsubdivisionをtickへ固定するため、
+  // 「PPQ設定が先、Sequence再生成が後」という順序を保証する必要がある。実際のPPQ値を
+  // 保持しつつ代入時に呼び出し順を記録するアクセサ経由に変更する。
+  Object.defineProperty(mockTransport, 'PPQ', {
+    get: () => ppqValue,
+    set: (value: number) => {
+      ppqValue = value;
+      callOrder.push('setPPQ');
+    },
+    enumerable: true,
+    configurable: true,
+  });
   const mockDraw = {
     // Draw.schedule は本来 requestAnimationFrame タイミングで呼ばれるが、テストでは
     // 即座に呼び出して同期的に検証できるようにする。
@@ -47,15 +64,17 @@ vi.mock('tone', () => {
     })),
     Sequence: vi
       .fn()
-      .mockImplementation(
-        (callback: (time: number, value: unknown) => void, events: unknown[]) => ({
+      .mockImplementation((callback: (time: number, value: unknown) => void, events: unknown[]) => {
+        // TASK-064: Sequenceの生成順を記録し、PPQ設定との前後関係を検証できるようにする。
+        callOrder.push('newSequence');
+        return {
           callback,
           events,
           start: vi.fn(),
           stop: vi.fn(),
           dispose: vi.fn(),
-        })
-      ),
+        };
+      }),
     Part: vi.fn().mockImplementation((_callback, events) => ({
       events,
       start: vi.fn().mockReturnThis(),
@@ -865,6 +884,61 @@ describe('AudioEngineService', () => {
 
       // accent無効設定が再初期化後も維持され、小節頭tickでもC5・0.6で鳴る
       expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 1920, 0.6);
+    });
+
+    describe('click interval follows PPQ on loadScore (TASK-064, REQ-006-005)', () => {
+      function getCallOrder(): string[] {
+        return (Tone.getTransport() as unknown as { __callOrder: string[] }).__callOrder;
+      }
+
+      it('rebuilds the sequence when loadScore runs while the metronome is already enabled (結線テスト)', () => {
+        service.setMetronomeEnabled(true);
+
+        // @ts-expect-error private
+        const oldSequence = service.metronome.sequence as { dispose: Mock };
+        const sequenceCallsBefore = (Tone.Sequence as unknown as Mock).mock.calls.length;
+
+        service.loadScore(makeScoreWithMeasureStarts([0, 1920]));
+
+        expect(oldSequence.dispose).toHaveBeenCalled();
+        expect((Tone.Sequence as unknown as Mock).mock.calls.length).toBe(sequenceCallsBefore + 1);
+        const lastArgs = (Tone.Sequence as unknown as Mock).mock.calls.at(-1);
+        expect(lastArgs?.[2]).toBe('4n');
+        // @ts-expect-error private
+        const newSequence = service.metronome.sequence as { start: Mock };
+        expect(newSequence.start).toHaveBeenCalledWith(0);
+      });
+
+      it('sets Transport.PPQ before rebuilding the sequence（順序テスト。生成時点のPPQでtick間隔が固定される仕様への対策）', () => {
+        service.setMetronomeEnabled(true);
+        const baseline = getCallOrder().length;
+
+        service.loadScore(makeScoreWithMeasureStarts([0, 1920]));
+
+        expect(getCallOrder().slice(baseline)).toEqual(['setPPQ', 'newSequence']);
+      });
+
+      it('does not create a sequence when loadScore runs while the metronome is disabled', () => {
+        const sequenceCallsBefore = (Tone.Sequence as unknown as Mock).mock.calls.length;
+
+        service.loadScore(makeScoreWithMeasureStarts([0, 1920]));
+
+        expect((Tone.Sequence as unknown as Mock).mock.calls.length).toBe(sequenceCallsBefore);
+        // @ts-expect-error private
+        expect(service.metronome.sequence).toBeNull();
+      });
+
+      it('keeps click playback and accent judgement working on the rebuilt sequence (回帰テスト、TASK-062)', () => {
+        service.setMetronomeEnabled(true);
+
+        service.loadScore(makeScoreWithMeasureStarts([0, 1920, 3840]));
+
+        fireAtTick(1920);
+        expect(getSynthMock()).toHaveBeenCalledWith('C6', '32n', 1920, 1.0);
+
+        fireAtTick(480);
+        expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 480, 0.6);
+      });
     });
   });
 });

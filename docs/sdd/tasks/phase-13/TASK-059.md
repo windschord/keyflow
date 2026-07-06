@@ -55,12 +55,12 @@ TASK-055で追加した「運指」ボタンは、青背景=表示中/白背景=
 
 ## 完了サマリー
 
-`FingeringToggle.tsx` を配色のみの表現から、「運指」ラベル・ON/OFFスイッチ
-（トラック＋ノブ、ON=#3b82f6/OFF=#9ca3af）・状態文言（表示中/非表示）の3要素
-構成に変更した。クリック可能領域はこれら3要素を包むbutton要素全体のままとし、
-`aria-pressed`・`data-testid="fingering-toggle"`・ツールチップ・
-`setShowFingerings`結線・`persistShowFingerings`によるelectron-store永続化
-（直列化パターン）は変更していない。
+`FingeringToggle.tsx` を配色のみの表現からスイッチ型の3要素構成に変更した。
+構成は「運指」ラベル・ON/OFFスイッチ（トラック＋ノブ、ON=#3b82f6/OFF=#9ca3af）・
+状態文言（表示中/非表示）である。クリック可能領域はこれら3要素を包む
+button要素全体のまま維持した。`aria-pressed`・`data-testid="fingering-toggle"`・
+ツールチップ・`setShowFingerings`結線・`persistShowFingerings`による
+electron-store永続化（直列化パターン）は変更していない。
 
 TDD（Red→Green）で、状態文言「表示中」「非表示」の表示・クリック時の切替を
 検証する3件のテストを追加し、既存7件（ラベル・ツールチップ・aria-pressed・

@@ -27,6 +27,26 @@ export interface PianoKeyboardProps {
   soundingNotes?: Set<number>;
 }
 
+/**
+ * 鍵盤コンテナのレイアウトスタイル（TASK-058）。
+ * - justifyContent 'safe center': canvas幅がコンテナ幅より狭い場合は中央寄せ、
+ *   広い場合（88鍵で横スクロールが必要な場合）は先頭（A0側）が切れないよう
+ *   左詰めへフォールバックする。Electron v29のChromiumはsafe centerを
+ *   サポートしている。
+ * - backgroundColor '#e0e0e0': 余白色をヘッダーバー（App.tsxのヘッダー背景）
+ *   と同値にする。値を変える場合は両方を揃えること。
+ *
+ * jsdom（cssstyle）は'safe center'を解析できない環境があるため、テストは
+ * DOMのstyle文字列ではなくこの定数を検証する（CodeRabbit PR#26指摘）。
+ */
+export const KEYBOARD_CONTAINER_STYLE: React.CSSProperties = {
+  overflowX: 'auto',
+  width: '100%',
+  display: 'flex',
+  justifyContent: 'safe center',
+  backgroundColor: '#e0e0e0',
+};
+
 export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
   expectedNotes,
   pressedKeys,
@@ -117,20 +137,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
 
   return (
     <div
-      style={{
-        overflowX: 'auto',
-        width: '100%',
-        height: `${height}px`,
-        display: 'flex',
-        // TASK-058: canvas幅がコンテナ幅より狭い場合は中央寄せ、広い場合
-        // （88鍵で横スクロールが必要な場合）は先頭（A0側）が切れないよう
-        // 左詰めにフォールバックする。Electron v29のChromiumはsafe centerを
-        // サポートしている。
-        justifyContent: 'safe center',
-        // TASK-058: 余白色をヘッダーバー（App.tsxのヘッダー背景）と同値の
-        // #e0e0e0にする。値を変える場合は両方を揃えること。
-        backgroundColor: '#e0e0e0',
-      }}
+      style={{ ...KEYBOARD_CONTAINER_STYLE, height: `${height}px` }}
       data-testid="keyboard-container"
     >
       <canvas

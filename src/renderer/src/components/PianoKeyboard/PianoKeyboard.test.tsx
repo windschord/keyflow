@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { renderWithStrictMode as render } from '../../tests/test-utils';
-import { PianoKeyboard } from './index';
+import { PianoKeyboard, KEYBOARD_CONTAINER_STYLE } from './index';
 import { getNotePosition, KEY_COLORS, KEYBOARD_PRESETS, countWhiteKeys } from './key-layout';
 import { renderKeyboard } from './keyboard-renderer';
 import type { Annotation, Hand, Note, KeyboardSize } from '../../types';
@@ -350,8 +350,13 @@ describe('PianoKeyboard コンテナのセンタリング・余白色（TASK-058
     );
 
     const container = screen.getByTestId('keyboard-container');
+    // display（cssstyleで解析可能なプロパティ）でスタイル定数がコンテナへ
+    // 実際に適用されている結線を検証する。
     expect(container.style.display).toBe('flex');
-    expect(container.style.justifyContent).toBe('safe center');
+    // 'safe center'はjsdom（cssstyle）が解析できない環境があるため、DOMの
+    // style文字列ではなく、コンテナに適用しているスタイル定数を検証する
+    // （CodeRabbit PR#26指摘）。
+    expect(KEYBOARD_CONTAINER_STYLE.justifyContent).toBe('safe center');
   });
 
   it('コンテナの背景色はヘッダーバーと同じ#e0e0e0である', () => {

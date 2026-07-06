@@ -427,6 +427,56 @@ describe('鍵盤上の指番号描画（REQ-005-007 / TASK-037）', () => {
   });
 });
 
+// TASK-057: PianoKeyboardがrenderKeyboardへsoundingNotesを実際に伝搬していることの
+// 結線検証（音価に応じた再生中の鍵盤表示）。
+describe('PianoKeyboard から renderKeyboard への soundingNotes 伝搬（TASK-057）', () => {
+  it('soundingNotesプロパティで指定したMIDI番号の鍵がsounding色で描画される', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    HTMLCanvasElement.prototype.getContext = vi.fn(
+      () => ctx
+    ) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
+    render(
+      <PianoKeyboard
+        expectedNotes={[]}
+        pressedKeys={new Set()}
+        incorrectKeys={new Set()}
+        annotations={[]}
+        practiceMode="both"
+        onKeyClick={() => {}}
+        height={150}
+        soundingNotes={new Set([60])}
+      />
+    );
+
+    // renderWithStrictMode（React 18 StrictMode）はeffectを二重実行するため、
+    // 描画自体は複数回起きうる。ここでは「実際にsounding色で描画されたか」
+    // （renderKeyboardへsoundingNotesが伝搬しているか）のみを検証する。
+    expect(fillStyles).toContain(KEY_COLORS.white.sounding);
+  });
+
+  it('soundingNotesを省略した場合は既存動作のまま（発音中表示なし、後方互換）', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    HTMLCanvasElement.prototype.getContext = vi.fn(
+      () => ctx
+    ) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
+    render(
+      <PianoKeyboard
+        expectedNotes={[]}
+        pressedKeys={new Set()}
+        incorrectKeys={new Set()}
+        annotations={[]}
+        practiceMode="both"
+        onKeyClick={() => {}}
+        height={150}
+      />
+    );
+
+    expect(fillStyles).not.toContain(KEY_COLORS.white.sounding);
+  });
+});
+
 describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041, note.hand基準はTASK-048）', () => {
   it('hand=rightの白鍵ノーツはguidRight色で描画される', () => {
     const { ctx, fillStyles } = createColorTrackingCtx();

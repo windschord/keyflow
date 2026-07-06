@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderKeyboard } from './keyboard-renderer';
-import { KEYBOARD_PRESETS, getNotePosition } from './key-layout';
+import { KEYBOARD_PRESETS, getNotePosition, KEY_COLORS } from './key-layout';
 import type { Note } from '../../types';
 
 function createNote(midiNumber: number, id: string): Note {
@@ -195,6 +195,147 @@ describe('範囲外ノーツのインジケータ（TASK-056）', () => {
     });
 
     expect(ctx.createLinearGradient).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * fillRect呼び出し時点でのctx.fillStyleを記録するモックctx
+ * （PianoKeyboard.test.tsxのcreateColorTrackingCtxと同型）。
+ */
+function createColorTrackingCtx(
+  canvasWidth = 864,
+  canvasHeight = 150
+): {
+  ctx: CanvasRenderingContext2D;
+  fillStyles: string[];
+} {
+  const fillStyles: string[] = [];
+  const ctx = {
+    canvas: { width: canvasWidth, height: canvasHeight },
+    clearRect: vi.fn(),
+    fillRect: vi.fn(() => {
+      fillStyles.push(ctx.fillStyle as string);
+    }),
+    strokeRect: vi.fn(),
+    fillText: vi.fn(),
+    createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+    font: '',
+    textAlign: 'start',
+    textBaseline: 'alphabetic',
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 1,
+  } as unknown as CanvasRenderingContext2D;
+  return { ctx, fillStyles };
+}
+
+describe('発音中ノーツの鍵盤表示（TASK-057: 再生中の鍵盤表示を音価に追随させる）', () => {
+  it('soundingNotesに含まれるMIDI番号の鍵はsounding色で描画される（ガイド色より優先）', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(60, 'P1-M1-N0'); // hand='right' -> 通常はguidRight色になるはず
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+      soundingNotes: new Set([60]),
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.sounding)).toHaveLength(1);
+    expect(fillStyles).not.toContain(KEY_COLORS.white.guidRight);
+  });
+
+  it('soundingNotesにない鍵はガイド色のまま描画される（発音中表示が他の鍵に影響しない）', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(60, 'P1-M1-N0'); // C4 (guidRight対象)
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+      soundingNotes: new Set([62]), // D4（60とは別の鍵）が発音中
+    });
+
+    // 60はガイド色のまま、62（ガイド対象外だが発音中）だけがsounding色になる。
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidRight)).toHaveLength(1);
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.sounding)).toHaveLength(1);
+  });
+
+  it('押鍵中（correct）の色がsounding色より優先される', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(60, 'P1-M1-N0');
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set([60]),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+      soundingNotes: new Set([60]),
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.correct)).toHaveLength(1);
+    expect(fillStyles).not.toContain(KEY_COLORS.white.sounding);
+  });
+
+  it('soundingNotes省略時は既存動作のまま（後方互換、発音中表示なし）', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(60, 'P1-M1-N0');
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+    });
+
+    expect(fillStyles).not.toContain(KEY_COLORS.white.sounding);
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidRight)).toHaveLength(1);
+  });
+
+  it('黒鍵の発音中もsounding色（黒鍵用）で描画される', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(61, 'P1-M1-N0'); // C#4 black key
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+      soundingNotes: new Set([61]),
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.black.sounding)).toHaveLength(1);
+    expect(fillStyles).not.toContain(KEY_COLORS.black.guidRight);
+  });
+
+  it('ガイド対象（expectedNotes）でない鍵でも、soundingNotesに含まれていればsounding色で描画される', () => {
+    // 練習モードの判定グループには含まれない（片手練習中の反対側パート等）が、
+    // 再生では実際に鳴っているノーツも発音中表示の対象にする。
+    const { ctx, fillStyles } = createColorTrackingCtx();
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+      soundingNotes: new Set([60]),
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.sounding)).toHaveLength(1);
   });
 });
 

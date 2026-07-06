@@ -18,6 +18,7 @@ const disposeMock = vi.fn();
 const setLoopPointsMock = vi.fn();
 const setPositionCallbackMock = vi.fn();
 const setOnStopMock = vi.fn();
+const setSoundingNotesCallbackMock = vi.fn();
 const loadScoreMock = vi.fn();
 const stopAccompanimentMock = vi.fn();
 const onNoteOnMock = vi.fn();
@@ -45,6 +46,7 @@ vi.mock('../lib/audio-engine', () => ({
     setLoopPoints: setLoopPointsMock,
     setPositionCallback: setPositionCallbackMock,
     setOnStop: setOnStopMock,
+    setSoundingNotesCallback: setSoundingNotesCallbackMock,
     loadScore: loadScoreMock,
     stopAccompaniment: stopAccompanimentMock,
   })),
@@ -447,6 +449,59 @@ describe('usePractice', () => {
     unmount();
 
     expect(setPositionCallbackMock).toHaveBeenCalledWith(null);
+  });
+
+  // TASK-057: 再生中の鍵盤表示を音価（durationTicks）に追随させるための
+  // 発音中ノーツ集合。audioEngine側でノーツ単位の発音開始/終了境界を
+  // 追跡し、変化のたびにこのコールバックが呼ばれる（結線テスト）。
+  describe('soundingNotes wiring (TASK-057)', () => {
+    it('wires audioEngine sounding-notes callback to state and exposes the current set (initially empty)', () => {
+      const { result } = renderHook(() => usePractice());
+
+      expect(setSoundingNotesCallbackMock).toHaveBeenCalledWith(expect.any(Function));
+      expect(result.current.soundingNotes).toEqual(new Set());
+
+      const soundingCallback = setSoundingNotesCallbackMock.mock.calls[0][0] as (
+        notes: Set<number>
+      ) => void;
+
+      act(() => {
+        soundingCallback(new Set([60, 64]));
+      });
+
+      expect(result.current.soundingNotes).toEqual(new Set([60, 64]));
+    });
+
+    it('updates soundingNotes again when audioEngine reports a further change (e.g. a shorter note advancing under a held long note)', () => {
+      const { result } = renderHook(() => usePractice());
+      const soundingCallback = setSoundingNotesCallbackMock.mock.calls[0][0] as (
+        notes: Set<number>
+      ) => void;
+
+      act(() => {
+        soundingCallback(new Set([60, 48]));
+      });
+      expect(result.current.soundingNotes).toEqual(new Set([60, 48]));
+
+      act(() => {
+        soundingCallback(new Set([60, 50]));
+      });
+      expect(result.current.soundingNotes).toEqual(new Set([60, 50]));
+
+      act(() => {
+        soundingCallback(new Set());
+      });
+      expect(result.current.soundingNotes).toEqual(new Set());
+    });
+
+    it('unregisters the sounding-notes callback on unmount', () => {
+      const { unmount } = renderHook(() => usePractice());
+      setSoundingNotesCallbackMock.mockClear();
+
+      unmount();
+
+      expect(setSoundingNotesCallbackMock).toHaveBeenCalledWith(null);
+    });
   });
 
   it('wires audioEngine stop callback to practiceEngine.resetToMeasure(1) when loop is disabled (REQ-010-004)', () => {

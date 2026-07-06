@@ -31,7 +31,7 @@
 | REQ-004-006 | ○ | practice-slice.test（setErrorMode）+ SettingsModal.test（変更即時反映・ロールバック）+ App.test（起動時ロード）+ practice-flow.test（SettingsModal→store→practice-engineのUI→store→engine結線）。TASK-040で対応済み |
 | REQ-004-007 | △ | handleKeyClick（モック経由）。座標→MIDI変換未検証 |
 | REQ-004-008 | ○ | web-midi.test（setSelectedDeviceによる選択デバイスのみバインド・未接続時フォールバック）+ SettingsModal.test（デバイス一覧表示・選択・保存・ロールバック）+ useMidi.test（storeのmidiDeviceId→WebMidiService.setSelectedDeviceの結線、起動時反映）+ App.test（起動時ロード）。TASK-045で対応済み |
-| REQ-005-001/002 | ○ | PianoKeyboard.test（keyboard-renderer.tsのfillStyleアサーション）。Note.hand（parser算出済み、TASK-048でPart.hand単位からNote単位に変更）に基づきguidRight/guidLeft色を検証。partId文字列ヒューリスティックのバグを修正（TASK-041）。1パート2段譜（同一partId・staff違い）の色分けも検証（TASK-048） |
+| REQ-005-001/002 | ○ | PianoKeyboard.test（keyboard-renderer.tsのfillStyleアサーション）。Note.hand（parser算出済み、TASK-048でPart.hand単位からNote単位に変更）に基づきguidRight/guidLeft色を検証。partId文字列ヒューリスティックのバグを修正（TASK-041）。1パート2段譜（同一partId・staff違い）の色分けも検証（TASK-048）。TASK-057: 再生中は判定グループ（expectedNotes）とは独立した「発音中ノーツ」表示（新色sounding、優先度は誤答＞正解押鍵＞発音中＞ガイド）を追加し、音価（durationTicks）満了まで点灯し続けるようにした（keyboard-renderer.test/PianoKeyboard.test/audio-engine.test/usePractice.test） |
 | REQ-005-003/004 | △ | ロジックは○、鍵盤描画は× |
 | REQ-005-005 | △ | getNotePosition範囲外throwのみ。TASK-056で88鍵（既定・後方互換）に加え76/61/49鍵のプリセット選択に対応（KEYBOARD_PRESETS、key-layout.test/keyboard-renderer.test/PianoKeyboard.test）。「最低でも88鍵」の既定は変更なし（keyboardSize省略時は従来通り88鍵）。「スクロール可能」部分は引き続き無検証 |
 | REQ-005-006 | ○ | usePractice.test（handleKeyClickがaudioEngine.playNote(midiNumber)を呼ぶことを検証）+ 従来通りの正誤判定・note-offスケジュール検証。TASK-047で対応済み |
@@ -71,7 +71,7 @@
 | REQ-010-002 | ○ | PlaybackControls.test（score===nullで再生/一時停止/停止がdisabled＋title「楽譜を開くと再生できます」、読込後に有効化・通常ツールチップへ復帰）。TASK-047で対応済み |
 | REQ-010-003 | △ | 状態遷移＋ユニット。実機聴感は不可 |
 | REQ-010-004 | ○ | usePractice結線 + audio-engine setOnStop + E2E（模範パターン） |
-| REQ-010-005 | ○ | audio-engine schedule + 結線 + practice-engine + E2E poll（模範パターン） |
+| REQ-010-005 | ○ | audio-engine schedule + 結線 + practice-engine + E2E poll（模範パターン）。TASK-057: カーソル連動（判定グループ単位）とは別系統で、ノーツ単位の発音開始/終了境界（同一tickは1回のTransport.scheduleへ集約）を追跡し、鍵盤の発音中表示を音価（durationTicks）に追随させる仕組みを追加（audio-engine.test）。停止/一時停止/スコア差し替え時のクリアも検証済み |
 | REQ-010-006 | △ | setBpmチェーンは○、再生中の即時反映は未検証 |
 | REQ-010-007 | ○ | practice-engine.test |
 | REQ-010-008 | △ | setLoopPointsユニット+結線。実ループは代理指標 |

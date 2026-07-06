@@ -76,6 +76,14 @@ export function usePractice() {
   const loopStart = usePracticeStore((s) => s.loopStart);
   const loopEnd = usePracticeStore((s) => s.loopEnd);
 
+  // TASK-057: 再生中の鍵盤表示を音価（durationTicks）に追随させるための
+  // 発音中ノーツ集合（MIDI番号のSet）。audioEngine側でノーツ単位の発音開始/
+  // 終了境界を追跡し、変化のたびに setSoundingNotesCallback 経由で通知される
+  // （判定グループ単位で入れ替わる noteHighlights/カーソル連動とは別系統の
+  // 表示系。再生中のみ非空になり、停止・一時停止・スコア差し替え時は
+  // audioEngine側で自動的に空集合へ戻る）。
+  const [soundingNotes, setSoundingNotes] = useState<Set<number>>(new Set());
+
   // 正誤判定結果に応じた楽譜上のハイライト（REQ-004-003/004）。
   // ScoreRenderer に noteId -> 'correct'|'incorrect' のマップとして渡し、
   // OSMDController.highlightNote に反映してもらう（結線はScoreRenderer側）。
@@ -176,6 +184,19 @@ export function usePractice() {
       audioEngine.setPositionCallback(null);
     };
   }, [audioEngine, practiceEngine]);
+
+  // 発音中ノーツ集合→鍵盤表示（TASK-057）。audioEngine が判定グループとは
+  // 独立にノーツ単位の発音開始/終了境界を通知するたびに、そのままstateへ
+  // 反映する。
+  useEffect(() => {
+    audioEngine.setSoundingNotesCallback((notes) => {
+      setSoundingNotes(notes);
+    });
+
+    return () => {
+      audioEngine.setSoundingNotesCallback(null);
+    };
+  }, [audioEngine]);
 
   // 停止操作時、先頭（ループ有効時はループ開始小節）に位置を復帰する
   // （REQ-010-004）。ストアの最新値を参照するため useEffect の依存には含めず、
@@ -284,5 +305,12 @@ export function usePractice() {
   // TASK-045: SettingsModalがMIDI入力デバイス一覧の表示・選択（REQ-004-008）を
   // 行うには、useMidi/webMidiServiceと同一のインスタンスに直接アクセスできる
   // 必要があるため、公開する（App.tsxからpropとして渡す）。
-  return { practiceEngine, audioEngine, webMidiService, handleKeyClick, noteHighlights };
+  return {
+    practiceEngine,
+    audioEngine,
+    webMidiService,
+    handleKeyClick,
+    noteHighlights,
+    soundingNotes,
+  };
 }

@@ -14,6 +14,12 @@ interface RenderOptions {
    */
   midiMin?: number;
   midiMax?: number;
+  /**
+   * 再生中に実際に発音中のノーツ（MIDI番号、TASK-057）。判定グループ
+   * （expectedNotes）とは独立に、音価（durationTicks）が満了するまで
+   * 点灯し続ける表示に使う。省略時は既存動作のまま（発音中表示なし）。
+   */
+  soundingNotes?: Set<number>;
 }
 
 // 範囲外ノーツのインジケータ（TASK-056）の見た目のパラメータ。
@@ -84,6 +90,7 @@ export function renderKeyboard({
   annotations,
   midiMin = MIDI_MIN,
   midiMax = MIDI_MAX,
+  soundingNotes = new Set(),
 }: RenderOptions) {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
@@ -104,6 +111,10 @@ export function renderKeyboard({
     const expectedNote = expectedNotes.find((n) => n.midiNumber === midiNumber);
     const isPressed = pressedKeys.has(midiNumber);
     const isIncorrect = incorrectKeys.has(midiNumber);
+    // TASK-057: 再生中の発音中表示。判定グループ（expectedNote）の有無に
+    // かかわらず、実際に鳴っているノーツはsounding色で表示する
+    // （片手練習中に反対側パートの音が鳴っている場合も含む）。
+    const isSounding = soundingNotes.has(midiNumber);
 
     let fillColor = isBlack ? KEY_COLORS.black.normal : KEY_COLORS.white.normal;
 
@@ -111,6 +122,8 @@ export function renderKeyboard({
       fillColor = isBlack ? KEY_COLORS.black.incorrect : KEY_COLORS.white.incorrect;
     } else if (isPressed) {
       fillColor = isBlack ? KEY_COLORS.black.correct : KEY_COLORS.white.correct;
+    } else if (isSounding) {
+      fillColor = isBlack ? KEY_COLORS.black.sounding : KEY_COLORS.white.sounding;
     } else if (expectedNote) {
       // REQ-005-002: 右手=青系、左手=緑系。パート単位のPart.handではなく、
       // parser算出済みのNote.hand（TASK-048）に基づいて判定する。1パート2段譜でも

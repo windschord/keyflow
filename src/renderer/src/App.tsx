@@ -46,8 +46,14 @@ function App(): React.JSX.Element {
     y: number;
   } | null>(null);
 
-  const { practiceEngine, audioEngine, webMidiService, handleKeyClick, noteHighlights } =
-    usePractice();
+  const {
+    practiceEngine,
+    audioEngine,
+    webMidiService,
+    handleKeyClick,
+    noteHighlights,
+    soundingNotes,
+  } = usePractice();
 
   const annotationStore = React.useRef(new AnnotationStoreService());
 
@@ -630,6 +636,7 @@ function App(): React.JSX.Element {
           onKeyClick={handleKeyClick}
           height={pianoHeight}
           keyboardSize={keyboardSize}
+          soundingNotes={soundingNotes}
         />
       </div>
     </div>

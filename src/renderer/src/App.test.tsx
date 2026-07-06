@@ -846,6 +846,18 @@ describe('App - TASK-056: 画面下キーボードの鍵盤数指定', () => {
   });
 });
 
+// TASK-057: usePracticeが公開するsoundingNotes（再生中の発音中ノーツ集合）が
+// そのままPianoKeyboardへ渡されることの結線検証。実際の値の遷移（音価に応じた
+// 更新）はaudio-engine.test/usePractice.testで検証済みのため、ここでは
+// 「usePractice()の戻り値がpropsとしてそのまま伝搬すること」のみを確認する。
+describe('App - soundingNotesの伝搬（TASK-057）', () => {
+  it('passes an empty soundingNotes set to PianoKeyboard initially (no playback in progress)', () => {
+    render(<App />);
+
+    expect(latestPianoKeyboardProps.soundingNotes).toEqual(new Set());
+  });
+});
+
 describe('App - drag & drop file open (TASK-053)', () => {
   const SIMPLE_XML = `<?xml version="1.0"?>
 <score-partwise>

@@ -18,6 +18,13 @@ export interface PianoKeyboardProps {
    * （あくまで表示だけの制約）。
    */
   keyboardSize?: KeyboardSize;
+  /**
+   * 再生中に実際に発音中のノーツ（MIDI番号、TASK-057）。音価（durationTicks）
+   * が満了するまで点灯し続ける表示に使う。判定グループのガイド表示
+   * （expectedNotes）とは独立した表示系であり、未指定時は既存動作のまま
+   * （発音中表示なし、後方互換）。
+   */
+  soundingNotes?: Set<number>;
 }
 
 export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
@@ -29,6 +36,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
   onKeyClick,
   height,
   keyboardSize = 88,
+  soundingNotes = new Set(),
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { midiMin, midiMax } = KEYBOARD_PRESETS[keyboardSize];
@@ -47,6 +55,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
           practiceMode,
           midiMin,
           midiMax,
+          soundingNotes,
         });
       }
     }
@@ -59,6 +68,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
     height,
     midiMin,
     midiMax,
+    soundingNotes,
   ]);
 
   const handleCanvasClick = (e: MouseEvent<HTMLCanvasElement>) => {

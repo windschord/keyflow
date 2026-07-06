@@ -266,7 +266,7 @@
 |----------|---------|-----------|------|------|-----------|
 | TASK-055 | 運指の一括表示/非表示トグル | DONE | - | 40min | [詳細](phase-13/TASK-055.md) @phase-13/TASK-055.md |
 | TASK-056 | 画面下キーボードの鍵盤数指定 | DONE | - | 60min | [詳細](phase-13/TASK-056.md) @phase-13/TASK-056.md |
-| TASK-057 | [BugFix] 再生中の鍵盤表示を音価（長音/短音）に追随させる | TODO | - | 60min | [詳細](phase-13/TASK-057.md) @phase-13/TASK-057.md |
+| TASK-057 | [BugFix] 再生中の鍵盤表示を音価（長音/短音）に追随させる | DONE | - | 60min | [詳細](phase-13/TASK-057.md) @phase-13/TASK-057.md |
 
 ---
 

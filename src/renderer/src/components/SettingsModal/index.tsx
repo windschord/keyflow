@@ -72,12 +72,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           const midi = await window.electronAPI.settings.get('midi');
           const files = await window.electronAPI.settings.getRecentFiles();
 
-          const finalUi = ui || DEFAULT_SETTINGS.ui;
-          // Apply defaults if necessary
+          // PR #27 CodeRabbit指摘: electron-storeはネストオブジェクトを深くマージしない。
+          // そのため`practice || DEFAULT_SETTINGS.practice`という全置換の
+          // フォールバックでは、キー追加前に保存された既存オブジェクトの
+          // 欠落キーを補完できない。例えばmetronomeAccentEnabled導入前の
+          // practiceオブジェクトにはこのキーが存在しない。
+          // ui/practice/midiのすべてをDEFAULT_SETTINGSとの浅いマージへ
+          // 統一し、欠落キーを既定値で補う。
           setSettings({
-            ui: finalUi,
-            practice: practice || DEFAULT_SETTINGS.practice,
-            midi: midi || DEFAULT_SETTINGS.midi,
+            ui: { ...DEFAULT_SETTINGS.ui, ...(ui || {}) },
+            practice: { ...DEFAULT_SETTINGS.practice, ...(practice || {}) },
+            midi: { ...DEFAULT_SETTINGS.midi, ...(midi || {}) },
           });
           setRecentFiles(files || []);
         } catch {

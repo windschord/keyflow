@@ -10,6 +10,7 @@ const resetToMeasureMock = vi.fn();
 const advanceToPlaybackPositionMock = vi.fn();
 const setBpmMock = vi.fn();
 const setMetronomeEnabledMock = vi.fn();
+const setMetronomeAccentEnabledMock = vi.fn();
 const setMasterVolumeMock = vi.fn();
 const playCorrectSoundMock = vi.fn();
 const playIncorrectSoundMock = vi.fn();
@@ -38,6 +39,7 @@ vi.mock('../lib/audio-engine', () => ({
   AudioEngineService: vi.fn().mockImplementation(() => ({
     setBpm: setBpmMock,
     setMetronomeEnabled: setMetronomeEnabledMock,
+    setMetronomeAccentEnabled: setMetronomeAccentEnabledMock,
     setMasterVolume: setMasterVolumeMock,
     playCorrectSound: playCorrectSoundMock,
     playIncorrectSound: playIncorrectSoundMock,
@@ -70,6 +72,7 @@ describe('usePractice', () => {
     usePracticeStore.setState({
       bpm: 120,
       metronomeEnabled: false,
+      metronomeAccentEnabled: true,
       volume: 80,
       currentMeasure: 1,
       currentNoteIndex: 0,
@@ -101,6 +104,18 @@ describe('usePractice', () => {
     });
 
     expect(setMetronomeEnabledMock).toHaveBeenCalledWith(true);
+  });
+
+  it('applies the current store metronomeAccentEnabled to audioEngine on mount and on change (TASK-063)', () => {
+    renderHook(() => usePractice());
+    expect(setMetronomeAccentEnabledMock).toHaveBeenCalledWith(true);
+
+    setMetronomeAccentEnabledMock.mockClear();
+    act(() => {
+      usePracticeStore.getState().setMetronomeAccentEnabled(false);
+    });
+
+    expect(setMetronomeAccentEnabledMock).toHaveBeenCalledWith(false);
   });
 
   it('applies the current store volume to audioEngine.setMasterVolume on mount and on change (TASK-052)', () => {

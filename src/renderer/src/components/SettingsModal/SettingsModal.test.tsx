@@ -23,7 +23,11 @@ describe('SettingsModal', () => {
   };
 
   const defaultUi = { theme: 'light', language: 'ja', zoom: 1, pianoHeight: 120 };
-  const defaultPractice = { defaultErrorMode: 'wait', metronomeEnabled: false };
+  const defaultPractice = {
+    defaultErrorMode: 'wait',
+    metronomeEnabled: false,
+    metronomeAccentEnabled: true,
+  };
   const defaultMidi = { selectedDeviceId: null, selectedDeviceIndex: 0 };
 
   beforeEach(() => {
@@ -40,6 +44,7 @@ describe('SettingsModal', () => {
     };
     usePracticeStore.setState({
       metronomeEnabled: false,
+      metronomeAccentEnabled: true,
       errorMode: 'wait',
       pianoHeight: 120,
       midiDeviceId: null,
@@ -136,6 +141,34 @@ describe('SettingsModal', () => {
     expect(settingsApi.set).toHaveBeenCalledWith(
       'practice',
       expect.objectContaining({ metronomeEnabled: true })
+    );
+  });
+
+  // TASK-063: メトロノーム一拍目アクセントの既定値設定UI（REQ-006-008）。
+  it('reflects "既定で1拍目を強調する" changes to the ui-slice metronomeAccentEnabled state and persists it', async () => {
+    settingsApi.get.mockImplementation((key: string) => {
+      if (key === 'ui') return Promise.resolve(defaultUi);
+      if (key === 'practice') return Promise.resolve(defaultPractice);
+      if (key === 'midi') return Promise.resolve(defaultMidi);
+      return Promise.resolve(undefined);
+    });
+    settingsApi.getRecentFiles.mockResolvedValue([]);
+    settingsApi.set.mockResolvedValue(undefined);
+
+    render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+    const checkbox = (await screen.findByLabelText(
+      '既定で1拍目を強調する'
+    )) as HTMLInputElement;
+    await waitFor(() => expect(checkbox.checked).toBe(true));
+    expect(usePracticeStore.getState().metronomeAccentEnabled).toBe(true);
+
+    fireEvent.click(checkbox);
+
+    await waitFor(() => expect(usePracticeStore.getState().metronomeAccentEnabled).toBe(false));
+    expect(settingsApi.set).toHaveBeenCalledWith(
+      'practice',
+      expect.objectContaining({ metronomeAccentEnabled: false })
     );
   });
 

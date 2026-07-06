@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-062 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 40分 |
 | 依存タスク | TASK-061 |
@@ -97,23 +97,23 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] アクセント有効時、小節頭tickと一致するクリックが `'C6'`・velocity 1.0 で鳴る
-- [ ] 小節頭以外のクリックは `'C5'`・velocity 0.6 で鳴る
-- [ ] アクセント無効時は全拍 `'C5'`・velocity 0.6 で鳴る
-- [ ] 弱起相当の不等間隔な小節頭tickでも正しくアクセントが付く（startTick照合）
-- [ ] `loadScore` がスコアの小節頭tickを Metronome に連携する（結線テストで検証）
-- [ ] dispose→再初期化後もアクセント設定が失われない
-- [ ] `docs/sdd/requirements/traceability.md` に REQ-006-008 行が追加されている
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` が全てパスする
+- [x] アクセント有効時、小節頭tickと一致するクリックが `'C6'`・velocity 1.0 で鳴る
+- [x] 小節頭以外のクリックは `'C5'`・velocity 0.6 で鳴る
+- [x] アクセント無効時は全拍 `'C5'`・velocity 0.6 で鳴る
+- [x] 弱起相当の不等間隔な小節頭tickでも正しくアクセントが付く（startTick照合）
+- [x] `loadScore` がスコアの小節頭tickを Metronome に連携する（結線テストで検証）
+- [x] dispose→再初期化後もアクセント設定が失われない
+- [x] `docs/sdd/requirements/traceability.md` に REQ-006-008 行が追加されている
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` が全てパスする
 
 ## テスト項目
 
-- [ ] （新規・ユニット）小節頭tickで `'C6'`・1.0、他拍で `'C5'`・0.6
-- [ ] （新規・ユニット）`setMetronomeAccentEnabled(false)` で小節頭でも `'C5'`・0.6
-- [ ] （新規・ユニット）弱起相当の不等間隔小節頭tickでの正判定
-- [ ] （新規・結線）`loadScore(score)` → `metronome.setMeasureStartTicks` の連携
-- [ ] （新規・回帰）dispose後の再初期化でアクセント設定が再適用される
-- [ ] （回帰）`npm run test` 全件グリーン
+- [x] （新規・ユニット）小節頭tickで `'C6'`・1.0、他拍で `'C5'`・0.6
+- [x] （新規・ユニット）`setMetronomeAccentEnabled(false)` で小節頭でも `'C5'`・0.6
+- [x] （新規・ユニット）弱起相当の不等間隔小節頭tickでの正判定
+- [x] （新規・結線）`loadScore(score)` → `metronome.setMeasureStartTicks` の連携
+- [x] （新規・回帰）dispose後の再初期化でアクセント設定が再適用される
+- [x] （回帰）`npm run test` 全件グリーン
 
 ## 情報の明確性
 

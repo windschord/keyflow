@@ -54,6 +54,12 @@ export class AudioEngineService {
   private onStop: (() => void) | null = null;
   private onSoundingNotesChange: SoundingNotesChangeCallback | null = null;
 
+  // TASK-062: メトロノームのアクセント関連の希望状態。dispose()でMetronomeインスタンス
+  // 自体が破棄されるため、ensureInitialized()での再生成後にもこの希望状態を再適用する
+  // （StrictMode耐性の既存設計、クラス冒頭のコメント参照）。
+  private metronomeAccentEnabled = true;
+  private measureStartTicks: number[] = [];
+
   constructor() {
     this.ensureInitialized();
   }
@@ -66,6 +72,8 @@ export class AudioEngineService {
     this.clickSynth = new Tone.Synth().toDestination();
     this.playSynth = new Tone.PolySynth(Tone.Synth).toDestination();
     this.metronome = new Metronome();
+    this.metronome.setAccentEnabled(this.metronomeAccentEnabled);
+    this.metronome.setMeasureStartTicks(this.measureStartTicks);
     this.initialized = true;
   }
 
@@ -95,6 +103,13 @@ export class AudioEngineService {
   setMetronomeEnabled(enabled: boolean): void {
     this.ensureInitialized();
     this.metronome.setEnabled(enabled);
+  }
+
+  /** メトロノームの一拍目アクセントの有効/無効を設定する（既定true、REQ-006-008）。 */
+  setMetronomeAccentEnabled(enabled: boolean): void {
+    this.ensureInitialized();
+    this.metronomeAccentEnabled = enabled;
+    this.metronome.setAccentEnabled(enabled);
   }
 
   /**
@@ -158,6 +173,10 @@ export class AudioEngineService {
     this.resetSoundingNotes();
 
     Tone.getTransport().PPQ = score.ticksPerQuarter;
+
+    // TASK-062: メトロノームの一拍目アクセント判定に使う小節頭tickをMetronomeへ連携する。
+    this.measureStartTicks = score.measures.map((m) => m.startTick);
+    this.metronome.setMeasureStartTicks(this.measureStartTicks);
 
     const events: { time: string; note: string; duration: string }[] = [];
     const boundaryEvents = new Map<number, NoteBoundaryEvent>();

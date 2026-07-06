@@ -43,6 +43,7 @@
 | REQ-006-005 | ○ | audio-engine.test（TASK-042、TASK-061）。metronome.tsからTransport.start()を削除し、setEnabled(true)はSequence.start(0)のみでTransportライフサイクルは再生コントロール側に一本化。TASK-061でSequenceのイベント配列が`[null]`のためコールバックが発火せず無音になっていたバグを修正（`[0]`へ変更）し、fireSequenceTickヘルパーによる発音結線テストを追加（Tone.jsのnullスキップ仕様をエミュレート） |
 | REQ-006-006 | ○ | Toolbar.test |
 | REQ-006-007 | △ | parserのtempoMapは○。再生時のテンポ変化再現は無検証 |
+| REQ-006-008 | △ | audio-engine.test（TASK-062: 小節頭tick一致でC6/1.0、非一致でC5/0.6、setMetronomeAccentEnabled(false)で全拍C5/0.6、弱起相当の不等間隔小節頭tickでの正判定、loadScoreからのsetMeasureStartTicks結線、dispose後の再初期化でアクセント設定が維持されることを検証）。エンジンのみ検証済み。UI結線・永続化はTASK-063で対応予定 |
 | REQ-007-001/002 | △ | practice-engine.test + audio-engine setLoopPoints。App/E2E経路のループなし |
 | REQ-007-003 | ×※ | ドラッグ選択未実装 |
 | REQ-007-004 | ×※ | ループ回数カウンターUI未実装 |

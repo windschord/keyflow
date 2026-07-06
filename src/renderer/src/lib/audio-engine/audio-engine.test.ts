@@ -749,7 +749,11 @@ describe('AudioEngineService', () => {
 
       fireSequenceTick(sequence, 0);
 
-      expect(clickSynth.triggerAttackRelease).toHaveBeenCalledWith('C5', '32n', 0);
+      // TASK-062でアクセント判定が追加され、非アクセント拍はvelocity 0.6を明示的に
+      // 渡すようになった（従来のvelocity省略=既定1.0から意図的に変更、アクセントとの
+      // 相対差を作るため）。スコア未読み込み時はmeasureStartTicksが空集合のため
+      // 常に非アクセント判定になる。
+      expect(clickSynth.triggerAttackRelease).toHaveBeenCalledWith('C5', '32n', 0, 0.6);
     });
 
     it('registers an events array containing a non-null value (so Tone.js does not skip the click as a rest)', () => {

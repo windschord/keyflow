@@ -282,7 +282,7 @@
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
 | TASK-061 | [BugFix] メトロノーム無音の修正（Sequence nullイベント） | DONE | - | 30min | [詳細](phase-14/TASK-061.md) @phase-14/TASK-061.md |
-| TASK-062 | メトロノーム一拍目アクセント（エンジン実装） | TODO | TASK-061 | 40min | [詳細](phase-14/TASK-062.md) @phase-14/TASK-062.md |
+| TASK-062 | メトロノーム一拍目アクセント（エンジン実装） | DONE | TASK-061 | 40min | [詳細](phase-14/TASK-062.md) @phase-14/TASK-062.md |
 | TASK-063 | 一拍目アクセントのUIオプションと永続化 | TODO | TASK-062 | 40min | [詳細](phase-14/TASK-063.md) @phase-14/TASK-063.md |
 
 ---

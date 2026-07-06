@@ -62,6 +62,25 @@ export class Metronome {
     this.measureStartTicks = new Set(ticks);
   }
 
+  /**
+   * 既存のシーケンスを破棄し、有効時は現在のTransport PPQで再生成する（TASK-064）。
+   * tone@15.1.22のSequenceは生成時点のPPQでsubdivision（'4n'）をtick数へ固定し、
+   * 後からのTransport.PPQ変更に追随しない。楽譜読み込み前にメトロノームを
+   * ONにした場合、Transportの既定PPQ（192）でシーケンスが固定され、
+   * loadScoreがPPQを480へ変更してもクリック間隔がずれたままになる。
+   * このメソッドはPPQ変更の直後に呼び出す。常に現在のPPQに基づく間隔へ
+   * シーケンスを組み直せる。
+   */
+  rebuildSequence(): void {
+    if (this.sequence) {
+      this.sequence.dispose();
+      this.sequence = null;
+    }
+    if (this.enabled) {
+      this.setEnabled(true);
+    }
+  }
+
   dispose(): void {
     if (this.sequence) {
       this.sequence.dispose();

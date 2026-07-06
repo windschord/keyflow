@@ -174,6 +174,11 @@ export class AudioEngineService {
 
     Tone.getTransport().PPQ = score.ticksPerQuarter;
 
+    // TASK-064: PPQ変更の直後にシーケンスを組み直す。tone@15.1.22のSequenceは
+    // 生成時点のPPQでクリック間隔を固定するため、この呼び出し順序が本修正の核心であり、
+    // PPQ設定より前に呼んではならない。
+    this.metronome.rebuildSequence();
+
     // TASK-062: メトロノームの一拍目アクセント判定に使う小節頭tickをMetronomeへ連携する。
     this.measureStartTicks = score.measures.map((m) => m.startTick);
     this.metronome.setMeasureStartTicks(this.measureStartTicks);

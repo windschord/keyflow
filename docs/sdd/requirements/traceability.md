@@ -40,7 +40,7 @@
 | REQ-006-002 | ○ | Toolbar.test + App.test + audio-engine.test |
 | REQ-006-003 | ○ | ui-slice.test（setBpmがoriginalBpm比20%-200%でクランプ、境界値含む）+ Toolbar.test（BPM入力の実クランプ挙動）+ TempoControl（title文言とUI表示範囲を比率ベースへ統一）。TASK-046で対応済み |
 | REQ-006-004 | × | ピッチ不変（Tone.js委譲） |
-| REQ-006-005 | ○ | audio-engine.test（TASK-042、TASK-061）。metronome.tsからTransport.start()を削除し、setEnabled(true)はSequence.start(0)のみでTransportライフサイクルは再生コントロール側に一本化。TASK-061でSequenceのイベント配列が`[null]`のためコールバックが発火せず無音になっていたバグを修正（`[0]`へ変更）し、fireSequenceTickヘルパーによる発音結線テストを追加（Tone.jsのnullスキップ仕様をエミュレート） |
+| REQ-006-005 | ○ | audio-engine.test（TASK-042、TASK-061、TASK-064）。metronome.tsからTransport.start()を削除し、setEnabled(true)はSequence.start(0)のみでTransportライフサイクルは再生コントロール側に一本化。TASK-061でSequenceのイベント配列が`[null]`のためコールバックが発火せず無音になっていたバグを修正（`[0]`へ変更）し、fireSequenceTickヘルパーによる発音結線テストを追加（Tone.jsのnullスキップ仕様をエミュレート）。TASK-064でSequenceが生成時点のPPQでクリック間隔を固定し楽譜読み込み前のON操作では間隔がPPQ変更へ追随しないバグを修正（Metronome.rebuildSequenceを追加しloadScoreのPPQ設定直後に再生成する）。結線・順序（PPQ設定→Sequence再生成）・無効時非生成・再生成後のクリック発音とアクセント判定の回帰をaudio-engine.testで検証 |
 | REQ-006-006 | ○ | Toolbar.test |
 | REQ-006-007 | △ | parserのtempoMapは○。再生時のテンポ変化再現は無検証 |
 | REQ-006-008 | ○ | audio-engine.test（TASK-062: 小節頭tick一致でC6/1.0、非一致でC5/0.6、setMetronomeAccentEnabled(false)で全拍C5/0.6、弱起相当の不等間隔小節頭tickでの正判定、loadScoreからのsetMeasureStartTicks結線、dispose後の再初期化でアクセント設定が維持されることを検証）+ ui-slice.test（metronomeAccentEnabled初期値true・setter）+ TempoControl.test（「1拍目強調」チェックボックスの表示・操作・store反映、メトロノームOFF時も操作可能）+ usePractice.test（store→audioEngine.setMetronomeAccentEnabled結線）+ SettingsModal.test（既定値変更→保存＋store即時反映）+ App.test（起動時の永続化値反映、キー欠落時のtrueフォールバック）。TASK-063でUI結線・永続化まで対応済み |

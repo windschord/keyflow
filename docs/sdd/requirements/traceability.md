@@ -19,7 +19,7 @@
 | REQ-002-004 | ○ | osmd-controller.test + ScoreRenderer.test（クリック位置→音符解決）+ practice-engine.test（resetToPosition: 指定判定グループへの移動、フィルタ空グループの自動スキップ、押鍵状態リセット）+ App.test（クリックした音自身の判定グループへ移動し、小節頭に丸めないことを確認、TASK-051）。E2Eクリックはなし。TASK-049でbuildNoteIdMapを独立採番から（小節番号・tick・midiNumber・staff）照合ベースへ変更し、2段譜・多声部での誤対応を解消。リサイズ/setZoom後もnoteIdToSvgCoordが再構築されクリック解決が追随することをosmd-controller.testで検証 |
 | REQ-002-005 | × | showFingerings テストゼロ |
 | REQ-002-006 | ○ | ZoomControl.test（Toolbar常設、Japanese label・値反映）+ Toolbar.test（統合）+ ScoreRenderer/osmd-controller.test（zoom prop→setZoom結線、既存）+ E2E（`zoom-select`のUI操作でストアのzoomが変わることを検証、store直接呼び出しを廃止）。TASK-045で対応済み |
-| REQ-002-007 | ○ | osmd-controller.test（note単位グレーアウトのoverlay描画）+ ScoreRenderer.test（practiceMode right/left/bothごとのsetGrayedOutNotes結線をアサート）。TASK-046で対応済み。TASK-048でパート単位(setPartOpacity)からNote.hand単位(setGrayedOutNotes)へ変更し、1パート2段譜でも検証。TASK-049でnoteIdの照合ベース化・リサイズ/setZoom時のマップ再構築によりグレーアウト座標のstale化を解消（osmd-controller.testでrender→buildNoteIdMap→reapplyOverlaysの呼び出し順序を検証） |
+| REQ-002-007 | ○ | osmd-controller.test（note単位グレーアウトのoverlay描画）+ ScoreRenderer.test（practiceMode right/left/bothごとのsetGrayedOutNotes結線をアサート）。TASK-046で対応済み。TASK-048でパート単位(setPartOpacity)からNote.hand単位(setGrayedOutNotes)へ変更し、1パート2段譜でも検証。TASK-049でnoteIdの照合ベース化・リサイズ/setZoom時のマップ再構築によりグレーアウト座標のstale化を解消（osmd-controller.testでrender→buildNoteIdMap→reapplyOverlaysの呼び出し順序を検証）。TASK-060で白半透明ベール（座標バグあり）を廃止し、GNotesUnderCursor由来の音符SVG要素を減光する方式へ変更（osmd-controller.testで適用・解除・置き換え・白矩形非生成を検証） |
 | REQ-003-001〜003 | ○ | practice-engine.test（モードフィルタ、スキップ）+ note-grouping.test（filterNotesByPracticeModeがNote.hand基準でフィルタすることを検証、TASK-048） |
 | REQ-003-004 | - | 保留・将来拡張へスコープ変更（2026-07-05、US-003参照）。曲を聴く用途はUS-010の再生で代替 |
 | REQ-003-005 | × | モード切替時の位置維持: 無検証 |
@@ -33,7 +33,7 @@
 | REQ-004-008 | ○ | web-midi.test（setSelectedDeviceによる選択デバイスのみバインド・未接続時フォールバック）+ SettingsModal.test（デバイス一覧表示・選択・保存・ロールバック）+ useMidi.test（storeのmidiDeviceId→WebMidiService.setSelectedDeviceの結線、起動時反映）+ App.test（起動時ロード）。TASK-045で対応済み |
 | REQ-005-001/002 | ○ | PianoKeyboard.test（keyboard-renderer.tsのfillStyleアサーション）。Note.hand（parser算出済み、TASK-048でPart.hand単位からNote単位に変更）に基づきguidRight/guidLeft色を検証。partId文字列ヒューリスティックのバグを修正（TASK-041）。1パート2段譜（同一partId・staff違い）の色分けも検証（TASK-048）。TASK-057: 再生中は判定グループ（expectedNotes）とは独立した「発音中ノーツ」表示（新色sounding、優先度は誤答＞正解押鍵＞発音中＞ガイド）を追加し、音価（durationTicks）満了まで点灯し続けるようにした（keyboard-renderer.test/PianoKeyboard.test/audio-engine.test/usePractice.test） |
 | REQ-005-003/004 | △ | ロジックは○、鍵盤描画は× |
-| REQ-005-005 | △ | getNotePosition範囲外throwのみ。TASK-056で88鍵（既定・後方互換）に加え76/61/49鍵のプリセット選択に対応（KEYBOARD_PRESETS、key-layout.test/keyboard-renderer.test/PianoKeyboard.test）。「最低でも88鍵」の既定は変更なし（keyboardSize省略時は従来通り88鍵）。「スクロール可能」部分は引き続き無検証 |
+| REQ-005-005 | △ | getNotePosition範囲外throwのみ。TASK-056で88鍵（既定・後方互換）に加え76/61/49鍵のプリセット選択に対応（KEYBOARD_PRESETS、key-layout.test/keyboard-renderer.test/PianoKeyboard.test）。「最低でも88鍵」の既定は変更なし（keyboardSize省略時は従来通り88鍵）。「スクロール可能」部分は引き続き無検証。TASK-058で鍵盤のセンタリング（safe center）と余白のヘッダー同色化（#e0e0e0）を追加し、センタリング下のクリック座標→MIDI変換をPianoKeyboard.testで検証 |
 | REQ-005-006 | ○ | usePractice.test（handleKeyClickがaudioEngine.playNote(midiNumber)を呼ぶことを検証）+ 従来通りの正誤判定・note-offスケジュール検証。TASK-047で対応済み |
 | REQ-005-007 | ○ | PianoKeyboard.test（実描画関数への座標アサーション）。TASK-055で運指の一括表示/非表示トグル追加。App.test（showFingerings=false時にPianoKeyboardへ空のannotationsが渡ることを結線検証、ONで復元） |
 | REQ-006-001 | ○ | parser + practice-flow.test（App経路） |
@@ -49,7 +49,7 @@
 | REQ-007-005 | ×※ | 自動解除（将来予定と明記済み・意図的） |
 | REQ-007-006 | △ | store toggleLoopのみ |
 | REQ-008-001 | ○ | osmd-controller.test（contextmenu座標→noteId解決）+ NoteContextMenu.test（指番号1-5選択）+ ScoreRenderer.test（結線）+ App.test（右クリック→setFinger→save統合）。TASK-044で対応済み |
-| REQ-008-002 | ○ | ScoreRenderer.test（annotations→showFingerings、isApproved色分け含む）。TASK-044で対応済み。TASK-049でnoteIdの照合ベース化（多声部・2段譜での誤対応解消）とリサイズ/setZoom時の再構築により、運指番号の座標stale化を解消。TASK-050で和音（同一カーソル位置の複数構成音）を音高順の縦オフセットで重ならず描画することをosmd-controller.testで検証。TASK-055で運指の一括表示/非表示トグル追加。App.test（showFingerings=false時にScoreRendererへ空のannotationsが渡りfingering-layerが消えること、ONで即復元されること、運指提案実行時にOFFなら自動でONへ戻ることを結線検証）+ ui-slice.test（showFingerings/setShowFingerings）+ FingeringToggle.test（トグルUI・永続化） |
+| REQ-008-002 | ○ | ScoreRenderer.test（annotations→showFingerings、isApproved色分け含む）。TASK-044で対応済み。TASK-049でnoteIdの照合ベース化（多声部・2段譜での誤対応解消）とリサイズ/setZoom時の再構築により、運指番号の座標stale化を解消。TASK-050で和音（同一カーソル位置の複数構成音）を音高順の縦オフセットで重ならず描画することをosmd-controller.testで検証。TASK-055で運指の一括表示/非表示トグル追加。App.test（showFingerings=false時にScoreRendererへ空のannotationsが渡りfingering-layerが消えること、ONで即復元されること、運指提案実行時にOFFなら自動でONへ戻ることを結線検証）+ ui-slice.test（showFingerings/setShowFingerings）+ FingeringToggle.test（トグルUI・永続化）。TASK-059でトグルをスイッチ型UI（状態文言「表示中/非表示」付き）へ変更し、文言切替をFingeringToggle.testで検証 |
 | REQ-008-003 | ○ | NoteContextMenu.test（コメント編集UI）+ App.test（コメント保存→annotation-store結線）。TASK-044で対応済み |
 | REQ-008-004 | ○ | annotation-store.test + path-allowlist.test + App結線 |
 | REQ-008-005 | △ | load（validNoteIdsフィルタ）は○。App結線未アサート |

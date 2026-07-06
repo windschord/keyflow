@@ -47,6 +47,11 @@ function persistShowFingerings(writeState: FingeringVisibilityWriteState, value:
  * App.tsx側でScoreRenderer/PianoKeyboardへ渡すannotationsを空配列に切り替える
  * ことで両方の指番号表示を一括制御する。annotation-store自体のデータは
  * 変更しない（表示レイヤの制御のみ）。
+ *
+ * TASK-059: ボタンの配色だけでは状態が読み取れないという実機フィードバックを
+ * 受け、「運指」ラベル・ON/OFFスイッチ（トラック＋ノブ）・状態文言
+ * （表示中/非表示）の3要素で構成するスイッチ型トグルに変更した。クリック可能
+ * 領域はこれら3要素を包むbutton要素全体のままとし、操作性を維持する。
  */
 export const FingeringToggle: React.FC = () => {
   const { showFingerings, setShowFingerings } = usePracticeStore();
@@ -74,19 +79,49 @@ export const FingeringToggle: React.FC = () => {
           : '運指を表示します（楽譜・鍵盤上の指番号を一括で表示します）'
       }
       style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
         height: '44px',
         padding: '0 14px',
         fontSize: '14px',
         fontWeight: 500,
         borderRadius: '6px',
         border: '1px solid #9ca3af',
-        backgroundColor: showFingerings ? '#3b82f6' : 'white',
-        color: showFingerings ? 'white' : '#374151',
+        backgroundColor: 'white',
+        color: '#374151',
         cursor: 'pointer',
         whiteSpace: 'nowrap',
       }}
     >
-      運指
+      <span>運指</span>
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'relative',
+          display: 'inline-block',
+          width: '36px',
+          height: '20px',
+          borderRadius: '10px',
+          backgroundColor: showFingerings ? '#3b82f6' : '#9ca3af',
+          transition: 'background-color 0.15s ease',
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: '2px',
+            left: showFingerings ? '18px' : '2px',
+            width: '16px',
+            height: '16px',
+            borderRadius: '50%',
+            backgroundColor: 'white',
+            transition: 'left 0.15s ease',
+          }}
+        />
+      </span>
+      <span>{showFingerings ? '表示中' : '非表示'}</span>
     </button>
   );
 };

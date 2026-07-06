@@ -42,6 +42,31 @@ describe('FingeringToggle labels and behavior', () => {
     expect(button.getAttribute('aria-pressed')).toBe('false');
   });
 
+  // TASK-059: スイッチ型UIへの変更に伴い、状態文言「表示中」「非表示」で
+  // ON/OFFを判別できることを検証する。
+  it('shows "表示中" status text when showFingerings is true', () => {
+    usePracticeStore.setState({ showFingerings: true });
+    render(<FingeringToggle />);
+    expect(screen.getByText('表示中')).toBeInTheDocument();
+  });
+
+  it('shows "非表示" status text when showFingerings is false', () => {
+    usePracticeStore.setState({ showFingerings: false });
+    render(<FingeringToggle />);
+    expect(screen.getByText('非表示')).toBeInTheDocument();
+  });
+
+  it('switches the status text from "表示中" to "非表示" when clicked', () => {
+    usePracticeStore.setState({ showFingerings: true });
+    render(<FingeringToggle />);
+    const button = screen.getByTestId('fingering-toggle');
+
+    fireEvent.click(button);
+
+    expect(screen.getByText('非表示')).toBeInTheDocument();
+    expect(screen.queryByText('表示中')).not.toBeInTheDocument();
+  });
+
   it('toggles setShowFingerings from true to false when clicked', () => {
     render(<FingeringToggle />);
     const button = screen.getByTestId('fingering-toggle');

@@ -212,6 +212,406 @@ describe('MusicXML Parser', () => {
   });
 });
 
+describe('MusicXML Parser - v2 tick/time model (TASK-031)', () => {
+  it('Scoreにticksperquarter=480とtempoMapが付与される', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    expect(score.ticksPerQuarter).toBe(480);
+    expect(score.tempoMap.length).toBeGreaterThanOrEqual(1);
+    expect(score.tempoMap[0]).toEqual({ tick: 0, bpm: 120 });
+  });
+
+  it('単一パート・単一声部の四分音符4つでstartTickが累積される（divisions=1, PPQ=480）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+    expect(notes.map((n) => n.startTick)).toEqual([0, 480, 960, 1440]);
+    expect(notes.map((n) => n.durationTicks)).toEqual([480, 480, 480, 480]);
+    // duration（四分音符=1.0）は durationTicks / ticksPerQuarter に等しい
+    expect(notes.map((n) => n.duration)).toEqual([1, 1, 1, 1]);
+  });
+
+  it('<chord>を持つ音符は直前音符と同一startTickになり、cursorを進めない', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+    const c4 = notes.find((n) => n.pitch.step === 'C')!;
+    const e4 = notes.find((n) => n.pitch.step === 'E')!;
+    const g4 = notes.find((n) => n.pitch.step === 'G')!;
+
+    expect(c4.startTick).toBe(0);
+    expect(e4.startTick).toBe(0);
+    expect(e4.isChord).toBe(true);
+    expect(g4.startTick).toBe(480); // chordはcursorを進めないのでG4はC4の直後から始まる
+  });
+
+  it('<backup>使用後の音符は巻き戻り後のtickから計算される（同一小節内の多声部）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice></note>
+      <backup><duration>2</duration></backup>
+      <note><pitch><step>G</step><octave>3</octave></pitch><duration>2</duration><voice>2</voice></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+    const c4 = notes.find((n) => n.pitch.step === 'C')!;
+    const g3 = notes.find((n) => n.pitch.step === 'G')!;
+
+    expect(c4.startTick).toBe(0);
+    expect(c4.voice).toBe(1);
+    expect(g3.startTick).toBe(0); // backupで巻き戻ったため C4 と同じ tick から開始
+    expect(g3.voice).toBe(2);
+  });
+
+  it('2パート曲でnoteIdがパート毎連番になる（パート横断連番にならない）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list>
+    <score-part id="P1"><part-name>Piano Right</part-name></score-part>
+    <score-part id="P2"><part-name>Piano Left</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+  <part id="P2">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>2</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>D</step><octave>2</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+    const p1Notes = notes
+      .filter((n) => n.partId === 'P1')
+      .sort((a, b) => a.noteIndex - b.noteIndex);
+    const p2Notes = notes
+      .filter((n) => n.partId === 'P2')
+      .sort((a, b) => a.noteIndex - b.noteIndex);
+
+    expect(p1Notes.map((n) => n.id)).toEqual(['P1-M1-N0', 'P1-M1-N1']);
+    expect(p2Notes.map((n) => n.id)).toEqual(['P2-M1-N0', 'P2-M1-N1']);
+  });
+
+  it('Measure.notesはstartTick昇順（同tickはpartId→noteIndex順）でソートされる（設計書の机上検証例）', () => {
+    // divisions=2, 4/4, 右手P1: C4(duration1)→E4(duration1)+G4(chord)、左手P2: C2(duration2)
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list>
+    <score-part id="P1"><part-name>Piano Right</part-name></score-part>
+    <score-part id="P2"><part-name>Piano Left</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>2</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+      </attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><chord/><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+  <part id="P2">
+    <measure number="1">
+      <attributes><divisions>2</divisions></attributes>
+      <note><pitch><step>C</step><octave>2</octave></pitch><duration>2</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+
+    expect(notes.map((n) => `${n.partId}:${n.pitch.step}${n.pitch.octave}@${n.startTick}`)).toEqual(
+      ['P1:C4@0', 'P2:C2@0', 'P1:E4@240', 'P1:G4@240']
+    );
+
+    const c4 = notes.find((n) => n.partId === 'P1' && n.pitch.step === 'C')!;
+    const e4 = notes.find((n) => n.partId === 'P1' && n.pitch.step === 'E')!;
+    const g4 = notes.find((n) => n.partId === 'P1' && n.pitch.step === 'G')!;
+    const c2 = notes.find((n) => n.partId === 'P2')!;
+
+    expect(c4.durationTicks).toBe(240);
+    expect(e4.durationTicks).toBe(240);
+    expect(c2.durationTicks).toBe(480);
+  });
+
+  it('テンポ変化（sound tempo）をまたぐ場合にstartSeconds/durationSecondsが正しく累積される', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+    <measure number="2">
+      <direction><sound tempo="60"/></direction>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    expect(score.tempo).toBe(120); // 曲頭は既定テンポ（明示的なsound tempoなし）
+    expect(score.tempoMap.map((t) => t.tick)).toEqual([0, 1920]);
+
+    const m1Note = score.measures[0].notes[0];
+    const m2Note = score.measures[1].notes[0];
+
+    expect(m1Note.startSeconds).toBeCloseTo(0, 5);
+    expect(m1Note.durationSeconds).toBeCloseTo(2.0, 5); // 4分音符4つ=1920tick, 120bpmで2秒
+    expect(m2Note.startSeconds).toBeCloseTo(2.0, 5);
+    expect(m2Note.durationSeconds).toBeCloseTo(4.0, 5); // 60bpmでは同じtick数が倍の時間になる
+  });
+
+  it('休符もtickを消費するが判定対象外として扱われる（型上の確認）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><rest/><duration>2</duration></note>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+    const rest = notes.find((n) => n.isRest)!;
+    const c4 = notes.find((n) => !n.isRest)!;
+
+    expect(rest.startTick).toBe(0);
+    expect(rest.durationTicks).toBe(960);
+    expect(c4.startTick).toBe(960); // 休符の分だけcursorが進んでいる
+  });
+});
+
+describe('MusicXML Parser - divisionsが480の約数でない場合のtick丸め（CodeRabbit指摘）', () => {
+  it('divisions=7（480の約数でない）では、音価の合計が同じ2パートのstartTickが浮動小数点誤差で食い違う（丸めなしの回帰再現）', () => {
+    // P1: duration [1,1,1,1,3] (合計7=四分音符1つ分)。
+    // P2: duration [3,1,1,1,1] (同じ合計7を逆順に並べただけ)。
+    // 両者は数学的に全く同じ時刻（合計7/divisions=1拍分）に到達するはずである。
+    // しかしtickをMath.roundで整数化せず浮動小数のまま加算すると、加算順序の違いにより
+    // 480/7の丸め誤差が異なる形で蓄積する。
+    // その結果、最終的なcheckpoint音符のstartTickが1ULP未満の差でずれてしまい、
+    // 本来"同時"のはずの2音が===で一致しなくなる。
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list>
+    <score-part id="P1"><part-name>Piano Right</part-name></score-part>
+    <score-part id="P2"><part-name>Piano Left</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>7</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration></note>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+  <part id="P2">
+    <measure number="1">
+      <attributes><divisions>7</divisions></attributes>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>3</duration></note>
+      <note><pitch><step>D</step><octave>3</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>E</step><octave>3</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>F</step><octave>3</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>A</step><octave>3</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+
+    const checkpointP1 = notes.find((n) => n.partId === 'P1' && n.pitch.step === 'A')!;
+    const checkpointP2 = notes.find((n) => n.partId === 'P2' && n.pitch.step === 'A')!;
+
+    // 両パートとも「小節頭から合計7/7拍(=四分音符1つ)進んだ位置」のはずなので、
+    // startTickは完全に一致しなければならない(同時判定=完全一致で用いられるため)。
+    expect(checkpointP1.startTick).toBe(checkpointP2.startTick);
+    // tickは整数(PPQ=480の格子上)に丸められていること。
+    expect(Number.isInteger(checkpointP1.startTick)).toBe(true);
+    expect(Number.isInteger(checkpointP2.startTick)).toBe(true);
+  });
+
+  it('divisions=7でbackup/forwardを挟んでも、durationTicksとstartTickは整数(PPQ格子上)になる', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>7</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>5</duration><voice>1</voice></note>
+      <backup><duration>5</duration></backup>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>3</duration><voice>2</voice></note>
+      <forward><duration>2</duration></forward>
+      <note><pitch><step>D</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+
+    for (const note of notes) {
+      expect(Number.isInteger(note.startTick)).toBe(true);
+      expect(Number.isInteger(note.durationTicks)).toBe(true);
+    }
+
+    // voice1の音符(C4)は小節頭(0)から開始。backupで巻き戻した後のvoice2先頭(C3)も
+    // 同じく小節頭(0)から開始するはずである。
+    const c4 = notes.find((n) => n.pitch.step === 'C' && n.pitch.octave === 4)!;
+    const c3 = notes.find((n) => n.pitch.step === 'C' && n.pitch.octave === 3)!;
+    expect(c4.startTick).toBe(0);
+    expect(c3.startTick).toBe(0);
+  });
+});
+
+describe('MusicXML Parser - 2段譜のNote.staff/hand（TASK-048）', () => {
+  it('1パート2段譜（staves=2）で、staff1の音はhand=right、staff2の音はhand=leftになる（和音・backup含む）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <staves>2</staves>
+        <clef number="1"><sign>G</sign><line>2</line></clef>
+        <clef number="2"><sign>F</sign><line>4</line></clef>
+      </attributes>
+      <note>
+        <pitch><step>C</step><octave>4</octave></pitch>
+        <duration>1</duration><voice>1</voice><staff>1</staff>
+      </note>
+      <note>
+        <chord/><pitch><step>E</step><octave>4</octave></pitch>
+        <duration>1</duration><voice>1</voice><staff>1</staff>
+      </note>
+      <backup><duration>1</duration></backup>
+      <note>
+        <pitch><step>C</step><octave>2</octave></pitch>
+        <duration>1</duration><voice>2</voice><staff>2</staff>
+      </note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+
+    const c4 = notes.find((n) => n.pitch.step === 'C' && n.pitch.octave === 4)!;
+    const e4 = notes.find((n) => n.pitch.step === 'E')!;
+    const c2 = notes.find((n) => n.pitch.octave === 2)!;
+
+    expect(c4.staff).toBe(1);
+    expect(c4.hand).toBe('right');
+    expect(e4.staff).toBe(1);
+    expect(e4.hand).toBe('right');
+    expect(c2.staff).toBe(2);
+    expect(c2.hand).toBe('left');
+
+    // 単一パート内でも両手同時（同一startTick）としてグループ化されること（tick計算は不変）
+    expect(c4.startTick).toBe(0);
+    expect(c2.startTick).toBe(0);
+  });
+
+  it('<staff>未指定または単一staffのパートでは、従来通りPart.handがNoteに継承される（既存2パート譜の回帰確認）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list>
+    <score-part id="P1"><part-name>Piano Right</part-name></score-part>
+    <score-part id="P2"><part-name>Piano Left</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+  <part id="P2">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>2</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const notes = score.measures[0].notes;
+    const p1Note = notes.find((n) => n.partId === 'P1')!;
+    const p2Note = notes.find((n) => n.partId === 'P2')!;
+
+    expect(score.parts.find((p) => p.id === 'P1')!.hand).toBe('right');
+    expect(score.parts.find((p) => p.id === 'P2')!.hand).toBe('left');
+    expect(p1Note.staff).toBe(1);
+    expect(p1Note.hand).toBe('right'); // Part.hand継承
+    expect(p2Note.staff).toBe(1);
+    expect(p2Note.hand).toBe('left'); // Part.hand継承
+  });
+
+  it('単一staffのパートで<staff>1が明示されていてもPart.handを継承する（staves未指定=1扱い）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><clef><sign>F</sign></clef></attributes>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    const note = score.measures[0].notes[0];
+    expect(score.parts[0].hand).toBe('left');
+    expect(note.hand).toBe('left');
+  });
+});
+
 describe('hand-detector', () => {
   it('detects right by name keywords', () => {
     expect(detectHand('Piano Right', undefined, 0)).toBe('right');

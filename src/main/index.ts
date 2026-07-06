@@ -6,6 +6,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
 import { PathAllowlist } from './path-allowlist';
+import { createRegisterDroppedFileHandler, createShowOpenDialogHandler } from './file-handlers';
 
 function createWindow(): void {
   // Create the browser window.
@@ -48,6 +49,9 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   const pathAllowlist = new PathAllowlist();
+  // settings系IPCハンドラ（settings:get 等）と同一インスタンスを共有するため、
+  // file:show-open-dialog ハンドラ登録より前に生成する（TASK-039）。
+  const settingsService = new SettingsService();
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
@@ -59,24 +63,34 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window);
   });
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'));
+  ipcMain.handle(
+    'file:show-open-dialog',
+    createShowOpenDialogHandler(dialog, pathAllowlist, settingsService)
+  );
 
-  ipcMain.handle('file:show-open-dialog', async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      filters: [{ name: 'MusicXML', extensions: ['xml', 'mxl', 'musicxml'] }],
-    });
-    if (canceled || filePaths.length === 0) {
-      return null;
-    }
-    pathAllowlist.allowMusicXml(filePaths[0]);
-    return filePaths[0];
-  });
+  // TASK-053: ドラッグ＆ドロップで開かれたファイルも file:write（アノテーション保存）の
+  // allowlist に載せ、ファイル履歴（addRecentFile）に反映するための登録専用IPC。
+  // 拡張子検証は createRegisterDroppedFileHandler 内で行う。
+  ipcMain.handle(
+    'file:register-dropped-file',
+    createRegisterDroppedFileHandler(pathAllowlist, settingsService)
+  );
 
   ipcMain.handle('file:read', async (_, path: string) => {
     const content = await fs.promises.readFile(path, 'utf-8');
     return content;
+  });
+
+  // アノテーションのサイドカーファイル（*.annotation.json）のように「存在しないのが
+  // 正常」なファイル用。ENOENTはエラーではなくnullを返す（file:readをそのまま使うと
+  // 初回オープンのたびにメインプロセスへ未処理エラーがログされるため。2026-07-05）。
+  ipcMain.handle('file:read-if-exists', async (_, path: string) => {
+    try {
+      return await fs.promises.readFile(path, 'utf-8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw err;
+    }
   });
 
   ipcMain.handle('file:read-binary', async (_, path: string) => {
@@ -157,36 +171,7 @@ app.whenReady().then(() => {
     }
   });
 
-  const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 1024,
-    minHeight: 600,
-    show: false,
-    autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
-
-  win.on('ready-to-show', () => {
-    win.show();
-  });
-
-  win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
-    return { action: 'deny' };
-  });
-
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    win.loadURL(process.env['ELECTRON_RENDERER_URL']);
-  } else {
-    win.loadFile(join(__dirname, '../renderer/index.html'));
-  }
+  createWindow();
 
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     if (permission === 'midi' || permission === 'midiSysex') {
@@ -196,7 +181,6 @@ app.whenReady().then(() => {
     }
   });
 
-  const settingsService = new SettingsService();
   ipcMain.handle('settings:get', (_, key) => settingsService.get(key));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ipcMain.handle('settings:set', (_, key, value) => settingsService.set(key, value as any));

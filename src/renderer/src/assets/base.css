@@ -1,3 +1,9 @@
+/*
+ * このアプリのUIはライト前提（白背景・濃色テキスト）。
+ * electron-vite テンプレート由来のダークテーマ用の値
+ * （ほぼ白のテキスト・黒背景）をライトUI向けに是正している。
+ * TASK-054: 原因群D（チェックボックスラベルがbody色を継承し読めない）対応。
+ */
 :root {
   --ev-c-white: #ffffff;
   --ev-c-white-soft: #f8f8f8;
@@ -11,22 +17,22 @@
   --ev-c-gray-2: #414853;
   --ev-c-gray-3: #32363f;
 
-  --ev-c-text-1: rgba(255, 255, 245, 0.86);
-  --ev-c-text-2: rgba(235, 235, 245, 0.6);
-  --ev-c-text-3: rgba(235, 235, 245, 0.38);
+  --ev-c-text-1: #1f2937;
+  --ev-c-text-2: #4b5563;
+  --ev-c-text-3: #9ca3af;
 
   --ev-button-alt-border: transparent;
-  --ev-button-alt-text: var(--ev-c-text-1);
+  --ev-button-alt-text: var(--ev-c-white);
   --ev-button-alt-bg: var(--ev-c-gray-3);
   --ev-button-alt-hover-border: transparent;
-  --ev-button-alt-hover-text: var(--ev-c-text-1);
+  --ev-button-alt-hover-text: var(--ev-c-white);
   --ev-button-alt-hover-bg: var(--ev-c-gray-2);
 }
 
 :root {
-  --color-background: var(--ev-c-black);
-  --color-background-soft: var(--ev-c-black-soft);
-  --color-background-mute: var(--ev-c-black-mute);
+  --color-background: var(--ev-c-white);
+  --color-background-soft: var(--ev-c-white-soft);
+  --color-background-mute: var(--ev-c-white-mute);
 
   --color-text: var(--ev-c-text-1);
 }

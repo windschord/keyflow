@@ -1,8 +1,76 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import React from 'react';
+import { renderWithStrictMode as render } from '../../tests/test-utils';
 import { PianoKeyboard } from './index';
-import { getNotePosition } from './key-layout';
+import { getNotePosition, KEY_COLORS } from './key-layout';
+import { renderKeyboard } from './keyboard-renderer';
+import type { Annotation, Hand, Note } from '../../types';
+
+function createNote(midiNumber: number, id: string, partId = 'P1', hand?: Hand): Note {
+  return {
+    id,
+    partId,
+    measureNumber: 1,
+    noteIndex: 0,
+    pitch: { step: 'C', octave: 4 },
+    midiNumber,
+    duration: 1,
+    startTick: 0,
+    durationTicks: 480,
+    startSeconds: 0,
+    durationSeconds: 0.5,
+    voice: 1,
+    isChord: false,
+    isRest: false,
+    staff: 1,
+    hand,
+  };
+}
+
+/**
+ * fillRect呼び出し時点でのctx.fillStyleを記録するモックctxを作成する。
+ * drawKeyは全88鍵を毎回描画するため、対象midi以外のキーも大量にfillRectされる。
+ * 個々のキーの座標までは追跡せず、「特定の色が何回使われたか」で色分けを検証する。
+ */
+function createColorTrackingCtx(): {
+  ctx: CanvasRenderingContext2D;
+  fillStyles: string[];
+} {
+  const fillStyles: string[] = [];
+  const ctx = {
+    canvas: { width: 1248, height: 150 },
+    clearRect: vi.fn(),
+    fillRect: vi.fn(() => {
+      fillStyles.push(ctx.fillStyle as string);
+    }),
+    strokeRect: vi.fn(),
+    fillText: vi.fn(),
+    font: '',
+    textAlign: 'start',
+    textBaseline: 'alphabetic',
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 1,
+  } as unknown as CanvasRenderingContext2D;
+  return { ctx, fillStyles };
+}
+
+function createMockCtx() {
+  return {
+    canvas: { width: 1248, height: 150 },
+    clearRect: vi.fn(),
+    fillRect: vi.fn(),
+    strokeRect: vi.fn(),
+    fillText: vi.fn(),
+    font: '',
+    textAlign: 'start',
+    textBaseline: 'alphabetic',
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 1,
+  } as unknown as CanvasRenderingContext2D & { fillText: ReturnType<typeof vi.fn> };
+}
 
 describe('PianoKeyboard and KeyLayout', () => {
   beforeEach(() => {
@@ -46,5 +114,253 @@ describe('PianoKeyboard and KeyLayout', () => {
   it('throws error for out of range MIDI numbers', () => {
     expect(() => getNotePosition(10)).toThrow();
     expect(() => getNotePosition(120)).toThrow();
+  });
+});
+
+describe('鍵盤上の指番号描画（REQ-005-007 / TASK-037）', () => {
+  it('現在の判定グループのノーツに指番号アノテーションがある場合、対応する鍵の上に指番号を描画する', () => {
+    const ctx = createMockCtx();
+    const note = createNote(60, 'P1-M1-N0');
+    const annotations: Annotation[] = [
+      { noteId: 'P1-M1-N0', fingerNumber: 3, isAISuggested: true, isApproved: true },
+    ];
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations,
+      practiceMode: 'both',
+    });
+
+    const pos = getNotePosition(60);
+    expect(ctx.fillText).toHaveBeenCalledTimes(1);
+    const [text, x, y] = ctx.fillText.mock.calls[0];
+    expect(text).toBe('3');
+    // 白鍵の中央付近（鍵の幅の範囲内）に描画される
+    expect(x).toBeGreaterThanOrEqual(pos.x);
+    expect(x).toBeLessThanOrEqual(pos.x + pos.width);
+    expect(y).toBeGreaterThan(0);
+    expect(y).toBeLessThanOrEqual(pos.height);
+  });
+
+  it('黒鍵のノーツにも指番号を描画する', () => {
+    const ctx = createMockCtx();
+    const note = createNote(61, 'P1-M1-N1');
+    const annotations: Annotation[] = [
+      { noteId: 'P1-M1-N1', fingerNumber: 2, isAISuggested: false, isApproved: true },
+    ];
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations,
+      practiceMode: 'both',
+    });
+
+    const pos = getNotePosition(61);
+    expect(ctx.fillText).toHaveBeenCalledTimes(1);
+    const [text, x, y] = ctx.fillText.mock.calls[0];
+    expect(text).toBe('2');
+    expect(x).toBeGreaterThanOrEqual(pos.x);
+    expect(x).toBeLessThanOrEqual(pos.x + pos.width);
+    expect(y).toBeLessThanOrEqual(pos.height);
+  });
+
+  it('アノテーションのないノーツには指番号を描画しない', () => {
+    const ctx = createMockCtx();
+    const note = createNote(60, 'P1-M1-N0');
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+    });
+
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it('fingerNumberを持たないアノテーション（コメントのみ）は描画しない', () => {
+    const ctx = createMockCtx();
+    const note = createNote(60, 'P1-M1-N0');
+    const annotations: Annotation[] = [
+      { noteId: 'P1-M1-N0', comment: 'ゆっくり', isAISuggested: false, isApproved: true },
+    ];
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations,
+      practiceMode: 'both',
+    });
+
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it('現在の判定グループに含まれない鍵には描画しない（annotationsにあってもexpectedNotesにないnoteId）', () => {
+    const ctx = createMockCtx();
+    const note = createNote(60, 'P1-M1-N0');
+    const annotations: Annotation[] = [
+      { noteId: 'P1-M2-N0', fingerNumber: 5, isAISuggested: true, isApproved: true },
+    ];
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations,
+      practiceMode: 'both',
+    });
+
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+});
+
+describe('鍵盤ガイドの左右色分け（REQ-005-002 / TASK-041, note.hand基準はTASK-048）', () => {
+  it('hand=rightの白鍵ノーツはguidRight色で描画される', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(60, 'P1-M1-N0', 'P1', 'right'); // C4 white key
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidRight)).toHaveLength(1);
+    expect(fillStyles).not.toContain(KEY_COLORS.white.guidLeft);
+  });
+
+  it('hand=rightの黒鍵ノーツはguidRight色で描画される', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(61, 'P1-M1-N1', 'P1', 'right'); // C#4 black key
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.black.guidRight)).toHaveLength(1);
+    expect(fillStyles).not.toContain(KEY_COLORS.black.guidLeft);
+  });
+
+  it('hand=leftの白鍵ノーツはguidLeft色で描画される', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(48, 'P2-M1-N0', 'P2', 'left'); // C3 white key
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidLeft)).toHaveLength(1);
+    expect(fillStyles).not.toContain(KEY_COLORS.white.guidRight);
+  });
+
+  it('handが未設定のノーツはフォールバックでguidLeft色になる', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(60, 'P9-M1-N0', 'P9'); // hand未指定
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidLeft)).toHaveLength(1);
+    expect(fillStyles).not.toContain(KEY_COLORS.white.guidRight);
+  });
+
+  it('1パート2段譜（同一partId）でも、staff2由来のhand=leftはguidLeft色になる（TASK-048）', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    // 同一partId('P1')でも、上段(staff1)/下段(staff2)はnote.handで区別される。
+    const upperStaffNote = createNote(60, 'P1-M1-N0', 'P1', 'right');
+    const lowerStaffNote = createNote(48, 'P1-M1-N1', 'P1', 'left');
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [upperStaffNote, lowerStaffNote],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidRight)).toHaveLength(1);
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidLeft)).toHaveLength(1);
+  });
+
+  it('片手練習モード（right）でもhand=leftのノーツはguidLeft色のまま（practiceModeによる強制なし）', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(48, 'P2-M1-N0', 'P2', 'left');
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'right',
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.guidLeft)).toHaveLength(1);
+    expect(fillStyles).not.toContain(KEY_COLORS.white.guidRight);
+  });
+
+  it('押鍵中（correct）の色がガイド色より優先される', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(60, 'P1-M1-N0', 'P1', 'right');
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set([60]),
+      incorrectKeys: new Set(),
+      annotations: [],
+      practiceMode: 'both',
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.correct)).toHaveLength(1);
+    expect(fillStyles).not.toContain(KEY_COLORS.white.guidRight);
+  });
+
+  it('誤答（incorrect）の色がガイド色より優先される', () => {
+    const { ctx, fillStyles } = createColorTrackingCtx();
+    const note = createNote(60, 'P1-M1-N0', 'P1', 'right');
+
+    renderKeyboard({
+      ctx,
+      expectedNotes: [note],
+      pressedKeys: new Set(),
+      incorrectKeys: new Set([60]),
+      annotations: [],
+      practiceMode: 'both',
+    });
+
+    expect(fillStyles.filter((s) => s === KEY_COLORS.white.incorrect)).toHaveLength(1);
+    expect(fillStyles).not.toContain(KEY_COLORS.white.guidRight);
   });
 });

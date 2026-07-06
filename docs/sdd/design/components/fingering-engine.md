@@ -144,10 +144,12 @@ class FingeringEngineService {
     settings: HandSettings,
     onProgress?: (progress: number) => void
   ): Promise<FingeringResult>;
-
-  cancel(requestId: string): void;
 }
 ```
+
+> **注記（[phase-11/TASK-047](../../tasks/phase-11/TASK-047.md) @../../tasks/phase-11/TASK-047.md）**:
+> 個別リクエストを取り消す `cancel(requestId)` は呼び出し箇所が存在しない死にコードだったため削除済み。
+> 全リクエストの一括破棄は `dispose()`（Worker終了時に全pendingRequestsをrejectする）で行う。
 
 ---
 

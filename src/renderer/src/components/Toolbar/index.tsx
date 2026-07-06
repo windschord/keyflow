@@ -1,28 +1,20 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { PracticeModeSelector } from './PracticeModeSelector';
 import { TempoControl } from './TempoControl';
 import { LoopControl } from './LoopControl';
+import { PlaybackControls, PlaybackAudioEngine } from './PlaybackControls';
+import { VolumeControl } from './VolumeControl';
+import { StatsDisplay } from '../StatsDisplay';
+import { ZoomControl } from './ZoomControl';
+import type { Score } from '../../types';
 
 interface ToolbarProps {
   onOpenSettings?: () => void;
+  audioEngine?: PlaybackAudioEngine;
+  score?: Score | null;
 }
 
-export const Toolbar: React.FC<ToolbarProps> = ({ onOpenSettings }) => {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (['INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'].includes(tag)) return;
-      if (e.code === 'Space') {
-        e.preventDefault();
-        // Dummy play/pause logic
-        console.log('Play/Pause toggled');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
+export const Toolbar: React.FC<ToolbarProps> = ({ onOpenSettings, audioEngine, score }) => {
   return (
     <div
       style={{
@@ -39,12 +31,20 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onOpenSettings }) => {
       <TempoControl />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
       <LoopControl />
+      <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
+      <PlaybackControls audioEngine={audioEngine} score={score} />
+      <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
+      <VolumeControl />
+      <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
+      <ZoomControl />
+      <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
+      <StatsDisplay />
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
         <button
           onClick={onOpenSettings}
-          title="Settings"
-          aria-label="Settings"
+          title="設定"
+          aria-label="設定"
           style={{
             padding: '8px',
             backgroundColor: 'transparent',

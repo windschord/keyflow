@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { unzipSync } from 'fflate';
-import { Score, Part, Measure, Note } from '../../types';
+import { Score, Part, Measure, Note, TempoEvent, Hand } from '../../types';
 import { toMidiNumber } from './midi-utils';
 import { detectHand } from './hand-detector';
 
@@ -9,6 +9,65 @@ export class MusicXMLParseError extends Error {
     super(message);
     this.name = 'MusicXMLParseError';
   }
+}
+
+/** 正規化PPQ（Pulses Per Quarter note）。DEC-005で定数480に決定。 */
+const TICKS_PER_QUARTER = 480;
+const DEFAULT_TEMPO = 120;
+
+interface MeasureBuilder {
+  number: number;
+  startTick: number;
+  notes: Note[];
+}
+
+/**
+ * tick位置に対応する秒数を tempoMap（区間ごとのbpm）に基づいて積分計算する。
+ * tempoMap は tick 昇順でソート済みかつ先頭要素の tick が 0 であることを前提とする。
+ */
+function tickToSeconds(tick: number, tempoMap: TempoEvent[]): number {
+  let seconds = 0;
+  for (let i = 0; i < tempoMap.length; i++) {
+    const segStart = tempoMap[i].tick;
+    if (tick <= segStart) break;
+    const segEnd = i + 1 < tempoMap.length ? tempoMap[i + 1].tick : Infinity;
+    const segTickSpan = Math.min(tick, segEnd) - segStart;
+    seconds += (segTickSpan / TICKS_PER_QUARTER) * (60 / tempoMap[i].bpm);
+    if (tick <= segEnd) break;
+  }
+  return seconds;
+}
+
+function getDirectChildByTag(el: Element, tag: string): Element | null {
+  for (const child of Array.from(el.children)) {
+    if (child.tagName === tag) return child;
+  }
+  return null;
+}
+
+function getDirectChildText(el: Element, tag: string): string | undefined {
+  const child = getDirectChildByTag(el, tag);
+  return child?.textContent ?? undefined;
+}
+
+function parseNumberOrDefault(text: string | undefined, fallback: number): number {
+  if (text === undefined) return fallback;
+  const value = parseFloat(text);
+  return Number.isNaN(value) ? fallback : value;
+}
+
+/**
+ * MusicXMLの`duration`（`divisions`単位）を正規化tick（PPQ=480）へ変換する。
+ *
+ * `divisions`が480の約数でない譜面（例: divisions=7）では`duration * (480/divisions)`が
+ * 浮動小数になる。丸めずに`cursor`へ加減算し続けると、backup/forwardを挟んだ別ボイス・
+ * 別パートが同一の音楽的時刻に到達しても、加算順序の違いによる浮動小数点誤差で
+ * `startTick`が完全一致しなくなり、「同一startTick=同時発音」という同時判定が崩れる
+ * （CodeRabbit指摘）。各ステップ（note/backup/forward）でこの関数を通じて必ず整数へ
+ * 丸めてから`cursor`を加減算することで、常に整数tick上で計算が閉じるようにする。
+ */
+function toTicks(duration: number, divisions: number): number {
+  return Math.round((duration * TICKS_PER_QUARTER) / divisions);
 }
 
 export function parse(xmlContent: string): Score {
@@ -110,103 +169,234 @@ export function parse(xmlContent: string): Score {
     });
   });
 
-  const measuresMap = new Map<number, Measure>();
+  // --- v2: 時刻付与・noteId統一（TASK-031 / data-model-v2.md） ---
+  // <backup>/<forward>/<chord>/<divisions> はXML上の兄弟要素間の出現順序が重要なため、
+  // 順序を保持できるDOMParserで別途トラバースする。fast-xml-parserは同名要素を
+  // タグ名ごとの配列にまとめてしまい、異なるタグ間の相対順序が失われるためである。
+  const xmlDoc = new DOMParser().parseFromString(xmlContent, 'application/xml');
+  const partElements = Array.from(xmlDoc.getElementsByTagName('part'));
 
-  let tempo = 120;
   let beats = 4;
   let beatType = 4;
   let keySignature = 0;
 
-  (rawParts as Record<string, unknown>[]).forEach((part: Record<string, unknown>) => {
-    const partId = part['@_id'] as string;
-    let partMeasures = part['measure'] || [];
-    if (!Array.isArray(partMeasures)) partMeasures = [partMeasures];
+  // Pass 1: Measure.startTick はパート1の小節長累積で決定する（設計書の規則）。
+  const measureStartTicks = new Map<number, number>();
+  if (partElements.length > 0) {
+    let divisions = 1;
+    let runningTick = 0;
+    const firstPartMeasures = Array.from(partElements[0].children).filter(
+      (c) => c.tagName === 'measure'
+    );
 
-    (partMeasures as unknown[]).forEach((measure: unknown) => {
-      const m = measure as Record<string, unknown>;
-      const measureNumber = parseInt((m['@_number'] as string | undefined) || '0', 10);
+    for (const measureEl of firstPartMeasures) {
+      const measureNumber = parseInt(measureEl.getAttribute('number') || '0', 10);
+      measureStartTicks.set(measureNumber, runningTick);
 
-      if (!measuresMap.has(measureNumber)) {
-        measuresMap.set(measureNumber, {
-          number: measureNumber,
-          notes: [],
-        });
-      }
-
-      const currentMeasure = measuresMap.get(measureNumber)!;
-
-      // Parse attributes for tempo, time, key
-      if (m['attributes']) {
-        const attrs = m['attributes'] as Record<string, unknown>;
-        if (attrs['time']) {
-          const time = attrs['time'] as Record<string, unknown>;
-          beats = parseInt((time['beats'] as string | undefined) || '4', 10);
-          beatType = parseInt((time['beat-type'] as string | undefined) || '4', 10);
-        }
-        if (attrs['key'] && (attrs['key'] as Record<string, unknown>)['fifths']) {
-          keySignature = parseInt(
-            (attrs['key'] as Record<string, unknown>)['fifths'] as string,
-            10
-          );
-        }
-      }
-
-      if (m['direction']) {
-        const dirs = Array.isArray(m['direction']) ? m['direction'] : [m['direction']];
-        for (const dir of dirs) {
-          const d = dir as Record<string, unknown>;
-          if (d['sound'] && (d['sound'] as Record<string, unknown>)['@_tempo']) {
-            tempo = parseInt((d['sound'] as Record<string, unknown>)['@_tempo'] as string, 10);
+      let cursor = 0;
+      let maxCursor = 0;
+      for (const child of Array.from(measureEl.children)) {
+        if (child.tagName === 'attributes') {
+          const divisionsText = getDirectChildText(child, 'divisions');
+          if (divisionsText !== undefined) {
+            divisions = parseNumberOrDefault(divisionsText, divisions);
           }
+        } else if (child.tagName === 'note') {
+          const isChordNote = getDirectChildByTag(child, 'chord') !== null;
+          const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
+          if (!isChordNote) {
+            cursor += toTicks(duration, divisions);
+            if (cursor > maxCursor) maxCursor = cursor;
+          }
+        } else if (child.tagName === 'backup') {
+          const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
+          cursor -= toTicks(duration, divisions);
+        } else if (child.tagName === 'forward') {
+          const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
+          cursor += toTicks(duration, divisions);
+          if (cursor > maxCursor) maxCursor = cursor;
         }
       }
+      runningTick += maxCursor;
+    }
+  }
 
-      let notes = m['note'] || [];
-      if (!Array.isArray(notes)) notes = [notes];
-      (notes as unknown[]).forEach((note: unknown, _noteIndex: number) => {
-        if (!note || typeof note !== 'object') return;
-        const n = note as Record<string, unknown>;
-        const isRest = 'rest' in n || n['rest'] !== undefined;
-        const isChord = 'chord' in n || n['chord'] !== undefined;
-        const duration = n['duration'] ? parseInt(n['duration'] as string, 10) : 0;
+  // Pass 2: 全パートを走査し、tick/voice/noteId/staff/handを付与する。
+  const measuresMap = new Map<number, MeasureBuilder>();
+  const tempoEventsMap = new Map<number, number>();
+  // TASK-048: staff/hand決定にPart.handを参照するためのルックアップ。
+  const partsById = new Map<string, Part>(parts.map((p) => [p.id, p]));
 
-        let pitchObj = { step: 'C', octave: 4, alter: 0 };
-        let midiNumber = 0;
-
-        if (!isRest && n['pitch']) {
-          const pitch = n['pitch'] as Record<string, unknown>;
-          pitchObj = {
-            step: (pitch['step'] as string | undefined) || 'C',
-            octave: parseInt((pitch['octave'] as string | undefined) || '4', 10),
-            alter: pitch['alter'] ? parseInt(pitch['alter'] as string, 10) : 0,
-          };
-          midiNumber = toMidiNumber(pitchObj.step, pitchObj.octave, pitchObj.alter);
-        }
-
-        const noteId = `${partId}-M${measureNumber}-N${currentMeasure.notes.length}`;
-
-        currentMeasure.notes.push({
-          id: noteId,
-          partId,
-          measureNumber,
-          noteIndex: currentMeasure.notes.length,
-          pitch: pitchObj,
-          midiNumber,
-          duration,
-          isChord,
-          isRest,
-        });
+  const ensureMeasure = (measureNumber: number): MeasureBuilder => {
+    if (!measuresMap.has(measureNumber)) {
+      measuresMap.set(measureNumber, {
+        number: measureNumber,
+        startTick: measureStartTicks.get(measureNumber) ?? 0,
+        notes: [],
       });
-    });
-  });
+    }
+    return measuresMap.get(measureNumber)!;
+  };
 
-  const measures = Array.from(measuresMap.values()).sort((a, b) => a.number - b.number);
+  for (const partEl of partElements) {
+    const partId = partEl.getAttribute('id') || '';
+    let divisions = 1;
+    // TASK-048: <attributes><staves> を追跡する。2以上なら1パート2段譜として
+    // staff番号から直接hand（1='right'、2以降='left'）を決定し、未指定/1段の
+    // パートは従来通りPart.handを継承する。
+    let staves = 1;
+    const measureElements = Array.from(partEl.children).filter((c) => c.tagName === 'measure');
+
+    for (const measureEl of measureElements) {
+      const measureNumber = parseInt(measureEl.getAttribute('number') || '0', 10);
+      const measure = ensureMeasure(measureNumber);
+      const measureStartTick = measure.startTick;
+
+      let cursor = 0;
+      let lastStartTick = 0;
+      let noteIndexCounter = 0;
+
+      for (const child of Array.from(measureEl.children)) {
+        const tag = child.tagName;
+
+        if (tag === 'attributes') {
+          const divisionsText = getDirectChildText(child, 'divisions');
+          if (divisionsText !== undefined) {
+            divisions = parseNumberOrDefault(divisionsText, divisions);
+          }
+          const stavesText = getDirectChildText(child, 'staves');
+          if (stavesText !== undefined) {
+            staves = parseNumberOrDefault(stavesText, staves);
+          }
+          const timeEl = getDirectChildByTag(child, 'time');
+          if (timeEl) {
+            beats = parseNumberOrDefault(getDirectChildText(timeEl, 'beats'), beats);
+            beatType = parseNumberOrDefault(getDirectChildText(timeEl, 'beat-type'), beatType);
+          }
+          const keyEl = getDirectChildByTag(child, 'key');
+          if (keyEl) {
+            const fifthsText = getDirectChildText(keyEl, 'fifths');
+            if (fifthsText !== undefined) {
+              keySignature = parseNumberOrDefault(fifthsText, keySignature);
+            }
+          }
+        } else if (tag === 'direction') {
+          const soundEl = getDirectChildByTag(child, 'sound');
+          const tempoAttr = soundEl?.getAttribute('tempo');
+          if (tempoAttr) {
+            const absoluteTick = measureStartTick + cursor;
+            tempoEventsMap.set(absoluteTick, parseNumberOrDefault(tempoAttr, DEFAULT_TEMPO));
+          }
+        } else if (tag === 'note') {
+          const isRest = getDirectChildByTag(child, 'rest') !== null;
+          const isChord = getDirectChildByTag(child, 'chord') !== null;
+          const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
+          const voice = parseNumberOrDefault(getDirectChildText(child, 'voice'), 1);
+          const durationTicks = toTicks(duration, divisions);
+
+          let pitchObj = { step: 'C', octave: 4, alter: 0 };
+          let midiNumber = 0;
+
+          if (!isRest) {
+            const pitchEl = getDirectChildByTag(child, 'pitch');
+            if (pitchEl) {
+              const step = getDirectChildText(pitchEl, 'step') || 'C';
+              const octave = parseNumberOrDefault(getDirectChildText(pitchEl, 'octave'), 4);
+              const alter = parseNumberOrDefault(getDirectChildText(pitchEl, 'alter'), 0);
+              pitchObj = { step, octave, alter };
+              midiNumber = toMidiNumber(step, octave, alter);
+            }
+          }
+
+          let startTick: number;
+          if (isChord) {
+            startTick = lastStartTick;
+          } else {
+            startTick = measureStartTick + cursor;
+            cursor += durationTicks;
+            lastStartTick = startTick;
+          }
+
+          const noteIndex = noteIndexCounter;
+          noteIndexCounter++;
+          const noteId = `${partId}-M${measureNumber}-N${noteIndex}`;
+
+          // TASK-048: staff/handの決定。
+          const staffNumber = parseNumberOrDefault(getDirectChildText(child, 'staff'), 1);
+          const hand: Hand =
+            staves >= 2
+              ? staffNumber === 1
+                ? 'right'
+                : 'left'
+              : (partsById.get(partId)?.hand ?? 'right');
+
+          measure.notes.push({
+            id: noteId,
+            partId,
+            measureNumber,
+            noteIndex,
+            pitch: pitchObj,
+            midiNumber,
+            duration: durationTicks / TICKS_PER_QUARTER,
+            startTick,
+            durationTicks,
+            startSeconds: 0, // 後段でtempoMap確定後に埋める
+            durationSeconds: 0,
+            voice,
+            isChord,
+            isRest,
+            staff: staffNumber,
+            hand,
+          });
+        } else if (tag === 'backup') {
+          const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
+          cursor -= toTicks(duration, divisions);
+        } else if (tag === 'forward') {
+          const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
+          cursor += toTicks(duration, divisions);
+        }
+      }
+    }
+  }
+
+  // tempoMapを確定する（曲頭tick=0の要素を最低1つ保証する）。
+  const tempoMap: TempoEvent[] = Array.from(tempoEventsMap.entries())
+    .map(([tick, bpm]) => ({ tick, bpm }))
+    .sort((a, b) => a.tick - b.tick);
+
+  if (tempoMap.length === 0 || tempoMap[0].tick !== 0) {
+    tempoMap.unshift({ tick: 0, bpm: DEFAULT_TEMPO });
+  }
+
+  const tempo = tempoMap[0].bpm;
+
+  // Measure.notes を startTick 昇順（同tickは partId → noteIndex 順）でソートし、
+  // tempoMap確定後にstartSeconds/durationSecondsを付与する。
+  for (const measure of measuresMap.values()) {
+    measure.notes.sort((a, b) => {
+      if (a.startTick !== b.startTick) return a.startTick - b.startTick;
+      if (a.partId !== b.partId) return a.partId < b.partId ? -1 : 1;
+      return a.noteIndex - b.noteIndex;
+    });
+
+    for (const note of measure.notes) {
+      note.startSeconds = tickToSeconds(note.startTick, tempoMap);
+      note.durationSeconds =
+        tickToSeconds(note.startTick + note.durationTicks, tempoMap) - note.startSeconds;
+    }
+  }
+
+  const measures: Measure[] = Array.from(measuresMap.values())
+    .sort((a, b) => a.number - b.number)
+    .map((m) => ({ number: m.number, startTick: m.startTick, notes: m.notes }));
 
   return {
     title,
     parts,
     measures,
     tempo,
+    ticksPerQuarter: TICKS_PER_QUARTER,
+    tempoMap,
     timeSignature: { beats, beatType },
     keySignature,
   };

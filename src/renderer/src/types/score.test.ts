@@ -13,6 +13,11 @@ describe('Type Definitions', () => {
       pitch: { step: 'C', octave: 4 },
       midiNumber: 60,
       duration: 1,
+      startTick: 0,
+      durationTicks: 480,
+      startSeconds: 0,
+      durationSeconds: 0.5,
+      voice: 1,
       isChord: false,
       isRest: false,
     };
@@ -20,8 +25,10 @@ describe('Type Definitions', () => {
     const mockScore: Score = {
       title: 'Test Score',
       parts: [{ id: 'P1', name: 'Piano Right', hand: 'right', clef: 'treble' }],
-      measures: [{ number: 1, notes: [mockNote] }],
+      measures: [{ number: 1, startTick: 0, notes: [mockNote] }],
       tempo: 120,
+      ticksPerQuarter: 480,
+      tempoMap: [{ tick: 0, bpm: 120 }],
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
     };

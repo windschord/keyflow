@@ -24,6 +24,11 @@ out/
 coverage/
 .nyc_output/
 
+# Playwright (実起動E2Eテスト, TASK-034)
+test-results/
+playwright-report/
+playwright/.cache/
+
 # Environment & secrets
 .env
 .env.local

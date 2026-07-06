@@ -33,20 +33,15 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
     setProgress(0);
     setError(null);
 
-    const parts = score.parts.filter((p) => p.hand === hand || p.hand === 'unknown');
-    if (parts.length === 0) {
-      setError(`対象パートが見つかりません: ${hand}`);
-      setComputing(false);
-      return;
-    }
-
-    const partIds = new Set(parts.map((p) => p.id));
+    // TASK-048: パート単位（Part.hand）ではなくNote単位（Note.hand）でフィルタする。
+    // 1パート2段譜（`staves=2`）でも、staff由来のNote.handにより正しく
+    // 対象の手の音符だけを計算対象にできる。
     const notesToCompute = score.measures
       .flatMap((m) => m.notes)
-      .filter((n) => partIds.has(n.partId) && !n.isRest);
+      .filter((n) => n.hand === hand && !n.isRest);
 
     if (notesToCompute.length === 0) {
-      setError('演奏可能な音符がありません');
+      setError(hand === 'right' ? '右手の音符が見つかりません' : '左手の音符が見つかりません');
       setComputing(false);
       return;
     }
@@ -74,13 +69,14 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
         htmlFor="hand-select"
         style={{ fontSize: '14px', whiteSpace: 'nowrap', color: '#374151' }}
       >
-        手:
+        運指対象:
       </label>
       <select
         id="hand-select"
         value={hand}
         onChange={(e) => setHand(e.target.value as FingeringHand)}
         disabled={computing || !!disabled}
+        title="運指を計算する対象の手を選択します（練習対象パートの設定とは別です）"
         style={{
           height: `${TOUCH_HEIGHT}px`,
           fontSize: '16px',

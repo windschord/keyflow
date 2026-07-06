@@ -21,8 +21,10 @@ export class Metronome {
           '4n'
         );
       }
+      // Transportの起動/停止は再生コントロール（play/pause/stop）のみの責務とする
+      // （TASK-042）。ここでは Tone.Sequence.start(0) でスケジュールするのみとし、
+      // Transportが動いている間だけクリックが鳴る（再生に追従する）設計とする。
       this.sequence.start(0);
-      Tone.getTransport().start();
     } else {
       if (this.sequence) {
         this.sequence.stop();

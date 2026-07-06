@@ -84,8 +84,6 @@ interface NoteJudgement {
 3. コード（和音）は全音符が揃った時点で `correct` 判定
 4. 不正解かつ `errorMode === 'wait'` の場合は位置を進めない
 
-#### `setLoop(start: number, end: number): void`
-
 #### `advancePosition(): void`
 
 #### `resetToMeasure(measureNumber: number): void`

@@ -77,9 +77,29 @@ ls dist-electron/
 
 ## 受入基準
 
+> **是正（TASK-036、2026-07-04）**: 本タスクは元々ステータス`DONE`のまま以下4項目が全て未チェックで
+> 放置されていた（QA実施の記録が信頼できない状態）。本節はTASK-036の調査時点で実際に確認できた事実
+> のみをチェックし、確認できない項目は未チェックのまま根拠・参照を付記する形に是正したものである。
+> ステータス欄自体の再判定（DONE取り消し等）はTASK-036のスコープ外とし、行わない。
+
 - [ ] `npm run build:win` が成功してNSISインストーラー(.exe)が生成される
+  - 未検証。開発・検証環境はmacOS（darwin）である。Windows実機またはWindows CIランナーでの`npm run build:win`実行記録は存在しない。
+    macOS向け同等ビルド（`npm run build:mac`）は[phase-10/TASK-035.md](../phase-10/TASK-035.md)で成功を確認済みである。
+    その過程で`electron-builder.yml`の`files`パス誤り・`npmRebuild`設定・`electron`依存区分の3件の既存バグを修正した
+    （いずれも`win`セクションにも影響する共通バグのため、修正後は`build:win`成功の見込みは高いものの未実測）。
+    Windows実機で検証する専用タスクはPhase 10に存在しない（将来タスク化が必要）。
 - [ ] インストーラー実行後にアプリが起動できる（手動確認）
+  - 未検証（上記と同じ理由でWindows実機なし）。macOS版の`.app`起動確認は[phase-10/TASK-035.md](../phase-10/TASK-035.md)で実施済み。
 - [ ] アプリ起動後にNode.js不要でMIDI機能が動作する（node-midiがバンドルされている）
+  - この受入基準自体が設計変更（MIDI入力をWeb MIDI APIに変更、[phase-3/TASK-008.md](../phase-3/TASK-008.md)、
+    CLAUDE.md・[decisions/DEC-004.md](../../design/decisions/DEC-004.md)参照）により実態と乖離している。
+    現在の実装ではMIDI機能はnode-midiのバンドルに依存せず、RendererのWeb MIDI APIで動作する。
+    Web MIDI API経由の実MIDIデバイス動作は、実MIDIデバイスなし環境のため
+    [phase-10/TASK-035.md](../phase-10/TASK-035.md)のテスト項目でも「未検証」とされている。
+    Windows実機で確認する専用タスクはPhase 10に存在しない（将来タスク化が必要）。
 - [ ] インストーラーサイズが200MB以下（目標: ~120MB）
+  - 未検証（Windows NSISインストーラー自体が未生成）。参考値として、macOS向け成果物（dmg/zip、arch毎）は
+    [phase-10/TASK-035.md](../phase-10/TASK-035.md)の完了サマリーで「各約140MB」と報告されているが、
+    パッケージ形式・OSが異なるため直接の代替確認とはみなさない。
 
 **依存関係**: Phase 6完了

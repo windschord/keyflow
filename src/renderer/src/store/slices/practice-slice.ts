@@ -14,6 +14,7 @@ export interface PracticeSlice {
   loopEnd: number;
   stats: PracticeStats;
   setPracticeMode: (mode: PracticeMode) => void;
+  setErrorMode: (mode: ErrorMode) => void;
   setLoopRange: (start: number, end: number) => void;
   toggleLoop: () => void;
 }
@@ -23,6 +24,7 @@ const initialStats: PracticeStats = {
   correctNotes: 0,
   incorrectNotes: 0,
   accuracy: 0,
+  consecutiveCorrect: 0,
 };
 
 export const createPracticeSlice: StateCreator<PracticeSlice> = (set) => ({
@@ -35,9 +37,13 @@ export const createPracticeSlice: StateCreator<PracticeSlice> = (set) => ({
   incorrectKeys: new Set(),
   loopEnabled: false,
   loopStart: 1,
-  loopEnd: 1,
-  stats: initialStats,
+  loopEnd: 2,
+  // モジュール定数initialStatsを直接参照すると、practice-engineが返す統計オブジェクトへの
+  // 変更が定数自体を汚染し、以降に生成する全ストアの初期stats値まで書き換わってしまう
+  // (CodeRabbit指摘)。スライス生成のたびに新しいオブジェクトとしてコピーする。
+  stats: { ...initialStats },
   setPracticeMode: (mode) => set({ practiceMode: mode }),
+  setErrorMode: (mode) => set({ errorMode: mode }),
   setLoopRange: (start, end) => {
     if (start >= end) return;
     set({ loopStart: start, loopEnd: end });

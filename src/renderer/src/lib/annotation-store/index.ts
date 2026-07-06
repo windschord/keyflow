@@ -9,15 +9,43 @@ export class AnnotationStoreService {
 
   constructor() {}
 
-  async load(musicXmlPath: string): Promise<void> {
+  /**
+   * アノテーションファイルを読み込む。
+   * `validNoteIds` を指定した場合、現在のScoreに存在しないnoteIdを持つアノテーションは
+   * ファイルを破壊せず（保存しない限り元ファイルは変更しない）メモリ上でスキップし、
+   * console.warn で警告を出す。noteId採番方式の変更（TASK-031/DEC-005）により
+   * 2パート曲の既存アノテーションが一部非互換になるための後方互換措置。
+   * `validNoteIds` を省略した場合は従来通りフィルタしない。
+   *
+   * @returns スキップされたnoteIdの一覧（フィルタなしの場合は常に空配列）
+   */
+  async load(musicXmlPath: string, validNoteIds?: Iterable<string>): Promise<string[]> {
     this.currentFilePath = musicXmlPath + '.annotation.json';
+    const skipped: string[] = [];
     try {
-      const content = await window.electronAPI.file.read(this.currentFilePath);
+      // 初回オープン時にサイドカーファイルが存在しないのは正常なため、
+      // ENOENTでエラーログを出さない readIfExists を使う（2026-07-05）。
+      const content = await window.electronAPI.file.readIfExists(this.currentFilePath);
+      if (content === null) {
+        this.annotations.clear();
+        this.originalContent = '';
+        this.dirty = false;
+        return skipped;
+      }
       this.originalContent = content;
       const data: AnnotationFile = JSON.parse(content);
 
+      const validSet = validNoteIds ? new Set(validNoteIds) : null;
+
       this.annotations.clear();
       for (const ann of data.annotations) {
+        if (validSet && !validSet.has(ann.noteId)) {
+          skipped.push(ann.noteId);
+          console.warn(
+            `[AnnotationStore] 現在の楽譜に存在しないnoteIdのためアノテーションをスキップしました: ${ann.noteId}`
+          );
+          continue;
+        }
         this.annotations.set(ann.noteId, ann);
       }
       this.dirty = false;
@@ -27,6 +55,7 @@ export class AnnotationStoreService {
       this.originalContent = '';
       this.dirty = false;
     }
+    return skipped;
   }
 
   setFinger(noteId: string, finger: Finger): void {

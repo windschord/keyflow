@@ -13,6 +13,16 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
+    // tests/e2e はPlaywright for Electron（実起動E2E、`npm run test:e2e`）専用の
+    // テストスイートであり、Vitest（jsdom）では実行しない（TASK-034）。
+    // Vitestのデフォルト除外パターンに tests/e2e を追加する形で明示指定する。
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/out/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      'tests/e2e/**',
+    ],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],

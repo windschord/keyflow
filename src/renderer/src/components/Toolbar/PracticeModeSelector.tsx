@@ -50,26 +50,30 @@ export const PracticeModeSelector: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+      <span style={{ fontSize: '14px', color: '#374151', whiteSpace: 'nowrap' }}>練習対象:</span>
       <button
         data-testid="mode-left"
+        title="左手のみを練習対象にします（ショートカット: L）"
         style={practiceMode === 'left' ? BTN_ACTIVE_STYLE : BTN_STYLE}
         onClick={() => setPracticeMode('left')}
       >
-        Left (L)
+        左手 (L)
       </button>
       <button
         data-testid="mode-right"
+        title="右手のみを練習対象にします（ショートカット: R）"
         style={practiceMode === 'right' ? BTN_ACTIVE_STYLE : BTN_STYLE}
         onClick={() => setPracticeMode('right')}
       >
-        Right (R)
+        右手 (R)
       </button>
       <button
         data-testid="mode-both"
+        title="両手を練習対象にします（ショートカット: B）"
         style={practiceMode === 'both' ? BTN_ACTIVE_STYLE : BTN_STYLE}
         onClick={() => setPracticeMode('both')}
       >
-        Both (B)
+        両手 (B)
       </button>
     </div>
   );

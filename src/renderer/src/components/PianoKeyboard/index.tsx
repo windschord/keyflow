@@ -117,7 +117,20 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
 
   return (
     <div
-      style={{ overflowX: 'auto', width: '100%', height: `${height}px` }}
+      style={{
+        overflowX: 'auto',
+        width: '100%',
+        height: `${height}px`,
+        display: 'flex',
+        // TASK-058: canvas幅がコンテナ幅より狭い場合は中央寄せ、広い場合
+        // （88鍵で横スクロールが必要な場合）は先頭（A0側）が切れないよう
+        // 左詰めにフォールバックする。Electron v29のChromiumはsafe centerを
+        // サポートしている。
+        justifyContent: 'safe center',
+        // TASK-058: 余白色をヘッダーバー（App.tsxのヘッダー背景）と同値の
+        // #e0e0e0にする。値を変える場合は両方を揃えること。
+        backgroundColor: '#e0e0e0',
+      }}
       data-testid="keyboard-container"
     >
       <canvas
@@ -125,7 +138,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
         width={totalWidth}
         height={height}
         data-testid="piano-canvas"
-        style={{ display: 'block' }}
+        style={{ display: 'block', flexShrink: 0 }}
         onClick={handleCanvasClick}
       />
     </div>

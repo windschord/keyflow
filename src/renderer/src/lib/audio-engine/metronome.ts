@@ -17,7 +17,10 @@ export class Metronome {
           (time) => {
             this.synth.triggerAttackRelease('C5', '32n', time);
           },
-          [null],
+          // tone@15.1.22のSequenceはnullイベントを休符として扱いコールバックを
+          // 呼ばない仕様（Sequence.js:67 _seqCallback）。[null]のままだと
+          // クリックが永遠に発火しないため、発火する値（0）を入れる（TASK-061）。
+          [0],
           '4n'
         );
       }

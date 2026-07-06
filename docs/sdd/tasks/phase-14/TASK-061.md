@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-061 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 30分 |
 | 依存タスク | なし |
@@ -73,19 +73,19 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] メトロノーム有効時、Sequence のティック発火で `synth.triggerAttackRelease` が呼ばれる（結線テストで検証）
-- [ ] イベント配列に `null` 以外の値が含まれる（Tone の null スキップ仕様で無音にならない）
-- [ ] 停止中のメトロノームONで `Transport.start` が呼ばれない（既存テスト維持）
-- [ ] `docs/sdd/requirements/traceability.md` の REQ-006-005 行が更新されている
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` が全てパスする
+- [x] メトロノーム有効時、Sequence のティック発火で `synth.triggerAttackRelease` が呼ばれる（結線テストで検証）
+- [x] イベント配列に `null` 以外の値が含まれる（Tone の null スキップ仕様で無音にならない）
+- [x] 停止中のメトロノームONで `Transport.start` が呼ばれない（既存テスト維持）
+- [x] `docs/sdd/requirements/traceability.md` の REQ-006-005 行が更新されている
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` が全てパスする
 
 ## テスト項目
 
-- [ ] （新規・結線）メトロノーム有効時、Tone の null スキップ仕様をエミュレートした
+- [x] （新規・結線）メトロノーム有効時、Tone の null スキップ仕様をエミュレートした
   ティック発火で `triggerAttackRelease('C5', '32n', time)` が呼ばれる
-- [ ] （回帰）`setEnabled(true)` が `Transport.start` を呼ばない（TASK-042）
-- [ ] （回帰）`setEnabled(true)` で `sequence.start(0)`、`setEnabled(false)` で `sequence.stop()`
-- [ ] （回帰）`npm run test` 全件グリーン
+- [x] （回帰）`setEnabled(true)` が `Transport.start` を呼ばない（TASK-042）
+- [x] （回帰）`setEnabled(true)` で `sequence.start(0)`、`setEnabled(false)` で `sequence.stop()`
+- [x] （回帰）`npm run test` 全件グリーン
 
 ## 情報の明確性
 

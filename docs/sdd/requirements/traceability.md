@@ -40,7 +40,7 @@
 | REQ-006-002 | ○ | Toolbar.test + App.test + audio-engine.test |
 | REQ-006-003 | ○ | ui-slice.test（setBpmがoriginalBpm比20%-200%でクランプ、境界値含む）+ Toolbar.test（BPM入力の実クランプ挙動）+ TempoControl（title文言とUI表示範囲を比率ベースへ統一）。TASK-046で対応済み |
 | REQ-006-004 | × | ピッチ不変（Tone.js委譲） |
-| REQ-006-005 | ○ | audio-engine.test（TASK-042）。metronome.tsからTransport.start()を削除し、setEnabled(true)はSequence.start(0)のみでTransportライフサイクルは再生コントロール側に一本化 |
+| REQ-006-005 | ○ | audio-engine.test（TASK-042、TASK-061）。metronome.tsからTransport.start()を削除し、setEnabled(true)はSequence.start(0)のみでTransportライフサイクルは再生コントロール側に一本化。TASK-061でSequenceのイベント配列が`[null]`のためコールバックが発火せず無音になっていたバグを修正（`[0]`へ変更）し、fireSequenceTickヘルパーによる発音結線テストを追加（Tone.jsのnullスキップ仕様をエミュレート） |
 | REQ-006-006 | ○ | Toolbar.test |
 | REQ-006-007 | △ | parserのtempoMapは○。再生時のテンポ変化再現は無検証 |
 | REQ-007-001/002 | △ | practice-engine.test + audio-engine setLoopPoints。App/E2E経路のループなし |

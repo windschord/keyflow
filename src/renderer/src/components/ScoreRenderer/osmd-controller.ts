@@ -1,4 +1,4 @@
-import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
+import { OpenSheetMusicDisplay, GraphicalNote } from 'opensheetmusicdisplay';
 import { Score, Note } from '../../types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -93,6 +93,16 @@ interface OsmdNoteEntry {
   absoluteTick: number;
 }
 
+/**
+ * VexFlowGraphicalNote固有のSVG要素取得API（`getSVGGElement`）を表す構造的型（TASK-060）。
+ * このAPIはOSMDのVexFlowバックエンド実装（VexFlowGraphicalNote）のみが持ち、
+ * 基底クラスの`GraphicalNote`型には定義がないため、依存を最小化する目的で
+ * VexFlowGraphicalNoteクラス自体は直接importせず、構造的部分型で受け取る。
+ */
+interface SvgCapableGraphicalNote {
+  getSVGGElement?: () => SVGGElement;
+}
+
 export class OSMDController {
   private osmd: OpenSheetMusicDisplay;
   private container: HTMLDivElement;
@@ -100,6 +110,14 @@ export class OSMDController {
   private disposed = false;
   private currentIteratorIndex = 0;
   private noteIdToSvgCoord = new Map<string, { x: number; y: number }>();
+  /**
+   * noteIdごとに対応するOSMDの`GraphicalNote`インスタンスを保持するマップ（TASK-060）。
+   * グレーアウト（減光）表示のため、`GraphicalNote.getSVGGElement()`経由でSVG要素の
+   * opacityを直接操作する対象を解決するために使う。buildNoteIdMapで
+   * `cursor.GNotesUnderCursor()`が返す`GraphicalNote`群と、パーサ照合済みの`Note`とを
+   * `GraphicalNote.sourceNote`の同一性（`===`）で対応付けて構築する。
+   */
+  private noteIdToGraphicalNote = new Map<string, GraphicalNote>();
   /**
    * buildNoteIdMapへ最後に渡されたパース済みScore。autoResize:false化に伴い、
    * ResizeObserver発火時・setZoom時に外部から改めてscoreを渡されなくても
@@ -120,6 +138,15 @@ export class OSMDController {
   private grayedOutNoteIds = new Set<string>();
   /** setGrayedOutNotesで最後に指定された不透明度（0〜1、既定0.5）。 */
   private grayoutOpacity = 0.5;
+  /**
+   * 現在減光を適用中のnoteId→（SVG要素・適用前のopacity）のマップ（TASK-060）。
+   * renderGrayoutLayerを呼び出すたび、必ず元のopacityへ先に復元してからクリアし、
+   * 新しい対象集合へ改めて適用する。
+   */
+  private grayoutAppliedElements = new Map<
+    string,
+    { element: SVGGElement; originalOpacity: string }
+  >();
   /** noteIdごとの正誤ハイライト状態（'expected'は「ハイライトなし」を意味するため保持しない）。 */
   private noteHighlights = new Map<string, 'correct' | 'incorrect'>();
   /** 小節クリック時に呼び出されるコールバック（App.tsx側でpracticeEngine.resetToMeasureに結線する）。 */
@@ -209,6 +236,8 @@ export class OSMDController {
     this.resizeObserver = null;
     this.container.removeEventListener('click', this.handleContainerClick);
     this.container.removeEventListener('contextmenu', this.handleContainerContextMenu);
+    // TASK-060: 減光済みSVG要素のopacityを元に戻してから破棄する（復元漏れ防止）。
+    this.restoreGrayoutOpacity();
     this.disposed = true;
   }
 
@@ -283,9 +312,13 @@ export class OSMDController {
    *
    * TASK-048: 従来はパート単位（partId→Y座標クラスタ矩形）でグレーアウトしていたが、
    * 1パート2段譜ではパートと手（段）が一致しないため、noteId集合を直接受け取り、
-   * `noteIdToSvgCoord` の該当座標にのみ小さな半透明ベールを掛けるnote単位の実装に変更した。
-   * 呼び出しごとに状態を完全に置き換える（差分適用ではない）。空集合を渡すと
-   * グレーアウトを全解除する。
+   * note単位でグレーアウトを適用する実装に変更した。
+   *
+   * TASK-060: `noteIdToSvgCoord`（運指表示位置の座標）に白半透明の矩形（ベール）を
+   * 重ねる方式は、符頭ではなく運指番号の表示位置に重なるバグがあったため廃止した。
+   * 現在は対象noteIdに対応する`GraphicalNote`のSVG要素自体のopacityを直接下げることで
+   * 減光を表現する。呼び出しごとに状態を完全に置き換える（差分適用ではない）。
+   * 空集合を渡すとグレーアウトを全解除する。
    */
   setGrayedOutNotes(noteIds: ReadonlySet<string> | readonly string[], opacity = 0.5): void {
     this.grayedOutNoteIds = new Set(noteIds);
@@ -293,40 +326,57 @@ export class OSMDController {
     this.renderGrayoutLayer();
   }
 
+  /**
+   * グレーアウト対象のnoteIdに対応するSVG要素（音符本体）のopacityを直接変更して
+   * 減光を表現する（TASK-060）。
+   *
+   * 前回減光した要素のopacityは、新しい対象集合を適用する前に必ず元へ戻す
+   * （対象集合の置き換え・空集合での全解除の両方に対応するため）。
+   * `getSVGGElement()`はVexFlowバックエンド固有のAPIであり、未実装・例外・要素なしの
+   * 場合は該当ノートをスキップし、他のノートの処理は継続する。
+   *
+   * 既知の制限: 符幹・連桁（beam）が複数音符で共有される場合、`getSVGGElement()`が
+   * 返すSVGグループには符頭のみが含まれ符幹・連桁は含まれないことがあるため、
+   * 減光が符頭のみに適用され符幹・連桁の減光が伴わない（見た目上部分的な減光になる）
+   * ことがある。
+   */
   private renderGrayoutLayer(): void {
-    const layerId = 'note-grayout-layer';
-    this.container.querySelector(`#${layerId}`)?.remove();
+    this.restoreGrayoutOpacity();
+    if (this.grayedOutNoteIds.size === 0) return;
 
-    const svg = this.container.querySelector('svg');
-    if (!svg || this.grayedOutNoteIds.size === 0) return;
-
-    const layer = document.createElementNS(SVG_NS, 'g');
-    layer.setAttribute('id', layerId);
-
-    // 音符1つ分を覆う程度の小さな矩形（段全体ではなく該当ノートのみを覆う）。
-    const margin = { x: 8, yTop: 20, yBottom: 20 };
-    let hasRect = false;
     for (const noteId of this.grayedOutNoteIds) {
-      const coord = this.noteIdToSvgCoord.get(noteId);
-      if (!coord) continue; // 座標未確定（buildNoteIdMap未完了等）のノートは無視する
+      const graphicalNote = this.noteIdToGraphicalNote.get(noteId);
+      if (!graphicalNote) continue; // 対応するGraphicalNote未解決（buildNoteIdMap未完了等）のノートは無視する
 
-      const rect = document.createElementNS(SVG_NS, 'rect');
-      rect.setAttribute('x', String(coord.x - margin.x));
-      rect.setAttribute('y', String(coord.y - margin.yTop));
-      rect.setAttribute('width', String(margin.x * 2));
-      rect.setAttribute('height', String(margin.yTop + margin.yBottom));
-      // 不透明度が低いほど白いベールを濃くし、下の音符をグレーアウトして見せる。
-      rect.setAttribute('fill', `rgba(255, 255, 255, ${(1 - this.grayoutOpacity).toFixed(2)})`);
-      rect.setAttribute('data-note-id', noteId);
-      rect.setAttribute('pointer-events', 'none');
-      layer.appendChild(rect);
-      hasRect = true;
+      const svgCapable = graphicalNote as unknown as SvgCapableGraphicalNote;
+      if (typeof svgCapable.getSVGGElement !== 'function') continue;
+
+      try {
+        const element = svgCapable.getSVGGElement();
+        if (!element) continue;
+        const originalOpacity = element.style.opacity;
+        element.style.opacity = String(this.grayoutOpacity);
+        this.grayoutAppliedElements.set(noteId, { element, originalOpacity });
+      } catch (e) {
+        console.warn(
+          '[OSMDController] renderGrayoutLayer: failed to get SVG element for ' +
+            `noteId=${noteId}; skipping.`,
+          e
+        );
+      }
     }
+  }
 
-    if (!hasRect) return;
-
-    // グレーアウトは音符の描画より手前（上）に重ねることで視覚的な減光を表現する。
-    svg.appendChild(layer);
+  /** grayoutAppliedElementsに記録済みの全要素のopacityを適用前の値へ復元し、記録をクリアする。 */
+  private restoreGrayoutOpacity(): void {
+    for (const { element, originalOpacity } of this.grayoutAppliedElements.values()) {
+      if (originalOpacity) {
+        element.style.opacity = originalOpacity;
+      } else {
+        element.style.removeProperty('opacity');
+      }
+    }
+    this.grayoutAppliedElements.clear();
   }
 
   /**
@@ -650,6 +700,7 @@ export class OSMDController {
     this.lastScore = score;
     this.noteIdToCursorState.clear();
     this.noteIdToSvgCoord.clear();
+    this.noteIdToGraphicalNote.clear();
     if (!this.osmd.cursor || !this.loaded) return this.noteIdToCursorState;
 
     // Show cursor temporarily so CursorElement is in the DOM for coordinate sampling
@@ -675,17 +726,32 @@ export class OSMDController {
 
       if (voiceEntries) {
         const osmdEntries: OsmdNoteEntry[] = [];
+        // osmdEntries[i] に対応する生のOSMD Noteオブジェクト参照（TASK-060）。
+        // GraphicalNote.sourceNote との同一性（===）比較にのみ使うため、
+        // describeOsmdNoteと同じ構造的型（OsmdCursorNote）で十分。
+        const osmdNoteRefs: OsmdCursorNote[] = [];
 
         voiceEntries.forEach((ve) => {
           if (!ve || !ve.Notes) return;
           ve.Notes.forEach((note) => {
             osmdEntries.push(this.describeOsmdNote(note, score.ticksPerQuarter));
+            osmdNoteRefs.push(note);
           });
         });
 
         if (osmdEntries.length > 0) {
           const candidates = remainingNotesByMeasure.get(measureNumber);
           const matched = this.matchNotesForTimestamp(osmdEntries, candidates ?? []);
+
+          // TASK-060: グレーアウト（音符自体の減光）の対象SVG要素を解決するため、
+          // 同一カーソル位置のGraphicalNote群を取得する。GNotesUnderCursorは
+          // OSMD 2.0のCursor APIで、GraphicalNote.sourceNoteはVoiceEntry.Notesの
+          // 要素と同一のオブジェクト参照を持つ。テスト用モックカーソルが
+          // 本メソッドを実装していない場合は空配列として扱う（防御的）。
+          const graphicalNotesUnderCursor: GraphicalNote[] =
+            typeof this.osmd.cursor.GNotesUnderCursor === 'function'
+              ? this.osmd.cursor.GNotesUnderCursor()
+              : [];
 
           // TASK-050/2026-07-05フィードバック: 同一カーソル位置(coord)には和音や
           // 両段（ト音・ヘ音）の構成音が同時に解決されることもある。OSMDカーソルは
@@ -711,6 +777,12 @@ export class OSMDController {
             const fingeringCoord = fingeringCoords.get(matchedNote.id);
             if (fingeringCoord) {
               this.noteIdToSvgCoord.set(matchedNote.id, fingeringCoord);
+            }
+            const graphicalNote = graphicalNotesUnderCursor.find(
+              (gn) => gn.sourceNote === osmdNoteRefs[i]
+            );
+            if (graphicalNote) {
+              this.noteIdToGraphicalNote.set(matchedNote.id, graphicalNote);
             }
             if (candidates) {
               const idx = candidates.indexOf(matchedNote);

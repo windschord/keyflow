@@ -7,6 +7,19 @@ import { groupNotesByStartTick, filterNotesByPracticeMode } from '../practice-en
 export type PositionChangeCallback = (measureNumber: number, groupIndex: number) => void;
 
 /**
+ * 再生中に発音中のノーツ集合（MIDI番号）が変化するたびに呼ばれるコールバック
+ * （TASK-057）。渡される `Set` はスナップショットであり、以後の変化で
+ * ミューテートされない。
+ */
+export type SoundingNotesChangeCallback = (soundingNotes: Set<number>) => void;
+
+/** ある1tickに集約された発音開始/終了イベント（TASK-057）。 */
+interface NoteBoundaryEvent {
+  starts: number[];
+  ends: number[];
+}
+
+/**
  * StrictMode（React 18開発モード）はエフェクトを「実行→クリーンアップ→再実行」の
  * 順で二重実行する。usePractice.ts は useMemo で保持した単一の AudioEngineService
  * インスタンスに対して、アンマウント時 dispose() を呼ぶクリーンアップを登録する。
@@ -30,8 +43,16 @@ export class AudioEngineService {
   private scorePart: Tone.Part | null = null;
   private positionEventIds: number[] = [];
 
+  // TASK-057: 発音中ノーツ（durationTicks満了までキーボード表示を継続させる
+  // ための派生状態）。判定グループ（同一startTick）単位で入れ替わる
+  // positionEventIds/onPositionChangeとは独立に、ノーツごとのstartTick/
+  // (startTick+durationTicks)の境界で更新する。
+  private soundingNoteEventIds: number[] = [];
+  private currentSoundingNotes: Set<number> = new Set();
+
   private onPositionChange: PositionChangeCallback | null = null;
   private onStop: (() => void) | null = null;
+  private onSoundingNotesChange: SoundingNotesChangeCallback | null = null;
 
   constructor() {
     this.ensureInitialized();
@@ -56,6 +77,14 @@ export class AudioEngineService {
   /** 停止操作時のコールバックを登録する（位置復帰、REQ-010-004）。 */
   setOnStop(callback: (() => void) | null): void {
     this.onStop = callback;
+  }
+
+  /**
+   * 発音中ノーツ集合の変化時のコールバックを登録する（TASK-057、
+   * 再生中の鍵盤表示を音価に追随させるための派生状態）。
+   */
+  setSoundingNotesCallback(callback: SoundingNotesChangeCallback | null): void {
+    this.onSoundingNotesChange = callback;
   }
 
   setBpm(bpm: number): void {
@@ -112,15 +141,32 @@ export class AudioEngineService {
    *   （下記の `schedule`）は practiceMode に関わらず全ノーツ基準のまま変更しない
    *   （判定側フィルタは practice-engine 側で別途適用されるため、ここでは
    *   時間軸の進行のみを扱う）。
+   * - 発音中ノーツ集合（TASK-057）は、上記の判定グループとは別に、実際に
+   *   スケジュールされた各ノーツ（`scheduledNotes`）の発音開始tick
+   *   （`startTick`）・終了tick（`startTick + durationTicks`）を境界として
+   *   追跡する。判定グループ単位（同一startTickの集合が丸ごと入れ替わる方式）
+   *   では音価（durationTicks）が表示に反映されないため、ノーツ単位の境界を
+   *   別スケジュールとして持つ。ノーツ数が多い曲でもスケジュール登録が過剰に
+   *   ならないよう、同一tickに集まる開始/終了イベントは1つの
+   *   `Tone.getTransport().schedule` 呼び出しに集約する（`boundaryEvents`）。
    */
   loadScore(score: Score, practiceMode: PracticeMode = 'both'): void {
     this.ensureInitialized();
     this.disposeScorePart();
     this.clearPositionEvents();
+    this.clearSoundingNoteEvents();
+    this.resetSoundingNotes();
 
     Tone.getTransport().PPQ = score.ticksPerQuarter;
 
     const events: { time: string; note: string; duration: string }[] = [];
+    const boundaryEvents = new Map<number, NoteBoundaryEvent>();
+
+    const registerBoundary = (tick: number, kind: 'starts' | 'ends', midiNumber: number): void => {
+      const entry = boundaryEvents.get(tick) ?? { starts: [], ends: [] };
+      entry[kind].push(midiNumber);
+      boundaryEvents.set(tick, entry);
+    };
 
     score.measures.forEach((measure) => {
       const soundingNotes = measure.notes.filter((note) => !note.isRest);
@@ -131,6 +177,8 @@ export class AudioEngineService {
           note: Tone.Frequency(note.midiNumber, 'midi').toNote(),
           duration: `${note.durationTicks}i`,
         });
+        registerBoundary(note.startTick, 'starts', note.midiNumber);
+        registerBoundary(note.startTick + note.durationTicks, 'ends', note.midiNumber);
       });
 
       const groups = groupNotesByStartTick(measure.notes);
@@ -149,6 +197,20 @@ export class AudioEngineService {
         this.accompanimentSynth.triggerAttackRelease(value.note, value.duration, time);
       }, events).start(0);
     }
+
+    Array.from(boundaryEvents.entries())
+      .sort(([tickA], [tickB]) => tickA - tickB)
+      .forEach(([tick, { starts, ends }]) => {
+        const eventId = Tone.getTransport().schedule((time) => {
+          ends.forEach((midiNumber) => this.currentSoundingNotes.delete(midiNumber));
+          starts.forEach((midiNumber) => this.currentSoundingNotes.add(midiNumber));
+          const snapshot = new Set(this.currentSoundingNotes);
+          Tone.getDraw().schedule(() => {
+            this.onSoundingNotesChange?.(snapshot);
+          }, time);
+        }, `${tick}i`);
+        this.soundingNoteEventIds.push(eventId);
+      });
   }
 
   /**
@@ -215,12 +277,14 @@ export class AudioEngineService {
   stopAccompaniment(): void {
     this.ensureInitialized();
     Tone.getTransport().stop();
+    this.resetSoundingNotes();
     this.onStop?.();
   }
 
   pauseAccompaniment(): void {
     this.ensureInitialized();
     Tone.getTransport().pause();
+    this.resetSoundingNotes();
   }
 
   playCorrectSound(): void {
@@ -252,6 +316,22 @@ export class AudioEngineService {
     this.positionEventIds = [];
   }
 
+  /** TASK-057: スコア差し替え時に、前回の発音境界（開始/終了）スケジュールを解除する。 */
+  private clearSoundingNoteEvents(): void {
+    const transport = Tone.getTransport();
+    this.soundingNoteEventIds.forEach((id) => transport.clear(id));
+    this.soundingNoteEventIds = [];
+  }
+
+  /**
+   * TASK-057: 発音中ノーツ集合をクリアし、購読者へ空集合を通知する
+   * （停止・一時停止・スコア差し替え時）。
+   */
+  private resetSoundingNotes(): void {
+    this.currentSoundingNotes = new Set();
+    this.onSoundingNotesChange?.(new Set());
+  }
+
   /**
    * リソースを解放する。StrictModeのエフェクト再実行に耐えるため、冪等にする
    * （未初期化・解放済みの状態で呼ばれても何もしない）。解放後に公開メソッドが
@@ -267,6 +347,8 @@ export class AudioEngineService {
     this.playSynth.dispose();
     this.disposeScorePart();
     this.clearPositionEvents();
+    this.clearSoundingNoteEvents();
+    this.currentSoundingNotes = new Set();
 
     this.initialized = false;
   }

@@ -115,6 +115,7 @@ describe('App', () => {
       zoom: 1.0,
       pianoHeight: 120,
       midiDeviceId: null,
+      keyboardSize: 88,
       // TASK-051: usePractice の score/practiceMode 監視エフェクト（audioEngine.loadScore
       // の再スケジュール）を追加したことで、score がテスト間に残留していると次のテストの
       // マウント時に意図しない loadScore 呼び出しが発生してしまう。他のテストが
@@ -605,6 +606,255 @@ describe('App', () => {
 
     const scoreRenderer = screen.getByTestId('mock-score-renderer');
     expect(scoreRenderer.getAttribute('data-looprange')).toBe(JSON.stringify({ start: 3, end: 7 }));
+  });
+});
+
+describe('App - TASK-055: 運指の一括表示/非表示トグル', () => {
+  const SIMPLE_XML = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+  async function openScoreWithSuggestedFingering(): Promise<void> {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockImplementation((path: string) => {
+      if (path.endsWith('.annotation.json')) {
+        return Promise.reject(new Error('not found'));
+      }
+      return Promise.resolve(SIMPLE_XML);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        read: readMock,
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+
+    render(<App />);
+    const openFileBtn = screen.getByText('ファイルを開く');
+    openFileBtn.click();
+
+    await waitFor(() => expect(readMock).toHaveBeenCalledWith('test.xml'));
+    await waitFor(() => expect(latestFingeringPanelProps?.onSuggested).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 2, cost: 0 }]);
+    });
+
+    await waitFor(() =>
+      expect(latestScoreRendererProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 2 }),
+      ])
+    );
+  }
+
+  afterEach(() => {
+    act(() => {
+      usePracticeStore.setState({ showFingerings: true, score: null });
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+  });
+
+  it('passes an empty annotations array to ScoreRenderer and PianoKeyboard when showFingerings is turned off (data is not mutated in annotation-store)', async () => {
+    await openScoreWithSuggestedFingering();
+
+    act(() => {
+      usePracticeStore.getState().setShowFingerings(false);
+    });
+
+    await waitFor(() => expect(latestScoreRendererProps.annotations).toEqual([]));
+    expect(latestPianoKeyboardProps.annotations).toEqual([]);
+  });
+
+  it('restores the real annotations to ScoreRenderer and PianoKeyboard immediately when showFingerings is turned back on', async () => {
+    await openScoreWithSuggestedFingering();
+
+    act(() => {
+      usePracticeStore.getState().setShowFingerings(false);
+    });
+    await waitFor(() => expect(latestScoreRendererProps.annotations).toEqual([]));
+
+    act(() => {
+      usePracticeStore.getState().setShowFingerings(true);
+    });
+
+    await waitFor(() =>
+      expect(latestScoreRendererProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 2 }),
+      ])
+    );
+    expect(latestPianoKeyboardProps.annotations).toEqual([
+      expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 2 }),
+    ]);
+  });
+
+  it('automatically turns showFingerings back on when a fingering suggestion is applied while it is off (so the result is visible)', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockImplementation((path: string) => {
+      if (path.endsWith('.annotation.json')) {
+        return Promise.reject(new Error('not found'));
+      }
+      return Promise.resolve(SIMPLE_XML);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        read: readMock,
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+
+    render(<App />);
+    const openFileBtn = screen.getByText('ファイルを開く');
+    openFileBtn.click();
+    await waitFor(() => expect(readMock).toHaveBeenCalledWith('test.xml'));
+    await waitFor(() => expect(latestFingeringPanelProps?.onSuggested).toBeInstanceOf(Function));
+
+    act(() => {
+      usePracticeStore.getState().setShowFingerings(false);
+    });
+    expect(usePracticeStore.getState().showFingerings).toBe(false);
+
+    await act(async () => {
+      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 4, cost: 0 }]);
+    });
+
+    expect(usePracticeStore.getState().showFingerings).toBe(true);
+    await waitFor(() =>
+      expect(latestScoreRendererProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 4 }),
+      ])
+    );
+  });
+
+  it('applies the persisted ui.showFingerings setting to the store on startup', async () => {
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      }
+      if (key === 'ui') {
+        return Promise.resolve({
+          theme: 'light',
+          language: 'ja',
+          zoom: 1,
+          pianoHeight: 120,
+          volume: 80,
+          showFingerings: false,
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('ui'));
+    await waitFor(() => expect(usePracticeStore.getState().showFingerings).toBe(false));
+  });
+});
+
+describe('App - TASK-056: 画面下キーボードの鍵盤数指定', () => {
+  afterEach(() => {
+    act(() => {
+      usePracticeStore.setState({ keyboardSize: 88 });
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+  });
+
+  it('passes the current ui-slice keyboardSize to PianoKeyboard (default 88)', () => {
+    render(<App />);
+    expect(latestPianoKeyboardProps.keyboardSize).toBe(88);
+  });
+
+  it('passes the updated keyboardSize to PianoKeyboard immediately when the store changes (SettingsModal結線の検証)', () => {
+    render(<App />);
+    expect(latestPianoKeyboardProps.keyboardSize).toBe(88);
+
+    act(() => {
+      usePracticeStore.getState().setKeyboardSize(61);
+    });
+
+    expect(latestPianoKeyboardProps.keyboardSize).toBe(61);
+  });
+
+  it('applies the persisted ui.keyboardSize setting to the store (and to PianoKeyboard) on startup', async () => {
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      }
+      if (key === 'ui') {
+        return Promise.resolve({
+          theme: 'light',
+          language: 'ja',
+          zoom: 1,
+          pianoHeight: 120,
+          volume: 80,
+          showFingerings: true,
+          keyboardSize: 49,
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('ui'));
+    await waitFor(() => expect(usePracticeStore.getState().keyboardSize).toBe(49));
+    expect(latestPianoKeyboardProps.keyboardSize).toBe(49);
+  });
+
+  it('does not throw when electronAPI is unavailable while loading the default keyboardSize setting', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+
+    expect(() => render(<App />)).not.toThrow();
+  });
+});
+
+// TASK-057: usePracticeが公開するsoundingNotes（再生中の発音中ノーツ集合）が
+// そのままPianoKeyboardへ渡されることの結線検証。実際の値の遷移（音価に応じた
+// 更新）はaudio-engine.test/usePractice.testで検証済みのため、ここでは
+// 「usePractice()の戻り値がpropsとしてそのまま伝搬すること」のみを確認する。
+describe('App - soundingNotesの伝搬（TASK-057）', () => {
+  it('passes an empty soundingNotes set to PianoKeyboard initially (no playback in progress)', () => {
+    render(<App />);
+
+    expect(latestPianoKeyboardProps.soundingNotes).toEqual(new Set());
   });
 });
 

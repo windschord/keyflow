@@ -43,6 +43,7 @@ describe('SettingsModal', () => {
       errorMode: 'wait',
       pianoHeight: 120,
       midiDeviceId: null,
+      keyboardSize: 88,
     });
   });
 
@@ -399,6 +400,89 @@ describe('SettingsModal', () => {
       const slider = (await screen.findByLabelText('鍵盤の高さ')) as HTMLInputElement;
       expect(slider.min).toBe('80');
       expect(slider.max).toBe('300');
+    });
+  });
+
+  // TASK-056: 画面下キーボードの鍵盤数プリセット（88/76/61/49鍵）。
+  describe('Keyboard size setting (TASK-056)', () => {
+    it('shows a Japanese "鍵盤数" label with a select for the presets', async () => {
+      settingsApi.get.mockImplementation((key: string) => {
+        if (key === 'ui') return Promise.resolve({ ...defaultUi, keyboardSize: 88 });
+        if (key === 'practice') return Promise.resolve(defaultPractice);
+        if (key === 'midi') return Promise.resolve(defaultMidi);
+        return Promise.resolve(undefined);
+      });
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('鍵盤数')) as HTMLSelectElement;
+      expect(select).toBeInTheDocument();
+    });
+
+    it('shows the persisted keyboardSize value on the select', async () => {
+      settingsApi.get.mockImplementation((key: string) => {
+        if (key === 'ui') return Promise.resolve({ ...defaultUi, keyboardSize: 61 });
+        if (key === 'practice') return Promise.resolve(defaultPractice);
+        if (key === 'midi') return Promise.resolve(defaultMidi);
+        return Promise.resolve(undefined);
+      });
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('鍵盤数')) as HTMLSelectElement;
+      await waitFor(() => expect(select.value).toBe('61'));
+    });
+
+    it('reflects selection changes to the ui-slice keyboardSize state immediately and persists via electron-store', async () => {
+      settingsApi.get.mockImplementation((key: string) => {
+        if (key === 'ui') return Promise.resolve({ ...defaultUi, keyboardSize: 88 });
+        if (key === 'practice') return Promise.resolve(defaultPractice);
+        if (key === 'midi') return Promise.resolve(defaultMidi);
+        return Promise.resolve(undefined);
+      });
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+      settingsApi.set.mockResolvedValue(undefined);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('鍵盤数')) as HTMLSelectElement;
+      await waitFor(() => expect(select.value).toBe('88'));
+
+      fireEvent.change(select, { target: { value: '61' } });
+
+      await waitFor(() => expect(usePracticeStore.getState().keyboardSize).toBe(61));
+      expect(settingsApi.set).toHaveBeenCalledWith(
+        'ui',
+        expect.objectContaining({ keyboardSize: 61 })
+      );
+    });
+
+    it('rolls back the ui-slice keyboardSize when saving fails', async () => {
+      settingsApi.get.mockImplementation((key: string) => {
+        if (key === 'ui') return Promise.resolve({ ...defaultUi, keyboardSize: 88 });
+        if (key === 'practice') return Promise.resolve(defaultPractice);
+        if (key === 'midi') return Promise.resolve(defaultMidi);
+        return Promise.resolve(undefined);
+      });
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+      settingsApi.set.mockRejectedValue(new Error('save failed'));
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('鍵盤数')) as HTMLSelectElement;
+      await waitFor(() => expect(select.value).toBe('88'));
+
+      fireEvent.change(select, { target: { value: '49' } });
+
+      await waitFor(() =>
+        expect(window.alert).toHaveBeenCalledWith(
+          '設定の保存に失敗しました。変更を元に戻しました。'
+        )
+      );
+      expect(select.value).toBe('88');
+      expect(usePracticeStore.getState().keyboardSize).toBe(88);
     });
   });
 });

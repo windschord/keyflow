@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createUiSlice } from './ui-slice';
+import type { KeyboardSize } from '../../types';
 
 describe('createUiSlice initial state', () => {
   it('initializes pianoHeight to 120, matching the electron-store default (settings.ts) to avoid a startup mismatch (TASK-045)', () => {
@@ -216,6 +217,103 @@ describe('createUiSlice volume/setVolume (TASK-052)', () => {
     slice.setVolume(0);
 
     expect(state.volume).toBe(0);
+  });
+});
+
+// TASK-055: 運指の一括表示/非表示トグル。表示レイヤの制御のみを担い、
+// annotation-storeのデータ自体には影響しない。
+describe('createUiSlice showFingerings/setShowFingerings (TASK-055)', () => {
+  it('initializes showFingerings to true (matching electron-store default settings.ts)', () => {
+    const set = vi.fn();
+    const get = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    expect(slice.showFingerings).toBe(true);
+  });
+
+  it('updates showFingerings to false when setShowFingerings(false) is called', () => {
+    let state = { showFingerings: true };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setShowFingerings(false);
+
+    expect(state.showFingerings).toBe(false);
+  });
+
+  it('updates showFingerings back to true when setShowFingerings(true) is called', () => {
+    let state = { showFingerings: false };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setShowFingerings(true);
+
+    expect(state.showFingerings).toBe(true);
+  });
+});
+
+// TASK-056: 画面下キーボードの鍵盤数プリセット（88/76/61/49）。表示だけの制約であり
+// practice-engineの判定ロジックには影響しない。
+describe('createUiSlice keyboardSize/setKeyboardSize (TASK-056)', () => {
+  it('initializes keyboardSize to 88 (matching electron-store default settings.ts)', () => {
+    const set = vi.fn();
+    const get = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    expect(slice.keyboardSize).toBe(88);
+  });
+
+  it.each([88, 76, 61, 49] as KeyboardSize[])(
+    'updates keyboardSize to %i when setKeyboardSize is called with a valid preset',
+    (size) => {
+      let state: { keyboardSize: KeyboardSize } = { keyboardSize: 88 };
+      const set = vi.fn((updater) => {
+        const partial = typeof updater === 'function' ? updater(state) : updater;
+        state = { ...state, ...partial };
+      });
+      const get = vi.fn(() => state);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const api = {} as any;
+      const slice = createUiSlice(set, get, api);
+
+      slice.setKeyboardSize(size);
+
+      expect(state.keyboardSize).toBe(size);
+    }
+  );
+
+  it('falls back to 88 when setKeyboardSize is called with a value outside the known presets (defensive against corrupted electron-store data)', () => {
+    let state: { keyboardSize: KeyboardSize } = { keyboardSize: 61 };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    // @ts-expect-error 実行時に不正値（electron-storeの破損データ等）が来た場合の
+    // 防御的な挙動を検証するため、型システムでは許容されない値を意図的に渡す
+    slice.setKeyboardSize(999);
+
+    expect(state.keyboardSize).toBe(88);
   });
 });
 

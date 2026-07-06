@@ -129,6 +129,74 @@ function makeScore(): Score {
   };
 }
 
+function makeDurationScore(): Score {
+  // TASK-057: 全音符（右手、4拍=1920tick）が鳴り続ける間に、左手の四分音符4つが
+  // 順に進む混在スコア。判定グループ（startTick単位）は4つ（0/480/960/1440）だが、
+  // 発音境界（開始・終了）tickは0/480/960/1440/1920の5つで、うち480/960/1440は
+  // 「前の四分音符の終了」と「次の四分音符の開始」が同一tickに重なる。1920は
+  // 全音符の終了と最後の四分音符の終了が重なる。
+  const wholeNote = makeNote({
+    id: 'P1-M1-N0',
+    partId: 'P1',
+    midiNumber: 60,
+    startTick: 0,
+    durationTicks: 1920,
+    hand: 'right',
+  });
+  const quarter1 = makeNote({
+    id: 'P2-M1-N0',
+    partId: 'P2',
+    midiNumber: 48,
+    startTick: 0,
+    durationTicks: 480,
+    noteIndex: 0,
+    hand: 'left',
+  });
+  const quarter2 = makeNote({
+    id: 'P2-M1-N1',
+    partId: 'P2',
+    midiNumber: 50,
+    startTick: 480,
+    durationTicks: 480,
+    noteIndex: 1,
+    hand: 'left',
+  });
+  const quarter3 = makeNote({
+    id: 'P2-M1-N2',
+    partId: 'P2',
+    midiNumber: 52,
+    startTick: 960,
+    durationTicks: 480,
+    noteIndex: 2,
+    hand: 'left',
+  });
+  const quarter4 = makeNote({
+    id: 'P2-M1-N3',
+    partId: 'P2',
+    midiNumber: 53,
+    startTick: 1440,
+    durationTicks: 480,
+    noteIndex: 3,
+    hand: 'left',
+  });
+
+  return {
+    title: 'Test',
+    parts: [
+      { id: 'P1', name: 'Right', hand: 'right', clef: 'treble' },
+      { id: 'P2', name: 'Left', hand: 'left', clef: 'bass' },
+    ],
+    measures: [
+      { number: 1, startTick: 0, notes: [wholeNote, quarter1, quarter2, quarter3, quarter4] },
+    ],
+    tempo: 120,
+    ticksPerQuarter: 480,
+    tempoMap: [{ tick: 0, bpm: 120 }],
+    timeSignature: { beats: 4, beatType: 4 },
+    keySignature: 0,
+  };
+}
+
 function makeHandScore(): Score {
   // TASK-051: practiceMode別スケジューリング検証用。Note.handを明示的に設定する
   // （makeScore()のノーツはhand未設定＝'both'フィルタの後方互換確認専用）。
@@ -302,11 +370,14 @@ describe('AudioEngineService', () => {
     it('schedules one Transport.schedule callback per judgement group (same startTick) per measure', () => {
       service.loadScore(makeScore());
 
-      // 2 groups: tick0 (C4+C3), tick480 (D4 only; rest excluded)
+      // 2 groups: tick0 (C4+C3), tick480 (D4 only; rest excluded). Judgement-group
+      // calls are registered first (TASK-057 adds further Transport.schedule calls
+      // afterwards for the sounding-notes boundary tracking; see the dedicated
+      // describe block below), so the first 2 calls are exactly these groups.
       const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
-      expect(scheduleCalls).toHaveLength(2);
-      expect(scheduleCalls[0][1]).toBe('0i');
-      expect(scheduleCalls[1][1]).toBe('480i');
+      const groupCalls = scheduleCalls.slice(0, 2);
+      expect(groupCalls[0][1]).toBe('0i');
+      expect(groupCalls[1][1]).toBe('480i');
     });
 
     it('fires onPositionChange(measureNumber, groupIndex) in tick order via Tone.getDraw().schedule', () => {
@@ -329,7 +400,112 @@ describe('AudioEngineService', () => {
 
       service.loadScore(makeScore());
 
-      expect(clearSpy).toHaveBeenCalledTimes(2); // 2 groups scheduled on the first load
+      // 2 judgement-group events + 3 sounding-notes boundary events (TASK-057;
+      // tick 0/480/960 for makeScore()'s 3 sounding notes) cleared on the second load.
+      expect(clearSpy).toHaveBeenCalledTimes(5);
+    });
+  });
+
+  describe('sounding notes tracking (TASK-057: keyboard highlight follows note duration)', () => {
+    it('registers one Transport.schedule call per unique note start/end tick (aggregated), in addition to the per-judgement-group schedule', () => {
+      service.loadScore(makeDurationScore());
+
+      const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
+      // 4 judgement-group calls (startTick 0/480/960/1440) registered first (existing
+      // behavior, unchanged), followed by 5 aggregated boundary calls
+      // (tick 0/480/960/1440/1920). Ticks 480/960/1440 each merge a note-end and a
+      // note-start into a single Transport.schedule call (no per-note duplication).
+      expect(scheduleCalls).toHaveLength(9);
+      expect(scheduleCalls.slice(4).map(([, time]) => time)).toEqual([
+        '0i',
+        '480i',
+        '960i',
+        '1440i',
+        '1920i',
+      ]);
+    });
+
+    it('fires onSoundingNotesChange via Tone.getDraw().schedule with the currently sounding note set as boundary ticks are reached, so a long note stays highlighted while shorter notes advance underneath it', () => {
+      const onSoundingNotesChange = vi.fn();
+      service.setSoundingNotesCallback(onSoundingNotesChange);
+      service.loadScore(makeDurationScore());
+
+      const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
+      const boundaryCallbacks = scheduleCalls
+        .slice(4)
+        .map(([callback]) => callback as (time: number) => void);
+
+      boundaryCallbacks[0](0); // tick 0: whole note(60) + quarter1(48) start
+      expect(new Set(onSoundingNotesChange.mock.calls.at(-1)![0])).toEqual(new Set([60, 48]));
+
+      boundaryCallbacks[1](1); // tick 480: quarter1(48) ends, quarter2(50) starts
+      expect(new Set(onSoundingNotesChange.mock.calls.at(-1)![0])).toEqual(new Set([60, 50]));
+
+      boundaryCallbacks[2](2); // tick 960: quarter2(50) ends, quarter3(52) starts
+      expect(new Set(onSoundingNotesChange.mock.calls.at(-1)![0])).toEqual(new Set([60, 52]));
+
+      boundaryCallbacks[3](3); // tick 1440: quarter3(52) ends, quarter4(53) starts
+      expect(new Set(onSoundingNotesChange.mock.calls.at(-1)![0])).toEqual(new Set([60, 53]));
+
+      boundaryCallbacks[4](4); // tick 1920: whole note(60) ends, quarter4(53) ends
+      expect(new Set(onSoundingNotesChange.mock.calls.at(-1)![0])).toEqual(new Set());
+    });
+
+    it('does not throw when a boundary tick fires and no onSoundingNotesChange callback is registered', () => {
+      service.loadScore(makeDurationScore());
+
+      const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
+      const boundaryCallback = scheduleCalls[4][0] as (time: number) => void;
+
+      expect(() => boundaryCallback(0)).not.toThrow();
+    });
+
+    it('resets sounding notes (invokes onSoundingNotesChange with an empty set) when the score is replaced', () => {
+      const onSoundingNotesChange = vi.fn();
+      service.setSoundingNotesCallback(onSoundingNotesChange);
+      service.loadScore(makeDurationScore());
+      onSoundingNotesChange.mockClear();
+
+      service.loadScore(makeDurationScore());
+
+      expect(onSoundingNotesChange).toHaveBeenCalledWith(new Set());
+    });
+
+    it('clears previously scheduled boundary events (along with judgement-group events) when the score is replaced', () => {
+      service.loadScore(makeDurationScore());
+      const clearSpy = Tone.getTransport().clear as Mock;
+      clearSpy.mockClear();
+
+      service.loadScore(makeDurationScore());
+
+      // 4 judgement-group events + 5 boundary events cleared on the second load.
+      expect(clearSpy).toHaveBeenCalledTimes(9);
+    });
+
+    it('clears sounding notes when stopAccompaniment is called', () => {
+      const onSoundingNotesChange = vi.fn();
+      service.setSoundingNotesCallback(onSoundingNotesChange);
+      service.loadScore(makeDurationScore());
+      const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
+      (scheduleCalls[4][0] as (time: number) => void)(0);
+      onSoundingNotesChange.mockClear();
+
+      service.stopAccompaniment();
+
+      expect(onSoundingNotesChange).toHaveBeenCalledWith(new Set());
+    });
+
+    it('clears sounding notes when pauseAccompaniment is called', () => {
+      const onSoundingNotesChange = vi.fn();
+      service.setSoundingNotesCallback(onSoundingNotesChange);
+      service.loadScore(makeDurationScore());
+      const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
+      (scheduleCalls[4][0] as (time: number) => void)(0);
+      onSoundingNotesChange.mockClear();
+
+      service.pauseAccompaniment();
+
+      expect(onSoundingNotesChange).toHaveBeenCalledWith(new Set());
     });
   });
 
@@ -401,9 +577,12 @@ describe('AudioEngineService', () => {
 
       // 2 groups regardless of practiceMode: tick0 (right+left) and tick480 (right only).
       // Cursor progression follows the actual score timing, independent of which hand is
-      // being practiced/played.
+      // being practiced/played. (TASK-057 adds further Transport.schedule calls afterwards
+      // for the sounding-notes boundary tracking, scoped to the practiceMode-filtered
+      // notes; only the first 2 calls are the judgement-group schedule verified here.)
       const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
-      expect(scheduleCalls).toHaveLength(2);
+      const groupCalls = scheduleCalls.slice(0, 2);
+      expect(groupCalls).toHaveLength(2);
     });
   });
 

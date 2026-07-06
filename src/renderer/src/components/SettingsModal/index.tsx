@@ -18,10 +18,31 @@ interface SettingsModalProps {
 type SettingsModalState = Pick<AppSettings, 'ui' | 'practice' | 'midi'>;
 
 const DEFAULT_SETTINGS: SettingsModalState = {
-  ui: { theme: 'light', language: 'ja', zoom: 1.0, pianoHeight: 120, volume: 80 },
+  ui: {
+    theme: 'light',
+    language: 'ja',
+    zoom: 1.0,
+    pianoHeight: 120,
+    volume: 80,
+    showFingerings: true,
+    keyboardSize: 88,
+  },
   practice: { defaultErrorMode: 'wait', metronomeEnabled: false },
   midi: { selectedDeviceId: null, selectedDeviceIndex: 0 },
 };
+
+// 鍵盤数プリセットの選択肢（TASK-056）。key-layout.tsのKEYBOARD_PRESETSと
+// 一致させる（プリセット範囲は一般的な電子キーボード製品を参考に採用した値であり、
+// ユーザーの実機に合わせた調整が必要な場合はKEYBOARD_PRESETS側を調整する）。
+const KEYBOARD_SIZE_OPTIONS: ReadonlyArray<{
+  value: AppSettings['ui']['keyboardSize'];
+  label: string;
+}> = [
+  { value: 88, label: '88鍵（フルサイズピアノ）' },
+  { value: 76, label: '76鍵' },
+  { value: 61, label: '61鍵' },
+  { value: 49, label: '49鍵' },
+];
 
 // 鍵盤の高さ（px）の妥当な範囲。ui-slice.setPianoHeightのクランプと一致させる
 // （注意事項: 範囲を外れるとPianoKeyboardのレイアウトが崩れるため）。
@@ -84,6 +105,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     // Save the previous state to revert to if the API call fails
     const previousValue = settings.ui[key];
     const previousPianoHeight = usePracticeStore.getState().pianoHeight;
+    const previousKeyboardSize = usePracticeStore.getState().keyboardSize;
 
     const updatedUi = { ...settings.ui, [key]: value };
     setSettings({ ...settings, ui: updatedUi });
@@ -93,6 +115,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     // 既存パターン踏襲）。
     if (key === 'pianoHeight') {
       usePracticeStore.getState().setPianoHeight(value as number);
+    }
+
+    // 「鍵盤数」の変更は、単一の真実源である ui-slice の keyboardSize へ
+    // 即座に反映し、PianoKeyboardの表示範囲（canvas幅・クリック座標→MIDI変換・
+    // 範囲外インジケータ）へ反映する（TASK-056。pianoHeightと同一パターン）。
+    if (key === 'keyboardSize') {
+      usePracticeStore.getState().setKeyboardSize(value as AppSettings['ui']['keyboardSize']);
     }
 
     try {
@@ -106,6 +135,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }));
         if (key === 'pianoHeight') {
           usePracticeStore.getState().setPianoHeight(previousPianoHeight);
+        }
+        if (key === 'keyboardSize') {
+          usePracticeStore.getState().setKeyboardSize(previousKeyboardSize);
         }
         showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
       }
@@ -350,6 +382,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {settings.ui.pianoHeight}px
                 </span>
               </div>
+            </div>
+
+            <div style={{ marginTop: '16px' }}>
+              <label
+                htmlFor="keyboardSize"
+                style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
+              >
+                鍵盤数
+              </label>
+              <select
+                id="keyboardSize"
+                value={settings.ui.keyboardSize}
+                onChange={(e) =>
+                  updateUiSetting(
+                    'keyboardSize',
+                    Number(e.target.value) as AppSettings['ui']['keyboardSize']
+                  )
+                }
+                title="画面下部の鍵盤の表示範囲（鍵盤数）を手元の機種に合わせて変更します"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #d1d5db',
+                }}
+              >
+                {KEYBOARD_SIZE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </section>
 

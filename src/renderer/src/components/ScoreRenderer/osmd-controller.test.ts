@@ -192,7 +192,7 @@ describe('OSMDController drawLoopBracket / clearLoopBracket', () => {
   });
 });
 
-describe('OSMDController setGrayedOutNotes (REQ-002-007, note単位グレーアウト TASK-048)', () => {
+describe('OSMDController setGrayedOutNotes (REQ-002-007, note単位グレーアウト TASK-048/060: 音符自体の減光)', () => {
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
   function makeContainerWithSvg(): { container: HTMLDivElement; svg: SVGSVGElement } {
@@ -202,75 +202,233 @@ describe('OSMDController setGrayedOutNotes (REQ-002-007, note単位グレーア�
     return { container, svg };
   }
 
-  it('adds a semi-transparent veil at each grayed-out noteId coordinate (not a whole-part/system rectangle)', () => {
-    const { container, svg } = makeContainerWithSvg();
+  /**
+   * `GraphicalNote.getSVGGElement()` を持つスタブを作る。実際にはVexFlowGraphicalNote
+   * のインスタンスが渡ってくるが、テストでは構造的型（duck typing）で十分。
+   */
+  function makeGraphicalNoteStub(
+    svgElement: SVGGElement | undefined,
+    options?: { throwOnGet?: boolean }
+  ): { getSVGGElement: () => SVGGElement | undefined } {
+    return {
+      getSVGGElement: vi.fn(() => {
+        if (options?.throwOnGet) throw new Error('getSVGGElement failed');
+        return svgElement;
+      }),
+    };
+  }
+
+  function makeSvgGElement(): SVGGElement {
+    return document.createElementNS(SVG_NS, 'g') as unknown as SVGGElement;
+  }
+
+  it('dims the SVG element of the graphical note for each grayed-out noteId (not a whole-part/system rectangle)', () => {
+    const { container } = makeContainerWithSvg();
     const controller = new OSMDController(container);
-    // @ts-expect-error test mock access to private note coordinate map
-    controller.noteIdToSvgCoord = new Map([
-      ['P1-M1-N0', { x: 10, y: 20 }],
-      ['P1-M1-N1', { x: 30, y: 20 }],
-      ['P1-M1-N2', { x: 10, y: 120 }],
+    const elN0 = makeSvgGElement();
+    const elN1 = makeSvgGElement();
+    const elN2 = makeSvgGElement();
+    // @ts-expect-error test mock access to private noteId->GraphicalNote map
+    controller.noteIdToGraphicalNote = new Map([
+      ['P1-M1-N0', makeGraphicalNoteStub(elN0)],
+      ['P1-M1-N1', makeGraphicalNoteStub(elN1)],
+      ['P1-M1-N2', makeGraphicalNoteStub(elN2)],
     ]);
 
     // 1パート2段譜想定: N2のみ（下段=左手）をグレーアウトする。
-    controller.setGrayedOutNotes(new Set(['P1-M1-N2']));
+    controller.setGrayedOutNotes(new Set(['P1-M1-N2']), 0.4);
 
-    const layer = svg.querySelector('#note-grayout-layer');
-    expect(layer).not.toBeNull();
-    const rects = layer?.querySelectorAll('rect');
-    expect(rects?.length).toBe(1);
-    expect(rects?.[0].getAttribute('data-note-id')).toBe('P1-M1-N2');
-    // N0/N1 (グレーアウト対象外) にはベールが掛からない。
-    expect(layer?.querySelector('rect[data-note-id="P1-M1-N0"]')).toBeNull();
+    expect(elN2.style.opacity).toBe('0.4');
+    // N0/N1 (グレーアウト対象外) は減光されない。
+    expect(elN0.style.opacity).toBe('');
+    expect(elN1.style.opacity).toBe('');
   });
 
-  it('replaces the previous grayout state entirely when called again (idempotent set-based)', () => {
+  it('never creates the legacy white-veil rectangle layer (#note-grayout-layer)', () => {
     const { container, svg } = makeContainerWithSvg();
     const controller = new OSMDController(container);
-    // @ts-expect-error test mock access to private note coordinate map
-    controller.noteIdToSvgCoord = new Map([
-      ['P1-M1-N0', { x: 10, y: 20 }],
-      ['P1-M1-N1', { x: 30, y: 20 }],
+    // @ts-expect-error test mock access to private noteId->GraphicalNote map
+    controller.noteIdToGraphicalNote = new Map([
+      ['P1-M1-N0', makeGraphicalNoteStub(makeSvgGElement())],
     ]);
 
     controller.setGrayedOutNotes(new Set(['P1-M1-N0']));
-    expect(svg.querySelectorAll('#note-grayout-layer rect').length).toBe(1);
-
-    controller.setGrayedOutNotes(new Set(['P1-M1-N1']));
-    const layer = svg.querySelector('#note-grayout-layer');
-    expect(layer?.querySelectorAll('rect').length).toBe(1);
-    expect(layer?.querySelector('rect[data-note-id="P1-M1-N1"]')).not.toBeNull();
-    expect(layer?.querySelector('rect[data-note-id="P1-M1-N0"]')).toBeNull();
-  });
-
-  it('removes the grayout layer entirely when passed an empty set', () => {
-    const { container, svg } = makeContainerWithSvg();
-    const controller = new OSMDController(container);
-    // @ts-expect-error test mock access to private note coordinate map
-    controller.noteIdToSvgCoord = new Map([['P1-M1-N0', { x: 10, y: 20 }]]);
-
-    controller.setGrayedOutNotes(new Set(['P1-M1-N0']));
-    expect(svg.querySelector('#note-grayout-layer')).not.toBeNull();
+    expect(svg.querySelector('#note-grayout-layer')).toBeNull();
 
     controller.setGrayedOutNotes(new Set());
     expect(svg.querySelector('#note-grayout-layer')).toBeNull();
   });
 
-  it('ignores noteIds that have no known coordinate yet', () => {
-    const { container, svg } = makeContainerWithSvg();
+  it('replaces the previous grayout state entirely when called again (idempotent set-based)', () => {
+    const { container } = makeContainerWithSvg();
     const controller = new OSMDController(container);
-    // @ts-expect-error test mock access to private note coordinate map
-    controller.noteIdToSvgCoord = new Map([['P1-M1-N0', { x: 10, y: 20 }]]);
+    const elN0 = makeSvgGElement();
+    const elN1 = makeSvgGElement();
+    // @ts-expect-error test mock access to private noteId->GraphicalNote map
+    controller.noteIdToGraphicalNote = new Map([
+      ['P1-M1-N0', makeGraphicalNoteStub(elN0)],
+      ['P1-M1-N1', makeGraphicalNoteStub(elN1)],
+    ]);
 
-    controller.setGrayedOutNotes(new Set(['P1-M1-N0', 'P1-M9-N9']));
+    controller.setGrayedOutNotes(new Set(['P1-M1-N0']));
+    expect(elN0.style.opacity).toBe('0.5');
 
-    const layer = svg.querySelector('#note-grayout-layer');
-    expect(layer?.querySelectorAll('rect').length).toBe(1);
+    controller.setGrayedOutNotes(new Set(['P1-M1-N1']));
+    // N0 は復元され、N1 に新たに減光が適用される。
+    expect(elN0.style.opacity).toBe('');
+    expect(elN1.style.opacity).toBe('0.5');
   });
 
-  it('does nothing when there is no svg to draw onto', () => {
+  it('restores all dimmed elements to their original opacity when passed an empty set', () => {
+    const { container } = makeContainerWithSvg();
+    const controller = new OSMDController(container);
+    const el = makeSvgGElement();
+    el.style.opacity = '0.9'; // 元々明示的なopacityが設定されているケースも復元できることを確認する
+    // @ts-expect-error test mock access to private noteId->GraphicalNote map
+    controller.noteIdToGraphicalNote = new Map([['P1-M1-N0', makeGraphicalNoteStub(el)]]);
+
+    controller.setGrayedOutNotes(new Set(['P1-M1-N0']));
+    expect(el.style.opacity).toBe('0.5');
+
+    controller.setGrayedOutNotes(new Set());
+    expect(el.style.opacity).toBe('0.9');
+  });
+
+  it('ignores noteIds that have no known GraphicalNote yet', () => {
+    const { container } = makeContainerWithSvg();
+    const controller = new OSMDController(container);
+    const el = makeSvgGElement();
+    // @ts-expect-error test mock access to private noteId->GraphicalNote map
+    controller.noteIdToGraphicalNote = new Map([['P1-M1-N0', makeGraphicalNoteStub(el)]]);
+
+    expect(() => controller.setGrayedOutNotes(new Set(['P1-M1-N0', 'P1-M9-N9']))).not.toThrow();
+    expect(el.style.opacity).toBe('0.5');
+  });
+
+  it('skips a note when getSVGGElement() throws, and still dims the remaining notes', () => {
+    const { container } = makeContainerWithSvg();
+    const controller = new OSMDController(container);
+    const elOk = makeSvgGElement();
+    const throwingStub = makeGraphicalNoteStub(undefined, { throwOnGet: true });
+    // @ts-expect-error test mock access to private noteId->GraphicalNote map
+    controller.noteIdToGraphicalNote = new Map([
+      ['P1-M1-N0', throwingStub],
+      ['P1-M1-N1', makeGraphicalNoteStub(elOk)],
+    ]);
+
+    expect(() => controller.setGrayedOutNotes(new Set(['P1-M1-N0', 'P1-M1-N1']))).not.toThrow();
+    expect(throwingStub.getSVGGElement).toHaveBeenCalled();
+    expect(elOk.style.opacity).toBe('0.5');
+  });
+
+  it('skips a note when getSVGGElement() returns undefined', () => {
+    const { container } = makeContainerWithSvg();
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access to private noteId->GraphicalNote map
+    controller.noteIdToGraphicalNote = new Map([['P1-M1-N0', makeGraphicalNoteStub(undefined)]]);
+
+    expect(() => controller.setGrayedOutNotes(new Set(['P1-M1-N0']))).not.toThrow();
+  });
+
+  it('does nothing when there is no svg/graphical note resolved yet', () => {
     const container = document.createElement('div');
     const controller = new OSMDController(container);
+    expect(() => controller.setGrayedOutNotes(new Set(['P1-M1-N0']))).not.toThrow();
+  });
+});
+
+describe('OSMDController buildNoteIdMap -> GraphicalNote resolution for grayout (TASK-060)', () => {
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  it('resolves noteId -> GraphicalNote via GNotesUnderCursor + sourceNote identity, and grayout dims its SVG element', () => {
+    // OSMD Note相当のダミーオブジェクト（GraphicalNote.sourceNoteとの同一性比較に使う）。
+    const osmdNoteObj = {};
+    const svgElement = document.createElementNS(SVG_NS, 'g') as unknown as SVGGElement;
+    const graphicalNoteStub = {
+      sourceNote: osmdNoteObj,
+      getSVGGElement: vi.fn(() => svgElement),
+    };
+
+    let iteratorIdx = 0;
+    const mockCursor = {
+      Hidden: true,
+      show: vi.fn(),
+      hide: vi.fn(),
+      reset: vi.fn().mockImplementation(() => {
+        iteratorIdx = 0;
+        mockCursor.Iterator.EndReached = false;
+      }),
+      next: vi.fn().mockImplementation(() => {
+        iteratorIdx++;
+        mockCursor.Iterator.EndReached = iteratorIdx >= 1;
+      }),
+      GNotesUnderCursor: vi.fn(() => [graphicalNoteStub]),
+      get Iterator() {
+        return {
+          CurrentMeasureIndex: 0,
+          EndReached: iteratorIdx >= 1,
+          get CurrentVoiceEntries() {
+            return [{ Notes: [osmdNoteObj] }];
+          },
+        };
+      },
+    };
+
+    const controller = new OSMDController(document.createElement('div'));
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+    // @ts-expect-error test mock access
+    controller.osmd = { cursor: mockCursor };
+
+    const score = makeScore([{ number: 1, noteIds: ['P1-M1-N0'] }]);
+    controller.buildNoteIdMap(score);
+
+    expect(mockCursor.GNotesUnderCursor).toHaveBeenCalled();
+
+    controller.setGrayedOutNotes(new Set(['P1-M1-N0']), 0.4);
+    expect(graphicalNoteStub.getSVGGElement).toHaveBeenCalled();
+    expect(svgElement.style.opacity).toBe('0.4');
+
+    controller.setGrayedOutNotes(new Set());
+    expect(svgElement.style.opacity).toBe('');
+  });
+
+  it('does not resolve a GraphicalNote when GNotesUnderCursor is unavailable on the mock cursor (defensive)', () => {
+    let iteratorIdx = 0;
+    const mockCursor = {
+      Hidden: true,
+      show: vi.fn(),
+      hide: vi.fn(),
+      reset: vi.fn().mockImplementation(() => {
+        iteratorIdx = 0;
+        mockCursor.Iterator.EndReached = false;
+      }),
+      next: vi.fn().mockImplementation(() => {
+        iteratorIdx++;
+        mockCursor.Iterator.EndReached = iteratorIdx >= 1;
+      }),
+      get Iterator() {
+        return {
+          CurrentMeasureIndex: 0,
+          EndReached: iteratorIdx >= 1,
+          get CurrentVoiceEntries() {
+            return [{ Notes: [{}] }];
+          },
+        };
+      },
+    };
+
+    const controller = new OSMDController(document.createElement('div'));
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+    // @ts-expect-error test mock access
+    controller.osmd = { cursor: mockCursor };
+
+    const score = makeScore([{ number: 1, noteIds: ['P1-M1-N0'] }]);
+    expect(() => controller.buildNoteIdMap(score)).not.toThrow();
+
+    // @ts-expect-error test mock access to private noteId->GraphicalNote map
+    expect(controller.noteIdToGraphicalNote.size).toBe(0);
     expect(() => controller.setGrayedOutNotes(new Set(['P1-M1-N0']))).not.toThrow();
   });
 });
@@ -1283,5 +1441,28 @@ describe('OSMDController dispose (TASK-049)', () => {
     expect(() => controller.moveCursor('P1-M1-N0')).not.toThrow();
     expect(() => controller.highlightNote('P1-M1-N0', 'correct')).not.toThrow();
     expect(() => controller.setGrayedOutNotes(new Set())).not.toThrow();
+  });
+
+  it('restores dimmed grayout SVG elements to their original opacity on dispose (TASK-060)', () => {
+    const container = document.createElement('div');
+    const svg = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'svg'
+    ) as unknown as SVGSVGElement;
+    container.appendChild(svg);
+    const controller = new OSMDController(container);
+    const el = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'g'
+    ) as unknown as SVGGElement;
+    // @ts-expect-error test mock access to private noteId->GraphicalNote map
+    controller.noteIdToGraphicalNote = new Map([['P1-M1-N0', { getSVGGElement: () => el }]]);
+
+    controller.setGrayedOutNotes(new Set(['P1-M1-N0']));
+    expect(el.style.opacity).toBe('0.5');
+
+    controller.dispose();
+
+    expect(el.style.opacity).toBe('');
   });
 });

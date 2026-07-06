@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-056 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 60分 |
 | 依存タスク | なし |
@@ -45,16 +45,29 @@
 
 ## 受入基準
 
-- [ ] 設定で88/76/61/49鍵を切り替えられ、表示が即時追随する
-- [ ] 範囲外のガイド対象ノーツが存在する場合、端のインジケータで示される
-- [ ] 鍵盤クリックの座標→MIDI変換が全プリセットで正しい
-- [ ] 設定が永続化される。既存テストが通り、新規テストが追加されている
+- [x] 設定で88/76/61/49鍵を切り替えられ、表示が即時追随する
+- [x] 範囲外のガイド対象ノーツが存在する場合、端のインジケータで示される
+- [x] 鍵盤クリックの座標→MIDI変換が全プリセットで正しい
+- [x] 設定が永続化される。既存テストが通り、新規テストが追加されている
 
 ## テスト項目
 
-- [ ] プリセットごとの白鍵数・範囲境界の座標（ユニット）
-- [ ] 範囲外ノーツのインジケータ表示（ユニット）
-- [ ] 実機での切替と見た目（手動E2E）
+- [x] プリセットごとの白鍵数・範囲境界の座標（ユニット。key-layout.test.ts）
+- [x] 範囲外ノーツのインジケータ表示（ユニット。keyboard-renderer.test.ts、PianoKeyboard.test.tsxの結線テスト）
+- [ ] 実機での切替と見た目（手動E2E）: 実機確認は手動E2Eで実施予定
+
+## 完了サマリー（2026-07-06）
+
+- `key-layout.ts`: `KEYBOARD_PRESETS`（88=A0〜C8/76=E1〜G7/61=C2〜C7/49=C2〜C6）を追加。`getNotePosition`にmidiMin/midiMax引数を追加（既定値は既存のMIDI_MIN/MIDI_MAX=88鍵で後方互換）。白鍵数を数える`countWhiteKeys`を追加
+- `keyboard-renderer.ts`: `renderKeyboard`にmidiMin/midiMax引数を追加（既定88鍵）。ガイド対象ノーツ（expectedNotes）が表示範囲外の場合、鍵盤左右端にグラデーション＋矢印（◀/▶）のインジケータを描画する`drawOutOfRangeIndicators`を追加。表示だけの制約でありexpectedNotes自体・正誤判定には影響しない
+- `PianoKeyboard/index.tsx`: `keyboardSize?: KeyboardSize`プロパティを追加（既定88）。totalWidth・クリック座標→MIDI変換・renderKeyboard呼び出しをすべてプリセットのmidiMin/midiMaxで駆動するよう変更
+- `types/keyboard.ts`（新規）: `KeyboardSize`型（88|76|61|49）と`KEYBOARD_SIZES`をrenderer層（store/components/settings）で共有する単一の型定義として追加
+- `store/slices/ui-slice.ts`: `keyboardSize`（初期値88）と`setKeyboardSize`（未知の値は88へフォールバックする防御的実装）を追加
+- `SettingsModal`: 「表示」セクションに「鍵盤数」selectを追加し、選択即座にui-slice.setKeyboardSizeへ反映＋electron-store永続化（既存のpianoHeightパターンを踏襲、保存失敗時ロールバックあり）
+- `main/settings.ts` / `renderer/types/settings.ts`: `ui.keyboardSize`（既定88）を追加
+- `App.tsx`: keyboardSizeをPianoKeyboardへ実際に渡すよう結線。起動時ロード（electron-store `ui.keyboardSize`）をui-slice.setKeyboardSizeへ反映
+- 表示範囲の変更はpractice-engineの判定ロジックに影響させない（expectedNotes自体・正誤判定は変更なし。あくまでPianoKeyboardの表示範囲のみの制約）
+- 関連: docs/sdd/tasks/index.md（TASK-056ステータス更新）、docs/sdd/requirements/traceability.md（REQ-005-005へ追記）
 
 ## 情報の明確性
 

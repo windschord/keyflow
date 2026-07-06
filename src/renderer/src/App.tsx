@@ -46,8 +46,14 @@ function App(): React.JSX.Element {
     y: number;
   } | null>(null);
 
-  const { practiceEngine, audioEngine, webMidiService, handleKeyClick, noteHighlights } =
-    usePractice();
+  const {
+    practiceEngine,
+    audioEngine,
+    webMidiService,
+    handleKeyClick,
+    noteHighlights,
+    soundingNotes,
+  } = usePractice();
 
   const annotationStore = React.useRef(new AnnotationStoreService());
 
@@ -61,6 +67,8 @@ function App(): React.JSX.Element {
     practiceMode,
     zoom,
     pianoHeight,
+    showFingerings,
+    keyboardSize,
     setScore,
     setOriginalBpm,
     setMetronomeEnabled,
@@ -69,6 +77,8 @@ function App(): React.JSX.Element {
     setPianoHeight,
     setMidiDeviceId,
     setVolume,
+    setShowFingerings,
+    setKeyboardSize,
     currentMeasure,
     currentNoteIndex,
     loopEnabled,
@@ -86,6 +96,8 @@ function App(): React.JSX.Element {
       practiceMode: s.practiceMode,
       zoom: s.zoom,
       pianoHeight: s.pianoHeight,
+      showFingerings: s.showFingerings,
+      keyboardSize: s.keyboardSize,
       setScore: s.setScore,
       setOriginalBpm: s.setOriginalBpm,
       setMetronomeEnabled: s.setMetronomeEnabled,
@@ -94,6 +106,8 @@ function App(): React.JSX.Element {
       setPianoHeight: s.setPianoHeight,
       setMidiDeviceId: s.setMidiDeviceId,
       setVolume: s.setVolume,
+      setShowFingerings: s.setShowFingerings,
+      setKeyboardSize: s.setKeyboardSize,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
       loopEnabled: s.loopEnabled,
@@ -107,6 +121,12 @@ function App(): React.JSX.Element {
   // ScoreRenderer は loopRange に基づいて楽譜上にループ範囲を可視化する
   // （osmd-controller.ts の drawLoopBracket / clearLoopBracket）。
   const loopRange = loopEnabled ? { start: loopStart, end: loopEnd } : null;
+
+  // TASK-055: 運指の一括表示/非表示トグル。OFF時はScoreRenderer/PianoKeyboardへ
+  // 空配列を渡すことで、両方の指番号表示を一括で消す（あくまで表示レイヤの制御であり、
+  // annotationStore/keyboardAnnotations自体のデータは変更しない）。ONに戻すと
+  // 即座に元のkeyboardAnnotationsが復元される。
+  const displayedAnnotations = showFingerings ? keyboardAnnotations : [];
 
   // currentNoteIndex は小節内の「判定グループ」インデックス（同一startTickの
   // 発音ノーツ集合の並び順）を指す（TASK-032: データモデルv2の判定グループ
@@ -139,6 +159,12 @@ function App(): React.JSX.Element {
   //   （TASK-045: ズームUI・鍵盤高さ設定UIの永続化された値を反映する）。
   // - ui.volume → ui-slice.volume
   //   （TASK-052: usePractice側のuseEffectがaudioEngine.setMasterVolumeへ反映する）。
+  // - ui.showFingerings → ui-slice.showFingerings
+  //   （TASK-055: 運指の一括表示/非表示トグルの永続化された値を反映する）。
+  // - ui.keyboardSize → ui-slice.keyboardSize
+  //   （TASK-056: 画面下鍵盤の鍵盤数プリセットの永続化された値を反映する）。
+  //   PianoKeyboardの表示範囲にのみ影響し、practice-engineの判定ロジックには
+  //   影響しない。
   // - midi.selectedDeviceId → ui-slice.midiDeviceId
   //   （TASK-045, REQ-004-008: useMidiがmidiDeviceIdの変更を購読し、
   //   WebMidiService.setSelectedDeviceへ反映する）。
@@ -165,6 +191,12 @@ function App(): React.JSX.Element {
           if (typeof uiSettings.volume === 'number') {
             setVolume(uiSettings.volume);
           }
+          if (typeof uiSettings.showFingerings === 'boolean') {
+            setShowFingerings(uiSettings.showFingerings);
+          }
+          if (typeof uiSettings.keyboardSize === 'number') {
+            setKeyboardSize(uiSettings.keyboardSize);
+          }
         }
         if (midiSettings) {
           setMidiDeviceId(midiSettings.selectedDeviceId);
@@ -179,7 +211,16 @@ function App(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [setMetronomeEnabled, setErrorMode, setZoom, setPianoHeight, setMidiDeviceId, setVolume]);
+  }, [
+    setMetronomeEnabled,
+    setErrorMode,
+    setZoom,
+    setPianoHeight,
+    setMidiDeviceId,
+    setVolume,
+    setShowFingerings,
+    setKeyboardSize,
+  ]);
 
   // ダイアログ経由（handleOpenFile）・ドラッグ＆ドロップ経由（handleDrop）の両方から
   // 呼ばれる共通のオープン処理（TASK-053）。パース→setScore→初期化（練習位置リセット）
@@ -323,6 +364,12 @@ function App(): React.JSX.Element {
   const handleFingering = React.useCallback(
     async (assignments: FingerAssignment[]) => {
       if (!musicXmlPath || isLoadingAnnotations) return;
+      // TASK-055: 運指表示がOFFのまま提案結果を反映すると、ユーザーには「提案が
+      // 実行されたのに何も起こらない」ように見えてしまう。運指提案の実行は
+      // トグルと独立して行えるが、結果を確認できるよう実行時は自動でONへ戻す。
+      if (!showFingerings) {
+        setShowFingerings(true);
+      }
       // 計算済みの運指はまず表示に反映し、永続化の成否とは独立させる
       // （保存に失敗しても提案結果が見えなくならないようにする。失敗はalertで通知）。
       annotationStore.current.applyAISuggestions(assignments);
@@ -334,7 +381,7 @@ function App(): React.JSX.Element {
         alert('運指アノテーションの保存に失敗しました。');
       }
     },
-    [musicXmlPath, isLoadingAnnotations]
+    [musicXmlPath, isLoadingAnnotations, showFingerings, setShowFingerings]
   );
 
   // 運指メモの右クリックメニュー結線（REQ-008-001/003/006、REQ-009-005）。
@@ -522,7 +569,7 @@ function App(): React.JSX.Element {
           loopRange={loopRange}
           zoom={zoom}
           onNoteClick={handleNoteClick}
-          annotations={keyboardAnnotations}
+          annotations={displayedAnnotations}
           noteHighlights={noteHighlights}
           onNoteContextMenu={handleNoteContextMenu}
         />
@@ -584,10 +631,12 @@ function App(): React.JSX.Element {
           expectedNotes={expectedNotes}
           pressedKeys={pressedKeys}
           incorrectKeys={incorrectKeys}
-          annotations={keyboardAnnotations}
+          annotations={displayedAnnotations}
           practiceMode={practiceMode}
           onKeyClick={handleKeyClick}
           height={pianoHeight}
+          keyboardSize={keyboardSize}
+          soundingNotes={soundingNotes}
         />
       </div>
     </div>

@@ -40,9 +40,9 @@
 | Phase 10: QA・プロセス改善（フェーズC） | 3 | 0 | 0 | 0 | [詳細](phase-10/) @phase-10/ |
 | Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 9 | 0 | 0 | 0 | [詳細](phase-11/) @phase-11/ |
 | Phase 12: 実機フィードバック対応（2026-07-05） | 7 | 0 | 0 | 0 | [詳細](phase-12/) @phase-12/ |
-| Phase 13: UI改善要望（2026-07-06） | 0 | 0 | 3 | 0 | [詳細](phase-13/) @phase-13/ |
+| Phase 13: UI改善要望（2026-07-06） | 6 | 0 | 0 | 0 | [詳細](phase-13/) @phase-13/ |
 
-**合計**: 57タスク / 推定合計: 約2610分（AIエージェント作業時間）
+**合計**: 60タスク / 推定合計: 約2730分（AIエージェント作業時間）
 
 > Phase 8〜10 は 2026-07-04 のトラブルシューティング分析
 > （[docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md](../troubleshooting/2026-07-04-app-unusable/analysis.md)）
@@ -264,9 +264,12 @@
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
-| TASK-055 | 運指の一括表示/非表示トグル | TODO | - | 40min | [詳細](phase-13/TASK-055.md) @phase-13/TASK-055.md |
-| TASK-056 | 画面下キーボードの鍵盤数指定 | TODO | - | 60min | [詳細](phase-13/TASK-056.md) @phase-13/TASK-056.md |
-| TASK-057 | [BugFix] 再生中の鍵盤表示を音価（長音/短音）に追随させる | TODO | - | 60min | [詳細](phase-13/TASK-057.md) @phase-13/TASK-057.md |
+| TASK-055 | 運指の一括表示/非表示トグル | DONE | - | 40min | [詳細](phase-13/TASK-055.md) @phase-13/TASK-055.md |
+| TASK-056 | 画面下キーボードの鍵盤数指定 | DONE | - | 60min | [詳細](phase-13/TASK-056.md) @phase-13/TASK-056.md |
+| TASK-057 | [BugFix] 再生中の鍵盤表示を音価（長音/短音）に追随させる | DONE | - | 60min | [詳細](phase-13/TASK-057.md) @phase-13/TASK-057.md |
+| TASK-058 | 画面下キーボードのセンタリングと余白色の調整 | DONE | TASK-056 | 30min | [詳細](phase-13/TASK-058.md) @phase-13/TASK-058.md |
+| TASK-059 | 運指トグルのスイッチ型UI化 | DONE | TASK-055 | 30min | [詳細](phase-13/TASK-059.md) @phase-13/TASK-059.md |
+| TASK-060 | [BugFix] グレーアウト表示を白ベールから音符のグレー描画へ変更 | DONE | - | 60min | [詳細](phase-13/TASK-060.md) @phase-13/TASK-060.md |
 
 ---
 

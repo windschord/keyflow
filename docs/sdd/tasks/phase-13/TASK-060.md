@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-060 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 60分 |
 | 依存タスク | なし |
@@ -50,17 +50,35 @@
 
 ## 受入基準
 
-- [ ] 片手練習モードで非練習側の音符がグレー（減光）表示される
-- [ ] アプリ内のどの操作でも白半透明の矩形が楽譜上に描画されない
-- [ ] 両手モードへ戻すと減光が全解除される
-- [ ] ズーム変更・リサイズ後も減光が正しく再適用される
-- [ ] 既存テストが通り、新規テストが追加されている
+- [x] 片手練習モードで非練習側の音符がグレー（減光）表示される（`GraphicalNote.getSVGGElement()`のSVG要素opacityを直接下げる方式で実装。実機確認は手動E2Eで実施予定）
+- [x] アプリ内のどの操作でも白半透明の矩形が楽譜上に描画されない（`#note-grayout-layer`の生成コードを撤去済み、ユニットテストで非生成を検証）
+- [x] 両手モードへ戻すと減光が全解除される（空集合適用で`restoreGrayoutOpacity`が全要素のopacityを復元することをユニットテストで検証）
+- [x] ズーム変更・リサイズ後も減光が正しく再適用される（`reapplyOverlays`経由の`renderGrayoutLayer`呼び出しを維持。`buildNoteIdMap`再構築後の新しい`GraphicalNote`に対して再適用されることをユニットテストで検証）
+- [x] 既存テストが通り、新規テストが追加されている（`osmd-controller.test.ts`: 60テスト全通過）
 
 ## テスト項目
 
-- [ ] 減光の適用・解除・置き換え（ユニット）
-- [ ] 白矩形レイヤが生成されないこと（ユニット）
-- [ ] 実機で片手練習時の見た目と、運指トグルOFF後に白い透過が残らないこと（手動E2E）
+- [x] 減光の適用・解除・置き換え（ユニット）
+- [x] 白矩形レイヤが生成されないこと（ユニット）
+- [ ] 実機で片手練習時の見た目と、運指トグルOFF後に白い透過が残らないこと（手動E2E。実機確認は手動E2Eで実施予定、本タスクのスコープでは未実施）
+
+## 完了サマリー（2026-07-06）
+
+- `osmd-controller.ts`: `buildNoteIdMap`で`cursor.GNotesUnderCursor()`から得た`GraphicalNote`群と
+  `VoiceEntry.Notes`の要素を`sourceNote`の同一性（`===`）で対応付け、noteIdごとの
+  `GraphicalNote`を`noteIdToGraphicalNote`に保持するようにした。
+- `renderGrayoutLayer`を全面書き換え。白半透明矩形（`#note-grayout-layer`）の生成を廃止し、
+  対象noteIdに対応する`GraphicalNote.getSVGGElement()`のSVG要素の`opacity`を直接変更する
+  方式にした。適用前に必ず前回減光した要素のopacityを復元する（`restoreGrayoutOpacity`）。
+  `getSVGGElement()`の取得失敗（未実装・例外・null）は該当ノートのみスキップして継続する。
+- `dispose()`にも`restoreGrayoutOpacity()`を追加し、破棄時の復元漏れを防止した。
+- `setGrayedOutNotes(noteIds, opacity)`のシグネチャと「空集合で全解除」のセマンティクスは維持。
+- 符幹・連桁（beam）が複数音符で共有される場合に減光が部分的になる既知の制限をコードコメントに明記した。
+- テスト: `osmd-controller.test.ts`に新規/書き換えテストを追加（減光の適用・解除・置き換え、
+  白矩形レイヤ非生成、`getSVGGElement`失敗時のスキップ、`GNotesUnderCursor`結線の検証、
+  disposeでの復元）。既存の白矩形前提テストは本仕様変更に合わせて書き換えた。
+- `npm run typecheck` / `npx eslint`（対象2ファイル） / `npx vitest run
+  src/renderer/src/components/ScoreRenderer`（60テスト）を実行し、いずれも成功を確認した。
 
 ## 情報の明確性
 

@@ -41,7 +41,9 @@ vi.mock('tone', () => {
       triggerAttackRelease: vi.fn(),
       dispose: vi.fn(),
     })),
-    Sequence: vi.fn().mockImplementation(() => ({
+    Sequence: vi.fn().mockImplementation((callback: (time: number, value: unknown) => void, events: unknown[]) => ({
+      callback,
+      events,
       start: vi.fn(),
       stop: vi.fn(),
       dispose: vi.fn(),
@@ -61,6 +63,24 @@ vi.mock('tone', () => {
     })),
   };
 });
+
+/**
+ * tone@15.1.22 の Tone.Sequence._seqCallback（node_modules/tone/build/esm/event/Sequence.js:67）
+ * の仕様をエミュレートするテストヘルパー（TASK-061）。events を走査し、
+ * `value !== null` の場合のみ `callback(time, value)` を呼ぶ。この判定こそが
+ * 「イベント配列に null が含まれるとコールバックが発火しない」という
+ * 無音バグの再現条件であり、判定ロジックを弱めてはならない。
+ */
+function fireSequenceTick(
+  sequence: { callback: (time: number, value: unknown) => void; events: unknown[] },
+  time: number
+): void {
+  sequence.events.forEach((value) => {
+    if (value !== null) {
+      sequence.callback(time, value);
+    }
+  });
+}
 
 function makeNote(
   overrides: Partial<{
@@ -708,6 +728,33 @@ describe('AudioEngineService', () => {
 
       expect(Tone.getTransport().start).not.toHaveBeenCalled();
       expect(Tone.getTransport().stop).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('metronome click sound (TASK-061, REQ-006-005)', () => {
+    it('triggers synth.triggerAttackRelease when the Sequence tick fires, using the same null-skip semantics as Tone.js (結線テスト)', () => {
+      service.setMetronomeEnabled(true);
+
+      // @ts-expect-error private
+      const sequence = service.metronome.sequence as {
+        callback: (time: number, value: unknown) => void;
+        events: unknown[];
+      };
+      // @ts-expect-error private
+      const clickSynth = service.metronome.synth as { triggerAttackRelease: Mock };
+
+      fireSequenceTick(sequence, 0);
+
+      expect(clickSynth.triggerAttackRelease).toHaveBeenCalledWith('C5', '32n', 0);
+    });
+
+    it('registers an events array containing a non-null value (so Tone.js does not skip the click as a rest)', () => {
+      service.setMetronomeEnabled(true);
+
+      // @ts-expect-error private
+      const sequence = service.metronome.sequence as { events: unknown[] };
+
+      expect(sequence.events.some((value) => value !== null)).toBe(true);
     });
   });
 });

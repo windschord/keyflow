@@ -219,6 +219,52 @@ describe('createUiSlice volume/setVolume (TASK-052)', () => {
   });
 });
 
+// TASK-055: 運指の一括表示/非表示トグル。表示レイヤの制御のみを担い、
+// annotation-storeのデータ自体には影響しない。
+describe('createUiSlice showFingerings/setShowFingerings (TASK-055)', () => {
+  it('initializes showFingerings to true (matching electron-store default settings.ts)', () => {
+    const set = vi.fn();
+    const get = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    expect(slice.showFingerings).toBe(true);
+  });
+
+  it('updates showFingerings to false when setShowFingerings(false) is called', () => {
+    let state = { showFingerings: true };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setShowFingerings(false);
+
+    expect(state.showFingerings).toBe(false);
+  });
+
+  it('updates showFingerings back to true when setShowFingerings(true) is called', () => {
+    let state = { showFingerings: false };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setShowFingerings(true);
+
+    expect(state.showFingerings).toBe(true);
+  });
+});
+
 describe('createUiSlice setMidiDeviceId', () => {
   it('updates midiDeviceId when called with a device id', () => {
     let state: { midiDeviceId: string | null } = { midiDeviceId: null };

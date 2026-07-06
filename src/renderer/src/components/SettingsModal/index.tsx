@@ -18,7 +18,14 @@ interface SettingsModalProps {
 type SettingsModalState = Pick<AppSettings, 'ui' | 'practice' | 'midi'>;
 
 const DEFAULT_SETTINGS: SettingsModalState = {
-  ui: { theme: 'light', language: 'ja', zoom: 1.0, pianoHeight: 120, volume: 80 },
+  ui: {
+    theme: 'light',
+    language: 'ja',
+    zoom: 1.0,
+    pianoHeight: 120,
+    volume: 80,
+    showFingerings: true,
+  },
   practice: { defaultErrorMode: 'wait', metronomeEnabled: false },
   midi: { selectedDeviceId: null, selectedDeviceIndex: 0 },
 };

@@ -35,7 +35,7 @@
 | REQ-005-003/004 | △ | ロジックは○、鍵盤描画は× |
 | REQ-005-005 | △ | getNotePosition範囲外throwのみ |
 | REQ-005-006 | ○ | usePractice.test（handleKeyClickがaudioEngine.playNote(midiNumber)を呼ぶことを検証）+ 従来通りの正誤判定・note-offスケジュール検証。TASK-047で対応済み |
-| REQ-005-007 | ○ | PianoKeyboard.test（実描画関数への座標アサーション） |
+| REQ-005-007 | ○ | PianoKeyboard.test（実描画関数への座標アサーション）。TASK-055で運指の一括表示/非表示トグル追加。App.test（showFingerings=false時にPianoKeyboardへ空のannotationsが渡ることを結線検証、ONで復元） |
 | REQ-006-001 | ○ | parser + practice-flow.test（App経路） |
 | REQ-006-002 | ○ | Toolbar.test + App.test + audio-engine.test |
 | REQ-006-003 | ○ | ui-slice.test（setBpmがoriginalBpm比20%-200%でクランプ、境界値含む）+ Toolbar.test（BPM入力の実クランプ挙動）+ TempoControl（title文言とUI表示範囲を比率ベースへ統一）。TASK-046で対応済み |
@@ -49,7 +49,7 @@
 | REQ-007-005 | ×※ | 自動解除（将来予定と明記済み・意図的） |
 | REQ-007-006 | △ | store toggleLoopのみ |
 | REQ-008-001 | ○ | osmd-controller.test（contextmenu座標→noteId解決）+ NoteContextMenu.test（指番号1-5選択）+ ScoreRenderer.test（結線）+ App.test（右クリック→setFinger→save統合）。TASK-044で対応済み |
-| REQ-008-002 | ○ | ScoreRenderer.test（annotations→showFingerings、isApproved色分け含む）。TASK-044で対応済み。TASK-049でnoteIdの照合ベース化（多声部・2段譜での誤対応解消）とリサイズ/setZoom時の再構築により、運指番号の座標stale化を解消。TASK-050で和音（同一カーソル位置の複数構成音）を音高順の縦オフセットで重ならず描画することをosmd-controller.testで検証 |
+| REQ-008-002 | ○ | ScoreRenderer.test（annotations→showFingerings、isApproved色分け含む）。TASK-044で対応済み。TASK-049でnoteIdの照合ベース化（多声部・2段譜での誤対応解消）とリサイズ/setZoom時の再構築により、運指番号の座標stale化を解消。TASK-050で和音（同一カーソル位置の複数構成音）を音高順の縦オフセットで重ならず描画することをosmd-controller.testで検証。TASK-055で運指の一括表示/非表示トグル追加。App.test（showFingerings=false時にScoreRendererへ空のannotationsが渡りfingering-layerが消えること、ONで即復元されること、運指提案実行時にOFFなら自動でONへ戻ることを結線検証）+ ui-slice.test（showFingerings/setShowFingerings）+ FingeringToggle.test（トグルUI・永続化） |
 | REQ-008-003 | ○ | NoteContextMenu.test（コメント編集UI）+ App.test（コメント保存→annotation-store結線）。TASK-044で対応済み |
 | REQ-008-004 | ○ | annotation-store.test + path-allowlist.test + App結線 |
 | REQ-008-005 | △ | load（validNoteIdsフィルタ）は○。App結線未アサート |

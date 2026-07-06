@@ -21,6 +21,14 @@ export interface UiSlice {
    * ここでは0〜100の範囲クランプのみを行う（0はミュートとして扱われる）。
    */
   volume: number;
+  /**
+   * 楽譜上・鍵盤上の指番号（annotation-store由来の運指メモ・AI提案の両方）を
+   * 一括で表示するかどうか（TASK-055）。初期値true。electron-store側の
+   * デフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.showFingerings）と
+   * 一致させる。OFFはApp.tsx側で表示レイヤの制御に使うのみで、
+   * annotation-storeの実データやサイドカーJSONには影響しない。
+   */
+  showFingerings: boolean;
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
   setZoom: (zoom: number) => void;
@@ -32,6 +40,8 @@ export interface UiSlice {
   setMidiDeviceId: (deviceId: string | null) => void;
   /** マスターボリュームを設定する。0〜100にクランプする（TASK-052）。 */
   setVolume: (volume: number) => void;
+  /** 運指の一括表示/非表示を切り替える（TASK-055）。 */
+  setShowFingerings: (show: boolean) => void;
   /**
    * 楽譜由来のテンポをセッションの基準テンポとして設定する。
    * Reset操作の戻し先である originalBpm と、現在の再生テンポ bpm を
@@ -54,6 +64,9 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   // electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.volume）
   // と一致させる（TASK-052、pianoHeightと同じ理由で起動時ロード前後の不整合を避ける）。
   volume: 80,
+  // electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.showFingerings）
+  // と一致させる（TASK-055）。
+  showFingerings: true,
   // REQ-006-003: 元のテンポ（originalBpm）の20%〜200%の範囲でクランプする。
   // originalBpmが未設定（0以下）の場合は初期値120を基準にする。
   // originalBpm自体のクランプ（絶対値20〜400）はsetOriginalBpm側の責務であり、
@@ -69,6 +82,7 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   setPianoHeight: (height) => set({ pianoHeight: Math.max(80, Math.min(300, height)) }),
   setMidiDeviceId: (deviceId) => set({ midiDeviceId: deviceId }),
   setVolume: (volume) => set({ volume: Math.max(0, Math.min(100, volume)) }),
+  setShowFingerings: (show) => set({ showFingerings: show }),
   setOriginalBpm: (bpm) => {
     const clamped = Math.max(20, Math.min(400, bpm));
     set({ originalBpm: clamped, bpm: clamped });

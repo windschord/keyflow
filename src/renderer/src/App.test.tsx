@@ -608,6 +608,172 @@ describe('App', () => {
   });
 });
 
+describe('App - TASK-055: 運指の一括表示/非表示トグル', () => {
+  const SIMPLE_XML = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+  async function openScoreWithSuggestedFingering(): Promise<void> {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockImplementation((path: string) => {
+      if (path.endsWith('.annotation.json')) {
+        return Promise.reject(new Error('not found'));
+      }
+      return Promise.resolve(SIMPLE_XML);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        read: readMock,
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+
+    render(<App />);
+    const openFileBtn = screen.getByText('ファイルを開く');
+    openFileBtn.click();
+
+    await waitFor(() => expect(readMock).toHaveBeenCalledWith('test.xml'));
+    await waitFor(() => expect(latestFingeringPanelProps?.onSuggested).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 2, cost: 0 }]);
+    });
+
+    await waitFor(() =>
+      expect(latestScoreRendererProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 2 }),
+      ])
+    );
+  }
+
+  afterEach(() => {
+    act(() => {
+      usePracticeStore.setState({ showFingerings: true, score: null });
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+  });
+
+  it('passes an empty annotations array to ScoreRenderer and PianoKeyboard when showFingerings is turned off (data is not mutated in annotation-store)', async () => {
+    await openScoreWithSuggestedFingering();
+
+    act(() => {
+      usePracticeStore.getState().setShowFingerings(false);
+    });
+
+    await waitFor(() => expect(latestScoreRendererProps.annotations).toEqual([]));
+    expect(latestPianoKeyboardProps.annotations).toEqual([]);
+  });
+
+  it('restores the real annotations to ScoreRenderer and PianoKeyboard immediately when showFingerings is turned back on', async () => {
+    await openScoreWithSuggestedFingering();
+
+    act(() => {
+      usePracticeStore.getState().setShowFingerings(false);
+    });
+    await waitFor(() => expect(latestScoreRendererProps.annotations).toEqual([]));
+
+    act(() => {
+      usePracticeStore.getState().setShowFingerings(true);
+    });
+
+    await waitFor(() =>
+      expect(latestScoreRendererProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 2 }),
+      ])
+    );
+    expect(latestPianoKeyboardProps.annotations).toEqual([
+      expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 2 }),
+    ]);
+  });
+
+  it('automatically turns showFingerings back on when a fingering suggestion is applied while it is off (so the result is visible)', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockImplementation((path: string) => {
+      if (path.endsWith('.annotation.json')) {
+        return Promise.reject(new Error('not found'));
+      }
+      return Promise.resolve(SIMPLE_XML);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        read: readMock,
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+
+    render(<App />);
+    const openFileBtn = screen.getByText('ファイルを開く');
+    openFileBtn.click();
+    await waitFor(() => expect(readMock).toHaveBeenCalledWith('test.xml'));
+    await waitFor(() => expect(latestFingeringPanelProps?.onSuggested).toBeInstanceOf(Function));
+
+    act(() => {
+      usePracticeStore.getState().setShowFingerings(false);
+    });
+    expect(usePracticeStore.getState().showFingerings).toBe(false);
+
+    await act(async () => {
+      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 4, cost: 0 }]);
+    });
+
+    expect(usePracticeStore.getState().showFingerings).toBe(true);
+    await waitFor(() =>
+      expect(latestScoreRendererProps.annotations).toEqual([
+        expect.objectContaining({ noteId: 'P1-M1-N0', fingerNumber: 4 }),
+      ])
+    );
+  });
+
+  it('applies the persisted ui.showFingerings setting to the store on startup', async () => {
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      }
+      if (key === 'ui') {
+        return Promise.resolve({
+          theme: 'light',
+          language: 'ja',
+          zoom: 1,
+          pianoHeight: 120,
+          volume: 80,
+          showFingerings: false,
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('ui'));
+    await waitFor(() => expect(usePracticeStore.getState().showFingerings).toBe(false));
+  });
+});
+
 describe('App - drag & drop file open (TASK-053)', () => {
   const SIMPLE_XML = `<?xml version="1.0"?>
 <score-partwise>

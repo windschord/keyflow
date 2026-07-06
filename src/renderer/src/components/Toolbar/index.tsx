@@ -6,6 +6,7 @@ import { PlaybackControls, PlaybackAudioEngine } from './PlaybackControls';
 import { VolumeControl } from './VolumeControl';
 import { StatsDisplay } from '../StatsDisplay';
 import { ZoomControl } from './ZoomControl';
+import { FingeringToggle } from './FingeringToggle';
 import type { Score } from '../../types';
 
 interface ToolbarProps {
@@ -37,6 +38,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onOpenSettings, audioEngine, s
       <VolumeControl />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
       <ZoomControl />
+      <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
+      <FingeringToggle />
       <div style={{ width: '1px', backgroundColor: '#ccc' }}></div>
       <StatsDisplay />
 

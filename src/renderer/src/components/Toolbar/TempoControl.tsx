@@ -11,8 +11,23 @@ const INPUT_STYLE: React.CSSProperties = {
 };
 
 export const TempoControl: React.FC = () => {
-  const { bpm, originalBpm, setBpm, metronomeEnabled, setMetronomeEnabled } = usePracticeStore();
+  const {
+    bpm,
+    originalBpm,
+    setBpm,
+    metronomeEnabled,
+    setMetronomeEnabled,
+    metronomeAccentEnabled,
+    setMetronomeAccentEnabled,
+    playbackState,
+  } = usePracticeStore();
   const [inputValue, setInputValue] = useState(bpm.toString());
+
+  // TASK-067: 再生中（playing）はテンポ設定UI（スライダー・数値入力・
+  // リセットボタン）を無効化する（REQ-006-010、ユーザー要望2026-07-07）。
+  // エンジン側のテンポ変更自体は再生中も機能しているが、UI仕様として
+  // 変更操作を制限する。メトロノーム系チェックボックスは対象外とする。
+  const isTempoLocked = playbackState === 'playing';
 
   useEffect(() => {
     setInputValue(bpm.toString());
@@ -54,8 +69,9 @@ export const TempoControl: React.FC = () => {
         max="200"
         value={currentRatio}
         onChange={handleSliderChange}
+        disabled={isTempoLocked}
         title="テンポ（原曲テンポに対する割合。20%〜200%）"
-        style={{ height: '44px', cursor: 'pointer' }}
+        style={{ height: '44px', cursor: isTempoLocked ? 'not-allowed' : 'pointer' }}
         data-testid="tempo-slider"
       />
       <label htmlFor="tempo-input" style={{ fontSize: '14px', color: '#374151' }}>
@@ -69,12 +85,14 @@ export const TempoControl: React.FC = () => {
         value={inputValue}
         onChange={handleInputChange}
         onBlur={handleInputBlur}
+        disabled={isTempoLocked}
         title="テンポをBPM（1分あたりの拍数）で直接指定します"
         style={{ ...INPUT_STYLE, width: '72px' }}
         data-testid="tempo-input"
       />
       <button
         onClick={() => setBpm(originalBpm)}
+        disabled={isTempoLocked}
         title="テンポを楽譜本来のテンポに戻します"
         style={{
           height: '44px',
@@ -83,7 +101,7 @@ export const TempoControl: React.FC = () => {
           borderRadius: '6px',
           border: '1px solid #9ca3af',
           backgroundColor: 'white',
-          cursor: 'pointer',
+          cursor: isTempoLocked ? 'not-allowed' : 'pointer',
         }}
       >
         リセット
@@ -105,8 +123,30 @@ export const TempoControl: React.FC = () => {
           checked={metronomeEnabled}
           onChange={(e) => setMetronomeEnabled(e.target.checked)}
           style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+          data-testid="metronome-checkbox"
         />
         メトロノーム
+      </label>
+      <label
+        title="メトロノームの一拍目のクリック音を他拍より強く鳴らします"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          height: '44px',
+          cursor: 'pointer',
+          fontSize: '15px',
+          color: '#374151',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={metronomeAccentEnabled}
+          onChange={(e) => setMetronomeAccentEnabled(e.target.checked)}
+          style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+          data-testid="metronome-accent-checkbox"
+        />
+        1拍目強調
       </label>
     </div>
   );

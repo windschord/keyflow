@@ -23,7 +23,11 @@ describe('SettingsModal', () => {
   };
 
   const defaultUi = { theme: 'light', language: 'ja', zoom: 1, pianoHeight: 120 };
-  const defaultPractice = { defaultErrorMode: 'wait', metronomeEnabled: false };
+  const defaultPractice = {
+    defaultErrorMode: 'wait',
+    metronomeEnabled: false,
+    metronomeAccentEnabled: true,
+  };
   const defaultMidi = { selectedDeviceId: null, selectedDeviceIndex: 0 };
 
   beforeEach(() => {
@@ -40,6 +44,7 @@ describe('SettingsModal', () => {
     };
     usePracticeStore.setState({
       metronomeEnabled: false,
+      metronomeAccentEnabled: true,
       errorMode: 'wait',
       pianoHeight: 120,
       midiDeviceId: null,
@@ -136,6 +141,67 @@ describe('SettingsModal', () => {
     expect(settingsApi.set).toHaveBeenCalledWith(
       'practice',
       expect.objectContaining({ metronomeEnabled: true })
+    );
+  });
+
+  // TASK-063: メトロノーム一拍目アクセントの既定値設定UI（REQ-006-008）。
+  it('reflects "既定で1拍目を強調する" changes to the ui-slice metronomeAccentEnabled state and persists it', async () => {
+    settingsApi.get.mockImplementation((key: string) => {
+      if (key === 'ui') return Promise.resolve(defaultUi);
+      if (key === 'practice') return Promise.resolve(defaultPractice);
+      if (key === 'midi') return Promise.resolve(defaultMidi);
+      return Promise.resolve(undefined);
+    });
+    settingsApi.getRecentFiles.mockResolvedValue([]);
+    settingsApi.set.mockResolvedValue(undefined);
+
+    render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+    const checkbox = (await screen.findByLabelText('既定で1拍目を強調する')) as HTMLInputElement;
+    await waitFor(() => expect(checkbox.checked).toBe(true));
+    expect(usePracticeStore.getState().metronomeAccentEnabled).toBe(true);
+
+    fireEvent.click(checkbox);
+
+    await waitFor(() => expect(usePracticeStore.getState().metronomeAccentEnabled).toBe(false));
+    expect(settingsApi.set).toHaveBeenCalledWith(
+      'practice',
+      expect.objectContaining({ metronomeAccentEnabled: false })
+    );
+  });
+
+  // PR #27 CodeRabbit指摘: electron-storeはネストオブジェクトを深くマージしないため、
+  // metronomeAccentEnabledキー導入前に保存された既存ユーザーのpracticeオブジェクトには
+  // このキーが存在しない。従来の`practice || DEFAULT_SETTINGS.practice`という全置換
+  // フォールバックは、practiceオブジェクト自体は存在するため働かず、
+  // settings.practiceにmetronomeAccentEnabledキーが欠けたまま保持されてしまう。
+  // 別項目（既定のエラーモード）を変更して保存すると、その欠けたキーを引き継いだ
+  // オブジェクトがそのままelectron-storeへ書き戻され、既定値trueが失われる。
+  // チェックボックスのchecked属性を直接見るテストは、Reactが制御コンポーネントから
+  // 非制御（checked={undefined}）へ切り替わる際にDOMのchecked値を保持してしまう
+  // 挙動があり、バグの有無に関わらず一見trueと表示されうるため採用しない。
+  it('preserves metronomeAccentEnabled default (true) in a subsequent practice save when the persisted practice object predates that key', async () => {
+    settingsApi.get.mockImplementation((key: string) => {
+      if (key === 'ui') return Promise.resolve(defaultUi);
+      // metronomeAccentEnabledキーを含まない旧形式のpracticeオブジェクトを模す。
+      if (key === 'practice')
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      if (key === 'midi') return Promise.resolve(defaultMidi);
+      return Promise.resolve(undefined);
+    });
+    settingsApi.getRecentFiles.mockResolvedValue([]);
+    settingsApi.set.mockResolvedValue(undefined);
+
+    render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+    const select = await screen.findByLabelText('既定のエラーモード');
+    fireEvent.change(select, { target: { value: 'pass' } });
+
+    await waitFor(() =>
+      expect(settingsApi.set).toHaveBeenCalledWith(
+        'practice',
+        expect.objectContaining({ metronomeAccentEnabled: true })
+      )
     );
   });
 

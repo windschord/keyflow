@@ -317,6 +317,51 @@ describe('createUiSlice keyboardSize/setKeyboardSize (TASK-056)', () => {
   });
 });
 
+// TASK-063: メトロノームの一拍目アクセント有効/無効（REQ-006-008）。既定でON。
+describe('createUiSlice metronomeAccentEnabled/setMetronomeAccentEnabled (TASK-063)', () => {
+  it('initializes metronomeAccentEnabled to true (matching electron-store default settings.ts)', () => {
+    const set = vi.fn();
+    const get = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    expect(slice.metronomeAccentEnabled).toBe(true);
+  });
+
+  it('updates metronomeAccentEnabled to false when setMetronomeAccentEnabled(false) is called', () => {
+    let state = { metronomeAccentEnabled: true };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setMetronomeAccentEnabled(false);
+
+    expect(state.metronomeAccentEnabled).toBe(false);
+  });
+
+  it('updates metronomeAccentEnabled back to true when setMetronomeAccentEnabled(true) is called', () => {
+    let state = { metronomeAccentEnabled: false };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setMetronomeAccentEnabled(true);
+
+    expect(state.metronomeAccentEnabled).toBe(true);
+  });
+});
+
 describe('createUiSlice setMidiDeviceId', () => {
   it('updates midiDeviceId when called with a device id', () => {
     let state: { midiDeviceId: string | null } = { midiDeviceId: null };

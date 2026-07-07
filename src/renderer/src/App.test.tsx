@@ -42,6 +42,14 @@ vi.mock('tone', () => {
       stop: vi.fn(),
       dispose: vi.fn(),
     })),
+    // TASK-066: メトロノーム単独再生（独立クロック）用モック。
+    Clock: vi.fn().mockImplementation((callback: (time: number) => void, frequency: number) => ({
+      callback,
+      frequency: { value: frequency },
+      start: vi.fn(),
+      stop: vi.fn(),
+      dispose: vi.fn(),
+    })),
     Part: vi.fn().mockImplementation(() => ({
       start: vi.fn().mockReturnThis(),
       dispose: vi.fn(),
@@ -108,6 +116,7 @@ describe('App', () => {
       bpm: 120,
       originalBpm: 120,
       metronomeEnabled: false,
+      metronomeAccentEnabled: true,
       errorMode: 'wait',
       loopEnabled: false,
       loopStart: 1,
@@ -453,6 +462,65 @@ describe('App', () => {
 
     await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('practice'));
     await waitFor(() => expect(usePracticeStore.getState().metronomeEnabled).toBe(true));
+  });
+
+  it('applies the persisted "metronome accent enabled" setting to the ui-slice on startup (TASK-063)', async () => {
+    usePracticeStore.setState({ metronomeAccentEnabled: true });
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({
+          defaultErrorMode: 'wait',
+          metronomeEnabled: false,
+          metronomeAccentEnabled: false,
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('practice'));
+    await waitFor(() => expect(usePracticeStore.getState().metronomeAccentEnabled).toBe(false));
+  });
+
+  it('keeps metronomeAccentEnabled at its store default (true) when the persisted practice settings lack the key (backward compatibility, TASK-063)', async () => {
+    usePracticeStore.setState({ metronomeAccentEnabled: true });
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        // 既存ストア（キー追加前に永続化されたデータ）を模す。
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('practice'));
+    expect(usePracticeStore.getState().metronomeAccentEnabled).toBe(true);
   });
 
   it('applies the persisted "default error mode" setting to the practice-slice on startup (TASK-040)', async () => {

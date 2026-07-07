@@ -24,7 +24,12 @@ interface AppSettings {
     /** 画面下鍵盤の鍵盤数プリセット（TASK-056）。 */
     keyboardSize: KeyboardSize;
   };
-  practice: { defaultErrorMode: 'wait' | 'pass'; metronomeEnabled: boolean };
+  practice: {
+    defaultErrorMode: 'wait' | 'pass';
+    metronomeEnabled: boolean;
+    /** メトロノームの一拍目アクセントの既定値（REQ-006-008、TASK-063）。既定true。 */
+    metronomeAccentEnabled: boolean;
+  };
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -40,7 +45,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     showFingerings: true,
     keyboardSize: 88,
   },
-  practice: { defaultErrorMode: 'wait', metronomeEnabled: false },
+  practice: { defaultErrorMode: 'wait', metronomeEnabled: false, metronomeAccentEnabled: true },
 };
 
 export class SettingsService {

@@ -27,7 +27,7 @@ const DEFAULT_SETTINGS: SettingsModalState = {
     showFingerings: true,
     keyboardSize: 88,
   },
-  practice: { defaultErrorMode: 'wait', metronomeEnabled: false },
+  practice: { defaultErrorMode: 'wait', metronomeEnabled: false, metronomeAccentEnabled: true },
   midi: { selectedDeviceId: null, selectedDeviceIndex: 0 },
 };
 
@@ -72,12 +72,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           const midi = await window.electronAPI.settings.get('midi');
           const files = await window.electronAPI.settings.getRecentFiles();
 
-          const finalUi = ui || DEFAULT_SETTINGS.ui;
-          // Apply defaults if necessary
+          // PR #27 CodeRabbit指摘: electron-storeはネストオブジェクトを深くマージしない。
+          // そのため`practice || DEFAULT_SETTINGS.practice`という全置換の
+          // フォールバックでは、キー追加前に保存された既存オブジェクトの
+          // 欠落キーを補完できない。例えばmetronomeAccentEnabled導入前の
+          // practiceオブジェクトにはこのキーが存在しない。
+          // ui/practice/midiのすべてをDEFAULT_SETTINGSとの浅いマージへ
+          // 統一し、欠落キーを既定値で補う。
           setSettings({
-            ui: finalUi,
-            practice: practice || DEFAULT_SETTINGS.practice,
-            midi: midi || DEFAULT_SETTINGS.midi,
+            ui: { ...DEFAULT_SETTINGS.ui, ...(ui || {}) },
+            practice: { ...DEFAULT_SETTINGS.practice, ...(practice || {}) },
+            midi: { ...DEFAULT_SETTINGS.midi, ...(midi || {}) },
           });
           setRecentFiles(files || []);
         } catch {
@@ -153,6 +158,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     // Save the previous state to revert to if the API call fails
     const previousValue = settings.practice[key];
     const previousMetronomeEnabled = usePracticeStore.getState().metronomeEnabled;
+    const previousMetronomeAccentEnabled = usePracticeStore.getState().metronomeAccentEnabled;
     const previousErrorMode = usePracticeStore.getState().errorMode;
 
     const updatedPractice = { ...settings.practice, [key]: value };
@@ -162,6 +168,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     // metronomeEnabled へ即座に反映し、ツールバーのチェックボックスへ反映する。
     if (key === 'metronomeEnabled') {
       usePracticeStore.getState().setMetronomeEnabled(value as boolean);
+    }
+
+    // 「既定で1拍目を強調する」の変更は、単一の真実源である ui-slice の
+    // metronomeAccentEnabled へ即座に反映する（TASK-063、metronomeEnabledの
+    // 既存パターン踏襲）。
+    if (key === 'metronomeAccentEnabled') {
+      usePracticeStore.getState().setMetronomeAccentEnabled(value as boolean);
     }
 
     // 「既定のエラーモード」の変更は、practice-slice の errorMode へ即座に反映する
@@ -182,6 +195,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }));
         if (key === 'metronomeEnabled') {
           usePracticeStore.getState().setMetronomeEnabled(previousMetronomeEnabled);
+        }
+        if (key === 'metronomeAccentEnabled') {
+          usePracticeStore.getState().setMetronomeAccentEnabled(previousMetronomeAccentEnabled);
         }
         if (key === 'defaultErrorMode') {
           usePracticeStore.getState().setErrorMode(previousErrorMode);
@@ -341,6 +357,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   style={{ marginLeft: '8px', fontSize: '0.875rem' }}
                 >
                   既定でメトロノームを有効にする
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <input
+                  id="metronomeAccentEnabled"
+                  type="checkbox"
+                  checked={settings.practice.metronomeAccentEnabled}
+                  onChange={(e) =>
+                    updatePracticeSetting('metronomeAccentEnabled', e.target.checked)
+                  }
+                  style={{ width: '16px', height: '16px' }}
+                />
+                <label
+                  htmlFor="metronomeAccentEnabled"
+                  style={{ marginLeft: '8px', fontSize: '0.875rem' }}
+                >
+                  既定で1拍目を強調する
                 </label>
               </div>
             </div>

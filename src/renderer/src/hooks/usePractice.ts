@@ -69,6 +69,7 @@ export function usePractice() {
 
   const bpm = usePracticeStore((s) => s.bpm);
   const metronomeEnabled = usePracticeStore((s) => s.metronomeEnabled);
+  const metronomeAccentEnabled = usePracticeStore((s) => s.metronomeAccentEnabled);
   const volume = usePracticeStore((s) => s.volume);
   const score = usePracticeStore((s) => s.score);
   const practiceMode = usePracticeStore((s) => s.practiceMode);
@@ -137,6 +138,12 @@ export function usePractice() {
   useEffect(() => {
     audioEngine.setMetronomeEnabled(metronomeEnabled);
   }, [audioEngine, metronomeEnabled]);
+
+  // ストアの metronomeAccentEnabled（一拍目アクセント有効/無効、TASK-063）変更を
+  // AudioEngine に同期する。bpm/metronomeEnabled と同じパターン。
+  useEffect(() => {
+    audioEngine.setMetronomeAccentEnabled(metronomeAccentEnabled);
+  }, [audioEngine, metronomeAccentEnabled]);
 
   // ストアの volume（マスターボリューム、TASK-052）変更を AudioEngine に同期する。
   // bpm/metronomeEnabled と同じパターン（AudioEngine側のメソッドはストアを変更しない

@@ -80,6 +80,16 @@ vi.mock('tone', () => {
       start: vi.fn().mockReturnThis(),
       dispose: vi.fn(),
     })),
+    // TASK-066: メトロノーム単独再生（Transport非依存の独立クロック）用モック。
+    // frequencyはbpm/60（Hz）を保持するミュータブルなオブジェクトとし、
+    // Metronome.setBpmによる周波数更新を検証できるようにする。
+    Clock: vi.fn().mockImplementation((callback: (time: number) => void, frequency: number) => ({
+      callback,
+      frequency: { value: frequency },
+      start: vi.fn(),
+      stop: vi.fn(),
+      dispose: vi.fn(),
+    })),
     Frequency: vi.fn((midiNumber) => ({
       toNote: () => {
         if (midiNumber === 60) return 'C4';
@@ -303,6 +313,12 @@ describe('AudioEngineService', () => {
   });
 
   it('setMetronomeEnabled(true) starts metronome sequence without starting Transport', () => {
+    // TASK-066: メトロノームはtransportRunning状態に応じてSequence（楽譜同期）と
+    // Clock（独立）を切り替える。ここではSequence側の挙動を検証するため、
+    // 先にplayAccompanimentで再生中の状態にしておく。
+    service.playAccompaniment();
+    (Tone.getTransport().start as Mock).mockClear();
+
     service.setMetronomeEnabled(true);
     // metronome start triggers sequence start, but must not start the shared Transport
     // (TASK-042: Transport lifecycle belongs to playback controls only).
@@ -312,6 +328,7 @@ describe('AudioEngineService', () => {
   });
 
   it('setMetronomeEnabled(false) stops metronome sequence without stopping Transport', () => {
+    service.playAccompaniment();
     service.setMetronomeEnabled(true);
     service.setMetronomeEnabled(false);
     // @ts-expect-error private
@@ -357,6 +374,7 @@ describe('AudioEngineService', () => {
 
     it('re-initializes the metronome after dispose(), so setMetronomeEnabled still works', () => {
       service.dispose();
+      service.playAccompaniment();
 
       expect(() => service.setMetronomeEnabled(true)).not.toThrow();
       // @ts-expect-error private
@@ -759,6 +777,11 @@ describe('AudioEngineService', () => {
   });
 
   describe('metronome click sound (TASK-061, REQ-006-005)', () => {
+    // TASK-066: Sequence（楽譜同期）側の挙動を検証するため、再生中の状態にしておく。
+    beforeEach(() => {
+      service.playAccompaniment();
+    });
+
     it('triggers synth.triggerAttackRelease when the Sequence tick fires, using the same null-skip semantics as Tone.js (結線テスト)', () => {
       service.setMetronomeEnabled(true);
 
@@ -790,6 +813,11 @@ describe('AudioEngineService', () => {
   });
 
   describe('metronome re-enable resilience (TASK-065, REQ-006-005)', () => {
+    // TASK-066: Sequence（楽譜同期）側の挙動を検証するため、再生中の状態にしておく。
+    beforeEach(() => {
+      service.playAccompaniment();
+    });
+
     it('recreates the sequence on ON→OFF→ON so clicks resume (結線テスト)', () => {
       service.setMetronomeEnabled(true);
 
@@ -828,6 +856,16 @@ describe('AudioEngineService', () => {
   });
 
   describe('metronome accent (TASK-062, REQ-006-008)', () => {
+    // TASK-066でメトロノームはTransport動作状態に応じてSequence（楽譜同期）と
+    // Clock（独立、REQ-006-009）を切り替えるようになった。本describe配下の
+    // 「Sequenceで発音する」という前提を保つため、あらかじめ再生中の状態
+    // （transportRunning=true）にしておく。playAccompanimentの呼び出しで
+    // Transport.startも発火するが、本describe配下にTransport.start非呼び出しを
+    // 検証するテストは含まれないため、この副作用は問題にならない。
+    beforeEach(() => {
+      service.playAccompaniment();
+    });
+
     /** measures[].startTickの集合を指定した最小構成のスコアを作る（アクセント判定用）。 */
     function makeScoreWithMeasureStarts(startTicks: number[]): Score {
       return {
@@ -978,6 +1016,146 @@ describe('AudioEngineService', () => {
         fireAtTick(480);
         expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 480, 0.6);
       });
+    });
+  });
+
+  describe('metronome standalone clock (TASK-066, REQ-006-009)', () => {
+    /** timeSignature.beatsのみを指定した最小構成のスコアを作る（拍子反映の検証用）。 */
+    function makeScoreWithBeats(beats: number): Score {
+      return {
+        title: 'Beats Test',
+        parts: [{ id: 'P1', name: 'Right', hand: 'right', clef: 'treble' }],
+        measures: [{ number: 1, startTick: 0, notes: [] }],
+        tempo: 120,
+        ticksPerQuarter: 480,
+        tempoMap: [{ tick: 0, bpm: 120 }],
+        timeSignature: { beats, beatType: 4 },
+        keySignature: 0,
+      };
+    }
+
+    function getClockMock(): {
+      callback: (time: number) => void;
+      frequency: { value: number };
+      start: Mock;
+      stop: Mock;
+      dispose: Mock;
+    } {
+      // @ts-expect-error private
+      return service.metronome.clock;
+    }
+
+    function fireClockTick(time: number): void {
+      getClockMock().callback(time);
+    }
+
+    function getSynthMock(): Mock {
+      // @ts-expect-error private
+      return (service.metronome.synth as { triggerAttackRelease: Mock }).triggerAttackRelease;
+    }
+
+    it('creates and starts a Tone.Clock at bpm/60 Hz when enabling the metronome while stopped, without starting Transport (結線テスト)', () => {
+      service.setBpm(120);
+
+      service.setMetronomeEnabled(true);
+
+      const clock = getClockMock();
+      expect(clock.frequency.value).toBe(2);
+      expect(clock.start).toHaveBeenCalled();
+      expect(Tone.getTransport().start).not.toHaveBeenCalled();
+    });
+
+    it('accents beat 1 of 4 (C6, 1.0) and plays regular clicks (C5, 0.6) on beats 2-4 when accent is enabled', () => {
+      service.setMetronomeEnabled(true);
+
+      fireClockTick(0);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 0, 1.0);
+      fireClockTick(1);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 1, 0.6);
+      fireClockTick(2);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 2, 0.6);
+      fireClockTick(3);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 3, 0.6);
+      fireClockTick(4);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 4, 1.0);
+    });
+
+    it('plays every beat at C5/1.0 when accent is disabled', () => {
+      service.setMetronomeAccentEnabled(false);
+
+      service.setMetronomeEnabled(true);
+
+      fireClockTick(0);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 0, 1.0);
+      fireClockTick(1);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 1, 1.0);
+    });
+
+    it('stops the independent clock when playAccompaniment starts (switches to the score-synced sequence)', () => {
+      service.setMetronomeEnabled(true);
+      const clock = getClockMock();
+
+      service.playAccompaniment();
+
+      expect(clock.stop).toHaveBeenCalled();
+    });
+
+    it('resumes the independent clock from beat 0 when stopAccompaniment is called while still enabled', () => {
+      service.setMetronomeEnabled(true);
+      service.playAccompaniment();
+
+      service.stopAccompaniment();
+
+      const clock = getClockMock();
+      expect(clock.start).toHaveBeenCalled();
+      fireClockTick(0);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 0, 1.0);
+    });
+
+    it('updates the clock frequency to bpm/60 Hz when setBpm changes while the clock is running', () => {
+      service.setMetronomeEnabled(true);
+
+      service.setBpm(240);
+
+      expect(getClockMock().frequency.value).toBe(4);
+    });
+
+    it('uses the score timeSignature.beats for the accent cycle after loadScore (3/4 accents every 3 clicks)', () => {
+      service.loadScore(makeScoreWithBeats(3));
+
+      service.setMetronomeEnabled(true);
+
+      fireClockTick(0);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 0, 1.0);
+      fireClockTick(1);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 1, 0.6);
+      fireClockTick(2);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 2, 0.6);
+      fireClockTick(3);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 3, 1.0);
+    });
+
+    it('stops the clock when the metronome is disabled', () => {
+      service.setMetronomeEnabled(true);
+      const clock = getClockMock();
+
+      service.setMetronomeEnabled(false);
+
+      expect(clock.stop).toHaveBeenCalled();
+    });
+
+    it('retains bpm and beatsPerMeasure after dispose() and re-initialization (StrictMode resilience)', () => {
+      service.setBpm(180);
+      service.loadScore(makeScoreWithBeats(3));
+
+      service.dispose();
+      service.setMetronomeEnabled(true);
+
+      expect(getClockMock().frequency.value).toBe(3);
+      fireClockTick(0);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 0, 1.0);
+      fireClockTick(3);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 3, 1.0);
     });
   });
 });

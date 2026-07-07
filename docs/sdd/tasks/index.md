@@ -41,9 +41,9 @@
 | Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 9 | 0 | 0 | 0 | [詳細](phase-11/) @phase-11/ |
 | Phase 12: 実機フィードバック対応（2026-07-05） | 7 | 0 | 0 | 0 | [詳細](phase-12/) @phase-12/ |
 | Phase 13: UI改善要望（2026-07-06） | 6 | 0 | 0 | 0 | [詳細](phase-13/) @phase-13/ |
-| Phase 14: メトロノーム修正・アクセント（2026-07-07） | 4 | 0 | 0 | 0 | [詳細](phase-14/) @phase-14/ |
+| Phase 14: メトロノーム修正・アクセント（2026-07-07） | 4 | 0 | 3 | 0 | [詳細](phase-14/) @phase-14/ |
 
-**合計**: 64タスク / 推定合計: 約2870分（AIエージェント作業時間）
+**合計**: 67タスク / 推定合計: 約2990分（AIエージェント作業時間）
 
 > Phase 8〜10 は 2026-07-04 のトラブルシューティング分析
 > （[docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md](../troubleshooting/2026-07-04-app-unusable/analysis.md)）
@@ -273,11 +273,14 @@
 | TASK-060 | [BugFix] グレーアウト表示を白ベールから音符のグレー描画へ変更 | DONE | - | 60min | [詳細](phase-13/TASK-060.md) @phase-13/TASK-060.md |
 
 ### Phase 14: メトロノーム修正・一拍目アクセント（2026-07-07）
-*推定期間: 140min（順次実行: 061→062→063、064はTASK-062後に並行可）*
+*推定期間: 260min（順次実行: 061→062→063、064はTASK-062後に並行可。065→066は順次、067は独立）*
 
 > 2026-07-07 のメトロノーム無音報告と一拍目アクセント要望の分析レポート
 > （[docs/sdd/troubleshooting/2026-07-07-metronome-no-sound/analysis.md](../troubleshooting/2026-07-07-metronome-no-sound/analysis.md)）
 > の承認済み修正方針に基づくタスク群（REQ-006-005是正、REQ-006-008追加）。
+> TASK-065〜067 は実機フィードバック3件の分析レポート
+> （[docs/sdd/troubleshooting/2026-07-07-metronome-feedback/analysis.md](../troubleshooting/2026-07-07-metronome-feedback/analysis.md)）
+> に基づく追加タスク群（REQ-006-009/010追加）。
 
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
@@ -285,6 +288,9 @@
 | TASK-062 | メトロノーム一拍目アクセント（エンジン実装） | DONE | TASK-061 | 40min | [詳細](phase-14/TASK-062.md) @phase-14/TASK-062.md |
 | TASK-063 | 一拍目アクセントのUIオプションと永続化 | DONE | TASK-062 | 40min | [詳細](phase-14/TASK-063.md) @phase-14/TASK-063.md |
 | TASK-064 | [BugFix] クリック間隔のPPQ追随（Sequence再生成） | DONE | TASK-062 | 30min | [詳細](phase-14/TASK-064.md) @phase-14/TASK-064.md |
+| TASK-065 | [BugFix] メトロノーム再有効化で無音（Sequence毎回再生成） | TODO | - | 30min | [詳細](phase-14/TASK-065.md) @phase-14/TASK-065.md |
+| TASK-066 | メトロノーム単独再生（Tone.Clock） | TODO | TASK-065 | 60min | [詳細](phase-14/TASK-066.md) @phase-14/TASK-066.md |
+| TASK-067 | 再生中のテンポ設定UIロック | TODO | - | 30min | [詳細](phase-14/TASK-067.md) @phase-14/TASK-067.md |
 
 ---
 
@@ -334,5 +340,5 @@ docs/sdd/tasks/
 ├── phase-11/         # TASK-039〜047: 品質是正・機能補完（2026-07-05横断チェック起点）
 ├── phase-12/         # TASK-048〜054: 実機フィードバック対応（2026-07-05）
 ├── phase-13/         # TASK-055〜060: UI改善要望（2026-07-06）
-└── phase-14/         # TASK-061〜064: メトロノーム修正・一拍目アクセント（2026-07-07）
+└── phase-14/         # TASK-061〜067: メトロノーム修正・一拍目アクセント（2026-07-07）
 ```

@@ -660,10 +660,11 @@ describe('SettingsModal', () => {
     });
   });
 
-  // TASK-076: 「このアプリについて」セクション（US-015）。AboutPanel自体の表示内容
-  // （バージョン・ライブラリ一覧のアコーディオン等）はAboutPanel.test.tsxが担う。
-  // ここではSettingsModal側にAboutPanelが実際に結線されていることのみ検証する。
-  it('renders the "このアプリについて" section with AboutPanel content (結線テスト, REQ-015-001)', async () => {
+  // TASK-082: Aboutは設定画面から分離し、メニューバー経由の独立したAboutModalへ
+  // 移動した（US-015）。表示内容自体の検証はAboutModal.test.tsx/AboutPanel.test.tsxが
+  // 担う。ここでは退行防止として、設定モーダル側にAboutセクションが
+  // 残っていないことのみを検証する。
+  it('does not render the "このアプリについて" section (moved to menu-driven AboutModal, TASK-082)', async () => {
     settingsApi.get.mockImplementation((key: string) => {
       if (key === 'ui') return Promise.resolve(defaultUi);
       if (key === 'practice') return Promise.resolve(defaultPractice);
@@ -675,8 +676,7 @@ describe('SettingsModal', () => {
 
     render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-    expect(await screen.findByText('このアプリについて')).toBeInTheDocument();
-    expect(screen.getByText('MusicXML Piano Practice')).toBeInTheDocument();
-    expect(screen.getByText(/Apache License 2\.0/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('最近使ったファイル')).toBeInTheDocument());
+    expect(screen.queryByText('このアプリについて')).not.toBeInTheDocument();
   });
 });

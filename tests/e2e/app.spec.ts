@@ -313,7 +313,7 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
   ).toBe(true);
 });
 
-test('設定モーダル→音色セクションの表示、Aboutセクションのバージョン・ライセンス表示（TASK-077, REQ-013-006/REQ-015-001）', async () => {
+test('設定モーダル→音色セクションの表示、Aboutセクションが存在しないこと（TASK-077/082, REQ-013-006）', async () => {
   await expect
     .poll(async () =>
       electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
@@ -333,7 +333,28 @@ test('設定モーダル→音色セクションの表示、Aboutセクション
   await expect(playbackVoiceSelect.locator('option')).toContainText(['グランドピアノ']);
   await expect(metronomeVoiceSelect.locator('option')).toContainText(['クリック']);
 
-  // Aboutセクション（TASK-076, US-015）: バージョン表示がpackage.jsonのversionと一致する。
+  // TASK-082: Aboutはメニューバー経由のAboutModalへ分離したため、設定モーダル内には
+  // 「このアプリについて」セクションが存在しないことを回帰防止として検証する。
+  await expect(window.getByText('このアプリについて')).toHaveCount(0);
+});
+
+test('メニュー「バージョン情報/…について」→Aboutモーダルが開きバージョン・ライセンスが表示される（TASK-082, REQ-015-001/003/005）', async () => {
+  await expect
+    .poll(async () =>
+      electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
+    )
+    .toBeGreaterThan(0);
+
+  // アプリケーションメニュー（src/main/menu.tsのcreateApplicationMenuTemplate）から
+  // id: 'open-about' の項目を取得しclick()することで、メニュー→`menu:open-about`送信→
+  // preloadのonOpenAbout購読→AboutModal表示、という実結線を検証する。
+  await electronApp.evaluate(({ Menu }) => {
+    Menu.getApplicationMenu()?.getMenuItemById('open-about')?.click();
+  });
+
+  await expect(window.getByRole('dialog', { name: 'このアプリについて' })).toBeVisible();
+
+  // バージョン表示がpackage.jsonのversionと一致する。
   const packageJson = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, 'utf-8')) as {
     version: string;
   };
@@ -344,4 +365,8 @@ test('設定モーダル→音色セクションの表示、Aboutセクション
 
   // Salamanderピアノサンプルのクレジット表記が表示される。
   await expect(window.getByText('Salamander Grand Piano', { exact: false })).toBeVisible();
+
+  // 閉じるボタンでモーダルが閉じる（AboutModalのオーバーレイ・閉じるボタン対応）。
+  await window.getByRole('button', { name: '閉じる' }).click();
+  await expect(window.getByRole('dialog', { name: 'このアプリについて' })).toHaveCount(0);
 });

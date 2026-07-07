@@ -1632,3 +1632,70 @@ describe('App - note context menu (TASK-044, US-008)', () => {
     );
   });
 });
+
+// TASK-082: Aboutを設定画面から分離し、Main側メニュークリック→`menu:open-about`送信→
+// preloadのonOpenAbout購読→App.tsxのisAboutOpen反映、という結線を検証する
+// （US-015）。AboutModal自体の表示内容（バージョン・ライセンス等）はAboutModal.test.tsx/
+// AboutPanel.test.tsxが担うため、ここではモーダルの開閉結線のみを検証する。
+describe('App - Aboutモーダル結線（TASK-082, US-015）', () => {
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+  });
+
+  it('起動直後はAboutモーダルを表示しない', () => {
+    render(<App />);
+
+    expect(screen.queryByRole('dialog', { name: 'このアプリについて' })).not.toBeInTheDocument();
+  });
+
+  it('electronAPI.menu.onOpenAbout経由のコールバック発火でAboutモーダルが表示される', async () => {
+    let openAboutCallback: (() => void) | undefined;
+    const unsubscribeMock = vi.fn();
+    const onOpenAboutMock = vi.fn().mockImplementation((callback: () => void) => {
+      openAboutCallback = callback;
+      return unsubscribeMock;
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      menu: { onOpenAbout: onOpenAboutMock },
+    };
+
+    render(<App />);
+
+    await waitFor(() => expect(onOpenAboutMock).toHaveBeenCalled());
+
+    act(() => {
+      openAboutCallback?.();
+    });
+
+    expect(await screen.findByRole('dialog', { name: 'このアプリについて' })).toBeInTheDocument();
+  });
+
+  it('アンマウント時にonOpenAboutの購読解除関数を呼ぶ（StrictMode耐性）', async () => {
+    const unsubscribeMock = vi.fn();
+    const onOpenAboutMock = vi.fn().mockReturnValue(unsubscribeMock);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      menu: { onOpenAbout: onOpenAboutMock },
+    };
+
+    const { unmount } = render(<App />);
+    await waitFor(() => expect(onOpenAboutMock).toHaveBeenCalled());
+
+    unmount();
+
+    expect(unsubscribeMock).toHaveBeenCalled();
+  });
+
+  it('electronAPI.menuが利用できない場合でも例外を投げない', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = { file: { showOpenDialog: vi.fn() } };
+
+    expect(() => render(<App />)).not.toThrow();
+  });
+});

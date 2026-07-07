@@ -44,10 +44,11 @@
 
 ## 完了サマリー（2026-07-08）
 
-メトロノームON/OFFをヘッダー常駐のアイコントグル（`MetronomeToggle`、`data-testid="metronome-toggle"`）へ移動し、
-QuickPanelは「表示・補助」用途を示すアイコン＋ツールチップへ変更、セクションを表示（音量+表示倍率）/運指/成績/
-メトロノーム詳細（1拍目強調のみ）へ再編成した。1拍目強調は`MetronomeAccentToggle`としてQuickPanel側に残し
-機能の喪失はない。E2Eはヘッダートグルの実クリック検証へ更新（TASK-078のクリップ再発防止意図を維持）。
+メトロノームON/OFFをヘッダー常駐のアイコントグル（`MetronomeToggle`、`data-testid="metronome-toggle"`）へ移動した。
+QuickPanelは「表示・補助」用途を示すアイコン＋ツールチップへ変更した。
+セクションは表示（音量+表示倍率）/運指/成績/メトロノーム詳細（1拍目強調のみ）へ再編成した。
+1拍目強調は`MetronomeAccentToggle`としてQuickPanel側に残しており、機能の喪失はない。
+E2Eはヘッダートグルの実クリック検証へ更新した（TASK-078のクリップ再発防止意図を維持）。
 全ゲート（test 713件 / typecheck / lint / format:check / lint:jp / test:e2e 3件）が通過した。
 なお、レイアウトの実機ブラウザ目視確認はE2E（実Electronバイナリ起動+実クリック）で代替した。
 

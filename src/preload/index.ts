@@ -37,6 +37,14 @@ if (process.contextIsolated) {
         getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
           ipcRenderer.invoke('settings:get-recent-files'),
       },
+      // TASK-082: アプリケーションメニューの「About」項目クリック（Main→Renderer）を購読するAPI。
+      menu: {
+        onOpenAbout: (callback: () => void): (() => void) => {
+          const handler = (): void => callback();
+          ipcRenderer.on('menu:open-about', handler);
+          return () => ipcRenderer.removeListener('menu:open-about', handler);
+        },
+      },
     });
   } catch (error) {
     console.error('[preload] Failed to expose electronAPI:', error);
@@ -67,6 +75,13 @@ if (process.contextIsolated) {
         ipcRenderer.invoke('settings:set', key, value),
       getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
         ipcRenderer.invoke('settings:get-recent-files'),
+    },
+    menu: {
+      onOpenAbout: (callback: () => void): (() => void) => {
+        const handler = (): void => callback();
+        ipcRenderer.on('menu:open-about', handler);
+        return () => ipcRenderer.removeListener('menu:open-about', handler);
+      },
     },
   };
 }

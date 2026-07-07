@@ -3,7 +3,7 @@ import type { MenuItemConstructorOptions } from 'electron';
 import { createApplicationMenuTemplate } from './menu';
 
 /**
- * TASK-082: Aboutを設定画面から分離しメニューバーから開く独立モーダルへ（US-015）。
+ * TASK-082: Aboutを設定画面から分離し、メニューバー経由で開く独立モーダルへ（US-015）。
  *
  * アプリケーションメニューのテンプレート生成を純関数として切り出し、Electron実行環境
  * なしでプラットフォーム分岐・クリック結線を検証できるようにする

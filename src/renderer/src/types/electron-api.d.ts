@@ -30,6 +30,16 @@ export interface ElectronAPI {
     set<K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void>;
     getRecentFiles(): Promise<Array<{ path: string; openedAt: string }>>;
   };
+  /**
+   * TASK-082: アプリケーションメニュー（Main→Renderer）関連のAPI。
+   */
+  menu?: {
+    /**
+     * メニューの「About」項目クリック（`menu:open-about`）を購読する。
+     * 戻り値の関数を呼ぶと購読を解除する（App.tsx側はuseEffectのcleanupで呼び出す）。
+     */
+    onOpenAbout(callback: () => void): () => void;
+  };
 }
 
 declare global {

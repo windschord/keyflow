@@ -7,6 +7,7 @@ import { usePracticeStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { parse, extractXmlFromMxl } from './lib/musicxml-parser';
 import { SettingsModal } from './components/SettingsModal';
+import { AboutModal } from './components/AboutPanel/AboutModal';
 import { usePractice } from './hooks/usePractice';
 import { AnnotationStoreService } from './lib/annotation-store';
 import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
@@ -28,6 +29,8 @@ const UNSUPPORTED_DROP_MESSAGE =
 
 function App(): React.JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  // TASK-082: Aboutをメニューバー経由で開く独立モーダルへ分離した（US-015）。
+  const [isAboutOpen, setIsAboutOpen] = React.useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = React.useState(false);
   // TASK-053: アプリ全体へのドラッグオーバー時の視覚フィードバック用フラグ。
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
@@ -153,6 +156,13 @@ function App(): React.JSX.Element {
   React.useEffect(() => {
     (window as unknown as { __e2eStore__?: typeof usePracticeStore }).__e2eStore__ =
       usePracticeStore;
+  }, []);
+
+  // TASK-082: Main側メニューの「About」項目クリック（`menu:open-about`）を購読し、
+  // AboutModalを表示する。購読解除はcleanupで確実に行う（StrictMode耐性）。
+  React.useEffect(() => {
+    const unsubscribe = window.electronAPI?.menu?.onOpenAbout(() => setIsAboutOpen(true));
+    return () => unsubscribe?.();
   }, []);
 
   // アプリ起動時に、SettingsModal（electron-store）で設定された既定値を、
@@ -555,6 +565,8 @@ function App(): React.JSX.Element {
         onClose={() => setIsSettingsOpen(false)}
         webMidiService={webMidiService}
       />
+
+      <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
 
       {/* 2. ScoreRenderer (Flex Grow) */}
       {/*

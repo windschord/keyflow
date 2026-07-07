@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, session } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, dialog, session, Menu } from 'electron';
 import { join, dirname, resolve } from 'path';
 import * as fs from 'fs';
 import { randomBytes } from 'crypto';
@@ -7,8 +7,9 @@ import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
 import { PathAllowlist } from './path-allowlist';
 import { createRegisterDroppedFileHandler, createShowOpenDialogHandler } from './file-handlers';
-import { createWindowOptions } from './window-options';
+import { createWindowOptions, APP_TITLE } from './window-options';
 import { applyDockIcon } from './dock-icon';
+import { createApplicationMenuTemplate } from './menu';
 
 function createWindow(): void {
   // Create the browser window.
@@ -55,6 +56,21 @@ app.whenReady().then(() => {
   // TASK-080: 開発モードでもmacOSのDockアイコンを独自アイコンへ差し替える
   // （パッケージ版はicon.icnsが自動適用されるため常時呼んでも害はない）。
   applyDockIcon({ platform: process.platform, dock: app.dock, iconPath: icon });
+
+  // TASK-082: アプリケーションメニューを設定する。カスタムメニューはElectronの
+  // 既定メニュー（コピー/ペースト等の標準ロールを含む）を丸ごと置き換えるため、
+  // createApplicationMenuTemplate内で標準ロールを再現している。
+  const applicationMenu = Menu.buildFromTemplate(
+    createApplicationMenuTemplate({
+      platform: process.platform,
+      appTitle: APP_TITLE,
+      onOpenAbout: () => {
+        const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+        targetWindow?.webContents.send('menu:open-about');
+      },
+    })
+  );
+  Menu.setApplicationMenu(applicationMenu);
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

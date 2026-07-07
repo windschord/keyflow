@@ -62,3 +62,6 @@ lerna-debug.log*
 # node-midi ネイティブビルド成果物（electron-rebuildで再生成）
 *.node
 *.log
+
+# ライセンス一覧の自動生成物（TASK-076、DEC-008。generate:licensesで再生成）
+src/renderer/src/generated/

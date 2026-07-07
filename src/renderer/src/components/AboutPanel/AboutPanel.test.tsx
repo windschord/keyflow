@@ -39,7 +39,7 @@ describe('AboutPanel', () => {
     render(<AboutPanel />);
 
     expect(screen.getByText('tone')).toBeInTheDocument();
-    expect(screen.getByText('15.1.22')).toBeInTheDocument();
+    expect(screen.getByText(/15\.1\.22/)).toBeInTheDocument();
     expect(
       screen.queryByText(/Copyright \(c\) Tone\.js contributors/)
     ).not.toBeInTheDocument();

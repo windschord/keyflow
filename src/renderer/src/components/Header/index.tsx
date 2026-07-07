@@ -5,6 +5,7 @@ import { LoopControl } from '../Toolbar/LoopControl';
 import { PlaybackControls, PlaybackAudioEngine } from '../Toolbar/PlaybackControls';
 import { Popover } from './Popover';
 import { QuickPanel } from './QuickPanel';
+import { MetronomeToggle } from './MetronomeToggle';
 import type { Score } from '../../types/score';
 import type { FingerAssignment } from '../../types/annotation';
 
@@ -47,14 +48,20 @@ const Divider: React.FC = () => (
  *
  * 旧App.tsx上段バーとToolbar/index.tsxの2ブロック構成を、高さ48px（最大56px）の
  * 1行へ統合する（US-012、DEC-007）。
- * 頻用操作（開く・再生・停止・ループ・テンポ・練習対象）は常時表示する。
- * 低頻度操作（音量・表示倍率・運指・メトロノーム・成績）はQuickPanelへ移設する。
+ * 頻用操作（開く・再生・停止・ループ・テンポ・練習対象・メトロノームON/OFF）は
+ * 常時表示する。低頻度操作（音量・表示倍率・運指・成績・メトロノーム詳細）は
+ * 「表示・補助」パネル（QuickPanel）へ移設する。
  * 各子コンポーネントはロジックとstore結線を一切変更せず再利用する（REQ-012-004）。
  *
  * TASK-078: 1行維持のための`overflow: hidden`が絶対配置のPopoverをクリップしていた
  * （docs/sdd/troubleshooting/2026-07-08-quickpanel-clipped/analysis.md）。
  * これを避けるため、「外側ラッパー（overflowなし）＋内側1行row（overflow:hidden）」の
  * 2層構造にする。Popoverは内側rowの外、外側ラッパー直下に配置する。
+ *
+ * TASK-079: 2026-07-08のユーザー実機フィードバック「⋯と設定画面の分類がわからない」
+ * （DEC-007改訂節）を受け、メトロノームON/OFFは練習中によく触る操作として
+ * ヘッダーへ常駐させ、QuickPanelは「表示・補助」用途であることをアイコンと
+ * ツールチップで明示する。
  */
 export const Header: React.FC<HeaderProps> = ({
   onOpenFile,
@@ -115,6 +122,8 @@ export const Header: React.FC<HeaderProps> = ({
         <TempoControl />
         <Divider />
         <PracticeModeSelector />
+        <Divider />
+        <MetronomeToggle />
 
         <div
           style={{
@@ -129,16 +138,32 @@ export const Header: React.FC<HeaderProps> = ({
             ref={quickPanelAnchorRef}
             type="button"
             onClick={() => setIsQuickPanelOpen((open) => !open)}
-            aria-label="その他の操作"
+            aria-label="表示・補助"
             aria-expanded={isQuickPanelOpen}
-            title="音量・表示倍率・運指・メトロノーム・成績"
+            title="表示・補助（音量・表示倍率・運指・成績）"
             data-testid="quick-panel-toggle"
             style={ICON_BUTTON_STYLE}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <circle cx="5" cy="12" r="2"></circle>
-              <circle cx="12" cy="12" r="2"></circle>
-              <circle cx="19" cy="12" r="2"></circle>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="21" x2="4" y2="14"></line>
+              <line x1="4" y1="10" x2="4" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12" y2="3"></line>
+              <line x1="20" y1="21" x2="20" y2="16"></line>
+              <line x1="20" y1="12" x2="20" y2="3"></line>
+              <line x1="1" y1="14" x2="7" y2="14"></line>
+              <line x1="9" y1="8" x2="15" y2="8"></line>
+              <line x1="17" y1="16" x2="23" y2="16"></line>
             </svg>
           </button>
 

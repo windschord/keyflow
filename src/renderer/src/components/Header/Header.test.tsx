@@ -67,10 +67,12 @@ describe('Header', () => {
 
   it('renders as a single-row header no taller than 56px (REQ-012-001/005)', () => {
     renderHeader();
-    const header = screen.getByTestId('app-header');
-    const heightValue = parseInt(header.style.height, 10);
+    // TASK-078: Popoverのクリップ回避のため、height/flexWrap等の1行レイアウト
+    // スタイルは外側ラッパー（app-header）から内側row（app-header-row）へ移設した。
+    const headerRow = screen.getByTestId('app-header-row');
+    const heightValue = parseInt(headerRow.style.height, 10);
     expect(heightValue).toBeLessThanOrEqual(56);
-    expect(header.style.flexWrap).toBe('nowrap');
+    expect(headerRow.style.flexWrap).toBe('nowrap');
   });
 
   it('renders the frequently used controls: open file, playback, loop, tempo, practice mode', () => {
@@ -143,6 +145,24 @@ describe('Header', () => {
 
       fireEvent.mouseDown(document.body);
       expect(screen.queryByTestId('quick-panel')).not.toBeInTheDocument();
+    });
+
+    it('does not place an overflow:hidden ancestor between app-header and the open popover (TASK-078)', () => {
+      // 根本原因（docs/sdd/troubleshooting/2026-07-08-quickpanel-clipped/analysis.md）:
+      // ヘッダールートのoverflow:hiddenが絶対配置のPopoverをクリップしていた。
+      // popoverからapp-headerまでの祖先にoverflow:hiddenを持つ要素がないことを検証する。
+      renderHeader();
+      fireEvent.click(screen.getByTestId('quick-panel-toggle'));
+
+      const popover = screen.getByTestId('popover');
+      const header = screen.getByTestId('app-header');
+
+      let node: HTMLElement | null = popover.parentElement;
+      while (node) {
+        expect(node.style.overflow).not.toBe('hidden');
+        if (node === header) break;
+        node = node.parentElement;
+      }
     });
 
     it('changes the score zoom level via the ZoomControl select inside the QuickPanel (REQ-002-006, TASK-045)', () => {

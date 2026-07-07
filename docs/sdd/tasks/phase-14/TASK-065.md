@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-065 |
 | タイプ | bugfix |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 30分 |
 | 依存タスク | なし |
@@ -76,19 +76,19 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] 再生中にメトロノームをOFF→ONしてもクリックが継続する（再生成の結線テストで検証）
-- [ ] アクセント無効時は全拍 `'C5'`・velocity 1.0 で鳴る
-- [ ] アクセント有効時の挙動（一拍目C6・1.0/他拍C5・0.6）が維持されている
-- [ ] `docs/sdd/requirements/traceability.md` が更新されている
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` / `npm run format:check` / `npm run lint:jp` が全てパスする
+- [x] 再生中にメトロノームをOFF→ONしてもクリックが継続する（再生成の結線テストで検証）
+- [x] アクセント無効時は全拍 `'C5'`・velocity 1.0 で鳴る
+- [x] アクセント有効時の挙動（一拍目C6・1.0/他拍C5・0.6）が維持されている
+- [x] `docs/sdd/requirements/traceability.md` が更新されている
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` / `npm run format:check` / `npm run lint:jp` が全てパスする
 
 ## テスト項目
 
-- [ ] （新規・結線）ON→OFF→ONで旧シーケンス `dispose` ＋新シーケンス生成＋ `start(0)`
-- [ ] （新規・ユニット）アクセント無効時に `('C5', '32n', time, 1.0)`
-- [ ] （更新）アクセント無効時 velocity 0.6 を期待する既存テストを 1.0 へ更新
-- [ ] （回帰）アクセント有効時の一拍目C6・1.0/他拍C5・0.6
-- [ ] （回帰）`npm run test` 全件グリーン
+- [x] （新規・結線）ON→OFF→ONで旧シーケンス `dispose` ＋新シーケンス生成＋ `start(0)`
+- [x] （新規・ユニット）アクセント無効時に `('C5', '32n', time, 1.0)`
+- [x] （更新）アクセント無効時 velocity 0.6 を期待する既存テストを 1.0 へ更新
+- [x] （回帰）アクセント有効時の一拍目C6・1.0/他拍C5・0.6
+- [x] （回帰）`npm run test` 全件グリーン
 
 ## 情報の明確性
 

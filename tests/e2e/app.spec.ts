@@ -198,6 +198,26 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
     })
     .toEqual({ measure: 1, noteIndex: 0 });
 
+  // TASK-079: メトロノームON/OFFはQuickPanelからヘッダー常駐ボタンへ移動した
+  // （DEC-007改訂、2026-07-08）。QuickPanelを開かずとも操作できることを
+  // 座標ヒットテストを伴う実クリック（`click()`）で検証し、チェック状態の変化
+  // （ユーザー観測可能な結果、aria-pressed）とストアの反転を確認する
+  // （TASK-078のクリップ再発防止の検証意図は維持: 実クリックでの操作性検証）。
+  const metronomeToggle = window.getByTestId('metronome-toggle');
+  await expect(metronomeToggle).toBeVisible();
+  const metronomeEnabledBefore = await window.evaluate(
+    () => window.__e2eStore__!.getState().metronomeEnabled
+  );
+  expect(metronomeEnabledBefore).toBe(false);
+  await expect(metronomeToggle).toHaveAttribute('aria-pressed', 'false');
+
+  await metronomeToggle.click();
+
+  await expect(metronomeToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(() => window.evaluate(() => window.__e2eStore__!.getState().metronomeEnabled))
+    .toBe(true);
+
   // 5. 手動スクロール: ズームUI（QuickPanel内ZoomControl、REQ-002-006・TASK-045）を
   // 実際に操作して表示倍率を引き上げ、スクロール可能な状態を作った上で、
   // scrollTopが実際に変化することを確認する（TASK-025のスクロール対応）。
@@ -207,25 +227,6 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
   // （REQ-012-002: 2クリック以内）。まずQuickPanelを開く。
   await window.getByTestId('quick-panel-toggle').click();
   await expect(window.getByTestId('quick-panel')).toBeVisible();
-
-  // TASK-078: QuickPanelがヘッダーのoverflow:hiddenでクリップされ、視覚上は
-  // 到達不能だったにもかかわらず`toBeVisible()`/`fill()`はすり抜けていた
-  // （docs/sdd/troubleshooting/2026-07-08-quickpanel-clipped/analysis.md）。
-  // 座標ヒットテストを伴う実クリック（`click()`）でメトロノームチェックボックスを
-  // 操作し、チェック状態の変化（ユーザー観測可能な結果）とストアの反転を検証する。
-  const metronomeCheckbox = window.getByTestId('metronome-checkbox');
-  await expect(metronomeCheckbox).toBeVisible();
-  const metronomeEnabledBefore = await window.evaluate(
-    () => window.__e2eStore__!.getState().metronomeEnabled
-  );
-  expect(metronomeEnabledBefore).toBe(false);
-
-  await metronomeCheckbox.click();
-
-  await expect(metronomeCheckbox).toBeChecked();
-  await expect
-    .poll(() => window.evaluate(() => window.__e2eStore__!.getState().metronomeEnabled))
-    .toBe(true);
 
   // QuickPanel経由の代表操作として音量変更も検証する（REQ-012-004: 機能の喪失禁止）。
   await window.getByTestId('volume-slider').fill('40');

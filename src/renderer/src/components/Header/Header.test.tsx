@@ -108,7 +108,41 @@ describe('Header', () => {
     expect(settingsButton.getAttribute('title')).toBe('設定');
   });
 
+  describe('メトロノーム (header toggle, TASK-079)', () => {
+    it('renders a metronome toggle button in the header with aria-pressed reflecting metronomeEnabled', () => {
+      renderHeader();
+      const toggle = screen.getByTestId('metronome-toggle');
+      expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      expect(toggle.getAttribute('title')).toBe('メトロノーム');
+    });
+
+    it('toggles metronomeEnabled in the store when the header metronome button is clicked', () => {
+      renderHeader();
+      const toggle = screen.getByTestId('metronome-toggle');
+
+      fireEvent.click(toggle);
+
+      expect(usePracticeStore.getState().metronomeEnabled).toBe(true);
+      expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('remains operable while playbackState is "playing" (現行仕様維持)', () => {
+      usePracticeStore.setState({ playbackState: 'playing' });
+      renderHeader();
+
+      fireEvent.click(screen.getByTestId('metronome-toggle'));
+
+      expect(usePracticeStore.getState().metronomeEnabled).toBe(true);
+    });
+  });
+
   describe('QuickPanel (REQ-012-002/003)', () => {
+    it('shows a Japanese tooltip describing the panel contents on the toggle button (TASK-079)', () => {
+      renderHeader();
+      const toggle = screen.getByTestId('quick-panel-toggle');
+      expect(toggle.getAttribute('title')).toBe('表示・補助（音量・表示倍率・運指・成績）');
+    });
+
     it('does not render the QuickPanel until the "..." button is clicked', () => {
       renderHeader();
       expect(screen.queryByTestId('quick-panel')).not.toBeInTheDocument();

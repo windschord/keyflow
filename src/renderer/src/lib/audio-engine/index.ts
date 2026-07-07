@@ -3,6 +3,7 @@ import { Score, PracticeMode } from '../../types';
 import { Metronome } from './metronome';
 import { groupNotesByStartTick, filterNotesByPracticeMode } from '../practice-engine/note-grouping';
 import { createPlaybackInstrument, PLAYBACK_VOICES, type PlaybackVoiceId, type PlaybackInstrument } from './voices';
+import type { MetronomeVoiceId } from './metronome-voices';
 import { resolveEffectiveDurations } from './pedal-extension';
 
 /** 再生位置（判定グループ単位）が進むたびに呼ばれるコールバック。 */
@@ -71,6 +72,9 @@ export class AudioEngineService {
   // Metronome再生成後にも再適用する（accentEnabled等と同じStrictMode耐性設計）。
   private metronomeBpm = 120;
   private metronomeBeatsPerMeasure = 4;
+  // TASK-072: メトロノーム音色の希望状態。dispose()でのMetronome再生成後にも
+  // 選択中の音色を維持する（metronomeAccentEnabled等と同じStrictMode耐性設計）。
+  private metronomeVoiceId: MetronomeVoiceId = 'click';
 
   // TASK-071: 再生音色（伴奏・手動プレビュー共通）の希望状態。dispose()での再生成後にも
   // 選択中の音色を維持する（metronomeAccentEnabled等と同じStrictMode耐性設計）。
@@ -95,6 +99,7 @@ export class AudioEngineService {
     this.metronome.setMeasureStartTicks(this.measureStartTicks);
     this.metronome.setBpm(this.metronomeBpm);
     this.metronome.setBeatsPerMeasure(this.metronomeBeatsPerMeasure);
+    this.metronome.setVoice(this.metronomeVoiceId);
     this.initialized = true;
   }
 
@@ -229,6 +234,13 @@ export class AudioEngineService {
     this.ensureInitialized();
     this.metronomeAccentEnabled = enabled;
     this.metronome.setAccentEnabled(enabled);
+  }
+
+  /** メトロノーム音色を切り替える（即時反映、TASK-072、REQ-013-004）。 */
+  setMetronomeVoice(id: MetronomeVoiceId): void {
+    this.ensureInitialized();
+    this.metronomeVoiceId = id;
+    this.metronome.setVoice(id);
   }
 
   /**

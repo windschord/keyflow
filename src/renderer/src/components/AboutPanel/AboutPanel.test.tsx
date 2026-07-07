@@ -40,9 +40,7 @@ describe('AboutPanel', () => {
 
     expect(screen.getByText('tone')).toBeInTheDocument();
     expect(screen.getByText(/15\.1\.22/)).toBeInTheDocument();
-    expect(
-      screen.queryByText(/Copyright \(c\) Tone\.js contributors/)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Copyright \(c\) Tone\.js contributors/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText('tone'));
 
@@ -50,8 +48,6 @@ describe('AboutPanel', () => {
 
     fireEvent.click(screen.getByText('tone'));
 
-    expect(
-      screen.queryByText(/Copyright \(c\) Tone\.js contributors/)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Copyright \(c\) Tone\.js contributors/)).not.toBeInTheDocument();
   });
 });

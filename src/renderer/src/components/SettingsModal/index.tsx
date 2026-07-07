@@ -4,6 +4,7 @@ import { usePracticeStore } from '../../store';
 import type { WebMidiService } from '../../lib/midi/web-midi';
 import { PLAYBACK_VOICES } from '../../lib/audio-engine/voices';
 import { METRONOME_VOICES } from '../../lib/audio-engine/metronome-voices';
+import { AboutPanel } from '../AboutPanel';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -707,6 +708,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 })}
               </ul>
             )}
+          </section>
+
+          {/* About Section (TASK-076, US-015) */}
+          <section>
+            <h3
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                marginBottom: '12px',
+              }}
+            >
+              このアプリについて
+            </h3>
+            <AboutPanel />
           </section>
         </div>
 

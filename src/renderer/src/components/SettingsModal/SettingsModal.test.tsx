@@ -567,7 +567,9 @@ describe('SettingsModal', () => {
       });
 
     it('shows a Japanese "音色" section with selects for the persisted playbackVoice/metronomeVoice', async () => {
-      settingsApi.get.mockImplementation(mockGetWithAudio({ playbackVoice: 'organ', metronomeVoice: 'cowbell' }));
+      settingsApi.get.mockImplementation(
+        mockGetWithAudio({ playbackVoice: 'organ', metronomeVoice: 'cowbell' })
+      );
       settingsApi.getRecentFiles.mockResolvedValue([]);
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
@@ -656,5 +658,25 @@ describe('SettingsModal', () => {
       expect(select.value).toBe('grand-piano');
       expect(usePracticeStore.getState().playbackVoice).toBe('grand-piano');
     });
+  });
+
+  // TASK-076: 「このアプリについて」セクション（US-015）。AboutPanel自体の表示内容
+  // （バージョン・ライブラリ一覧のアコーディオン等）はAboutPanel.test.tsxが担う。
+  // ここではSettingsModal側にAboutPanelが実際に結線されていることのみ検証する。
+  it('renders the "このアプリについて" section with AboutPanel content (結線テスト, REQ-015-001)', async () => {
+    settingsApi.get.mockImplementation((key: string) => {
+      if (key === 'ui') return Promise.resolve(defaultUi);
+      if (key === 'practice') return Promise.resolve(defaultPractice);
+      if (key === 'midi') return Promise.resolve(defaultMidi);
+      if (key === 'audio') return Promise.resolve(defaultAudio);
+      return Promise.resolve(undefined);
+    });
+    settingsApi.getRecentFiles.mockResolvedValue([]);
+
+    render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+    expect(await screen.findByText('このアプリについて')).toBeInTheDocument();
+    expect(screen.getByText('MusicXML Piano Practice')).toBeInTheDocument();
+    expect(screen.getByText(/Apache License 2\.0/)).toBeInTheDocument();
   });
 });

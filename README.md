@@ -142,7 +142,7 @@ CC-BY 3.0）のサンプルを間引いて同梱しています。
 - 取得元: [Tone.js公式が配布する変換済みmp3](https://tonejs.github.io/audio/salamander/)
   （Internet Archive上の元配布物をTone.js側が変換・ホストしているもの。開発時に一回
   ダウンロードして同梱しており、アプリ自体はビルド後もオフラインで動作します）
-- コード本体（本リポジトリのソース）はMITライセンスですが、上記の同梱音源のみ
+- コード本体（本リポジトリのソース）はApache License 2.0ですが、上記の同梱音源のみ
   CC-BY 3.0（要クレジット表記）が適用されます。詳細は
   [docs/sdd/design/decisions/DEC-006.md](docs/sdd/design/decisions/DEC-006.md) を参照
 
@@ -150,6 +150,6 @@ CC-BY 3.0）のサンプルを間引いて同梱しています。
 
 ## ライセンス
 
-MIT
+Apache License 2.0（[LICENSE](./LICENSE)参照）
 
 （同梱のSalamanderピアノサンプル音源のみCC-BY 3.0。上記「再生音色について」参照）

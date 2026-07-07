@@ -329,6 +329,7 @@
 | TASK-075 | 1行ヘッダー統合（Toolbar・上段バー置換） | DONE | TASK-074 | 90min | [詳細](phase-15/TASK-075.md) @phase-15/TASK-075.md |
 | TASK-076 | Aboutページ（ライセンス自動生成・バージョン・LICENSE） | DONE | TASK-073, TASK-071 | 60min | [詳細](phase-15/TASK-076.md) @phase-15/TASK-076.md |
 | TASK-077 | Phase 15統合検証・トレーサビリティ更新 | DONE | TASK-068〜076 | 40min | [詳細](phase-15/TASK-077.md) @phase-15/TASK-077.md |
+| TASK-078 | [BugFix] QuickPanelがoverflow:hiddenでクリップされ表示されない | REVIEW | TASK-075 | 40min | [詳細](phase-15/TASK-078.md) @phase-15/TASK-078.md |
 
 ---
 

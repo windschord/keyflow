@@ -2,16 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { usePracticeStore } from '../../store';
 
 const INPUT_STYLE: React.CSSProperties = {
-  height: '44px',
-  width: '64px',
-  fontSize: '16px',
-  padding: '0 8px',
+  height: '36px',
+  width: '48px',
+  fontSize: '14px',
+  padding: '0 6px',
   borderRadius: '6px',
   border: '1px solid #d1d5db',
   boxSizing: 'border-box',
   textAlign: 'center',
 };
 
+/**
+ * ループ有効トグル＋開始/終了小節入力（TASK-075でコンパクト化）。
+ *
+ * 「開始小節:」「終了小節:」の可視ラベルは各入力の`title`属性（ツールチップ）へ
+ * 集約し、ループ有効トグルの「ループ」テキストはアイコン表示に置き換えつつ
+ * `aria-label`/`title`で意味を維持する（design/components/header.md）。
+ */
 export const LoopControl: React.FC = () => {
   const { loopStart, loopEnd, setLoopRange, loopEnabled, toggleLoop } = usePracticeStore();
   const [startInput, setStartInput] = useState(loopStart.toString());
@@ -42,16 +49,17 @@ export const LoopControl: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
       <label
         title="ループ再生（指定した小節範囲の繰り返し）の有効/無効を切り替えます"
+        aria-label="ループ"
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
-          height: '44px',
+          gap: '4px',
+          height: '36px',
           cursor: 'pointer',
-          fontSize: '15px',
+          fontSize: '16px',
           color: '#374151',
         }}
       >
@@ -59,12 +67,9 @@ export const LoopControl: React.FC = () => {
           type="checkbox"
           checked={loopEnabled}
           onChange={toggleLoop}
-          style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
         />
-        ループ
-      </label>
-      <label htmlFor="loop-start" style={{ fontSize: '14px', color: '#374151' }}>
-        開始小節:
+        <span aria-hidden="true">&#128257;</span>
       </label>
       <input
         id="loop-start"
@@ -76,10 +81,7 @@ export const LoopControl: React.FC = () => {
         style={INPUT_STYLE}
         data-testid="loop-start"
       />
-      <span style={{ fontSize: '15px', color: '#374151' }}>–</span>
-      <label htmlFor="loop-end" style={{ fontSize: '14px', color: '#374151' }}>
-        終了小節:
-      </label>
+      <span style={{ fontSize: '14px', color: '#374151' }}>–</span>
       <input
         id="loop-end"
         type="number"
@@ -90,7 +92,7 @@ export const LoopControl: React.FC = () => {
         style={INPUT_STYLE}
         data-testid="loop-end"
       />
-      {error && <span style={{ color: '#ef4444', fontSize: '13px' }}>{error}</span>}
+      {error && <span style={{ color: '#ef4444', fontSize: '12px' }}>{error}</span>}
     </div>
   );
 };

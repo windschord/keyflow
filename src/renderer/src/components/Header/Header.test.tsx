@@ -241,13 +241,17 @@ describe('Header', () => {
   });
 
   describe('再生コントロール (PlaybackControls integration)', () => {
+    // PlaybackControlsはscore===nullの場合に再生系ボタンを無効化する（REQ-010-002）
+    // ため、再生操作の検証では楽譜読み込み済みを模したダミーのScoreを渡す。
+    const mockScore = { parts: [], measures: [] } as unknown as import('../../types').Score;
+
     it('forwards the audioEngine prop to PlaybackControls', async () => {
       const audioEngine = {
         playAccompaniment: vi.fn(),
         pauseAccompaniment: vi.fn(),
         stopAccompaniment: vi.fn(),
       };
-      renderHeader({ audioEngine });
+      renderHeader({ audioEngine, score: mockScore });
 
       fireEvent.click(screen.getByTestId('playback-play'));
       await waitFor(() => expect(audioEngine.playAccompaniment).toHaveBeenCalledTimes(1));
@@ -265,7 +269,7 @@ describe('Header', () => {
         pauseAccompaniment: vi.fn(),
         stopAccompaniment: vi.fn(),
       };
-      renderHeader({ audioEngine });
+      renderHeader({ audioEngine, score: mockScore });
 
       fireEvent.keyDown(window, { code: 'Space' });
       await waitFor(() => expect(audioEngine.playAccompaniment).toHaveBeenCalledTimes(1));

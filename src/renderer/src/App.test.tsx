@@ -75,15 +75,13 @@ vi.mock('tone', () => {
 });
 
 // TASK-044: 実装したコンテキストメニュー結線を検証するため、モック化した
-// ScoreRenderer/PianoKeyboard/FingeringPanelのpropsを直近レンダー分だけ捕捉する。
+// ScoreRenderer/PianoKeyboard/Headerのpropsを直近レンダー分だけ捕捉する。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let latestScoreRendererProps: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let latestPianoKeyboardProps: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let latestFingeringPanelProps: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let latestToolbarProps: any = null;
+let latestHeaderProps: any = null;
 
 vi.mock('./components/ScoreRenderer', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,19 +103,16 @@ vi.mock('./components/PianoKeyboard', () => ({
   },
 }));
 
-vi.mock('./components/Toolbar', () => ({
+// TASK-075: App.tsx上段バー＋Toolbarの2ブロック構成をHeader/index.tsxへ統合した。
+// ここではHeader単体をモックする。
+// App.tsxが渡すprops（onOpenFile/onOpenSettings/audioEngine/score/
+// onFingeringSuggested/fingeringDisabled）の橋渡しのみを検証する。
+// Header自体の内部実装はHeader.test.tsxで検証済みである。
+vi.mock('./components/Header', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Toolbar: (props: any) => {
-    latestToolbarProps = props;
-    return <div data-testid="mock-toolbar">Toolbar</div>;
-  },
-}));
-
-vi.mock('./components/FingeringPanel', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  FingeringPanel: (props: any) => {
-    latestFingeringPanelProps = props;
-    return <div data-testid="mock-fingering-panel">FingeringPanel</div>;
+  Header: (props: any) => {
+    latestHeaderProps = props;
+    return <div data-testid="mock-header">Header</div>;
   },
 }));
 
@@ -152,21 +147,23 @@ describe('App', () => {
     delete (window as any).electronAPI;
     latestScoreRendererProps = null;
     latestPianoKeyboardProps = null;
-    latestFingeringPanelProps = null;
-    latestToolbarProps = null;
+    latestHeaderProps = null;
   });
 
   it('renders correctly with layout components', () => {
     render(<App />);
 
-    expect(screen.getByTestId('mock-toolbar')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-header')).toBeInTheDocument();
     expect(screen.getByTestId('mock-score-renderer')).toBeInTheDocument();
     expect(screen.getByTestId('mock-piano-keyboard')).toBeInTheDocument();
   });
 
-  it('renders Open File button', () => {
+  // TASK-075: 「ファイルを開く」ボタン自体のレンダリングはHeader.test.tsxの
+  // 責務になった（Headerはこのファイルではモックされる）。ここではApp.tsxが
+  // Headerへ正しくonOpenFileハンドラを橋渡ししていることのみを検証する。
+  it('passes an onOpenFile handler to Header', () => {
     render(<App />);
-    expect(screen.getByText('ファイルを開く')).toBeInTheDocument();
+    expect(latestHeaderProps.onOpenFile).toBeInstanceOf(Function);
   });
 
   it('triggers electronAPI file methods when Open File button is clicked', async () => {
@@ -191,8 +188,9 @@ describe('App', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
 
     await waitFor(() => {
       expect(showOpenDialogMock).toHaveBeenCalled();
@@ -237,8 +235,9 @@ describe('App', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
 
     await waitFor(() => {
       expect(showOpenDialogMock).toHaveBeenCalled();
@@ -259,8 +258,9 @@ describe('App', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
 
     await waitFor(() => {
       expect(showOpenDialogMock).toHaveBeenCalled();
@@ -284,8 +284,9 @@ describe('App', () => {
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
 
     await waitFor(() => {
       expect(alertMock).toHaveBeenCalledWith(
@@ -323,8 +324,9 @@ describe('App', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
 
     await waitFor(() => {
       expect(loadScoreSpy).toHaveBeenCalledTimes(1);
@@ -348,8 +350,9 @@ describe('App', () => {
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
 
     await waitFor(() => {
       expect(alertMock).toHaveBeenCalledWith('ファイル選択ダイアログを開けませんでした。');
@@ -424,8 +427,9 @@ describe('App', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
 
     await waitFor(() => expect(readMock).toHaveBeenCalled());
     await waitFor(() => expect(onNoteOnSpy).toHaveBeenCalled());
@@ -718,14 +722,15 @@ describe('App - TASK-055: 運指の一括表示/非表示トグル', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
 
     await waitFor(() => expect(readMock).toHaveBeenCalledWith('test.xml'));
-    await waitFor(() => expect(latestFingeringPanelProps?.onSuggested).toBeInstanceOf(Function));
+    await waitFor(() => expect(latestHeaderProps?.onFingeringSuggested).toBeInstanceOf(Function));
 
     await act(async () => {
-      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 2, cost: 0 }]);
+      await latestHeaderProps.onFingeringSuggested([{ noteId: 'P1-M1-N0', finger: 2, cost: 0 }]);
     });
 
     await waitFor(() =>
@@ -795,10 +800,11 @@ describe('App - TASK-055: 運指の一括表示/非表示トグル', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
     await waitFor(() => expect(readMock).toHaveBeenCalledWith('test.xml'));
-    await waitFor(() => expect(latestFingeringPanelProps?.onSuggested).toBeInstanceOf(Function));
+    await waitFor(() => expect(latestHeaderProps?.onFingeringSuggested).toBeInstanceOf(Function));
 
     act(() => {
       usePracticeStore.getState().setShowFingerings(false);
@@ -806,7 +812,7 @@ describe('App - TASK-055: 運指の一括表示/非表示トグル', () => {
     expect(usePracticeStore.getState().showFingerings).toBe(false);
 
     await act(async () => {
-      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 4, cost: 0 }]);
+      await latestHeaderProps.onFingeringSuggested([{ noteId: 'P1-M1-N0', finger: 4, cost: 0 }]);
     });
 
     expect(usePracticeStore.getState().showFingerings).toBe(true);
@@ -1196,8 +1202,9 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
 
     await waitFor(() => expect(readMock).toHaveBeenCalled());
     await waitFor(() => expect(usePracticeStore.getState().score).not.toBeNull());
@@ -1213,7 +1220,6 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).electronAPI;
     latestScoreRendererProps = null;
-    latestToolbarProps = null;
   });
 
   it("moves the cursor to the clicked note's own judgement group, not the measure head (REQ-002-004)", async () => {
@@ -1258,10 +1264,10 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
       latestScoreRendererProps.onNoteClick(secondNote);
     });
 
-    await waitFor(() => expect(latestToolbarProps?.audioEngine).toBeDefined());
+    await waitFor(() => expect(latestHeaderProps?.audioEngine).toBeDefined());
 
     act(() => {
-      latestToolbarProps.audioEngine.playAccompaniment();
+      latestHeaderProps.audioEngine.playAccompaniment();
     });
 
     expect(playAccompanimentSpy).toHaveBeenCalledWith(secondNote.startTick);
@@ -1280,7 +1286,7 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
       .mockImplementation(() => {});
 
     await openTwoNoteScore();
-    await waitFor(() => expect(latestToolbarProps?.audioEngine).toBeDefined());
+    await waitFor(() => expect(latestHeaderProps?.audioEngine).toBeDefined());
 
     const score = usePracticeStore.getState().score!;
     const secondNote = score.measures[0].notes[1];
@@ -1295,7 +1301,7 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
     });
 
     act(() => {
-      latestToolbarProps.audioEngine.playAccompaniment();
+      latestHeaderProps.audioEngine.playAccompaniment();
     });
 
     expect(playAccompanimentSpy).toHaveBeenCalledWith(secondNote.startTick);
@@ -1334,8 +1340,9 @@ describe('App - note context menu (TASK-044, US-008)', () => {
     };
 
     render(<App />);
-    const openFileBtn = screen.getByText('ファイルを開く');
-    openFileBtn.click();
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
 
     await waitFor(() => expect(readMock).toHaveBeenCalledWith('test.xml'));
     await waitFor(() =>
@@ -1429,10 +1436,10 @@ describe('App - note context menu (TASK-044, US-008)', () => {
     const writeMock = vi.fn().mockResolvedValue(undefined);
     await openScoreFile(writeMock);
 
-    await waitFor(() => expect(latestFingeringPanelProps?.onSuggested).toBeInstanceOf(Function));
+    await waitFor(() => expect(latestHeaderProps?.onFingeringSuggested).toBeInstanceOf(Function));
 
     await act(async () => {
-      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 2, cost: 0 }]);
+      await latestHeaderProps.onFingeringSuggested([{ noteId: 'P1-M1-N0', finger: 2, cost: 0 }]);
     });
 
     await waitFor(() =>
@@ -1460,10 +1467,10 @@ describe('App - note context menu (TASK-044, US-008)', () => {
     const writeMock = vi.fn().mockResolvedValue(undefined);
     await openScoreFile(writeMock);
 
-    await waitFor(() => expect(latestFingeringPanelProps?.onSuggested).toBeInstanceOf(Function));
+    await waitFor(() => expect(latestHeaderProps?.onFingeringSuggested).toBeInstanceOf(Function));
 
     await act(async () => {
-      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 2, cost: 0 }]);
+      await latestHeaderProps.onFingeringSuggested([{ noteId: 'P1-M1-N0', finger: 2, cost: 0 }]);
     });
 
     act(() => {
@@ -1480,7 +1487,7 @@ describe('App - note context menu (TASK-044, US-008)', () => {
     );
 
     await act(async () => {
-      await latestFingeringPanelProps.onSuggested([{ noteId: 'P1-M1-N0', finger: 5, cost: 0 }]);
+      await latestHeaderProps.onFingeringSuggested([{ noteId: 'P1-M1-N0', finger: 5, cost: 0 }]);
     });
 
     await waitFor(() =>

@@ -3,10 +3,11 @@ import * as Tone from 'tone';
 import { usePracticeStore } from '../../store';
 import type { Score } from '../../types';
 
+// TASK-075: 1行ヘッダー統合に伴い、高さを44px→36pxへコンパクト化する。
 const BTN_STYLE: React.CSSProperties = {
-  height: '44px',
-  padding: '0 14px',
-  fontSize: '15px',
+  height: '36px',
+  padding: '0 12px',
+  fontSize: '14px',
   borderRadius: '6px',
   border: '1px solid #9ca3af',
   backgroundColor: 'white',

@@ -13,9 +13,12 @@ describe('PracticeModeSelector labels and tooltips', () => {
     usePracticeStore.setState({ practiceMode: 'both' });
   });
 
-  it('shows a group label distinguishing this control from fingering target selection', () => {
+  // TASK-075: 「練習対象:」の可視グループラベルはコンテナのtitle属性
+  // （ツールチップ）へ移した（design/components/header.md）。
+  it('shows a tooltip on the group container distinguishing this control from fingering target selection', () => {
     render(<PracticeModeSelector />);
-    expect(screen.getByText('練習対象:')).toBeInTheDocument();
+    const group = screen.getByTestId('practice-mode-group');
+    expect(group.getAttribute('title')).toMatch(/練習対象/);
   });
 
   it('shows Japanese labels with keyboard shortcut hints for each mode button', () => {

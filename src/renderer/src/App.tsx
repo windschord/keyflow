@@ -1,8 +1,7 @@
 import React from 'react';
-import { Toolbar } from './components/Toolbar';
+import { Header } from './components/Header';
 import { ScoreRenderer } from './components/ScoreRenderer';
 import { PianoKeyboard } from './components/PianoKeyboard';
-import { FingeringPanel } from './components/FingeringPanel';
 import { NoteContextMenu } from './components/NoteContextMenu';
 import { usePracticeStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
@@ -504,45 +503,17 @@ function App(): React.JSX.Element {
       onDrop={handleDrop}
       style={{ display: 'flex', flexDirection: 'column', height: '100vh', position: 'relative' }}
     >
-      {/* 1. Header bar: Open File + FingeringPanel */}
+      {/* 1. Header: 1行ヘッダー（TASK-075、design/components/header.md）。
+          頻用操作（開く/再生/停止/ループ/テンポ/練習対象）を常時表示し、
+          低頻度操作（音量・表示倍率・運指・メトロノーム・成績）はQuickPanelへ移設する。 */}
       <div style={{ flexShrink: 0 }}>
-        <div
-          style={{
-            padding: '6px 12px',
-            backgroundColor: '#e0e0e0',
-            display: 'flex',
-            gap: '12px',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          <button
-            onClick={handleOpenFile}
-            title="MusicXMLファイルを開きます"
-            style={{
-              height: '44px',
-              padding: '0 16px',
-              fontSize: '16px',
-              borderRadius: '6px',
-              border: '1px solid #9ca3af',
-              backgroundColor: 'white',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            ファイルを開く
-          </button>
-          <div style={{ width: '1px', height: '28px', backgroundColor: '#bbb' }} />
-          <FingeringPanel
-            score={score}
-            onSuggested={handleFingering}
-            disabled={isLoadingAnnotations}
-          />
-        </div>
-        <Toolbar
+        <Header
+          onOpenFile={handleOpenFile}
           onOpenSettings={() => setIsSettingsOpen(true)}
           audioEngine={playbackAudioEngine}
           score={score}
+          onFingeringSuggested={handleFingering}
+          fingeringDisabled={isLoadingAnnotations}
         />
       </div>
 

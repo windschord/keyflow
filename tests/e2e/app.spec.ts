@@ -42,6 +42,7 @@ interface E2EPracticeStoreState {
   playbackState: 'stopped' | 'paused' | 'playing';
   stats: E2EPracticeStats;
   zoom: number;
+  volume: number;
 }
 
 declare global {
@@ -105,6 +106,13 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
 
   // ファイル未読み込み時のプレースホルダーが表示されていることを確認する。
   await expect(window.getByTestId('placeholder')).toBeVisible();
+
+  // TASK-075: ヘッダーが1行・高さ56px以下であることを確認する（REQ-012-001/005）。
+  // 楽譜表示領域を拡大するため、旧App.tsx上段バー+Toolbarの2ブロック構成
+  // （実質3〜4行）を1行のHeaderへ統合した結果を、実際のbounding boxで検証する。
+  const headerBox = await window.getByTestId('app-header').boundingBox();
+  expect(headerBox).not.toBeNull();
+  expect(headerBox!.height).toBeLessThanOrEqual(56);
 
   // 2. サンプルMusicXMLファイルを開く。
   // ファイルダイアログのみをバイパスするため、mainプロセスの
@@ -188,11 +196,20 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
     })
     .toEqual({ measure: 1, noteIndex: 0 });
 
-  // 5. 手動スクロール: ズームUI（Toolbar、REQ-002-006・TASK-045）を実際に操作して
-  // 表示倍率を引き上げ、スクロール可能な状態を作った上で、scrollTopが実際に
-  // 変化することを確認する（TASK-025のスクロール対応）。ストアを直接呼ぶのではなく
-  // UI操作経由で検証することで、ズームUIの結線漏れ（TASK-045の背景参照）を
-  // 再発防止する。
+  // 5. 手動スクロール: ズームUI（QuickPanel内ZoomControl、REQ-002-006・TASK-045）を
+  // 実際に操作して表示倍率を引き上げ、スクロール可能な状態を作った上で、
+  // scrollTopが実際に変化することを確認する（TASK-025のスクロール対応）。
+  // ストアを直接呼ぶのではなくUI操作経由で検証することで、ズームUIの結線漏れ
+  // （TASK-045の背景参照）を再発防止する。
+  // TASK-075: ズーム・音量はヘッダーの`...`ボタン→QuickPanel経由の操作になった
+  // （REQ-012-002: 2クリック以内）。まずQuickPanelを開く。
+  await window.getByTestId('quick-panel-toggle').click();
+  await expect(window.getByTestId('quick-panel')).toBeVisible();
+
+  // QuickPanel経由の代表操作として音量変更も検証する（REQ-012-004: 機能の喪失禁止）。
+  await window.getByTestId('volume-slider').fill('40');
+  await expect.poll(() => window.evaluate(() => window.__e2eStore__!.getState().volume)).toBe(40);
+
   await window.getByTestId('zoom-select').selectOption('4');
   await expect.poll(() => window.evaluate(() => window.__e2eStore__!.getState().zoom)).toBe(4);
 

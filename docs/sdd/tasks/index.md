@@ -41,7 +41,7 @@
 | Phase 11: 品質是正・機能補完（2026-07-05横断チェック起点） | 9 | 0 | 0 | 0 | [詳細](phase-11/) @phase-11/ |
 | Phase 12: 実機フィードバック対応（2026-07-05） | 7 | 0 | 0 | 0 | [詳細](phase-12/) @phase-12/ |
 | Phase 13: UI改善要望（2026-07-06） | 6 | 0 | 0 | 0 | [詳細](phase-13/) @phase-13/ |
-| Phase 14: メトロノーム修正・アクセント（2026-07-07） | 6 | 0 | 1 | 0 | [詳細](phase-14/) @phase-14/ |
+| Phase 14: メトロノーム修正・アクセント（2026-07-07） | 7 | 0 | 0 | 0 | [詳細](phase-14/) @phase-14/ |
 
 **合計**: 67タスク / 推定合計: 約2990分（AIエージェント作業時間）
 
@@ -290,7 +290,7 @@
 | TASK-064 | [BugFix] クリック間隔のPPQ追随（Sequence再生成） | DONE | TASK-062 | 30min | [詳細](phase-14/TASK-064.md) @phase-14/TASK-064.md |
 | TASK-065 | [BugFix] メトロノーム再有効化で無音（Sequence毎回再生成） | DONE | - | 30min | [詳細](phase-14/TASK-065.md) @phase-14/TASK-065.md |
 | TASK-066 | メトロノーム単独再生（Tone.Clock） | DONE | TASK-065 | 60min | [詳細](phase-14/TASK-066.md) @phase-14/TASK-066.md |
-| TASK-067 | 再生中のテンポ設定UIロック | TODO | - | 30min | [詳細](phase-14/TASK-067.md) @phase-14/TASK-067.md |
+| TASK-067 | 再生中のテンポ設定UIロック | DONE | - | 30min | [詳細](phase-14/TASK-067.md) @phase-14/TASK-067.md |
 
 ---
 

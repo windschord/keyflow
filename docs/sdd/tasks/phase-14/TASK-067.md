@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-067 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 30分 |
 | 依存タスク | なし |
@@ -54,18 +54,18 @@ TDDで進める。
 
 ## 受入基準
 
-- [ ] 再生中はテンポスライダー・数値入力・リセットボタンが無効化される
-- [ ] 一時停止・停止中は操作可能に戻る
-- [ ] メトロノーム・1拍目強調チェックボックスは再生中も操作可能
-- [ ] `docs/sdd/requirements/traceability.md` に REQ-006-010 行が追加されている
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` / `npm run format:check` / `npm run lint:jp` が全てパスする
+- [x] 再生中はテンポスライダー・数値入力・リセットボタンが無効化される
+- [x] 一時停止・停止中は操作可能に戻る
+- [x] メトロノーム・1拍目強調チェックボックスは再生中も操作可能
+- [x] `docs/sdd/requirements/traceability.md` に REQ-006-010 行が追加されている
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` / `npm run format:check` / `npm run lint:jp` が全てパスする
 
 ## テスト項目
 
-- [ ] （新規・UI）playing でテンポUI3要素が disabled
-- [ ] （新規・UI）stopped / paused で操作可能
-- [ ] （新規・UI）playing でもメトロノーム系チェックボックスは操作可能
-- [ ] （回帰）`npm run test` 全件グリーン
+- [x] （新規・UI）playing でテンポUI3要素が disabled
+- [x] （新規・UI）stopped / paused で操作可能
+- [x] （新規・UI）playing でもメトロノーム系チェックボックスは操作可能
+- [x] （回帰）`npm run test` 全件グリーン
 
 ## 情報の明確性
 

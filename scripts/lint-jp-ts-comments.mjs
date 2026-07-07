@@ -74,10 +74,15 @@ const tsFiles = walkDir('src', ['.ts', '.tsx']);
 /** ソースファイルパス → 日本語コメントブロック一覧。エラー箇所を元ファイルへ辿れるようにする */
 const blocksByFile = new Map();
 
+// ブロックコメントの開始は「/* の直後が * または空白・改行」の場合のみとする。
+// 文字列リテラル内のglobパターン（例: '.../salamander/*.mp3'）の「/*」を
+// コメント開始と誤認し、後続コードをコメントとして検査する誤検知を防ぐ（2026-07-07是正）。
+const BLOCK_COMMENT_PATTERN = /\/\*(?=\*|\s)([\s\S]*?)\*\//g;
+
 for (const file of tsFiles) {
   const commentBlocks = [];
   const content = readFileSync(file, 'utf-8');
-  const withoutBlocks = content.replace(/\/\*[\s\S]*?\*\//g, '');
+  const withoutBlocks = content.replace(BLOCK_COMMENT_PATTERN, '');
 
   // 単行コメント: 連続する行は1つのコメントブロックとして折返しを結合する
   let currentRun = [];
@@ -98,7 +103,7 @@ for (const file of tsFiles) {
   flushRun();
 
   // ブロックコメント: プレフィックス（*）を除去したうえで折返しを結合する
-  for (const match of content.matchAll(/\/\*([\s\S]*?)\*\//g)) {
+  for (const match of content.matchAll(BLOCK_COMMENT_PATTERN)) {
     const blockLines = match[1].split('\n').map((line) => line.replace(/^\s*\*\s?/, ''));
     const block = joinWrappedCommentLines(blockLines);
     if (JAPANESE_PATTERN.test(block)) {

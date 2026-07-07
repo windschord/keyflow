@@ -114,7 +114,7 @@ export class AudioEngineService {
    * ネットワークからのサンプルダウンロードを伴うため、両インスタンスの
    * `onload` が揃うまで解決しないPromiseを返す。ロード失敗時は
    * `synth` プリセットへフォールバックし、フォールバック完了をもって解決する
-   * （ロード待ちが永久にpendingのままにならないようにするため）。
+   * （ロード待ちPromiseを永久のpendingとしないための措置）。
    */
   private applyPlaybackVoice(id: PlaybackVoiceId): Promise<void> {
     const definition = PLAYBACK_VOICES[id];

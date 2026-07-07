@@ -176,8 +176,8 @@ function App(): React.JSX.Element {
   //   （TASK-045, REQ-004-008: useMidiがmidiDeviceIdの変更を購読し、
   //   WebMidiService.setSelectedDeviceへ反映する）。
   // - audio.playbackVoice / audio.metronomeVoice → ui-slice.playbackVoice / metronomeVoice
-  //   （TASK-073, US-013: usePractice.ts側のuseEffectがaudioEngine.setPlaybackVoice /
-  //   setMetronomeVoiceへ反映する）。
+  //   （TASK-073, US-013）。
+  //   usePractice.ts側のuseEffectがaudioEngine.setPlaybackVoice / setMetronomeVoiceへ反映する。
   React.useEffect(() => {
     if (!window.electronAPI?.settings) return;
 

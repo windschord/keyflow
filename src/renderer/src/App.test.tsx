@@ -50,8 +50,8 @@ vi.mock('tone', () => {
         onerror: options?.onerror,
       })),
     FMSynth: vi.fn(),
-    // TASK-073: メトロノーム音色（woodblock/cowbell）がMembraneSynth/MetalSynthを
-    // 生成するため、Synth/PolySynthと同じ最小限のモックを用意する
+    // TASK-073: メトロノーム音色（woodblock/cowbell）はMembraneSynth/MetalSynthを生成する。
+    // そのためSynth/PolySynthと同じ最小限のモックを用意する
     // （metronome-voices.ts createWoodblockVoice/createCowbellVoice）。
     MembraneSynth: vi.fn().mockImplementation(() => ({
       toDestination: vi.fn().mockReturnThis(),
@@ -146,7 +146,7 @@ describe('App', () => {
       pianoHeight: 120,
       midiDeviceId: null,
       keyboardSize: 88,
-      // TASK-073: 音色設定テスト（"syncs store playbackVoice/metronomeVoice changes..."等）が
+      // TASK-073: 音色設定テスト（"syncs store playbackVoice/metronomeVoice changes..."等）で
       // 変更した値が後続テストへ残留しないようリセットする（keyboardSize等の既存パターン踏襲）。
       playbackVoice: 'grand-piano',
       metronomeVoice: 'click',

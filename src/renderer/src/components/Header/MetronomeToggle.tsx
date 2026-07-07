@@ -6,9 +6,9 @@ import { usePracticeStore } from '../../store';
  *
  * TempoControl（`components/Toolbar/TempoControl.tsx`）に元々含まれていた
  * メトロノーム関連チェックボックスをQuickPanel向けに切り出したもの。
- * Zustandの `metronomeEnabled` / `metronomeAccentEnabled` とその更新アクション
- * （`setMetronomeEnabled` / `setMetronomeAccentEnabled`）は、TempoControlと
- * 完全に同じ経路（同一のstoreアクション）で操作する。状態・結線は一切変更しない。
+ * Zustandの `metronomeEnabled` / `metronomeAccentEnabled` を更新アクション
+ * （`setMetronomeEnabled` / `setMetronomeAccentEnabled`）で操作する。
+ * TempoControlと完全に同じ経路（同一のstoreアクション）であり、状態・結線は一切変更しない。
  *
  * TempoControl本体はこの時点では変更しない（メトロノームUIの除去はTASK-075）。
  */

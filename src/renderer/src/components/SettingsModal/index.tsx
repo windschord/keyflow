@@ -243,8 +243,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // 音色設定（再生音色・メトロノーム音色）の変更（TASK-073、US-013）。
   // metronomeEnabled/defaultErrorModeと同じ即時反映＋保存失敗時ロールバックの
   // パターンに揃える。ui-slice側の値変更はusePractice.tsのuseEffectが
-  // AudioEngineService.setPlaybackVoice/setMetronomeVoiceへ反映する
-  // （store→AudioEngineの単一の同期経路、bpm/metronomeEnabled等と同じ設計）。
+  // AudioEngineService.setPlaybackVoice/setMetronomeVoiceへ反映する。
+  // store→AudioEngineの同期経路は単一であり、bpm/metronomeEnabled等と同じ設計。
   const updateAudioSetting = async <K extends keyof AppSettings['audio']>(
     key: K,
     value: AppSettings['audio'][K]

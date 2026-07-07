@@ -6,10 +6,10 @@ import { SettingsService } from './settings';
 
 // TASK-073: 音色設定（audio.playbackVoice / audio.metronomeVoice）の永続化。
 // electron-storeは新規のトップレベルキー（今回のaudio）については、既存設定
-// ファイルにキー自体が存在しない場合は`defaults`をそのまま返す（内部実装は
-// Object.assignによるトップレベルの浅いマージ）。これはmetronomeAccentEnabled
-// （practice配下への追加キー、ネストされた既存オブジェクトの内部への追加）で
-// 起きた「ネストオブジェクトは深くマージされない」問題とは別のケースであり、
+// ファイルにキー自体が存在しない場合は`defaults`をそのまま返す。
+// 内部実装はObject.assignによるトップレベルの浅いマージである。
+// metronomeAccentEnabled（practice配下への追加キー）で起きた
+// 「ネストオブジェクトは深くマージされない」問題とは別のケースにあたる。
 // トップレベルキーの追加であれば追加の移行コードなしに後方互換を保てることを
 // 確認する（本テストはその前提を明示的に固定する）。
 describe('SettingsService audio settings (TASK-073)', () => {

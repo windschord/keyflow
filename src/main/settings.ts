@@ -10,7 +10,7 @@ type KeyboardSize = 88 | 76 | 61 | 49;
 
 /**
  * 再生音色・メトロノーム音色のID（TASK-073）。renderer側
- * （src/renderer/src/lib/audio-engine/voices.ts, metronome-voices.ts）と同じ値だが、
+ * （src/renderer/src/lib/audio-engine/voices.ts, metronome-voices.ts）と同じ値。
  * main/rendererは別プロセス・別バンドルのため型定義は独立して持つ（KeyboardSize等の
  * 他フィールドと同じ既存パターン）。
  */

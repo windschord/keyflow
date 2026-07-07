@@ -26,12 +26,12 @@ export interface PopoverProps {
  * 閉じる条件:
  * - ポップオーバー外側の mousedown（`anchorRef` が指す要素上は除外）
  * - Escapeキー押下
- * - （開閉ボタンの再クリックはHeader側のトグルロジックに委ねる。
- *   `anchorRef` 上のmousedownをonCloseの対象外にすることでトグルと競合しない）
+ * - 開閉ボタンの再クリックはHeader側のトグルロジックに委ねる。
+ *   `anchorRef` 上のmousedownをonCloseの対象外にすることでトグルと競合しない
  *
- * documentへのイベントリスナー登録はuseEffect内で行い、cleanupで確実に
- * 解除する（StrictModeのマウント→クリーンアップ→再マウントに耐える。
- * プロジェクトのReactリソース管理原則）。
+ * documentへのイベントリスナー登録はuseEffect内で行い、cleanupで確実に解除する。
+ * StrictModeのマウント→クリーンアップ→再マウントに耐える
+ * （プロジェクトのReactリソース管理原則）。
  */
 export const Popover: React.FC<PopoverProps> = ({ isOpen, onClose, anchorRef, children }) => {
   const contentRef = useRef<HTMLDivElement>(null);

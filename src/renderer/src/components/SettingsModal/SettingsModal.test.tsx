@@ -29,6 +29,7 @@ describe('SettingsModal', () => {
     metronomeAccentEnabled: true,
   };
   const defaultMidi = { selectedDeviceId: null, selectedDeviceIndex: 0 };
+  const defaultAudio = { playbackVoice: 'grand-piano', metronomeVoice: 'click' };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,6 +50,8 @@ describe('SettingsModal', () => {
       pianoHeight: 120,
       midiDeviceId: null,
       keyboardSize: 88,
+      playbackVoice: 'grand-piano',
+      metronomeVoice: 'click',
     });
   });
 
@@ -549,6 +552,109 @@ describe('SettingsModal', () => {
       );
       expect(select.value).toBe('88');
       expect(usePracticeStore.getState().keyboardSize).toBe(88);
+    });
+  });
+
+  // TASK-073: 音色設定（再生音色・メトロノーム音色、US-013）。
+  describe('Voice settings (TASK-073, REQ-013-003/-006)', () => {
+    const mockGetWithAudio = (audio: { playbackVoice: string; metronomeVoice: string }) =>
+      vi.fn().mockImplementation((key: string) => {
+        if (key === 'ui') return Promise.resolve(defaultUi);
+        if (key === 'practice') return Promise.resolve(defaultPractice);
+        if (key === 'midi') return Promise.resolve(defaultMidi);
+        if (key === 'audio') return Promise.resolve(audio);
+        return Promise.resolve(undefined);
+      });
+
+    it('shows a Japanese "音色" section with selects for the persisted playbackVoice/metronomeVoice', async () => {
+      settingsApi.get.mockImplementation(mockGetWithAudio({ playbackVoice: 'organ', metronomeVoice: 'cowbell' }));
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      expect(await screen.findByText('音色')).toBeInTheDocument();
+      const playbackSelect = (await screen.findByLabelText('再生音色')) as HTMLSelectElement;
+      const metronomeSelect = (await screen.findByLabelText(
+        'メトロノーム音色'
+      )) as HTMLSelectElement;
+
+      await waitFor(() => expect(playbackSelect.value).toBe('organ'));
+      expect(metronomeSelect.value).toBe('cowbell');
+    });
+
+    it('falls back to the defaults (grand-piano/click) when the persisted audio settings are absent', async () => {
+      settingsApi.get.mockImplementation((key: string) => {
+        if (key === 'ui') return Promise.resolve(defaultUi);
+        if (key === 'practice') return Promise.resolve(defaultPractice);
+        if (key === 'midi') return Promise.resolve(defaultMidi);
+        return Promise.resolve(undefined);
+      });
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const playbackSelect = (await screen.findByLabelText('再生音色')) as HTMLSelectElement;
+      await waitFor(() => expect(playbackSelect.value).toBe('grand-piano'));
+      expect(screen.getByLabelText('メトロノーム音色')).toHaveValue('click');
+    });
+
+    it('changing the playback voice select updates the ui-slice playbackVoice and persists via settings:set (結線テスト)', async () => {
+      settingsApi.get.mockImplementation(mockGetWithAudio(defaultAudio));
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+      settingsApi.set.mockResolvedValue(undefined);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('再生音色')) as HTMLSelectElement;
+      await waitFor(() => expect(select.value).toBe('grand-piano'));
+
+      fireEvent.change(select, { target: { value: 'organ' } });
+
+      await waitFor(() => expect(usePracticeStore.getState().playbackVoice).toBe('organ'));
+      expect(settingsApi.set).toHaveBeenCalledWith(
+        'audio',
+        expect.objectContaining({ playbackVoice: 'organ' })
+      );
+    });
+
+    it('changing the metronome voice select updates the ui-slice metronomeVoice and persists via settings:set (結線テスト)', async () => {
+      settingsApi.get.mockImplementation(mockGetWithAudio(defaultAudio));
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+      settingsApi.set.mockResolvedValue(undefined);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('メトロノーム音色')) as HTMLSelectElement;
+      await waitFor(() => expect(select.value).toBe('click'));
+
+      fireEvent.change(select, { target: { value: 'beep' } });
+
+      await waitFor(() => expect(usePracticeStore.getState().metronomeVoice).toBe('beep'));
+      expect(settingsApi.set).toHaveBeenCalledWith(
+        'audio',
+        expect.objectContaining({ metronomeVoice: 'beep' })
+      );
+    });
+
+    it('rolls back the ui-slice playbackVoice when saving fails', async () => {
+      settingsApi.get.mockImplementation(mockGetWithAudio(defaultAudio));
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+      settingsApi.set.mockRejectedValue(new Error('save failed'));
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('再生音色')) as HTMLSelectElement;
+      await waitFor(() => expect(select.value).toBe('grand-piano'));
+
+      fireEvent.change(select, { target: { value: 'synth' } });
+
+      await waitFor(() =>
+        expect(window.alert).toHaveBeenCalledWith(
+          '設定の保存に失敗しました。変更を元に戻しました。'
+        )
+      );
+      expect(select.value).toBe('grand-piano');
+      expect(usePracticeStore.getState().playbackVoice).toBe('grand-piano');
     });
   });
 });

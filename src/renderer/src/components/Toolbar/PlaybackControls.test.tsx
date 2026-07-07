@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import * as Tone from 'tone';
 import { PlaybackControls } from './PlaybackControls';
@@ -17,7 +17,7 @@ describe('PlaybackControls', () => {
   });
 
   beforeEach(() => {
-    usePracticeStore.setState({ playbackState: 'stopped' });
+    usePracticeStore.setState({ playbackState: 'stopped', voiceLoading: false });
   });
 
   afterEach(() => {
@@ -100,6 +100,63 @@ describe('PlaybackControls', () => {
     render(<PlaybackControls />);
     fireEvent.click(screen.getByTestId('playback-play'));
     await waitFor(() => expect(usePracticeStore.getState().playbackState).toBe('playing'));
+  });
+
+  // TASK-073: 再生音色（grand-piano等）のロード待ち（REQ-013-003）。
+  describe('REQ-013-003: 音色ロード中の再生コントロール', () => {
+    it('disables the play button and shows a loading label while voiceLoading is true', () => {
+      usePracticeStore.setState({ voiceLoading: true });
+      render(<PlaybackControls audioEngine={createAudioEngineMock()} />);
+
+      const playButton = screen.getByTestId('playback-play');
+      expect(playButton).toBeDisabled();
+      expect(playButton).toHaveTextContent('読込中...');
+      expect(playButton).toHaveAttribute('title', '音色を読み込み中です');
+    });
+
+    it('does not call playAccompaniment when clicking the play button while voiceLoading is true', () => {
+      usePracticeStore.setState({ voiceLoading: true });
+      const audioEngine = createAudioEngineMock();
+      render(<PlaybackControls audioEngine={audioEngine} />);
+
+      fireEvent.click(screen.getByTestId('playback-play'));
+
+      expect(audioEngine.playAccompaniment).not.toHaveBeenCalled();
+      expect(usePracticeStore.getState().playbackState).toBe('stopped');
+    });
+
+    it('re-enables the play button with the normal label once voiceLoading becomes false', () => {
+      usePracticeStore.setState({ voiceLoading: false });
+      render(<PlaybackControls audioEngine={createAudioEngineMock()} />);
+
+      const playButton = screen.getByTestId('playback-play');
+      expect(playButton).not.toBeDisabled();
+      expect(playButton).toHaveTextContent('再生');
+    });
+
+    it('waits for audioEngine.playAccompaniment() to resolve before flipping playbackState to playing', async () => {
+      let resolvePlay: () => void = () => {};
+      const playPromise = new Promise<void>((resolve) => {
+        resolvePlay = resolve;
+      });
+      const audioEngine = {
+        ...createAudioEngineMock(),
+        playAccompaniment: vi.fn().mockReturnValue(playPromise),
+      };
+      render(<PlaybackControls audioEngine={audioEngine} />);
+
+      fireEvent.click(screen.getByTestId('playback-play'));
+
+      await waitFor(() => expect(audioEngine.playAccompaniment).toHaveBeenCalledTimes(1));
+      expect(usePracticeStore.getState().playbackState).toBe('stopped');
+
+      await act(async () => {
+        resolvePlay();
+        await playPromise;
+      });
+
+      expect(usePracticeStore.getState().playbackState).toBe('playing');
+    });
   });
 
   describe('REQ-010-002: 楽譜未読込時の再生コントロール無効化', () => {

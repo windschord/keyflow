@@ -48,6 +48,19 @@ vi.mock('tone', () => {
       onerror: options?.onerror,
     })),
     FMSynth: vi.fn(),
+    // TASK-073: メトロノーム音色（woodblock/cowbell）がMembraneSynth/MetalSynthを
+    // 生成するため、Synth/PolySynthと同じ最小限のモックを用意する
+    // （metronome-voices.ts createWoodblockVoice/createCowbellVoice）。
+    MembraneSynth: vi.fn().mockImplementation(() => ({
+      toDestination: vi.fn().mockReturnThis(),
+      triggerAttackRelease: vi.fn(),
+      dispose: vi.fn(),
+    })),
+    MetalSynth: vi.fn().mockImplementation(() => ({
+      toDestination: vi.fn().mockReturnThis(),
+      triggerAttackRelease: vi.fn(),
+      dispose: vi.fn(),
+    })),
     Sequence: vi.fn().mockImplementation(() => ({
       start: vi.fn(),
       stop: vi.fn(),
@@ -131,6 +144,11 @@ describe('App', () => {
       pianoHeight: 120,
       midiDeviceId: null,
       keyboardSize: 88,
+      // TASK-073: 音色設定テスト（"syncs store playbackVoice/metronomeVoice changes..."等）が
+      // 変更した値が後続テストへ残留しないようリセットする（keyboardSize等の既存パターン踏襲）。
+      playbackVoice: 'grand-piano',
+      metronomeVoice: 'click',
+      voiceLoading: false,
       // TASK-051: usePractice の score/practiceMode 監視エフェクト（audioEngine.loadScore
       // の再スケジュール）を追加したことで、score がテスト間に残留していると次のテストの
       // マウント時に意図しない loadScore 呼び出しが発生してしまう。他のテストが
@@ -394,6 +412,40 @@ describe('App', () => {
     setMetronomeEnabledSpy.mockRestore();
   });
 
+  // TASK-073: 再生音色・メトロノーム音色（US-013）。store→AudioEngineの単一の同期経路
+  // （bpm/metronomeEnabledと同じusePractice.ts側のuseEffect）を検証する結線テスト。
+  it('syncs store playbackVoice changes to audioEngine.setPlaybackVoice (TASK-073)', async () => {
+    const setPlaybackVoiceSpy = vi.spyOn(AudioEngineService.prototype, 'setPlaybackVoice');
+
+    render(<App />);
+
+    await waitFor(() => expect(setPlaybackVoiceSpy).toHaveBeenCalledWith('grand-piano'));
+
+    act(() => {
+      usePracticeStore.getState().setPlaybackVoice('organ');
+    });
+
+    await waitFor(() => expect(setPlaybackVoiceSpy).toHaveBeenCalledWith('organ'));
+
+    setPlaybackVoiceSpy.mockRestore();
+  });
+
+  it('syncs store metronomeVoice changes to audioEngine.setMetronomeVoice (TASK-073)', async () => {
+    const setMetronomeVoiceSpy = vi.spyOn(AudioEngineService.prototype, 'setMetronomeVoice');
+
+    render(<App />);
+
+    await waitFor(() => expect(setMetronomeVoiceSpy).toHaveBeenCalledWith('click'));
+
+    act(() => {
+      usePracticeStore.getState().setMetronomeVoice('cowbell');
+    });
+
+    await waitFor(() => expect(setMetronomeVoiceSpy).toHaveBeenCalledWith('cowbell'));
+
+    setMetronomeVoiceSpy.mockRestore();
+  });
+
   it('plays correct/incorrect feedback sounds based on the MIDI note judgement result', async () => {
     const onNoteOnSpy = vi.spyOn(WebMidiService.prototype, 'onNoteOn');
     const playCorrectSpy = vi
@@ -627,6 +679,73 @@ describe('App', () => {
 
     await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('ui'));
     await waitFor(() => expect(usePracticeStore.getState().volume).toBe(35));
+  });
+
+  // TASK-073: 音色設定の起動時反映（US-013、REQ-013-006）。
+  it('applies the persisted audio.playbackVoice / audio.metronomeVoice settings to AudioEngine on startup (TASK-073)', async () => {
+    const setPlaybackVoiceSpy = vi.spyOn(AudioEngineService.prototype, 'setPlaybackVoice');
+    const setMetronomeVoiceSpy = vi.spyOn(AudioEngineService.prototype, 'setMetronomeVoice');
+
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      }
+      if (key === 'audio') {
+        return Promise.resolve({ playbackVoice: 'synth', metronomeVoice: 'beep' });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('audio'));
+    await waitFor(() => expect(usePracticeStore.getState().playbackVoice).toBe('synth'));
+    expect(usePracticeStore.getState().metronomeVoice).toBe('beep');
+    await waitFor(() => expect(setPlaybackVoiceSpy).toHaveBeenCalledWith('synth'));
+    await waitFor(() => expect(setMetronomeVoiceSpy).toHaveBeenCalledWith('beep'));
+
+    setPlaybackVoiceSpy.mockRestore();
+    setMetronomeVoiceSpy.mockRestore();
+  });
+
+  it('keeps playbackVoice/metronomeVoice at their store defaults when the persisted audio settings are absent (backward compatibility, TASK-073)', async () => {
+    usePracticeStore.setState({ playbackVoice: 'grand-piano', metronomeVoice: 'click' });
+    const settingsGetMock = vi.fn().mockImplementation((key: string) => {
+      if (key === 'practice') {
+        return Promise.resolve({ defaultErrorMode: 'wait', metronomeEnabled: false });
+      }
+      return Promise.resolve(undefined);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      settings: {
+        get: settingsGetMock,
+        set: vi.fn(),
+        getRecentFiles: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    await act(async () => {
+      render(<App />);
+    });
+
+    await waitFor(() => expect(settingsGetMock).toHaveBeenCalledWith('practice'));
+    expect(usePracticeStore.getState().playbackVoice).toBe('grand-piano');
+    expect(usePracticeStore.getState().metronomeVoice).toBe('click');
   });
 
   it('applies the persisted midi.selectedDeviceId setting to WebMidiService via useMidi on startup (TASK-045, REQ-004-008)', async () => {
@@ -1254,6 +1373,13 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
     const playAccompanimentSpy = vi
       .spyOn(AudioEngineService.prototype, 'playAccompaniment')
       .mockImplementation(() => {});
+    // TASK-073: App.tsxのplaybackAudioEngineラッパーはREQ-013-003のロード待ちで
+    // ensurePlaybackVoiceLoaded()をawaitする。本テストの関心事はカーソル位置からの
+    // 再生開始（REQ-010-001）であり、実際のSalamanderサンプルロードには依存しないため
+    // 即座に解決させる。
+    const ensureVoiceLoadedSpy = vi
+      .spyOn(AudioEngineService.prototype, 'ensurePlaybackVoiceLoaded')
+      .mockResolvedValue(undefined);
 
     await openTwoNoteScore();
 
@@ -1266,13 +1392,14 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
 
     await waitFor(() => expect(latestHeaderProps?.audioEngine).toBeDefined());
 
-    act(() => {
-      latestHeaderProps.audioEngine.playAccompaniment();
+    await act(async () => {
+      await latestHeaderProps.audioEngine.playAccompaniment();
     });
 
     expect(playAccompanimentSpy).toHaveBeenCalledWith(secondNote.startTick);
 
     playAccompanimentSpy.mockRestore();
+    ensureVoiceLoadedSpy.mockRestore();
   });
 
   it('resumes from the current cursor position tick even from a paused state (paused中のカーソル移動を反映)', async () => {
@@ -1284,6 +1411,11 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
     const playAccompanimentSpy = vi
       .spyOn(AudioEngineService.prototype, 'playAccompaniment')
       .mockImplementation(() => {});
+    // TASK-073: ensurePlaybackVoiceLoaded()の実サンプルロードには依存しないよう
+    // 即座に解決させる（上記テストと同じ理由）。
+    const ensureVoiceLoadedSpy = vi
+      .spyOn(AudioEngineService.prototype, 'ensurePlaybackVoiceLoaded')
+      .mockResolvedValue(undefined);
 
     await openTwoNoteScore();
     await waitFor(() => expect(latestHeaderProps?.audioEngine).toBeDefined());
@@ -1300,13 +1432,14 @@ describe('App - TASK-051: playback practice-mode filter / cursor-position playba
       latestScoreRendererProps.onNoteClick(secondNote);
     });
 
-    act(() => {
-      latestHeaderProps.audioEngine.playAccompaniment();
+    await act(async () => {
+      await latestHeaderProps.audioEngine.playAccompaniment();
     });
 
     expect(playAccompanimentSpy).toHaveBeenCalledWith(secondNote.startTick);
 
     playAccompanimentSpy.mockRestore();
+    ensureVoiceLoadedSpy.mockRestore();
   });
 });
 

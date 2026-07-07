@@ -362,6 +362,80 @@ describe('createUiSlice metronomeAccentEnabled/setMetronomeAccentEnabled (TASK-0
   });
 });
 
+// TASK-073: 再生音色・メトロノーム音色・ロード状態（US-013）。
+describe('createUiSlice playbackVoice/metronomeVoice/voiceLoading (TASK-073)', () => {
+  it('initializes playbackVoice to "grand-piano" and metronomeVoice to "click" (matching electron-store defaults settings.ts)', () => {
+    const set = vi.fn();
+    const get = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    expect(slice.playbackVoice).toBe('grand-piano');
+    expect(slice.metronomeVoice).toBe('click');
+  });
+
+  it('initializes voiceLoading to false', () => {
+    const set = vi.fn();
+    const get = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    expect(slice.voiceLoading).toBe(false);
+  });
+
+  it('updates playbackVoice when setPlaybackVoice is called', () => {
+    let state = { playbackVoice: 'grand-piano' };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setPlaybackVoice('organ');
+
+    expect(state.playbackVoice).toBe('organ');
+  });
+
+  it('updates metronomeVoice when setMetronomeVoice is called', () => {
+    let state = { metronomeVoice: 'click' };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setMetronomeVoice('cowbell');
+
+    expect(state.metronomeVoice).toBe('cowbell');
+  });
+
+  it('updates voiceLoading when setVoiceLoading is called', () => {
+    let state = { voiceLoading: false };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setVoiceLoading(true);
+    expect(state.voiceLoading).toBe(true);
+
+    slice.setVoiceLoading(false);
+    expect(state.voiceLoading).toBe(false);
+  });
+});
+
 describe('createUiSlice setMidiDeviceId', () => {
   it('updates midiDeviceId when called with a device id', () => {
     let state: { midiDeviceId: string | null } = { midiDeviceId: null };

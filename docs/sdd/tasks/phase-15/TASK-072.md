@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-072 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | REVIEW |
 | 優先度 | Medium |
 | 見積もり | 40分 |
 | 依存タスク | TASK-070（audio-engine/index.ts競合回避のため順次） |
@@ -45,10 +45,10 @@
 
 ## 受入基準
 
-- [ ] 全テスト通過、既存metronome関連テスト非回帰（TASK-061〜066の結線テスト含む）
-- [ ] 全音色でアクセント有無の発音差が保たれる（REQ-013-005）
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` 通過
-- [ ] 実起動確認: メトロノームONで既定クリック音が鳴る（非回帰）
+- [x] 全テスト通過、既存metronome関連テスト非回帰（TASK-061〜066の結線テスト含む）
+- [x] 全音色でアクセント有無の発音差が保たれる（REQ-013-005）
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` 通過
+- [ ] 実起動確認: メトロノームONで既定クリック音が鳴る（非回帰）→ TASK-077（実機QA）送り
 
 ## 情報の明確性
 

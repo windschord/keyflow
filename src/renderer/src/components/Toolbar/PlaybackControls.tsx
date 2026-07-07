@@ -124,11 +124,7 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
       <button
         data-testid="playback-play"
         title={
-          noScoreLoaded
-            ? NO_SCORE_TOOLTIP
-            : voiceLoading
-              ? VOICE_LOADING_TOOLTIP
-              : '再生 (Space)'
+          noScoreLoaded ? NO_SCORE_TOOLTIP : voiceLoading ? VOICE_LOADING_TOOLTIP : '再生 (Space)'
         }
         aria-label="再生"
         onClick={() => void handlePlay()}

@@ -2,7 +2,12 @@ import * as Tone from 'tone';
 import { Score, PracticeMode } from '../../types';
 import { Metronome } from './metronome';
 import { groupNotesByStartTick, filterNotesByPracticeMode } from '../practice-engine/note-grouping';
-import { createPlaybackInstrument, PLAYBACK_VOICES, type PlaybackVoiceId, type PlaybackInstrument } from './voices';
+import {
+  createPlaybackInstrument,
+  PLAYBACK_VOICES,
+  type PlaybackVoiceId,
+  type PlaybackInstrument,
+} from './voices';
 import type { MetronomeVoiceId } from './metronome-voices';
 import { resolveEffectiveDurations } from './pedal-extension';
 

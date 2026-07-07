@@ -65,7 +65,11 @@ export const QuickPanel: React.FC<QuickPanelProps> = ({
       <div style={SECTION_STYLE}>
         <span style={SECTION_LABEL_STYLE}>運指</span>
         <FingeringToggle />
-        <FingeringPanel score={score} onSuggested={onFingeringSuggested} disabled={fingeringDisabled} />
+        <FingeringPanel
+          score={score}
+          onSuggested={onFingeringSuggested}
+          disabled={fingeringDisabled}
+        />
       </div>
 
       <div style={SECTION_STYLE}>

@@ -57,10 +57,11 @@ export type PlaybackInstrument = Tone.Sampler | Tone.PolySynth;
 // TASK-071: Internet Archiveの生アーカイブではなく、Tone.js公式が配布する変換済みmp3
 // （https://tonejs.github.io/audio/salamander/）を開発時に取得し同梱している
 // （取得元・クレジットはREADME参照）。
-const salamanderSampleModules = import.meta.glob<string>(
-  '../../assets/samples/salamander/*.mp3',
-  { query: '?url', import: 'default', eager: true }
-);
+const salamanderSampleModules = import.meta.glob<string>('../../assets/samples/salamander/*.mp3', {
+  query: '?url',
+  import: 'default',
+  eager: true,
+});
 
 /**
  * サンプルファイル名（`Ds1` / `Fs1` 等のTone.js配布ファイル名表記）を

@@ -86,7 +86,11 @@ vi.mock('tone', () => {
     Sampler: vi
       .fn()
       .mockImplementation(
-        (options: { urls?: Record<string, string>; onload?: () => void; onerror?: (error: Error) => void }) => ({
+        (options: {
+          urls?: Record<string, string>;
+          onload?: () => void;
+          onerror?: (error: Error) => void;
+        }) => ({
           toDestination: vi.fn().mockReturnThis(),
           triggerAttackRelease: vi.fn(),
           dispose: vi.fn(),
@@ -345,9 +349,10 @@ function makeHandScore(): Score {
  * （AudioEngineService.clickSynthの次に生成されるMetronomeのclick voice用インスタンス）
  * を辿って取得する。voice切替後のテストではMembraneSynth/MetalSynthについても同様に使う。
  */
-function getLastSynthMockInstance(
-  ctorName: 'Synth' | 'MembraneSynth' | 'MetalSynth'
-): { triggerAttackRelease: Mock; dispose: Mock } {
+function getLastSynthMockInstance(ctorName: 'Synth' | 'MembraneSynth' | 'MetalSynth'): {
+  triggerAttackRelease: Mock;
+  dispose: Mock;
+} {
   const ctor = Tone[ctorName] as unknown as Mock;
   return ctor.mock.results.at(-1)?.value as { triggerAttackRelease: Mock; dispose: Mock };
 }
@@ -1237,7 +1242,8 @@ describe('AudioEngineService', () => {
 
     function getSamplerOnerrorHandlers(): Array<(error: Error) => void> {
       return (Tone.Sampler as unknown as Mock).mock.calls.map(
-        ([options]: [{ onerror?: (error: Error) => void }]) => options.onerror as (error: Error) => void
+        ([options]: [{ onerror?: (error: Error) => void }]) =>
+          options.onerror as (error: Error) => void
       );
     }
 
@@ -1325,7 +1331,9 @@ describe('AudioEngineService', () => {
       service.playNote(60);
       // @ts-expect-error private
       expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
-      expect((Tone.PolySynth as unknown as Mock).mock.calls.some(([voice]) => voice === Tone.Synth)).toBe(true);
+      expect(
+        (Tone.PolySynth as unknown as Mock).mock.calls.some(([voice]) => voice === Tone.Synth)
+      ).toBe(true);
     });
 
     describe('StrictMode resilience (selected playback voice retained across dispose()+reinit)', () => {
@@ -1365,7 +1373,11 @@ describe('AudioEngineService', () => {
       return {
         title: 'Voice Accent Test',
         parts: [{ id: 'P1', name: 'Right', hand: 'right', clef: 'treble' }],
-        measures: startTicks.map((startTick, index) => ({ number: index + 1, startTick, notes: [] })),
+        measures: startTicks.map((startTick, index) => ({
+          number: index + 1,
+          startTick,
+          notes: [],
+        })),
         tempo: 120,
         ticksPerQuarter: 480,
         tempoMap: [{ tick: 0, bpm: 120 }],

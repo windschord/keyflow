@@ -10,6 +10,7 @@ MIDI入力の正誤判定・運指提案・A-Bループ練習を備え、Synthes
 - **Phase 1 対象OS**: Windows 10/11
 - **Phase 2 対象OS**: macOS 12+（将来）
 - **外部ランタイム依存なし**: ユーザーはNode.js/Pythonを別途インストール不要
+- **ライセンス**: Apache License 2.0（`LICENSE`）。同梱音源（Salamander Grand Piano V3）はCC-BY 3.0でクレジット表記義務あり（アプリ内About画面・READMEに記載、`src/renderer/src/components/AboutPanel/credits.ts`）
 
 ## 技術スタック
 
@@ -51,9 +52,7 @@ docs/sdd/
     └── phase-7/           # TASK-021〜022: パッケージング・QA
 ```
 
-## ソースコード構成（予定）
-
-実装開始後に `src/` 以下が生成される。設計上の配置：
+## ソースコード構成
 
 ```
 src/
@@ -61,16 +60,19 @@ src/
 │   ├── index.ts           # エントリーポイント（ファイルダイアログ・file:read/write・settings系IPCハンドラを実装。
 │   │                       #   ウィンドウ生成はcreateWindow()に一本化。MIDI許可ハンドラは起動時に1回設定）
 │   ├── settings.ts        # electron-store ラッパー（アプリ設定・最近使ったファイル）
+│   ├── window-options.ts  # BrowserWindowのtitle/iconオプション生成（プラットフォーム分岐、REQ-011）
 │   └── path-allowlist.ts  # ファイル書き込み許可パスの検証
 ├── preload/
 │   └── index.ts           # contextBridge 定義（file/settings系APIのみ公開。MIDI関連IPCは公開していない）
 └── renderer/
     └── src/
         ├── lib/
-        │   ├── musicxml-parser/   # MusicXML → Score変換
+        │   ├── musicxml-parser/   # MusicXML → Score変換（ペダル記号解析・pedalSpans生成を含む、TASK-069）
         │   ├── practice-engine/   # 正誤判定・ループ管理
         │   ├── annotation-store/  # 運指メモCRUD
-        │   ├── audio-engine/      # Tone.js ラッパー
+        │   ├── audio-engine/      # Tone.js ラッパー（voices.ts: 再生音色定義（グランドピアノ等4種、Salamanderサンプル）、
+        │   │                       #   metronome-voices.ts: メトロノーム音色定義（4種）、pedal-extension.ts: ペダル区間による
+        │   │                       #   リリース延長の純関数、metronome.ts: メトロノーム本体）
         │   ├── midi/              # Web MIDI API直接利用（web-midi.ts）。navigator.requestMIDIAccess()をRendererで呼び出す
         │   └── fingering-engine/  # FingeringEngineService（Workerクライアント）
         ├── workers/
@@ -83,13 +85,28 @@ src/
         │       └── fingering.worker.ts
         ├── components/
         │   ├── ScoreRenderer/     # OSMD統合
-        │   ├── PianoKeyboard/     # Canvas 2D 88鍵
-        │   ├── Toolbar/           # テンポ・ループ・モード切替
+        │   ├── PianoKeyboard/     # Canvas 2D 88/76/61/49鍵プリセット対応
+        │   ├── Header/            # 1行ヘッダー（TASK-075、index.tsx）。開く・再生・ループ・テンポ・練習対象を常時表示し、
+        │   │                       #   QuickPanel.tsx（低頻度操作のポップオーバー）・Popover.tsx（汎用ポップオーバー基盤）・
+        │   │                       #   MetronomeToggle.tsxを含む。Toolbar配下の各コントロールを内部で再利用する
+        │   ├── Toolbar/           # 個別コントロール群（PlaybackControls/LoopControl/TempoControl/PracticeModeSelector/
+        │   │                       #   VolumeControl/ZoomControl/FingeringToggle）。index.tsxは廃止済み（Header/index.tsxに統合、TASK-075）
+        │   ├── SettingsModal/     # 設定モーダル（エラーモード・鍵盤表示・MIDIデバイス・音色・最近使ったファイル・About）
+        │   ├── AboutPanel/        # Aboutページ（バージョン・本体/ライブラリ/音源ライセンス表示、TASK-076）
+        │   ├── NoteContextMenu/   # 運指番号・コメント編集
+        │   ├── StatsDisplay/      # 正解率・連続正解数表示
         │   └── FingeringPanel/    # 運指提案UI
         ├── store/
-        │   └── practice-session.ts  # Zustand store
+        │   └── slices/            # Zustand store（practice/score/playback/ui-slice構成）
+        ├── generated/             # ビルド時生成物（gitignore対象）。licenses.json（scripts/generate-licenses.mjs出力）
         └── tests/
 ```
+
+## ビルド補助スクリプト（`scripts/`）
+
+- `generate-icons.mjs`: `build/icon.svg`（マスター）から `icon.icns`/`icon.ico`/`resources/icon.png` を生成（`npm run generate:icons`）
+- `generate-licenses.mjs`: `dependencies` を起点に `node_modules/*/package.json` とLICENSE本文を走査し `src/renderer/src/generated/licenses.json` を出力。`predev`/`prebuild`/`prelint`/`pretest`/`pretest:coverage` の各npmフックから自動生成される（DEC-008、TASK-076）
+- `lint-jp-ts-comments.mjs`: TypeScriptコメントの日本語チェック
 
 ## よく使うコマンド
 
@@ -154,6 +171,7 @@ npm run build:mac
 ### データ永続化
 - アノテーション: `{MusicXMLのパス}.annotation.json`（同フォルダに保存）
 - `noteId` フォーマット: `{partId}-M{measureNumber}-N{noteIndex}` 例: `P1-M3-N0`
+- 設定スキーマ（electron-store、`AppSettings`）: `ui` / `practice` / `midi` に加え `audio: { playbackVoice, metronomeVoice }`（既定値 `'grand-piano'` / `'click'`、TASK-073）。キー欠落時はDEFAULT_SETTINGSとの浅いマージで後方互換を維持する
 
 ### 実起動E2Eテスト（Playwright for Electron、TASK-034）
 - `tests/e2e/`: `npm run build` で生成した `out/main/index.js` を実際に起動し、実UI操作のみで検証するE2Eスイート（`playwright.config.ts`）

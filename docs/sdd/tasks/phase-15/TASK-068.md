@@ -48,7 +48,7 @@
 - [x] `build/icon.ico` が存在する（electron-builder.ymlの参照欠落解消）
 - [x] `npm run generate:icons` で全アイコンが再生成できる
 - [x] `npm run test` / `npm run typecheck` / `npm run lint` が通過
-- [x] E2Eの `page.title()` 検証を追加（既存E2Eスイートに1ケース。実行はTASK-077で実施）
+- [x] E2Eの `page.title()` 検証を追加（既存E2Eスイートに1ケース。TASK-077で実行し通過を確認済み）
 
 ## 完了サマリー
 

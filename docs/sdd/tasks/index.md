@@ -42,7 +42,7 @@
 | Phase 12: 実機フィードバック対応（2026-07-05） | 7 | 0 | 0 | 0 | [詳細](phase-12/) @phase-12/ |
 | Phase 13: UI改善要望（2026-07-06） | 6 | 0 | 0 | 0 | [詳細](phase-13/) @phase-13/ |
 | Phase 14: メトロノーム修正・アクセント（2026-07-07） | 7 | 0 | 0 | 0 | [詳細](phase-14/) @phase-14/ |
-| Phase 15: UI/UX改善（2026-07-07） | 1 | 0 | 9 | 0 | [詳細](phase-15/) @phase-15/ |
+| Phase 15: UI/UX改善（2026-07-07） | 10 | 0 | 0 | 0 | [詳細](phase-15/) @phase-15/ |
 
 **合計**: 77タスク / 推定合計: 約3510分（AIエージェント作業時間）
 
@@ -320,15 +320,15 @@
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
 | TASK-068 | アプリのブランディング（アイコン生成・ウィンドウタイトル） | DONE | - | 60min | [詳細](phase-15/TASK-068.md) @phase-15/TASK-068.md |
-| TASK-069 | ペダル記号のパースとScore型拡張 | TODO | - | 40min | [詳細](phase-15/TASK-069.md) @phase-15/TASK-069.md |
-| TASK-070 | ペダル区間の再生反映（リリース延長） | TODO | TASK-069, TASK-071 | 40min | [詳細](phase-15/TASK-070.md) @phase-15/TASK-070.md |
-| TASK-071 | 再生音色ファクトリとSalamanderサンプル同梱 | REVIEW | - | 60min | [詳細](phase-15/TASK-071.md) @phase-15/TASK-071.md |
-| TASK-072 | メトロノーム音色の選択（エンジン実装） | REVIEW | TASK-070 | 40min | [詳細](phase-15/TASK-072.md) @phase-15/TASK-072.md |
-| TASK-073 | 音色設定の永続化と設定UI・再生時ロード待ち | REVIEW | TASK-071, TASK-072 | 50min | [詳細](phase-15/TASK-073.md) @phase-15/TASK-073.md |
+| TASK-069 | ペダル記号のパースとScore型拡張 | DONE | - | 40min | [詳細](phase-15/TASK-069.md) @phase-15/TASK-069.md |
+| TASK-070 | ペダル区間の再生反映（リリース延長） | DONE | TASK-069, TASK-071 | 40min | [詳細](phase-15/TASK-070.md) @phase-15/TASK-070.md |
+| TASK-071 | 再生音色ファクトリとSalamanderサンプル同梱 | DONE | - | 60min | [詳細](phase-15/TASK-071.md) @phase-15/TASK-071.md |
+| TASK-072 | メトロノーム音色の選択（エンジン実装） | DONE | TASK-070 | 40min | [詳細](phase-15/TASK-072.md) @phase-15/TASK-072.md |
+| TASK-073 | 音色設定の永続化と設定UI・再生時ロード待ち | DONE | TASK-071, TASK-072 | 50min | [詳細](phase-15/TASK-073.md) @phase-15/TASK-073.md |
 | TASK-074 | 汎用Popover・QuickPanelコンポーネント | DONE | - | 40min | [詳細](phase-15/TASK-074.md) @phase-15/TASK-074.md |
 | TASK-075 | 1行ヘッダー統合（Toolbar・上段バー置換） | DONE | TASK-074 | 90min | [詳細](phase-15/TASK-075.md) @phase-15/TASK-075.md |
-| TASK-076 | Aboutページ（ライセンス自動生成・バージョン・LICENSE） | REVIEW | TASK-073, TASK-071 | 60min | [詳細](phase-15/TASK-076.md) @phase-15/TASK-076.md |
-| TASK-077 | Phase 15統合検証・トレーサビリティ更新 | TODO | TASK-068〜076 | 40min | [詳細](phase-15/TASK-077.md) @phase-15/TASK-077.md |
+| TASK-076 | Aboutページ（ライセンス自動生成・バージョン・LICENSE） | DONE | TASK-073, TASK-071 | 60min | [詳細](phase-15/TASK-076.md) @phase-15/TASK-076.md |
+| TASK-077 | Phase 15統合検証・トレーサビリティ更新 | DONE | TASK-068〜076 | 40min | [詳細](phase-15/TASK-077.md) @phase-15/TASK-077.md |
 
 ---
 

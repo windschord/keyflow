@@ -26,7 +26,10 @@ export interface NoteRelease {
  * - 同音再打鍵の切り詰め（次ノートのstartTickでの打ち切り）は本関数の責務外
  *   （一括解決の `resolveEffectiveDurations` が担う）。
  */
-export function resolveEffectiveEndTick(note: NoteRelease, pedalSpans: readonly PedalSpan[]): number {
+export function resolveEffectiveEndTick(
+  note: NoteRelease,
+  pedalSpans: readonly PedalSpan[]
+): number {
   const releaseTick = note.startTick + note.durationTicks;
 
   const extendingSpan = pedalSpans.find(
@@ -66,7 +69,9 @@ export function resolveEffectiveDurations(
     sortedByStartTick.forEach((note, index) => {
       const extendedEndTick = resolveEffectiveEndTick(note, pedalSpans);
       const nextNote = sortedByStartTick[index + 1];
-      const effectiveEndTick = nextNote ? Math.min(extendedEndTick, nextNote.startTick) : extendedEndTick;
+      const effectiveEndTick = nextNote
+        ? Math.min(extendedEndTick, nextNote.startTick)
+        : extendedEndTick;
 
       result.set(note, effectiveEndTick - note.startTick);
     });

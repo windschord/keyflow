@@ -115,7 +115,7 @@ describe('createPlaybackInstrument', () => {
     createPlaybackInstrument('synth');
 
     expect((Tone.PolySynth as unknown as Mock).mock.calls[0][0]).toBe(Tone.Synth);
-    expect((Tone.Sampler as unknown as Mock)).not.toHaveBeenCalled();
+    expect(Tone.Sampler as unknown as Mock).not.toHaveBeenCalled();
   });
 
   it('ignores onload/onerror options for non-Sampler voices (they are immediately playable)', () => {

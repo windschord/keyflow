@@ -1,5 +1,9 @@
 import * as Tone from 'tone';
-import { createMetronomeVoice, type MetronomeVoiceId, type MetronomeVoiceInstance } from './metronome-voices';
+import {
+  createMetronomeVoice,
+  type MetronomeVoiceId,
+  type MetronomeVoiceInstance,
+} from './metronome-voices';
 
 export class Metronome {
   // TASK-072: 発音はvoice（音色ごとのMetronomeVoiceInstance）へ委譲する。

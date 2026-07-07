@@ -47,13 +47,15 @@ vi.mock('tone', () => {
     // TASK-071: 既定の再生音色（grand-piano）がTone.Samplerを生成するため、
     // AudioEngineServiceの初期化そのものを検証しない本ファイルの他のテストが
     // 壊れないよう、onload/onerrorを受け取れる最小限のモックを用意する。
-    Sampler: vi.fn().mockImplementation((options: { onload?: () => void; onerror?: (error: Error) => void }) => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-      onload: options?.onload,
-      onerror: options?.onerror,
-    })),
+    Sampler: vi
+      .fn()
+      .mockImplementation((options: { onload?: () => void; onerror?: (error: Error) => void }) => ({
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+        onload: options?.onload,
+        onerror: options?.onerror,
+      })),
     FMSynth: vi.fn(),
     Sequence: vi.fn().mockImplementation(() => ({
       start: vi.fn(),

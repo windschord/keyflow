@@ -88,7 +88,11 @@ export const TempoControl: React.FC = () => {
         onChange={handleSliderChange}
         disabled={isTempoLocked}
         title="テンポ（原曲テンポに対する割合。20%〜200%）"
-        style={{ height: '36px', width: '100px', cursor: isTempoLocked ? 'not-allowed' : 'pointer' }}
+        style={{
+          height: '36px',
+          width: '100px',
+          cursor: isTempoLocked ? 'not-allowed' : 'pointer',
+        }}
         data-testid="tempo-slider"
       />
       <button

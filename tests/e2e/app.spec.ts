@@ -27,6 +27,7 @@ import fs from 'node:fs';
 const REPO_ROOT = path.resolve(__dirname, '../..');
 const MAIN_ENTRY = path.join(REPO_ROOT, 'out/main/index.js');
 const FIXTURE_PATH = path.join(__dirname, 'fixtures/sample-two-hands.musicxml');
+const PACKAGE_JSON_PATH = path.join(REPO_ROOT, 'package.json');
 
 interface E2EPracticeStats {
   totalNotes: number;
@@ -289,4 +290,37 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
   expect(
     cursorBoundsAfter.x !== cursorBoundsBefore.x || cursorBoundsAfter.y !== cursorBoundsBefore.y
   ).toBe(true);
+});
+
+test('設定モーダル→音色セクションの表示、Aboutセクションのバージョン・ライセンス表示（TASK-077, REQ-013-006/REQ-015-001）', async () => {
+  await expect
+    .poll(async () =>
+      electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
+    )
+    .toBeGreaterThan(0);
+
+  // 設定（歯車）ボタンから設定モーダルを開く。
+  await window.getByRole('button', { name: '設定' }).click();
+
+  // 音色セクション（TASK-073, US-013）: 再生音色・メトロノーム音色のselectが表示される。
+  const playbackVoiceSelect = window.locator('#playbackVoice');
+  const metronomeVoiceSelect = window.locator('#metronomeVoice');
+  await expect(playbackVoiceSelect).toBeVisible();
+  await expect(metronomeVoiceSelect).toBeVisible();
+
+  // 既定音色（voices.ts/metronome-voices.tsの定義）が選択肢に含まれることを確認する。
+  await expect(playbackVoiceSelect.locator('option')).toContainText(['グランドピアノ']);
+  await expect(metronomeVoiceSelect.locator('option')).toContainText(['クリック']);
+
+  // Aboutセクション（TASK-076, US-015）: バージョン表示がpackage.jsonのversionと一致する。
+  const packageJson = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, 'utf-8')) as {
+    version: string;
+  };
+  await expect(window.getByText(`v${packageJson.version}`)).toBeVisible();
+
+  // ライセンス表示（Apache License 2.0へのリンク）が表示される。
+  await expect(window.getByRole('link', { name: 'Apache License 2.0' })).toBeVisible();
+
+  // Salamanderピアノサンプルのクレジット表記が表示される。
+  await expect(window.getByText('Salamander Grand Piano', { exact: false })).toBeVisible();
 });

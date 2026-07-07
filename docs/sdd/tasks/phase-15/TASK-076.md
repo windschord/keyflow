@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-076 |
 | タイプ | feature |
-| ステータス | REVIEW |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 60分 |
 | 依存タスク | TASK-073（SettingsModal競合回避のため順次）, TASK-071（クレジット対象の音源同梱後） |
@@ -46,7 +46,7 @@
 - [x] 全テスト通過（`npm run test` 51ファイル706件）
 - [x] `licenses.json` 未生成の状態から `npm run dev` / `npm run build` が成功する（フック結線。実際に`src/renderer/src/generated/`を削除した状態から両コマンドで再生成されることを確認済み）
 - [x] 型定義: `__APP_VERSION__` の `declare` 追加で `npm run typecheck` 通過
-- [ ] 実起動確認: 設定→このアプリについてでバージョン（package.jsonと一致）とライセンス一覧が表示される（TASK-077送り）
+- [x] 実起動確認: 設定→このアプリについてでバージョン（package.jsonと一致）とライセンス一覧が表示される（TASK-077でE2Eケースを追加し実バイナリで検証済み）
 
 ### 実装メモ（設計からの逸脱・補足）
 

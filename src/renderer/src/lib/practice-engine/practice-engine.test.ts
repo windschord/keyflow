@@ -102,6 +102,7 @@ describe('PracticeEngineService', () => {
     tempoMap: [{ tick: 0, bpm: 120 }],
     timeSignature: { beats: 4, beatType: 4 },
     keySignature: 0,
+    pedalSpans: [],
   };
 
   beforeEach(() => {

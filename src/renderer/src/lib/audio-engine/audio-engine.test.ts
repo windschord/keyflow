@@ -183,6 +183,7 @@ function makeScore(): Score {
     tempoMap: [{ tick: 0, bpm: 120 }],
     timeSignature: { beats: 4, beatType: 4 },
     keySignature: 0,
+    pedalSpans: [],
   };
 }
 
@@ -251,6 +252,7 @@ function makeDurationScore(): Score {
     tempoMap: [{ tick: 0, bpm: 120 }],
     timeSignature: { beats: 4, beatType: 4 },
     keySignature: 0,
+    pedalSpans: [],
   };
 }
 
@@ -293,6 +295,7 @@ function makeHandScore(): Score {
     tempoMap: [{ tick: 0, bpm: 120 }],
     timeSignature: { beats: 4, beatType: 4 },
     keySignature: 0,
+    pedalSpans: [],
   };
 }
 
@@ -881,6 +884,7 @@ describe('AudioEngineService', () => {
         tempoMap: [{ tick: 0, bpm: 120 }],
         timeSignature: { beats: 4, beatType: 4 },
         keySignature: 0,
+        pedalSpans: [],
       };
     }
 
@@ -1035,6 +1039,7 @@ describe('AudioEngineService', () => {
         tempoMap: [{ tick: 0, bpm: 120 }],
         timeSignature: { beats, beatType: 4 },
         keySignature: 0,
+        pedalSpans: [],
       };
     }
 

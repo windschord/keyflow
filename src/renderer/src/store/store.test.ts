@@ -57,6 +57,7 @@ describe('usePracticeStore', () => {
       tempoMap: [{ tick: 0, bpm: 120 }],
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
+      pedalSpans: [],
     };
     setScore(mockScore, 'path/to/file.xml', '<score-partwise/>');
     expect(usePracticeStore.getState().score).toBe(mockScore);

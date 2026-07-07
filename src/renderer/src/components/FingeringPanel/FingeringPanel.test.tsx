@@ -70,6 +70,7 @@ describe('FingeringPanel note.hand-based filtering (TASK-048)', () => {
       tempoMap: [{ tick: 0, bpm: 120 }],
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
+      pedalSpans: [],
     };
 
     render(<FingeringPanel score={score} onSuggested={() => {}} />);
@@ -97,6 +98,7 @@ describe('FingeringPanel note.hand-based filtering (TASK-048)', () => {
       tempoMap: [{ tick: 0, bpm: 120 }],
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
+      pedalSpans: [],
     };
 
     render(<FingeringPanel score={score} onSuggested={() => {}} />);
@@ -127,6 +129,7 @@ describe('FingeringPanel note.hand-based filtering (TASK-048)', () => {
       tempoMap: [{ tick: 0, bpm: 120 }],
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
+      pedalSpans: [],
     };
 
     render(<FingeringPanel score={score} onSuggested={() => {}} />);

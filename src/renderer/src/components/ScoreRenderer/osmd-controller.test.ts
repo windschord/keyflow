@@ -18,6 +18,7 @@ function makeScore(measures: Array<{ number: number; noteIds: string[] }>): Scor
     tempoMap: [{ tick: 0, bpm: 120 }],
     timeSignature: { beats: 4, beatType: 4 },
     keySignature: 0,
+    pedalSpans: [],
     measures: measures.map(({ number, noteIds }) => ({
       number,
       startTick: 0,
@@ -671,6 +672,7 @@ describe('OSMDController buildNoteIdMap 照合ベース採番 (TASK-049)', () =>
       tempoMap: [{ tick: 0, bpm: 120 }],
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
+      pedalSpans: [],
       measures: [
         {
           number: 1,
@@ -792,6 +794,7 @@ describe('OSMDController buildNoteIdMap 照合ベース採番 (TASK-049)', () =>
       tempoMap: [{ tick: 0, bpm: 120 }],
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
+      pedalSpans: [],
       measures: [
         {
           number: 1,
@@ -949,6 +952,7 @@ describe('OSMDController buildNoteIdMap 和音の符頭単位座標オフセッ�
       tempoMap: [{ tick: 0, bpm: 120 }],
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
+      pedalSpans: [],
       measures: [
         {
           number: 1,
@@ -1230,6 +1234,7 @@ describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
         tempoMap: [{ tick: 0, bpm: 120 }],
         timeSignature: { beats: 4, beatType: 4 },
         keySignature: 0,
+        pedalSpans: [],
         measures: [],
       };
       // lastScoreを設定するため、一度素通しで呼んでおく（cursor==nullのため即return）。
@@ -1341,6 +1346,7 @@ describe('OSMDController setZoom rebuilds the noteId map before reapplying overl
       tempoMap: [{ tick: 0, bpm: 120 }],
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
+      pedalSpans: [],
       measures: [],
     };
     controller.buildNoteIdMap(score); // lastScoreを設定しておく

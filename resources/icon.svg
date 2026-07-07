@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- TASK-068: アプリアイコン マスターSVG（US-011 / REQ-011-002）。
+       ピアノ鍵盤+音符モチーフ。角丸背景（ダークネイビー）+ 白鍵/黒鍵 + アクセントカラーの音符。
+       16pxでも判別できるよう、細部を減らしたシンプルな図案にしている。 -->
+  <rect width="1024" height="1024" rx="180" fill="#122036"/>
+
+  <!-- ピアノ鍵盤（白鍵7つ分） -->
+  <rect x="120" y="620" width="784" height="260" rx="28" fill="#f5f3ee"/>
+  <rect x="232" y="620" width="4" height="260" fill="#cfccc2"/>
+  <rect x="344" y="620" width="4" height="260" fill="#cfccc2"/>
+  <rect x="456" y="620" width="4" height="260" fill="#cfccc2"/>
+  <rect x="568" y="620" width="4" height="260" fill="#cfccc2"/>
+  <rect x="680" y="620" width="4" height="260" fill="#cfccc2"/>
+  <rect x="792" y="620" width="4" height="260" fill="#cfccc2"/>
+
+  <!-- 黒鍵（C-D, D-E, F-G, G-A, A-B の位置。E-F/B-Cの隙間は空ける） -->
+  <rect x="202" y="620" width="60" height="160" rx="8" fill="#151515"/>
+  <rect x="314" y="620" width="60" height="160" rx="8" fill="#151515"/>
+  <rect x="538" y="620" width="60" height="160" rx="8" fill="#151515"/>
+  <rect x="650" y="620" width="60" height="160" rx="8" fill="#151515"/>
+  <rect x="762" y="620" width="60" height="160" rx="8" fill="#151515"/>
+
+  <!-- アクセントカラーの八分音符 -->
+  <g fill="#f2a93b">
+    <rect x="430" y="190" width="30" height="345" rx="14"/>
+    <path d="M460,190 C 570,205 622,262 596,335 C 654,292 652,214 460,178 Z"/>
+    <ellipse cx="395" cy="555" rx="76" ry="56" transform="rotate(-18 395 555)"/>
+  </g>
+</svg>

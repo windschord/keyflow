@@ -10,6 +10,8 @@ import { SettingsModal } from './components/SettingsModal';
 import { usePractice } from './hooks/usePractice';
 import { AnnotationStoreService } from './lib/annotation-store';
 import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
+import { PLAYBACK_VOICES } from './lib/audio-engine/voices';
+import { METRONOME_VOICES } from './lib/audio-engine/metronome-voices';
 import type { Annotation, Finger, FingerAssignment, Note, Score } from './types';
 
 // TASK-053: ドラッグ＆ドロップで受け付けるMusicXMLの拡張子（大文字小文字を区別しない）。
@@ -79,6 +81,8 @@ function App(): React.JSX.Element {
     setVolume,
     setShowFingerings,
     setKeyboardSize,
+    setPlaybackVoice,
+    setMetronomeVoice,
     currentMeasure,
     currentNoteIndex,
     loopEnabled,
@@ -109,6 +113,8 @@ function App(): React.JSX.Element {
       setVolume: s.setVolume,
       setShowFingerings: s.setShowFingerings,
       setKeyboardSize: s.setKeyboardSize,
+      setPlaybackVoice: s.setPlaybackVoice,
+      setMetronomeVoice: s.setMetronomeVoice,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
       loopEnabled: s.loopEnabled,
@@ -169,16 +175,20 @@ function App(): React.JSX.Element {
   // - midi.selectedDeviceId → ui-slice.midiDeviceId
   //   （TASK-045, REQ-004-008: useMidiがmidiDeviceIdの変更を購読し、
   //   WebMidiService.setSelectedDeviceへ反映する）。
+  // - audio.playbackVoice / audio.metronomeVoice → ui-slice.playbackVoice / metronomeVoice
+  //   （TASK-073, US-013: usePractice.ts側のuseEffectがaudioEngine.setPlaybackVoice /
+  //   setMetronomeVoiceへ反映する）。
   React.useEffect(() => {
     if (!window.electronAPI?.settings) return;
 
     let cancelled = false;
     const loadPersistedSettings = async (): Promise<void> => {
       try {
-        const [practiceSettings, uiSettings, midiSettings] = await Promise.all([
+        const [practiceSettings, uiSettings, midiSettings, audioSettings] = await Promise.all([
           window.electronAPI.settings.get('practice'),
           window.electronAPI.settings.get('ui'),
           window.electronAPI.settings.get('midi'),
+          window.electronAPI.settings.get('audio'),
         ]);
         if (cancelled) return;
 
@@ -208,6 +218,23 @@ function App(): React.JSX.Element {
         if (midiSettings) {
           setMidiDeviceId(midiSettings.selectedDeviceId);
         }
+        if (audioSettings) {
+          // TASK-073: electron-store側の破損・想定外データに対する防御
+          // （keyboardSizeと同じ既存パターン）。既知のIDでなければui-sliceの
+          // 初期値（grand-piano/click）を維持する。
+          if (
+            typeof audioSettings.playbackVoice === 'string' &&
+            audioSettings.playbackVoice in PLAYBACK_VOICES
+          ) {
+            setPlaybackVoice(audioSettings.playbackVoice);
+          }
+          if (
+            typeof audioSettings.metronomeVoice === 'string' &&
+            audioSettings.metronomeVoice in METRONOME_VOICES
+          ) {
+            setMetronomeVoice(audioSettings.metronomeVoice);
+          }
+        }
       } catch (error) {
         console.error('Failed to load persisted settings:', error);
       }
@@ -228,6 +255,8 @@ function App(): React.JSX.Element {
     setVolume,
     setShowFingerings,
     setKeyboardSize,
+    setPlaybackVoice,
+    setMetronomeVoice,
   ]);
 
   // ダイアログ経由（handleOpenFile）・ドラッグ＆ドロップ経由（handleDrop）の両方から
@@ -484,7 +513,11 @@ function App(): React.JSX.Element {
   // （2026-07-05 実機フィードバック: 選択した再生位置から再生されない問題の修正）。
   const playbackAudioEngine = React.useMemo(
     () => ({
-      playAccompaniment: () => {
+      playAccompaniment: async () => {
+        // REQ-013-003, TASK-073: 再生音色（grand-piano等）のサンプルロードが
+        // 完了するまで再生開始を待つ。ロード済み・ロード不要な音色の場合は
+        // 即座に解決する（AudioEngineService.ensurePlaybackVoiceLoaded参照）。
+        await audioEngine.ensurePlaybackVoiceLoaded();
         const startTick = practiceEngine.getCurrentPositionTick();
         audioEngine.playAccompaniment(startTick ?? undefined);
       },

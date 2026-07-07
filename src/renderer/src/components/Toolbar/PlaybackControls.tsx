@@ -25,7 +25,13 @@ const BTN_DISABLED_STYLE: React.CSSProperties = {
  * テスト用モックの注入を容易にするため、クラス全体ではなく必要なメソッドのみを要求する。
  */
 export interface PlaybackAudioEngine {
-  playAccompaniment: () => void;
+  /**
+   * REQ-013-003, TASK-073: 再生音色のロード待ち（App.tsx側のラッパーが
+   * audioEngine.ensurePlaybackVoiceLoaded()を内包する）を反映できるよう、
+   * Promiseを返してもよい。PlaybackControls側はこれを待ってから
+   * playbackStateを'playing'にする。
+   */
+  playAccompaniment: () => void | Promise<void>;
   pauseAccompaniment: () => void;
   stopAccompaniment: () => void;
 }
@@ -42,6 +48,10 @@ interface PlaybackControlsProps {
 }
 
 const NO_SCORE_TOOLTIP = '楽譜を開くと再生できます';
+// REQ-013-003, TASK-073: 再生音色（grand-piano等）のサンプルロード中は再生ボタンを
+// 無効化し、読込中であることをラベル・ツールチップで示す。
+const VOICE_LOADING_TOOLTIP = '音色を読み込み中です';
+const VOICE_LOADING_LABEL = '読込中...';
 
 /**
  * 曲の再生・一時停止・停止を操作するツールバー部品（暫定実装）。
@@ -51,7 +61,7 @@ const NO_SCORE_TOOLTIP = '楽譜を開くと再生できます';
  * - 再生状態（playing/paused/stopped）は Zustand store で一元管理する
  */
 export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine, score }) => {
-  const { playbackState, setPlaybackState } = usePracticeStore();
+  const { playbackState, setPlaybackState, voiceLoading } = usePracticeStore();
   const toneStartedRef = useRef(false);
   // score === null のときだけ「未読込」として無効化する。undefined（未指定）は
   // 呼び出し側が楽譜有無を渡していないケースであり、後方互換のため無効化しない。
@@ -65,11 +75,14 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
   }, []);
 
   const handlePlay = useCallback(async () => {
-    if (noScoreLoaded) return;
+    if (noScoreLoaded || voiceLoading) return;
     await ensureToneStarted();
-    audioEngine?.playAccompaniment();
+    // REQ-013-003: audioEngine.playAccompanimentは再生音色のロード待ち
+    // （ensurePlaybackVoiceLoaded）を内包しうるため、完了を待ってから
+    // playbackStateを'playing'にする。
+    await audioEngine?.playAccompaniment();
     setPlaybackState('playing');
-  }, [audioEngine, ensureToneStarted, setPlaybackState, noScoreLoaded]);
+  }, [audioEngine, ensureToneStarted, setPlaybackState, noScoreLoaded, voiceLoading]);
 
   const handlePause = useCallback(() => {
     if (noScoreLoaded) return;
@@ -110,13 +123,23 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
       <button
         data-testid="playback-play"
-        title={noScoreLoaded ? NO_SCORE_TOOLTIP : '再生 (Space)'}
+        title={
+          noScoreLoaded
+            ? NO_SCORE_TOOLTIP
+            : voiceLoading
+              ? VOICE_LOADING_TOOLTIP
+              : '再生 (Space)'
+        }
         aria-label="再生"
         onClick={() => void handlePlay()}
-        disabled={noScoreLoaded || playbackState === 'playing'}
-        style={noScoreLoaded || playbackState === 'playing' ? BTN_DISABLED_STYLE : BTN_STYLE}
+        disabled={noScoreLoaded || playbackState === 'playing' || voiceLoading}
+        style={
+          noScoreLoaded || playbackState === 'playing' || voiceLoading
+            ? BTN_DISABLED_STYLE
+            : BTN_STYLE
+        }
       >
-        再生
+        {voiceLoading ? VOICE_LOADING_LABEL : '再生'}
       </button>
       <button
         data-testid="playback-pause"

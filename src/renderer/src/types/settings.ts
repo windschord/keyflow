@@ -1,4 +1,6 @@
 import type { KeyboardSize } from './keyboard';
+import type { PlaybackVoiceId } from '../lib/audio-engine/voices';
+import type { MetronomeVoiceId } from '../lib/audio-engine/metronome-voices';
 
 export interface HandSettings {
   maxSpanSemitones: number;
@@ -26,5 +28,13 @@ export interface AppSettings {
     metronomeEnabled: boolean;
     /** メトロノームの一拍目アクセントの既定値（REQ-006-008、TASK-063）。既定true。 */
     metronomeAccentEnabled: boolean;
+  };
+  /**
+   * 再生音色・メトロノーム音色（US-013、TASK-073）。electron-store側のデフォルト
+   * （src/main/settings.ts DEFAULT_SETTINGS.audio）と一致させる。
+   */
+  audio: {
+    playbackVoice: PlaybackVoiceId;
+    metronomeVoice: MetronomeVoiceId;
   };
 }

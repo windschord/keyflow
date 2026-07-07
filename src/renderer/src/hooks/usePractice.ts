@@ -71,6 +71,8 @@ export function usePractice() {
   const metronomeEnabled = usePracticeStore((s) => s.metronomeEnabled);
   const metronomeAccentEnabled = usePracticeStore((s) => s.metronomeAccentEnabled);
   const volume = usePracticeStore((s) => s.volume);
+  const playbackVoice = usePracticeStore((s) => s.playbackVoice);
+  const metronomeVoice = usePracticeStore((s) => s.metronomeVoice);
   const score = usePracticeStore((s) => s.score);
   const practiceMode = usePracticeStore((s) => s.practiceMode);
   const loopEnabled = usePracticeStore((s) => s.loopEnabled);
@@ -151,6 +153,30 @@ export function usePractice() {
   useEffect(() => {
     audioEngine.setMasterVolume(volume);
   }, [audioEngine, volume]);
+
+  // ストアの playbackVoice（再生音色、TASK-073）変更を AudioEngine に同期する。
+  // grand-pianoへの切替時はサンプルロードが走るが、Promiseは待たずに発火のみ行う
+  // （ロード状態はsetVoiceLoadingCallback経由でvoiceLoadingへ反映される）。
+  useEffect(() => {
+    void audioEngine.setPlaybackVoice(playbackVoice);
+  }, [audioEngine, playbackVoice]);
+
+  // ストアの metronomeVoice（メトロノーム音色、TASK-073）変更を AudioEngine に同期する。
+  useEffect(() => {
+    audioEngine.setMetronomeVoice(metronomeVoice);
+  }, [audioEngine, metronomeVoice]);
+
+  // 再生音色（grand-piano）のロード状態（REQ-013-003、TASK-073）をui-slice.voiceLoadingへ
+  // 反映する。PlaybackControlsはこのstateを購読し、ロード中は再生ボタンを無効化する。
+  useEffect(() => {
+    audioEngine.setVoiceLoadingCallback((loading) => {
+      usePracticeStore.getState().setVoiceLoading(loading);
+    });
+
+    return () => {
+      audioEngine.setVoiceLoadingCallback(null);
+    };
+  }, [audioEngine]);
 
   // ループ有効時、audioEngine（Tone.Transport）側のループ範囲を同期する
   // （REQ-010-008）。無効時やスコア未読み込み時は audioEngine 側で解除される。

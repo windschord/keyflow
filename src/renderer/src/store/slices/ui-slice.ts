@@ -1,5 +1,7 @@
 import { StateCreator } from 'zustand';
 import { KEYBOARD_SIZES, KeyboardSize } from '../../types';
+import type { PlaybackVoiceId } from '../../lib/audio-engine/voices';
+import type { MetronomeVoiceId } from '../../lib/audio-engine/metronome-voices';
 
 export interface UiSlice {
   bpm: number;
@@ -45,6 +47,24 @@ export interface UiSlice {
    * （expectedNotes・正誤判定）には一切影響しない（表示だけの制約）。
    */
   keyboardSize: KeyboardSize;
+  /**
+   * 再生音色ID（US-013、TASK-073）。electron-store側のデフォルト
+   * （src/main/settings.ts DEFAULT_SETTINGS.audio.playbackVoice）と一致させる。
+   * usePractice.ts が変更を購読しaudioEngine.setPlaybackVoiceへ反映する。
+   */
+  playbackVoice: PlaybackVoiceId;
+  /**
+   * メトロノーム音色ID（US-013、TASK-073）。electron-store側のデフォルト
+   * （src/main/settings.ts DEFAULT_SETTINGS.audio.metronomeVoice）と一致させる。
+   * usePractice.ts が変更を購読しaudioEngine.setMetronomeVoiceへ反映する。
+   */
+  metronomeVoice: MetronomeVoiceId;
+  /**
+   * 再生音色（grand-piano）のサンプルロード中かどうか（REQ-013-003、TASK-073）。
+   * AudioEngineService.setVoiceLoadingCallbackの通知先で、usePractice.ts が更新する。
+   * 再生ボタン（PlaybackControls）のロード中表示・無効化に使う。
+   */
+  voiceLoading: boolean;
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
   /** メトロノームの一拍目アクセントの有効/無効を切り替える（TASK-063）。 */
@@ -68,6 +88,12 @@ export interface UiSlice {
    * 起動時ロードが外部JSONを読むため念のためガードする。
    */
   setKeyboardSize: (size: KeyboardSize) => void;
+  /** 再生音色を設定する（TASK-073）。 */
+  setPlaybackVoice: (id: PlaybackVoiceId) => void;
+  /** メトロノーム音色を設定する（TASK-073）。 */
+  setMetronomeVoice: (id: MetronomeVoiceId) => void;
+  /** 再生音色のロード中状態を設定する（TASK-073、REQ-013-003）。 */
+  setVoiceLoading: (loading: boolean) => void;
   /**
    * 楽譜由来のテンポをセッションの基準テンポとして設定する。
    * Reset操作の戻し先である originalBpm と、現在の再生テンポ bpm を
@@ -97,6 +123,11 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   // electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.keyboardSize）
   // と一致させる（TASK-056）。
   keyboardSize: 88,
+  // electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.audio.playbackVoice/
+  // metronomeVoice）と一致させる（TASK-073）。
+  playbackVoice: 'grand-piano',
+  metronomeVoice: 'click',
+  voiceLoading: false,
   // REQ-006-003: 元のテンポ（originalBpm）の20%〜200%の範囲でクランプする。
   // originalBpmが未設定（0以下）の場合は初期値120を基準にする。
   // originalBpm自体のクランプ（絶対値20〜400）はsetOriginalBpm側の責務であり、
@@ -116,6 +147,9 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   setShowFingerings: (show) => set({ showFingerings: show }),
   setKeyboardSize: (size) =>
     set({ keyboardSize: (KEYBOARD_SIZES as readonly number[]).includes(size) ? size : 88 }),
+  setPlaybackVoice: (id) => set({ playbackVoice: id }),
+  setMetronomeVoice: (id) => set({ metronomeVoice: id }),
+  setVoiceLoading: (loading) => set({ voiceLoading: loading }),
   setOriginalBpm: (bpm) => {
     const clamped = Math.max(20, Math.min(400, bpm));
     set({ originalBpm: clamped, bpm: clamped });

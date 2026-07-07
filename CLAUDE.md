@@ -91,8 +91,10 @@ src/
         │   │                       #   MetronomeToggle.tsxを含む。Toolbar配下の各コントロールを内部で再利用する
         │   ├── Toolbar/           # 個別コントロール群（PlaybackControls/LoopControl/TempoControl/PracticeModeSelector/
         │   │                       #   VolumeControl/ZoomControl/FingeringToggle）。index.tsxは廃止済み（Header/index.tsxに統合、TASK-075）
-        │   ├── SettingsModal/     # 設定モーダル（エラーモード・鍵盤表示・MIDIデバイス・音色・最近使ったファイル・About）
-        │   ├── AboutPanel/        # Aboutページ（バージョン・本体/ライブラリ/音源ライセンス表示、TASK-076）
+        │   ├── SettingsModal/     # 設定モーダル（エラーモード・鍵盤表示・MIDIデバイス・音色・最近使ったファイル）。
+        │   │                       #   AboutセクションはTASK-082でメニューバー経由のAboutModalへ分離済み
+        │   ├── AboutPanel/        # Aboutページ本体（バージョン・本体/ライブラリ/音源ライセンス表示、TASK-076）と、
+        │   │                       #   それを内包しメニューバーから開く独立モーダルAboutModal.tsx（TASK-082）
         │   ├── NoteContextMenu/   # 運指番号・コメント編集
         │   ├── StatsDisplay/      # 正解率・連続正解数表示
         │   └── FingeringPanel/    # 運指提案UI
@@ -162,6 +164,7 @@ npm run build:mac
 | `file:write` | Renderer→Main | アノテーションJSON書き込み |
 | `settings:get` / `settings:set` | Renderer→Main | アプリ設定の取得・保存（electron-store） |
 | `settings:get-recent-files` | Renderer→Main | 最近使ったファイル一覧の取得 |
+| `menu:open-about` | Main→Renderer | アプリケーションメニューのAbout項目クリック通知（`src/main/menu.ts`、TASK-082） |
 
 ### Web Worker（運指エンジン）
 - `fingering.worker.ts` は Vite の `?worker` インポートで読み込む

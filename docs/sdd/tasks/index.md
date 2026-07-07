@@ -333,6 +333,7 @@
 | TASK-079 | ヘッダー再編成（メトロノーム常駐・表示補助パネル整理） | DONE | TASK-078 | 50min | [詳細](phase-15/TASK-079.md) @phase-15/TASK-079.md |
 | TASK-080 | 開発モードのDockアイコン適用とブランディング制約の明文化 | REVIEW | TASK-068 | 20min | [詳細](phase-15/TASK-080.md) @phase-15/TASK-080.md |
 | TASK-081 | [BugFix] 和音を含む譜面でグレーアウトが残留・累積する問題の修正 | REVIEW | - | 40min | [詳細](phase-15/TASK-081.md) @phase-15/TASK-081.md |
+| TASK-082 | Aboutを設定画面から分離しメニューバーから開く独立モーダルへ | REVIEW | TASK-076 | 50min | [詳細](phase-15/TASK-082.md) @phase-15/TASK-082.md |
 
 ---
 

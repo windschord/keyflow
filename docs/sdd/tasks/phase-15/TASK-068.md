@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-068 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 60分 |
 | 依存タスク | なし |
@@ -42,11 +42,25 @@
 
 ## 受入基準
 
-- [ ] `npm run dev` 起動時のウィンドウタイトルが「MusicXML Piano Practice」
-- [ ] `build/icon.ico` が存在する（electron-builder.ymlの参照欠落解消）
-- [ ] `npm run generate:icons` で全アイコンが再生成できる
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` が通過
-- [ ] E2Eの `page.title()` 検証を追加（既存E2Eスイートに1ケース）
+- [x] `npm run dev` 起動時のウィンドウタイトルが「MusicXML Piano Practice」
+      （`npm run build` 成果物 `out/renderer/index.html` の `<title>` で確認済み。
+      実起動での目視確認はTASK-077の統合検証で実施）
+- [x] `build/icon.ico` が存在する（electron-builder.ymlの参照欠落解消）
+- [x] `npm run generate:icons` で全アイコンが再生成できる
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` が通過
+- [x] E2Eの `page.title()` 検証を追加（既存E2Eスイートに1ケース。実行はTASK-077で実施）
+
+## 完了サマリー
+
+ウィンドウタイトルを「Electron」から「MusicXML Piano Practice」に変更し、
+`resources/icon.svg`（ピアノ鍵盤+八分音符モチーフ）と生成スクリプト
+`scripts/generate-icons.mjs`（`@resvg/resvg-js` + `png2icons`）を新設して
+`resources/icon.png` / `build/icon.icns` / `build/icon.ico` を生成・コミットした。
+`build/icon.ico` の欠落（electron-builder.ymlの参照エラー要因）を解消。
+BrowserWindow生成オプションは `src/main/window-options.ts` に切り出し、
+Electron実行環境なしで `title`/`icon` をユニットテスト可能にした。
+E2Eの `page.title()` 検証ケースを1件追加（実行はTASK-077で実施）。
+`npm run test`（575件全通過）/ `npm run typecheck` / `npm run lint` / `npm run build` を確認済み。
 
 ## 情報の明確性
 

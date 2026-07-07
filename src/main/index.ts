@@ -7,17 +7,12 @@ import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
 import { PathAllowlist } from './path-allowlist';
 import { createRegisterDroppedFileHandler, createShowOpenDialogHandler } from './file-handlers';
+import { createWindowOptions } from './window-options';
 
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 1024,
-    minHeight: 600,
-    show: false,
-    autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    ...createWindowOptions({ platform: process.platform, iconPath: icon }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

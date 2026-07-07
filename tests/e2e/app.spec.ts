@@ -80,6 +80,16 @@ test.afterEach(async () => {
   await electronApp?.close();
 });
 
+test('ウィンドウタイトルが「MusicXML Piano Practice」である（TASK-068, REQ-011-001）', async () => {
+  await expect
+    .poll(async () =>
+      electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
+    )
+    .toBeGreaterThan(0);
+
+  expect(await window.title()).toBe('MusicXML Piano Practice');
+});
+
 test('アプリ起動→サンプルMusicXML読み込み→再生→手動スクロール→MIDIモック注入で正誤判定・カーソル進行', async () => {
   // 1. アプリ起動: メインウィンドウが表示される
   await expect

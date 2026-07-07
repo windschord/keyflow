@@ -57,11 +57,31 @@ vi.mock('tone', () => {
       triggerAttackRelease: vi.fn(),
       dispose: vi.fn(),
     })),
-    PolySynth: vi.fn().mockImplementation(() => ({
+    PolySynth: vi.fn().mockImplementation((voice: unknown) => ({
       toDestination: vi.fn().mockReturnThis(),
       triggerAttackRelease: vi.fn(),
       dispose: vi.fn(),
+      __voice: voice,
     })),
+    // TASK-071: 再生音色（グランドピアノ）用のSamplerモック。onload/onerrorは
+    // コンストラクタに渡されたオプションから取り出せるようにし、テスト側から
+    // 「ロード完了/失敗を手動発火する」ことで AudioEngineService.ensurePlaybackVoiceLoaded()
+    // のPromise化ロジックを検証できるようにする。
+    Sampler: vi
+      .fn()
+      .mockImplementation(
+        (options: { urls?: Record<string, string>; onload?: () => void; onerror?: (error: Error) => void }) => ({
+          toDestination: vi.fn().mockReturnThis(),
+          triggerAttackRelease: vi.fn(),
+          dispose: vi.fn(),
+          onload: options?.onload,
+          onerror: options?.onerror,
+        })
+      ),
+    // TASK-071: electric-pianoはTone.PolySynth(Tone.FMSynth, ...)で生成される。
+    // FMSynth自体は直接インスタンス化されない（PolySynthへ voice constructor として
+    // 渡されるだけ）ため、コンストラクタの同一性検証にのみ使う。
+    FMSynth: vi.fn(),
     Sequence: vi
       .fn()
       .mockImplementation((callback: (time: number, value: unknown) => void, events: unknown[]) => {
@@ -356,7 +376,10 @@ describe('AudioEngineService', () => {
 
   describe('StrictMode resilience (2026-07-05 troubleshooting, root cause 1)', () => {
     it('re-initializes synths after dispose(), so calling a method afterwards still produces sound', () => {
-      const polySynthCallsBefore = (Tone.PolySynth as unknown as Mock).mock.calls.length;
+      // TASK-071: 既定の再生音色はgrand-piano（Tone.Sampler）のため、
+      // 再初期化を検証する対象コンストラクタもSamplerに合わせる
+      // （PolySynthは既定音色では使用されない）。
+      const samplerCallsBefore = (Tone.Sampler as unknown as Mock).mock.calls.length;
 
       // Simulates React 18 StrictMode's "run effect -> cleanup -> run effect again"
       // cycle disposing the AudioEngineService instance retained by useMemo.
@@ -366,8 +389,8 @@ describe('AudioEngineService', () => {
       // must not operate on disposed/undefined synths.
       expect(() => service.playNote(60)).not.toThrow();
 
-      const polySynthCallsAfter = (Tone.PolySynth as unknown as Mock).mock.calls.length;
-      expect(polySynthCallsAfter).toBeGreaterThan(polySynthCallsBefore);
+      const samplerCallsAfter = (Tone.Sampler as unknown as Mock).mock.calls.length;
+      expect(samplerCallsAfter).toBeGreaterThan(samplerCallsBefore);
       // @ts-expect-error private
       expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
     });
@@ -1164,6 +1187,132 @@ describe('AudioEngineService', () => {
       expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 2, 0.6);
       fireClockTick(3);
       expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 3, 1.0);
+    });
+  });
+
+  describe('playback voice switching (TASK-071, REQ-013-001/002/003)', () => {
+    function getSamplerOnloadHandlers(): Array<() => void> {
+      return (Tone.Sampler as unknown as Mock).mock.calls.map(
+        ([options]: [{ onload?: () => void }]) => options.onload as () => void
+      );
+    }
+
+    function getSamplerOnerrorHandlers(): Array<(error: Error) => void> {
+      return (Tone.Sampler as unknown as Mock).mock.calls.map(
+        ([options]: [{ onerror?: (error: Error) => void }]) => options.onerror as (error: Error) => void
+      );
+    }
+
+    it('defaults to the grand-piano voice: constructs Tone.Sampler for both accompaniment and manual-preview playback', () => {
+      // beforeEach's `new AudioEngineService()` already triggered ensureInitialized().
+      expect((Tone.Sampler as unknown as Mock).mock.calls.length).toBe(2);
+    });
+
+    it('setPlaybackVoice("synth") disposes the previous Sampler pair and routes subsequent sound through the new Tone.PolySynth', async () => {
+      // @ts-expect-error private
+      const previousAccompaniment = service.accompanimentSynth;
+      // @ts-expect-error private
+      const previousPlaySynth = service.playSynth;
+
+      await service.setPlaybackVoice('synth');
+
+      expect(previousAccompaniment.dispose).toHaveBeenCalled();
+      expect(previousPlaySynth.dispose).toHaveBeenCalled();
+
+      service.playNote(60);
+      // @ts-expect-error private
+      expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
+    });
+
+    it('setPlaybackVoice("electric-piano") constructs Tone.PolySynth with Tone.FMSynth as the voice class', async () => {
+      await service.setPlaybackVoice('electric-piano');
+
+      const lastCall = (Tone.PolySynth as unknown as Mock).mock.calls.at(-1);
+      expect(lastCall?.[0]).toBe(Tone.FMSynth);
+    });
+
+    it('ensurePlaybackVoiceLoaded() resolves immediately once switched to a synth-based voice (no sample loading required)', async () => {
+      await service.setPlaybackVoice('electric-piano');
+
+      await expect(service.ensurePlaybackVoiceLoaded()).resolves.toBeUndefined();
+    });
+
+    it('ensurePlaybackVoiceLoaded() stays pending until every Sampler instance fires onload (grand-piano, the default voice)', async () => {
+      let resolved = false;
+      service.ensurePlaybackVoiceLoaded().then(() => {
+        resolved = true;
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(resolved).toBe(false);
+
+      const onloadHandlers = getSamplerOnloadHandlers();
+      expect(onloadHandlers).toHaveLength(2);
+      onloadHandlers[0]();
+
+      await Promise.resolve();
+      expect(resolved).toBe(false); // only 1 of 2 instruments loaded so far
+
+      onloadHandlers[1]();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(resolved).toBe(true);
+    });
+
+    it('notifies the loading callback with true while sampling downloads and false once every instrument has loaded', async () => {
+      const onLoadingChange = vi.fn();
+      service.setVoiceLoadingCallback(onLoadingChange);
+
+      const readyPromise = service.setPlaybackVoice('grand-piano');
+      expect(onLoadingChange).toHaveBeenCalledWith(true);
+      expect(onLoadingChange).not.toHaveBeenCalledWith(false);
+
+      getSamplerOnloadHandlers()
+        .slice(-2)
+        .forEach((onload) => onload());
+      await readyPromise;
+
+      expect(onLoadingChange).toHaveBeenLastCalledWith(false);
+    });
+
+    it('falls back to the synth preset and still resolves ensurePlaybackVoiceLoaded() when a Sampler reports a load error (missing sample file)', async () => {
+      const readyPromise = service.ensurePlaybackVoiceLoaded();
+
+      const onerrorHandlers = getSamplerOnerrorHandlers();
+      onerrorHandlers.forEach((onerror) => onerror(new Error('404 Not Found')));
+
+      await expect(readyPromise).resolves.toBeUndefined();
+
+      service.playNote(60);
+      // @ts-expect-error private
+      expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
+      expect((Tone.PolySynth as unknown as Mock).mock.calls.some(([voice]) => voice === Tone.Synth)).toBe(true);
+    });
+
+    describe('StrictMode resilience (selected playback voice retained across dispose()+reinit)', () => {
+      it('retains grand-piano (the default voice) after dispose(): a fresh Tone.Sampler pair is (re)created and produces sound', () => {
+        const samplerCallsBefore = (Tone.Sampler as unknown as Mock).mock.calls.length;
+
+        service.dispose();
+        service.playNote(60);
+
+        const samplerCallsAfter = (Tone.Sampler as unknown as Mock).mock.calls.length;
+        expect(samplerCallsAfter).toBeGreaterThan(samplerCallsBefore);
+        // @ts-expect-error private
+        expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
+      });
+
+      it('retains a non-default voice (electric-piano) selected via setPlaybackVoice after dispose() and re-initialization', async () => {
+        await service.setPlaybackVoice('electric-piano');
+        (Tone.PolySynth as unknown as Mock).mockClear();
+
+        service.dispose();
+        service.playNote(60);
+
+        const lastCall = (Tone.PolySynth as unknown as Mock).mock.calls.at(-1);
+        expect(lastCall?.[0]).toBe(Tone.FMSynth);
+      });
     });
   });
 });

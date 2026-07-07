@@ -48,7 +48,9 @@
 
 - Linux: 既存どおり BrowserWindow `icon` オプション（`resources/icon.png?asset`）
 - Windows: BrowserWindow `icon` にも同PNGを指定（開発モードでのタスクバー表示用）
-- macOS: パッケージ版は `icon.icns` が適用される。開発モード（`npm run dev`）のDockアイコンはElectronデフォルトのままで許容（US-011備考）
+- macOS: パッケージ版は `icon.icns` が適用される。開発モード（`npm run dev`）のDockアイコンも
+  `app.dock.setIcon(resources/icon.png)` により独自アイコンを適用する（TASK-080、`dock-icon.ts`）。
+  メニューバーのアプリ名のみ、開発モードのElectronバイナリ由来という制約として許容する（US-011備考）
 
 ---
 

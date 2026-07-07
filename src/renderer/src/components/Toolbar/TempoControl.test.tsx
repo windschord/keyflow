@@ -11,6 +11,7 @@ describe('TempoControl labels and tooltips', () => {
       originalBpm: 120,
       metronomeEnabled: false,
       metronomeAccentEnabled: true,
+      playbackState: 'stopped',
     });
   });
 
@@ -60,6 +61,7 @@ describe('TempoControl metronome accent checkbox (TASK-063, REQ-006-008)', () =>
       originalBpm: 120,
       metronomeEnabled: false,
       metronomeAccentEnabled: true,
+      playbackState: 'stopped',
     });
   });
 
@@ -85,5 +87,50 @@ describe('TempoControl metronome accent checkbox (TASK-063, REQ-006-008)', () =>
     const checkbox = screen.getByTestId('metronome-accent-checkbox') as HTMLInputElement;
 
     expect(checkbox.disabled).toBe(false);
+  });
+});
+
+// TASK-067: 再生中はテンポ設定UI（スライダー・数値入力・リセット）を無効化する
+// （REQ-006-010、ユーザー要望2026-07-07）。メトロノーム系チェックボックスは対象外。
+describe('TempoControl playback lock (TASK-067, REQ-006-010)', () => {
+  beforeEach(() => {
+    usePracticeStore.setState({
+      bpm: 120,
+      originalBpm: 120,
+      metronomeEnabled: false,
+      metronomeAccentEnabled: true,
+      playbackState: 'stopped',
+    });
+  });
+
+  it('disables the tempo slider, BPM input, and reset button while playbackState is "playing"', () => {
+    usePracticeStore.setState({ playbackState: 'playing' });
+    render(<TempoControl />);
+
+    expect((screen.getByTestId('tempo-slider') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByTestId('tempo-input') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByText('リセット') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it.each(['stopped', 'paused'] as const)(
+    'keeps the tempo slider, BPM input, and reset button operable while playbackState is "%s"',
+    (playbackState) => {
+      usePracticeStore.setState({ playbackState });
+      render(<TempoControl />);
+
+      expect((screen.getByTestId('tempo-slider') as HTMLInputElement).disabled).toBe(false);
+      expect((screen.getByTestId('tempo-input') as HTMLInputElement).disabled).toBe(false);
+      expect((screen.getByText('リセット') as HTMLButtonElement).disabled).toBe(false);
+    }
+  );
+
+  it('keeps the metronome and accent checkboxes operable while playbackState is "playing"', () => {
+    usePracticeStore.setState({ playbackState: 'playing' });
+    render(<TempoControl />);
+
+    expect((screen.getByTestId('metronome-checkbox') as HTMLInputElement).disabled).toBe(false);
+    expect((screen.getByTestId('metronome-accent-checkbox') as HTMLInputElement).disabled).toBe(
+      false
+    );
   });
 });

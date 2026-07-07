@@ -3,6 +3,7 @@ import { Score, PracticeMode } from '../../types';
 import { Metronome } from './metronome';
 import { groupNotesByStartTick, filterNotesByPracticeMode } from '../practice-engine/note-grouping';
 import { createPlaybackInstrument, PLAYBACK_VOICES, type PlaybackVoiceId, type PlaybackInstrument } from './voices';
+import { resolveEffectiveDurations } from './pedal-extension';
 
 /** 再生位置（判定グループ単位）が進むたびに呼ばれるコールバック。 */
 export type PositionChangeCallback = (measureNumber: number, groupIndex: number) => void;
@@ -43,6 +44,11 @@ export class AudioEngineService {
 
   private scorePart: Tone.Part | null = null;
   private positionEventIds: number[] = [];
+
+  // TASK-070: ループ折り返し（loopEnd）でaccompanimentSynth.releaseAll()を呼ぶ
+  // Transport.scheduleのID（REQ-014-005）。スコア差し替え・ループ再設定のたびに
+  // クリアしてから必要なら再登録する。
+  private loopReleaseEventId: number | null = null;
 
   // TASK-057: 発音中ノーツ（durationTicks満了までキーボード表示を継続させる
   // ための派生状態）。判定グループ（同一startTick）単位で入れ替わる
@@ -284,6 +290,10 @@ export class AudioEngineService {
     this.clearPositionEvents();
     this.clearSoundingNoteEvents();
     this.resetSoundingNotes();
+    // TASK-070: 旧スコアのloopEnd tickに基づくreleaseAllスケジュールは
+    // 新スコアのタイムラインでは無意味になるため、差し替え時にクリアする
+    // （setLoopPointsが呼ばれていなければ何もしない）。
+    this.clearLoopReleaseEvent();
 
     Tone.getTransport().PPQ = score.ticksPerQuarter;
 
@@ -310,15 +320,29 @@ export class AudioEngineService {
       boundaryEvents.set(tick, entry);
     };
 
-    score.measures.forEach((measure) => {
+    // TASK-070: 実際にスケジュールされるノーツ（practiceMode適用後）全体を対象に、
+    // ペダル延長・同音再打鍵の切り詰めを静的に解決する（US-014、REQ-014-002）。
+    // 小節をまたぐ同音の切り詰め判定のため、小節単位ではなくスコア全体で計算する。
+    const measureScheduledNotes = score.measures.map((measure) => {
       const soundingNotes = measure.notes.filter((note) => !note.isRest);
       const scheduledNotes = filterNotesByPracticeMode(soundingNotes, practiceMode);
+      return { measure, scheduledNotes };
+    });
+    const effectiveDurations = resolveEffectiveDurations(
+      measureScheduledNotes.flatMap(({ scheduledNotes }) => scheduledNotes),
+      score.pedalSpans
+    );
+
+    measureScheduledNotes.forEach(({ measure, scheduledNotes }) => {
       scheduledNotes.forEach((note) => {
         events.push({
           time: `${note.startTick}i`,
           note: Tone.Frequency(note.midiNumber, 'midi').toNote(),
-          duration: `${note.durationTicks}i`,
+          duration: `${effectiveDurations.get(note) ?? note.durationTicks}i`,
         });
+        // NOTE: 発音境界（鍵盤ハイライト用）と判定グループは記譜上の音価
+        // （note.durationTicks）のまま変更しない（US-014データ要件、鍵盤ガイドは
+        // 記譜基準）。ペダル延長はTone.Partへ渡す発音長にのみ反映する。
         registerBoundary(note.startTick, 'starts', note.midiNumber);
         registerBoundary(note.startTick + note.durationTicks, 'ends', note.midiNumber);
       });
@@ -363,6 +387,9 @@ export class AudioEngineService {
   setLoopPoints(score: Score | null, enabled: boolean, loopStart: number, loopEnd: number): void {
     this.ensureInitialized();
     const transport = Tone.getTransport();
+    // TASK-070: 前回のループ設定に紐づくreleaseAllスケジュールは、範囲変更・無効化の
+    // いずれでも無効になるため、再設定前に必ずクリアする。
+    this.clearLoopReleaseEvent();
 
     if (!enabled || !score) {
       transport.loop = false;
@@ -378,6 +405,21 @@ export class AudioEngineService {
     const endTick = this.resolveLoopEndTick(score, loopEnd);
     transport.setLoopPoints(`${startMeasure.startTick}i`, `${endTick}i`);
     transport.loop = true;
+
+    // TASK-070: ループ折り返し時、Tone.Partのイベントはループ境界で
+    // triggerAttackReleaseのreleaseが範囲外になり得るため、loopEnd到達時に
+    // 明示的にreleaseAll()を呼び延長中ノーツの残留を防ぐ（REQ-014-005）。
+    this.loopReleaseEventId = transport.schedule(() => {
+      this.accompanimentSynth.releaseAll();
+    }, `${endTick}i`);
+  }
+
+  /** TASK-070: ループ折り返しのreleaseAllスケジュールを解除する（スコア差し替え・ループ再設定時）。 */
+  private clearLoopReleaseEvent(): void {
+    if (this.loopReleaseEventId !== null) {
+      Tone.getTransport().clear(this.loopReleaseEventId);
+      this.loopReleaseEventId = null;
+    }
   }
 
   /** `loopEnd`小節（inclusive）の終端tickを解決する。次小節の頭、もしくは終端音符から算出する。 */
@@ -423,6 +465,8 @@ export class AudioEngineService {
     this.ensureInitialized();
     Tone.getTransport().stop();
     this.resetSoundingNotes();
+    // TASK-070: ペダル延長中のノーツが停止後も残留しないよう解放する（REQ-014-005）。
+    this.accompanimentSynth.releaseAll();
     // TASK-066: 停止時、メトロノームが有効なら独立クロックへ戻す
     // （REQ-006-009）。
     this.metronome.setTransportRunning(false);
@@ -433,6 +477,8 @@ export class AudioEngineService {
     this.ensureInitialized();
     Tone.getTransport().pause();
     this.resetSoundingNotes();
+    // TASK-070: ペダル延長中のノーツが一時停止後も残留しないよう解放する（REQ-014-005）。
+    this.accompanimentSynth.releaseAll();
     // TASK-066: 一時停止時、メトロノームが有効なら独立クロックへ戻す
     // （REQ-006-009）。
     this.metronome.setTransportRunning(false);
@@ -499,6 +545,7 @@ export class AudioEngineService {
     this.disposeScorePart();
     this.clearPositionEvents();
     this.clearSoundingNoteEvents();
+    this.clearLoopReleaseEvent();
     this.currentSoundingNotes = new Set();
 
     this.initialized = false;

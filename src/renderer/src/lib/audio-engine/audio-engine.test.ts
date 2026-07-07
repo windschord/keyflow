@@ -61,6 +61,9 @@ vi.mock('tone', () => {
       toDestination: vi.fn().mockReturnThis(),
       triggerAttackRelease: vi.fn(),
       dispose: vi.fn(),
+      // TASK-070: 停止/一時停止/ループ折り返し時の延長ノーツ解放（REQ-014-005）を
+      // 検証するためのモック。
+      releaseAll: vi.fn(),
       __voice: voice,
     })),
     // TASK-071: 再生音色（グランドピアノ）用のSamplerモック。onload/onerrorは
@@ -74,6 +77,9 @@ vi.mock('tone', () => {
           toDestination: vi.fn().mockReturnThis(),
           triggerAttackRelease: vi.fn(),
           dispose: vi.fn(),
+          // TASK-070: 停止/一時停止/ループ折り返し時の延長ノーツ解放（REQ-014-005）を
+          // 検証するためのモック。
+          releaseAll: vi.fn(),
           onload: options?.onload,
           onerror: options?.onerror,
         })
@@ -1318,6 +1324,128 @@ describe('AudioEngineService', () => {
         const lastCall = (Tone.PolySynth as unknown as Mock).mock.calls.at(-1);
         expect(lastCall?.[0]).toBe(Tone.FMSynth);
       });
+    });
+  });
+
+  describe('pedal reflect in playback duration (TASK-070, REQ-014-002/003/004/005)', () => {
+    function makePedalScore(pedalSpans: Score['pedalSpans']): Score {
+      const note = makeNote({
+        id: 'P1-M1-N0',
+        partId: 'P1',
+        midiNumber: 60,
+        startTick: 0,
+        durationTicks: 480,
+      });
+
+      return {
+        title: 'Pedal Test',
+        parts: [{ id: 'P1', name: 'Right', hand: 'right', clef: 'treble' }],
+        measures: [{ number: 1, startTick: 0, notes: [note] }],
+        tempo: 120,
+        ticksPerQuarter: 480,
+        tempoMap: [{ tick: 0, bpm: 120 }],
+        timeSignature: { beats: 4, beatType: 4 },
+        keySignature: 0,
+        pedalSpans,
+      };
+    }
+
+    it('extends the Tone.Part event duration to the pedal span end tick when the notated release falls inside the span (結線テスト)', () => {
+      service.loadScore(makePedalScore([{ startTick: 0, endTick: 960 }]));
+
+      const events = (Tone.Part as unknown as Mock).mock.calls[0][1] as {
+        time: string;
+        note: string;
+        duration: string;
+      }[];
+      expect(events).toEqual([{ time: '0i', note: 'C4', duration: '960i' }]);
+    });
+
+    it('keeps the notated duration unchanged when the score has no pedal spans (non-regression, REQ-014-004)', () => {
+      service.loadScore(makePedalScore([]));
+
+      const events = (Tone.Part as unknown as Mock).mock.calls[0][1] as {
+        time: string;
+        note: string;
+        duration: string;
+      }[];
+      expect(events).toEqual([{ time: '0i', note: 'C4', duration: '480i' }]);
+    });
+
+    it('does not change the sounding-notes boundary tick (registerBoundary) used for the keyboard highlight, even when the playback duration is extended', () => {
+      service.loadScore(makePedalScore([{ startTick: 0, endTick: 960 }]));
+
+      // 1 judgement-group schedule + 2 boundary schedules (start tick 0, end tick 480:
+      // the notated release, unaffected by the pedal extension applied to the Tone.Part
+      // event duration verified above).
+      const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
+      expect(scheduleCalls).toHaveLength(3);
+      expect(scheduleCalls[1][1]).toBe('0i');
+      expect(scheduleCalls[2][1]).toBe('480i');
+    });
+
+    it('calls accompanimentSynth.releaseAll() when stopAccompaniment is called (REQ-014-005)', () => {
+      // @ts-expect-error private
+      const releaseAllSpy = service.accompanimentSynth.releaseAll as Mock;
+
+      service.stopAccompaniment();
+
+      expect(releaseAllSpy).toHaveBeenCalled();
+    });
+
+    it('calls accompanimentSynth.releaseAll() when pauseAccompaniment is called (REQ-014-005)', () => {
+      // @ts-expect-error private
+      const releaseAllSpy = service.accompanimentSynth.releaseAll as Mock;
+
+      service.pauseAccompaniment();
+
+      expect(releaseAllSpy).toHaveBeenCalled();
+    });
+
+    it('schedules accompanimentSynth.releaseAll() at the loop end tick so extended notes do not bleed across the loop wraparound (REQ-014-005)', () => {
+      const score = makeScore();
+      score.measures.push({
+        number: 2,
+        startTick: 1920,
+        notes: [makeNote({ id: 'P1-M2-N0', startTick: 1920, durationTicks: 480 })],
+      });
+
+      service.setLoopPoints(score, true, 1, 1);
+
+      const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
+      const loopReleaseCall = scheduleCalls.find(([, time]) => time === '1920i');
+      expect(loopReleaseCall).toBeDefined();
+
+      // @ts-expect-error private
+      const releaseAllSpy = service.accompanimentSynth.releaseAll as Mock;
+      releaseAllSpy.mockClear();
+      (loopReleaseCall![0] as (time: number) => void)(0);
+
+      expect(releaseAllSpy).toHaveBeenCalled();
+    });
+
+    it('clears the previously scheduled loop-end releaseAll when setLoopPoints is called again (loop range change/disable)', () => {
+      const score = makeScore();
+      score.measures.push({ number: 2, startTick: 1920, notes: [] });
+      service.setLoopPoints(score, true, 1, 1);
+      const clearSpy = Tone.getTransport().clear as Mock;
+      clearSpy.mockClear();
+
+      service.setLoopPoints(score, false, 1, 1);
+
+      expect(clearSpy).toHaveBeenCalled();
+    });
+
+    it('clears the previously scheduled loop-end releaseAll when the score is replaced via loadScore', () => {
+      const score = makeScore();
+      score.measures.push({ number: 2, startTick: 1920, notes: [] });
+      service.setLoopPoints(score, true, 1, 1);
+      const clearSpy = Tone.getTransport().clear as Mock;
+      clearSpy.mockClear();
+
+      service.loadScore(makeScore());
+
+      expect(clearSpy).toHaveBeenCalled();
     });
   });
 });

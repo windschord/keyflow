@@ -59,6 +59,11 @@ export class AudioEngineService {
   // （StrictMode耐性の既存設計、クラス冒頭のコメント参照）。
   private metronomeAccentEnabled = true;
   private measureStartTicks: number[] = [];
+  // TASK-066: メトロノーム単独再生（独立クロック）用の希望状態。ui-slice.bpmの
+  // 初期値（120）・一般的な拍子（4）に合わせた既定値とし、dispose()での
+  // Metronome再生成後にも再適用する（accentEnabled等と同じStrictMode耐性設計）。
+  private metronomeBpm = 120;
+  private metronomeBeatsPerMeasure = 4;
 
   constructor() {
     this.ensureInitialized();
@@ -74,6 +79,8 @@ export class AudioEngineService {
     this.metronome = new Metronome();
     this.metronome.setAccentEnabled(this.metronomeAccentEnabled);
     this.metronome.setMeasureStartTicks(this.measureStartTicks);
+    this.metronome.setBpm(this.metronomeBpm);
+    this.metronome.setBeatsPerMeasure(this.metronomeBeatsPerMeasure);
     this.initialized = true;
   }
 
@@ -98,6 +105,10 @@ export class AudioEngineService {
   setBpm(bpm: number): void {
     this.ensureInitialized();
     Tone.getTransport().bpm.value = bpm;
+    // TASK-066: 独立クロック（メトロノーム単独再生）もテンポスライダーの値に
+    // 追随させる。
+    this.metronomeBpm = bpm;
+    this.metronome.setBpm(bpm);
   }
 
   setMetronomeEnabled(enabled: boolean): void {
@@ -178,6 +189,11 @@ export class AudioEngineService {
     // 生成時点のPPQでクリック間隔を固定するため、この呼び出し順序が本修正の核心であり、
     // PPQ設定より前に呼んではならない。
     this.metronome.rebuildSequence();
+
+    // TASK-066: メトロノーム単独再生（独立クロック）のアクセント周期を
+    // 楽譜の拍子に合わせる。
+    this.metronomeBeatsPerMeasure = score.timeSignature.beats;
+    this.metronome.setBeatsPerMeasure(this.metronomeBeatsPerMeasure);
 
     // TASK-062: メトロノームの一拍目アクセント判定に使う小節頭tickをMetronomeへ連携する。
     this.measureStartTicks = score.measures.map((m) => m.startTick);
@@ -296,12 +312,18 @@ export class AudioEngineService {
       transport.ticks = startTick;
     }
     transport.start();
+    // TASK-066: 再生開始でメトロノームの独立クロックを止め、楽譜同期の
+    // Sequenceへ切り替える（REQ-006-009）。
+    this.metronome.setTransportRunning(true);
   }
 
   stopAccompaniment(): void {
     this.ensureInitialized();
     Tone.getTransport().stop();
     this.resetSoundingNotes();
+    // TASK-066: 停止時、メトロノームが有効なら独立クロックへ戻す
+    // （REQ-006-009）。
+    this.metronome.setTransportRunning(false);
     this.onStop?.();
   }
 
@@ -309,6 +331,9 @@ export class AudioEngineService {
     this.ensureInitialized();
     Tone.getTransport().pause();
     this.resetSoundingNotes();
+    // TASK-066: 一時停止時、メトロノームが有効なら独立クロックへ戻す
+    // （REQ-006-009）。
+    this.metronome.setTransportRunning(false);
   }
 
   playCorrectSound(): void {

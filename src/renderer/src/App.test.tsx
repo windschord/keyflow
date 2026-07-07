@@ -42,6 +42,14 @@ vi.mock('tone', () => {
       stop: vi.fn(),
       dispose: vi.fn(),
     })),
+    // TASK-066: メトロノーム単独再生（独立クロック）用モック。
+    Clock: vi.fn().mockImplementation((callback: (time: number) => void, frequency: number) => ({
+      callback,
+      frequency: { value: frequency },
+      start: vi.fn(),
+      stop: vi.fn(),
+      dispose: vi.fn(),
+    })),
     Part: vi.fn().mockImplementation(() => ({
       start: vi.fn().mockReturnThis(),
       dispose: vi.fn(),

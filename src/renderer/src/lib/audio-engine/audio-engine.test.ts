@@ -954,6 +954,10 @@ describe('AudioEngineService', () => {
       service.setMetronomeAccentEnabled(false);
 
       service.dispose();
+      // TASK-066: dispose()で再生成されたMetronomeはtransportRunningが既定値
+      // （false）に戻るため、Sequence側の挙動を検証するには再度再生中の状態に
+      // しておく必要がある。
+      service.playAccompaniment();
       service.setMetronomeEnabled(true);
 
       fireAtTick(1920);
@@ -1154,6 +1158,10 @@ describe('AudioEngineService', () => {
       expect(getClockMock().frequency.value).toBe(3);
       fireClockTick(0);
       expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 0, 1.0);
+      fireClockTick(1);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 1, 0.6);
+      fireClockTick(2);
+      expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 2, 0.6);
       fireClockTick(3);
       expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 3, 1.0);
     });

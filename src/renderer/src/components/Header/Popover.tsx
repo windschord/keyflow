@@ -15,6 +15,11 @@ export interface PopoverProps {
    * 外側クリック検知が競合して意図せず再オープンする問題を防ぐ。
    */
   anchorRef?: React.RefObject<HTMLElement | null>;
+  /**
+   * 包含ブロック右端からのオフセット（px）。呼び出し側のアンカー配置に合わせて
+   * 指定する（TASK-078）。省略時は0（右端に密着）。
+   */
+  rightOffset?: number;
   children: React.ReactNode;
 }
 
@@ -33,7 +38,13 @@ export interface PopoverProps {
  * StrictModeのマウント→クリーンアップ→再マウントに耐える
  * （プロジェクトのReactリソース管理原則）。
  */
-export const Popover: React.FC<PopoverProps> = ({ isOpen, onClose, anchorRef, children }) => {
+export const Popover: React.FC<PopoverProps> = ({
+  isOpen,
+  onClose,
+  anchorRef,
+  rightOffset = 0,
+  children,
+}) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,7 +79,7 @@ export const Popover: React.FC<PopoverProps> = ({ isOpen, onClose, anchorRef, ch
       style={{
         position: 'absolute',
         top: '100%',
-        right: 0,
+        right: `${rightOffset}px`,
         marginTop: '4px',
         // モーダル（SettingsModal: zIndex 1000）未満（design/components/header.md）
         zIndex: 900,

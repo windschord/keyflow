@@ -80,6 +80,14 @@
 | REQ-010-008 | △ | setLoopPointsユニット+結線。実ループは代理指標 |
 | REQ-010-009 | ○ | audio-engine.test（setMasterVolumeのdB変換・ミュート・境界値）+ ui-slice.test（volume/setVolumeクランプ）+ VolumeControl.test（スライダー操作・ラベル・ツールチップ・electron-store永続化）+ usePractice.test（store→audioEngine同期）+ App.test（起動時ロード）。TASK-052で対応済み |
 | REQ-010-010 | ○ | audio-engine.test（loadScoreがpracticeMode='left'/'right'/'both'でスケジュール対象ノーツをNote.hand基準に絞り込むことを検証、カーソル連動スケジュールはpracticeModeに関わらず不変であることも検証）+ usePractice.test（score/practiceMode変更時にaudioEngine.loadScoreを再スケジュールし、再生中の変更は停止することを検証）。TASK-051で対応済み |
+| REQ-013-001 | ○ | voices.test（PLAYBACK_VOICES 4種のid・requiresLoading・ラベル、各idごとのTone.Sampler/PolySynth生成）。TASK-071で対応済み |
+| REQ-013-002 | ○ | audio-engine.test（setPlaybackVoiceが旧Sampler/PolySynthをdisposeし新音色へ差し替え、loadScore済みTone.Partの再スケジュールなしで次発音から反映されることを検証）。TASK-071で対応済み |
+| REQ-013-003 | ○ | audio-engine.test（ensurePlaybackVoiceLoadedがSampler onload/onerrorに応じて解決、synth系音色は即時解決、setVoiceLoadingCallbackのtrue/false通知）+ usePractice.test（store.playbackVoice→setPlaybackVoice結線、setVoiceLoadingCallback→ui-slice.voiceLoading結線）+ PlaybackControls.test（voiceLoading中は再生ボタン無効化・「読込中...」表示、audioEngine.playAccompaniment()の解決を待ってからplaybackStateを'playing'にする）+ App.test（playbackAudioEngineラッパーがensurePlaybackVoiceLoadedを内包）。TASK-073で対応済み |
+| REQ-013-004 | ○ | metronome-voices.test（METRONOME_VOICES 4種のid・ラベル、各idごとのTone.Synth/MembraneSynth/MetalSynth生成）+ audio-engine.test（setMetronomeVoiceの差し替え結線）。TASK-072で対応済み |
+| REQ-013-005 | ○ | metronome-voices.test（各音色のtrigger(time, accent, velocity)がアクセント有無で音高・音量を書き分けることを検証）。TASK-072で対応済み |
+| REQ-013-006 | ○ | settings.test（DEFAULT_SETTINGS.audioの既定値、audioキー不在の既存設定ファイルへの後方互換マージ、settings:set/get往復）+ SettingsModal.test（音色selectの変更がui-slice即時反映＋settings:set永続化に到達、保存失敗時ロールバック）+ App.test（起動時にaudio.playbackVoice/metronomeVoiceをAudioEngineへ適用、キー欠落時は既定値維持）+ usePractice.test（store→audioEngine.setPlaybackVoice/setMetronomeVoice結線）。TASK-073で対応済み |
+| REQ-013-007 | ○ | voices.test（import.meta.globで解決したSalamanderサンプルURLがシャープ表記ノート名へ正規化されることを検証） |
+| REQ-013-008 | ×※ | README/Aboutページのクレジット表記は未実装（TASK-076予定） |
 
 ## 運用ルール
 

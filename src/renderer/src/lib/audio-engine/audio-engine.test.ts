@@ -57,6 +57,19 @@ vi.mock('tone', () => {
       triggerAttackRelease: vi.fn(),
       dispose: vi.fn(),
     })),
+    // TASK-072: メトロノーム音色（woodblock/cowbell）用のモック。clickSynth/beep用の
+    // Tone.Synthモックと同じ形状にしておき、voice切替後もtriggerAttackRelease/dispose
+    // の呼び出しを検証できるようにする。
+    MembraneSynth: vi.fn().mockImplementation(() => ({
+      toDestination: vi.fn().mockReturnThis(),
+      triggerAttackRelease: vi.fn(),
+      dispose: vi.fn(),
+    })),
+    MetalSynth: vi.fn().mockImplementation(() => ({
+      toDestination: vi.fn().mockReturnThis(),
+      triggerAttackRelease: vi.fn(),
+      dispose: vi.fn(),
+    })),
     PolySynth: vi.fn().mockImplementation((voice: unknown) => ({
       toDestination: vi.fn().mockReturnThis(),
       triggerAttackRelease: vi.fn(),
@@ -323,6 +336,24 @@ function makeHandScore(): Score {
     keySignature: 0,
     pedalSpans: [],
   };
+}
+
+/**
+ * TASK-072: Metronomeは発音を`voice: MetronomeVoiceInstance`（metronome-voices.ts）へ
+ * 委譲するようになり、`synth`フィールドを直接公開しなくなった。既定の'click'音色は
+ * Tone.Synthを直接生成するため、グローバルなTone.Synthモックの最新の生成結果
+ * （AudioEngineService.clickSynthの次に生成されるMetronomeのclick voice用インスタンス）
+ * を辿って取得する。voice切替後のテストではMembraneSynth/MetalSynthについても同様に使う。
+ */
+function getLastSynthMockInstance(
+  ctorName: 'Synth' | 'MembraneSynth' | 'MetalSynth'
+): { triggerAttackRelease: Mock; dispose: Mock } {
+  const ctor = Tone[ctorName] as unknown as Mock;
+  return ctor.mock.results.at(-1)?.value as { triggerAttackRelease: Mock; dispose: Mock };
+}
+
+function getLastMetronomeSynthTrigger(): Mock {
+  return getLastSynthMockInstance('Synth').triggerAttackRelease;
 }
 
 describe('AudioEngineService', () => {
@@ -822,8 +853,7 @@ describe('AudioEngineService', () => {
         callback: (time: number, value: unknown) => void;
         events: unknown[];
       };
-      // @ts-expect-error private
-      const clickSynth = service.metronome.synth as { triggerAttackRelease: Mock };
+      const clickSynth = { triggerAttackRelease: getLastMetronomeSynthTrigger() };
 
       fireSequenceTick(sequence, 0);
 
@@ -881,8 +911,7 @@ describe('AudioEngineService', () => {
       };
       fireSequenceTick(sequence, 0);
 
-      // @ts-expect-error private
-      const clickSynth = service.metronome.synth as { triggerAttackRelease: Mock };
+      const clickSynth = { triggerAttackRelease: getLastMetronomeSynthTrigger() };
       expect(clickSynth.triggerAttackRelease).toHaveBeenCalledWith('C5', '32n', 0, 1.0);
     });
   });
@@ -928,8 +957,7 @@ describe('AudioEngineService', () => {
     }
 
     function getSynthMock(): Mock {
-      // @ts-expect-error private
-      return (service.metronome.synth as { triggerAttackRelease: Mock }).triggerAttackRelease;
+      return getLastMetronomeSynthTrigger();
     }
 
     it('plays the accent (C6, velocity 1.0) when the click tick matches a measure startTick', () => {
@@ -1088,8 +1116,7 @@ describe('AudioEngineService', () => {
     }
 
     function getSynthMock(): Mock {
-      // @ts-expect-error private
-      return (service.metronome.synth as { triggerAttackRelease: Mock }).triggerAttackRelease;
+      return getLastMetronomeSynthTrigger();
     }
 
     it('creates and starts a Tone.Clock at bpm/60 Hz when enabling the metronome while stopped, without starting Transport (結線テスト)', () => {
@@ -1323,6 +1350,124 @@ describe('AudioEngineService', () => {
 
         const lastCall = (Tone.PolySynth as unknown as Mock).mock.calls.at(-1);
         expect(lastCall?.[0]).toBe(Tone.FMSynth);
+      });
+    });
+  });
+
+  describe('metronome voice switching (TASK-072, REQ-013-004/005)', () => {
+    // TASK-066: Sequence（楽譜同期）側の挙動を検証するため、再生中の状態にしておく。
+    beforeEach(() => {
+      service.playAccompaniment();
+    });
+
+    /** measures[].startTickの集合を指定した最小構成のスコアを作る（アクセント判定用）。 */
+    function measureStartScore(startTicks: number[]): Score {
+      return {
+        title: 'Voice Accent Test',
+        parts: [{ id: 'P1', name: 'Right', hand: 'right', clef: 'treble' }],
+        measures: startTicks.map((startTick, index) => ({ number: index + 1, startTick, notes: [] })),
+        tempo: 120,
+        ticksPerQuarter: 480,
+        tempoMap: [{ tick: 0, bpm: 120 }],
+        timeSignature: { beats: 4, beatType: 4 },
+        keySignature: 0,
+        pedalSpans: [],
+      };
+    }
+
+    function fireClick(tick: number): void {
+      // @ts-expect-error private
+      const sequence = service.metronome.sequence as {
+        callback: (time: number, value: unknown) => void;
+        events: unknown[];
+      };
+      fireSequenceTick(sequence, tick);
+    }
+
+    it('defaults to the click voice (Tone.Synth, C6/C5 convention)', () => {
+      service.setMetronomeEnabled(true);
+
+      fireClick(0);
+
+      expect(getLastMetronomeSynthTrigger()).toHaveBeenCalledWith('C5', '32n', 0, 0.6);
+    });
+
+    it('setMetronomeVoice("beep") disposes the previous (click) voice and routes subsequent clicks through the new voice (結線テスト)', () => {
+      service.setMetronomeEnabled(true);
+      const previousClickSynth = getLastSynthMockInstance('Synth');
+
+      service.setMetronomeVoice('beep');
+      fireClick(0);
+
+      expect(previousClickSynth.dispose).toHaveBeenCalled();
+      // beep uses a distinct pitch convention (A5/A4) from click (C6/C5), so a real
+      // voice switch (not a no-op) is observable through the trigger arguments.
+      expect(getLastSynthMockInstance('Synth').triggerAttackRelease).toHaveBeenCalledWith(
+        'A4',
+        '32n',
+        0,
+        0.6
+      );
+    });
+
+    it('setMetronomeVoice("woodblock") routes clicks through Tone.MembraneSynth', () => {
+      service.setMetronomeVoice('woodblock');
+      service.setMetronomeEnabled(true);
+
+      fireClick(0);
+
+      expect(getLastSynthMockInstance('MembraneSynth').triggerAttackRelease).toHaveBeenCalledWith(
+        'G4',
+        '32n',
+        0,
+        0.6
+      );
+    });
+
+    it('setMetronomeVoice("cowbell") routes clicks through Tone.MetalSynth', () => {
+      service.setMetronomeVoice('cowbell');
+      service.setMetronomeEnabled(true);
+
+      fireClick(0);
+
+      expect(getLastSynthMockInstance('MetalSynth').triggerAttackRelease).toHaveBeenCalledWith(
+        'F3',
+        '32n',
+        0,
+        0.6
+      );
+    });
+
+    it('keeps the accent audible difference after switching voice (REQ-013-005): accent plays a different pitch/velocity than a regular click', () => {
+      service.loadScore(measureStartScore([0]));
+      service.setMetronomeVoice('beep');
+      service.setMetronomeEnabled(true);
+
+      fireClick(0);
+
+      expect(getLastSynthMockInstance('Synth').triggerAttackRelease).toHaveBeenLastCalledWith(
+        'A5',
+        '32n',
+        0,
+        1.0
+      );
+    });
+
+    describe('StrictMode resilience (selected metronome voice retained across dispose()+reinit)', () => {
+      it('retains a non-default voice (beep) selected via setMetronomeVoice after dispose() and re-initialization', () => {
+        service.setMetronomeVoice('beep');
+
+        service.dispose();
+        service.playAccompaniment();
+        service.setMetronomeEnabled(true);
+        fireClick(0);
+
+        expect(getLastSynthMockInstance('Synth').triggerAttackRelease).toHaveBeenCalledWith(
+          'A4',
+          '32n',
+          0,
+          0.6
+        );
       });
     });
   });

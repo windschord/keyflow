@@ -80,6 +80,15 @@ npm run lint          # Lintチェック
 npm run typecheck     # TypeScript型チェック
 ```
 
+### 開発モードでの表示について（US-011、TASK-080）
+
+`npm run dev` で起動した開発モードは、正式なアプリ名・アイコンの一部がElectron本体の
+既定値のまま表示される。Dockアイコン（macOS）は`app.dock.setIcon()`により開発モードでも
+独自アイコン（ピアノ+八分音符）が適用されるが、メニューバーのアプリ名（macOS上部の
+アプリケーションメニュー名）は開発モードのElectronバイナリ由来のため変更できない
+（Electronの既知の制約）。正式な見た目（アプリ名・全アイコン）は`npm run build:mac`等の
+パッケージビルド版で確認すること。
+
 ---
 
 ## ドキュメント

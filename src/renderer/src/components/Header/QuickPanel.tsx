@@ -6,7 +6,7 @@ import { ZoomControl } from '../Toolbar/ZoomControl';
 import { FingeringToggle } from '../Toolbar/FingeringToggle';
 import { FingeringPanel } from '../FingeringPanel';
 import { StatsDisplay } from '../StatsDisplay';
-import { MetronomeToggle } from './MetronomeToggle';
+import { MetronomeAccentToggle } from './MetronomeToggle';
 
 export interface QuickPanelProps {
   /** 運指提案（FingeringPanel）の対象となる楽譜。未読み込み時はnull。 */
@@ -31,14 +31,19 @@ const SECTION_STYLE: React.CSSProperties = {
 };
 
 /**
- * 低頻度操作パネル（QuickPanel、TASK-074、design/components/header.md）。
- * ヘッダーの`⋯`ボタン押下時にPopover内で表示する。
+ * 「表示・補助」パネル（QuickPanel、TASK-074、design/components/header.md）。
+ * ヘッダーの表示・補助ボタン押下時にPopover内で表示する。
  *
- * 音量・表示倍率・運指・メトロノーム・成績の5セクションで構成し、
  * 各セクションは既存コンポーネント（ロジック不変）をそのまま再利用する。
  * このコンポーネント自体はコンパクト表示のためのラッパースタイルのみを
  * 追加し、既存コンポーネントのprops・store結線には一切手を加えない
  * （REQ-012-004: 機能の喪失禁止）。
+ *
+ * TASK-079: 2026-07-08のユーザー実機フィードバック「⋯と設定画面の分類が
+ * わからない」（DEC-007改訂節）を受け、セクションを「表示（音量・表示倍率）/
+ * 運指 / 成績 / メトロノーム詳細（1拍目強調）」の4つへ再編成した。
+ * メトロノームON/OFF本体はヘッダー常駐（`MetronomeToggle`）へ移動したため、
+ * 本パネルには1拍目強調（`MetronomeAccentToggle`）のみを残す。
  *
  * ヘッダー本体（Header/index.tsx）への統合・開閉状態の管理はTASK-075で行う。
  */
@@ -53,12 +58,8 @@ export const QuickPanel: React.FC<QuickPanelProps> = ({
       style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: '240px' }}
     >
       <div style={SECTION_STYLE}>
-        <span style={SECTION_LABEL_STYLE}>音量</span>
+        <span style={SECTION_LABEL_STYLE}>表示</span>
         <VolumeControl />
-      </div>
-
-      <div style={SECTION_STYLE}>
-        <span style={SECTION_LABEL_STYLE}>表示倍率</span>
         <ZoomControl />
       </div>
 
@@ -73,13 +74,13 @@ export const QuickPanel: React.FC<QuickPanelProps> = ({
       </div>
 
       <div style={SECTION_STYLE}>
-        <span style={SECTION_LABEL_STYLE}>メトロノーム</span>
-        <MetronomeToggle />
+        <span style={SECTION_LABEL_STYLE}>成績</span>
+        <StatsDisplay />
       </div>
 
       <div style={SECTION_STYLE}>
-        <span style={SECTION_LABEL_STYLE}>成績</span>
-        <StatsDisplay />
+        <span style={SECTION_LABEL_STYLE}>メトロノーム詳細</span>
+        <MetronomeAccentToggle />
       </div>
     </div>
   );

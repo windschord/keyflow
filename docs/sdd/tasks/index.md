@@ -330,6 +330,8 @@
 | TASK-076 | Aboutページ（ライセンス自動生成・バージョン・LICENSE） | DONE | TASK-073, TASK-071 | 60min | [詳細](phase-15/TASK-076.md) @phase-15/TASK-076.md |
 | TASK-077 | Phase 15統合検証・トレーサビリティ更新 | DONE | TASK-068〜076 | 40min | [詳細](phase-15/TASK-077.md) @phase-15/TASK-077.md |
 | TASK-078 | [BugFix] QuickPanelがoverflow:hiddenでクリップされ表示されない | REVIEW | TASK-075 | 40min | [詳細](phase-15/TASK-078.md) @phase-15/TASK-078.md |
+| TASK-079 | ヘッダー再編成（メトロノーム常駐・表示補助パネル整理） | DONE | TASK-078 | 50min | [詳細](phase-15/TASK-079.md) @phase-15/TASK-079.md |
+| TASK-080 | 開発モードのDockアイコン適用とブランディング制約の明文化 | REVIEW | TASK-068 | 20min | [詳細](phase-15/TASK-080.md) @phase-15/TASK-080.md |
 
 ---
 

@@ -8,6 +8,7 @@ import { SettingsService } from './settings';
 import { PathAllowlist } from './path-allowlist';
 import { createRegisterDroppedFileHandler, createShowOpenDialogHandler } from './file-handlers';
 import { createWindowOptions } from './window-options';
+import { applyDockIcon } from './dock-icon';
 
 function createWindow(): void {
   // Create the browser window.
@@ -50,6 +51,10 @@ app.whenReady().then(() => {
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
+
+  // TASK-080: 開発モードでもmacOSのDockアイコンを独自アイコンへ差し替える
+  // （パッケージ版はicon.icnsが自動適用されるため常時呼んでも害はない）。
+  applyDockIcon({ platform: process.platform, dock: app.dock, iconPath: icon });
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

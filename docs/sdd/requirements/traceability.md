@@ -44,6 +44,8 @@
 | REQ-006-006 | ○ | Toolbar.test |
 | REQ-006-007 | △ | parserのtempoMapは○。再生時のテンポ変化再現は無検証 |
 | REQ-006-008 | ○ | audio-engine.test（TASK-062: 小節頭tick一致でC6/1.0、非一致でC5/0.6、setMetronomeAccentEnabled(false)で全拍C5/0.6、弱起相当の不等間隔小節頭tickでの正判定、loadScoreからのsetMeasureStartTicks結線、dispose後の再初期化でアクセント設定が維持されることを検証）+ ui-slice.test（metronomeAccentEnabled初期値true・setter）+ TempoControl.test（「1拍目強調」チェックボックスの表示・操作・store反映、メトロノームOFF時も操作可能）+ usePractice.test（store→audioEngine.setMetronomeAccentEnabled結線）+ SettingsModal.test（既定値変更→保存＋store即時反映）+ App.test（起動時の永続化値反映、キー欠落時のtrueフォールバック）。TASK-063でUI結線・永続化まで対応済み |
+| REQ-006-009 | ○ | audio-engine.test（TASK-066: 停止中にメトロノーム有効化でTone.Clockがbpm/60Hzで生成・開始されTransportは起動されないこと、拍カウンター%beatsPerMeasureによるアクセント判定（4拍子・3拍子、アクセント無効時は全拍C5/1.0）、playAccompanimentで独立クロックが停止しstopAccompanimentで（有効中なら）カウンター0から再開すること、setBpmによる周波数更新、loadScoreのtimeSignature.beats反映、無効化での停止、dispose後の再初期化でbpm・拍子が維持されることを検証）。Metronome.setTransportRunningでSequence（楽譜同期）とClockを切り替える設計 |
+| REQ-006-010 | ×※ | TASK-067で対応予定（未実装） |
 | REQ-007-001/002 | △ | practice-engine.test + audio-engine setLoopPoints。App/E2E経路のループなし |
 | REQ-007-003 | ×※ | ドラッグ選択未実装 |
 | REQ-007-004 | ×※ | ループ回数カウンターUI未実装 |

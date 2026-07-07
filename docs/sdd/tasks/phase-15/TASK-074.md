@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-074 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 40分 |
 | 依存タスク | なし |
@@ -41,9 +41,16 @@
 
 ## 受入基準
 
-- [ ] 全テスト通過
-- [ ] StrictMode（開発モード）で開閉を繰り返してもリスナーリークがない
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` 通過
+- [x] 全テスト通過
+- [x] StrictMode（開発モード）で開閉を繰り返してもリスナーリークがない（マウント/アンマウントの複数サイクルで`document.addEventListener`/`removeEventListener`の呼び出し数が一致することをテストで検証。実機のStrictMode開発モードでの目視確認は、本コンポーネントをヘッダーへ統合するTASK-075で実施する）
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` 通過
+
+## 完了サマリー
+
+- `Popover.tsx` / `QuickPanel.tsx` / `MetronomeToggle.tsx` を新規実装。既存コンポーネント（VolumeControl/ZoomControl/FingeringToggle/FingeringPanel/StatsDisplay）はロジック・props・store結線を変更せず再利用した。
+- TDD: Popover.test.tsx（Red→コミット）→ MetronomeToggle.test.tsx/QuickPanel.test.tsx（Red→コミット）→ 実装（Green→コミット）の順で進めた。
+- `npm run test`（43ファイル586件）・`npm run typecheck`・`npm run lint` すべて通過。
+- 本タスクの時点ではHeader/index.tsxへの統合・App.tsx/Toolbar/への配線は行っていない（TASK-075の範囲）。そのため実ブラウザでの目視確認は本タスクでは実施しておらず、TASK-075での統合時に行う。
 
 ## 情報の明確性
 

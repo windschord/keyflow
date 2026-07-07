@@ -322,7 +322,7 @@
 | TASK-068 | アプリのブランディング（アイコン生成・ウィンドウタイトル） | TODO | - | 60min | [詳細](phase-15/TASK-068.md) @phase-15/TASK-068.md |
 | TASK-069 | ペダル記号のパースとScore型拡張 | TODO | - | 40min | [詳細](phase-15/TASK-069.md) @phase-15/TASK-069.md |
 | TASK-070 | ペダル区間の再生反映（リリース延長） | TODO | TASK-069, TASK-071 | 40min | [詳細](phase-15/TASK-070.md) @phase-15/TASK-070.md |
-| TASK-071 | 再生音色ファクトリとSalamanderサンプル同梱 | TODO | - | 60min | [詳細](phase-15/TASK-071.md) @phase-15/TASK-071.md |
+| TASK-071 | 再生音色ファクトリとSalamanderサンプル同梱 | REVIEW | - | 60min | [詳細](phase-15/TASK-071.md) @phase-15/TASK-071.md |
 | TASK-072 | メトロノーム音色の選択（エンジン実装） | TODO | TASK-070 | 40min | [詳細](phase-15/TASK-072.md) @phase-15/TASK-072.md |
 | TASK-073 | 音色設定の永続化と設定UI・再生時ロード待ち | TODO | TASK-071, TASK-072 | 50min | [詳細](phase-15/TASK-073.md) @phase-15/TASK-073.md |
 | TASK-074 | 汎用Popover・QuickPanelコンポーネント | TODO | - | 40min | [詳細](phase-15/TASK-074.md) @phase-15/TASK-074.md |

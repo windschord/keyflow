@@ -2,6 +2,7 @@ import * as Tone from 'tone';
 import { Score, PracticeMode } from '../../types';
 import { Metronome } from './metronome';
 import { groupNotesByStartTick, filterNotesByPracticeMode } from '../practice-engine/note-grouping';
+import { createPlaybackInstrument, PLAYBACK_VOICES, type PlaybackVoiceId, type PlaybackInstrument } from './voices';
 
 /** 再生位置（判定グループ単位）が進むたびに呼ばれるコールバック。 */
 export type PositionChangeCallback = (measureNumber: number, groupIndex: number) => void;
@@ -33,9 +34,9 @@ interface NoteBoundaryEvent {
  * `ensureInitialized()` が自動的に再初期化する。
  */
 export class AudioEngineService {
-  private accompanimentSynth!: Tone.PolySynth;
+  private accompanimentSynth!: PlaybackInstrument;
   private clickSynth!: Tone.Synth;
-  private playSynth!: Tone.PolySynth;
+  private playSynth!: PlaybackInstrument;
   private metronome!: Metronome;
 
   private initialized = false;
@@ -65,6 +66,14 @@ export class AudioEngineService {
   private metronomeBpm = 120;
   private metronomeBeatsPerMeasure = 4;
 
+  // TASK-071: 再生音色（伴奏・手動プレビュー共通）の希望状態。dispose()での再生成後にも
+  // 選択中の音色を維持する（metronomeAccentEnabled等と同じStrictMode耐性設計）。
+  private playbackVoiceId: PlaybackVoiceId = 'grand-piano';
+  private voiceLoadingCallback: ((loading: boolean) => void) | null = null;
+  // grand-piano（Tone.Sampler）のサンプルダウンロード完了、またはそれ以外の即時利用可な
+  // 音色への切替完了で解決するPromise。ensurePlaybackVoiceLoaded()が参照する。
+  private voiceReadyPromise: Promise<void> = Promise.resolve();
+
   constructor() {
     this.ensureInitialized();
   }
@@ -73,15 +82,108 @@ export class AudioEngineService {
   private ensureInitialized(): void {
     if (this.initialized) return;
 
-    this.accompanimentSynth = new Tone.PolySynth(Tone.Synth).toDestination();
     this.clickSynth = new Tone.Synth().toDestination();
-    this.playSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+    this.voiceReadyPromise = this.applyPlaybackVoice(this.playbackVoiceId);
     this.metronome = new Metronome();
     this.metronome.setAccentEnabled(this.metronomeAccentEnabled);
     this.metronome.setMeasureStartTicks(this.measureStartTicks);
     this.metronome.setBpm(this.metronomeBpm);
     this.metronome.setBeatsPerMeasure(this.metronomeBeatsPerMeasure);
     this.initialized = true;
+  }
+
+  /**
+   * 再生音色（伴奏・手動プレビューの両方）を生成し、`accompanimentSynth` /
+   * `playSynth` へ割り当てる（TASK-071）。`grand-piano`（Tone.Sampler）は
+   * ネットワークからのサンプルダウンロードを伴うため、両インスタンスの
+   * `onload` が揃うまで解決しないPromiseを返す。ロード失敗時は
+   * `synth` プリセットへフォールバックし、フォールバック完了をもって解決する
+   * （ロード待ちが永久にpendingのままにならないようにするため）。
+   */
+  private applyPlaybackVoice(id: PlaybackVoiceId): Promise<void> {
+    const definition = PLAYBACK_VOICES[id];
+
+    if (!definition.requiresLoading) {
+      this.accompanimentSynth = createPlaybackInstrument(id).toDestination();
+      this.playSynth = createPlaybackInstrument(id).toDestination();
+      return Promise.resolve();
+    }
+
+    this.voiceLoadingCallback?.(true);
+
+    let settled = false;
+    let loadedCount = 0;
+    let resolveReady!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      resolveReady = resolve;
+    });
+
+    const finishLoading = (): void => {
+      if (settled) return;
+      settled = true;
+      this.voiceLoadingCallback?.(false);
+      resolveReady();
+    };
+
+    const markLoaded = (): void => {
+      loadedCount += 1;
+      if (loadedCount >= 2) finishLoading();
+    };
+
+    const fallbackToSynth = (error: Error): void => {
+      if (settled) return;
+      console.error(
+        '[AudioEngineService] Failed to load Salamander piano samples; falling back to the synth preset',
+        error
+      );
+      this.accompanimentSynth = createPlaybackInstrument('synth').toDestination();
+      this.playSynth = createPlaybackInstrument('synth').toDestination();
+      finishLoading();
+    };
+
+    this.accompanimentSynth = createPlaybackInstrument(id, {
+      onload: markLoaded,
+      onerror: fallbackToSynth,
+    }).toDestination();
+    this.playSynth = createPlaybackInstrument(id, {
+      onload: markLoaded,
+      onerror: fallbackToSynth,
+    }).toDestination();
+
+    return ready;
+  }
+
+  /**
+   * 再生音色を切り替える（TASK-071、REQ-013-001/002）。現在のインスタンスを
+   * disposeしたうえで新しい音色を生成し、`accompanimentSynth` / `playSynth` を
+   * 差し替える。`loadScore` 済みの `Tone.Part` はコールバック内で
+   * `this.accompanimentSynth` を都度参照するため、再スケジュールは不要
+   * （次の発音から新音色が反映される）。`grand-piano` へ切り替えた場合は
+   * サンプルのロード完了まで返り値のPromiseがpendingになる。
+   */
+  setPlaybackVoice(id: PlaybackVoiceId): Promise<void> {
+    this.ensureInitialized();
+    this.playbackVoiceId = id;
+
+    this.accompanimentSynth.dispose();
+    this.playSynth.dispose();
+
+    this.voiceReadyPromise = this.applyPlaybackVoice(id);
+    return this.voiceReadyPromise;
+  }
+
+  /**
+   * 現在選択中の再生音色が発音可能になるまで待つ（REQ-013-003）。
+   * ロード済み・ロード不要な音色の場合は即座に解決する。
+   */
+  ensurePlaybackVoiceLoaded(): Promise<void> {
+    this.ensureInitialized();
+    return this.voiceReadyPromise;
+  }
+
+  /** 再生音色のロード状態（true=ロード中）の変化を購読する（UIのローディング表示用）。 */
+  setVoiceLoadingCallback(callback: ((loading: boolean) => void) | null): void {
+    this.voiceLoadingCallback = callback;
   }
 
   /** 判定グループ進行時のコールバックを登録する（カーソル連動、REQ-010-005）。 */

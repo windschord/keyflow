@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-071 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | REVIEW |
 | 優先度 | High |
 | 見積もり | 60分 |
 | 依存タスク | なし |
@@ -51,11 +51,39 @@
 
 ## 受入基準
 
-- [ ] 全テスト通過、既存テスト非回帰
-- [ ] サンプル合計サイズが20MB以下（REQ-013-007）
-- [ ] `npm run build` の成果物にサンプルが同梱される（ビルド後の out/ を確認）
-- [ ] READMEにクレジット表記
-- [ ] 実起動確認: 既定でピアノ音が鳴る（オフラインで）
+- [x] 全テスト通過、既存テスト非回帰（`npm run test` 589 tests passed、うち新規22件: voices.test.ts 13件 + audio-engine.test.ts追加分9件）
+- [x] サンプル合計サイズが20MB以下（REQ-013-007。実測 約2.0MB、30ファイル）
+- [x] `npm run build` の成果物にサンプルが同梱される（`out/renderer/assets/*.mp3` 30件、計2.0MBを確認）
+- [x] READMEにクレジット表記（`README.md` に「Salamander Grand Piano V3 by Alexander Holm (CC-BY 3.0)」を追記）
+- [ ] 実起動確認: 既定でピアノ音が鳴る（オフラインで）— 本タスク単体のE2E/実機確認は行っておらず、TASK-077（Phase 15統合検証）で実施する
+
+## 完了サマリー（2026-07-07）
+
+- `src/renderer/src/lib/audio-engine/voices.ts` を新規作成。`PlaybackVoiceId`
+  （'grand-piano'/'electric-piano'/'organ'/'synth'）、`PLAYBACK_VOICES` 定義、
+  `createPlaybackInstrument(id, options)` を実装。`grand-piano` は
+  `import.meta.glob` でSalamanderサンプルURLを解決した `Tone.Sampler`
+  （ファイル名 `Ds1`/`Fs1` 等をTone.Frequency互換の `D#1`/`F#1` へ正規化）、
+  他はプリセット付き `Tone.PolySynth`（electric-pianoはFMSynth、organは持続系
+  エンベロープ、synthは現行相当）を返す
+- `src/renderer/src/lib/audio-engine/index.ts` に希望状態 `playbackVoiceId`
+  （既定 'grand-piano'）、`setPlaybackVoice(id): Promise<void>` /
+  `ensurePlaybackVoiceLoaded(): Promise<void>` /
+  `setVoiceLoadingCallback(cb)` を追加。`ensureInitialized()` /
+  `applyPlaybackVoice()` で希望状態から `accompanimentSynth` / `playSynth`
+  を生成し、Samplerの `onload`/`onerror` をPromise化して追跡。ロード失敗時は
+  `synth` プリセットへ自動フォールバックしつつPromiseを解決する
+- `src/renderer/src/assets/samples/salamander/*.mp3` に30ファイル（短3度間隔
+  A/C/D#/F# × A0〜C8）を配置。取得元はTone.js公式が配布する変換済みmp3
+  （https://tonejs.github.io/audio/salamander/）。合計約2.0MB
+- 既存の3ファイル（`App.test.tsx` / `practice-flow.test.tsx` /
+  `audio-engine.test.ts`）のToneモックに `Sampler`/`FMSynth` を追加。既定音色が
+  grand-piano（Sampler）になったことに合わせ、StrictMode耐性テストの検証対象
+  コンストラクタを `PolySynth` から `Sampler` へ更新（既存テストの弱体化ではなく、
+  意図した既定音色変更に追従する更新）
+- `README.md` にSalamanderサンプルのクレジットとライセンス構成（コード:MIT /
+  同梱音源:CC-BY 3.0）を追記
+- 未実施: 実機・E2Eでの発音確認（TASK-077送り、タスク文書に明記済み）
 
 ## 情報の明確性
 

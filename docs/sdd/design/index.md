@@ -87,7 +87,12 @@ graph TB
 | Piano Keyboard | Renderer (UI) | 88鍵盤の視覚的ガイド表示 | [詳細](components/piano-keyboard.md) @components/piano-keyboard.md |
 | Audio Engine | Renderer | Tone.jsによる伴奏・メトロノーム再生 | [詳細](components/audio-engine.md) @components/audio-engine.md |
 | Annotation Store | Renderer + Main | 運指・コメントのJSON永続化 | [詳細](components/annotation-store.md) @components/annotation-store.md |
-| Toolbar | Renderer (UI) | ファイルを開く・再生・練習対象・テンポ・ループ・運指提案・統計表示の操作群 | [詳細](components/toolbar.md) @components/toolbar.md |
+| Toolbar | Renderer (UI) | ファイルを開く・再生・練習対象・テンポ・ループ・運指提案・統計表示の操作群（Phase 15でHeaderへ置換予定） | [詳細](components/toolbar.md) @components/toolbar.md |
+| Header | Renderer (UI) | 1行ヘッダー+ポップオーバー（Toolbarの後継、US-012） | [詳細](components/header.md) @components/header.md |
+| App Branding | Main + ビルドリソース | アプリアイコン・ウィンドウタイトル（US-011） | [詳細](components/app-branding.md) @components/app-branding.md |
+| Instrument Voices | Renderer | 再生音色（Salamander+シンセ）・メトロノーム音色の選択（US-013） | [詳細](components/instrument-voices.md) @components/instrument-voices.md |
+| Pedal Playback | Renderer | ペダル記号の解析・再生反映（US-014） | [詳細](components/pedal-playback.md) @components/pedal-playback.md |
+| About Page | Renderer (UI) + ビルドスクリプト | バージョン・ライセンス表示（US-015） | [詳細](components/about-page.md) @components/about-page.md |
 
 ---
 
@@ -169,6 +174,9 @@ interface Annotation {
 | DEC-003 | 運指エンジンをTypeScriptで独自実装（Python不採用） | 承認済 | [詳細](decisions/DEC-003.md) @decisions/DEC-003.md |
 | DEC-004 | MIDI入力をMain Processのnode-midiで処理 | 承認済（実装変更あり: Web MIDI APIに変更済み、PR #16） | [詳細](decisions/DEC-004.md) @decisions/DEC-004.md |
 | DEC-005 | 時刻ベースデータモデル（PPQ480絶対tick）とnoteIdパート毎連番の採用 | 承認済 | [詳細](decisions/DEC-005.md) @decisions/DEC-005.md |
+| DEC-006 | 再生音色にSalamander Grand Piano V3（CC-BY 3.0）+ Tone.Samplerを採用 | 承認済 | [詳細](decisions/DEC-006.md) @decisions/DEC-006.md |
+| DEC-007 | ヘッダーを1行+ポップオーバー方式へ再設計 | 承認済 | [詳細](decisions/DEC-007.md) @decisions/DEC-007.md |
+| DEC-008 | ライブラリライセンス一覧をビルド時に自動生成 | 承認済 | [詳細](decisions/DEC-008.md) @decisions/DEC-008.md |
 
 ---
 
@@ -226,7 +234,12 @@ docs/sdd/design/
 │   ├── piano-keyboard.md          # 88鍵盤UI
 │   ├── audio-engine.md            # 音声再生（Tone.js）
 │   ├── annotation-store.md        # アノテーション永続化
-│   ├── toolbar.md                 # ツールバー・練習コントロール群
+│   ├── toolbar.md                 # ツールバー・練習コントロール群（header.mdへ置換予定）
+│   ├── header.md                  # 1行ヘッダー・ポップオーバー（US-012）
+│   ├── app-branding.md            # アイコン・ウィンドウタイトル（US-011）
+│   ├── instrument-voices.md       # 再生・メトロノーム音色（US-013）
+│   ├── pedal-playback.md          # ペダル記号の再生反映（US-014）
+│   ├── about-page.md              # Aboutページ（US-015）
 │   └── data-model-v2.md           # 時刻ベースデータモデル（v2）
 ├── database/
 │   └── schema.md                  # データスキーマ
@@ -235,5 +248,8 @@ docs/sdd/design/
     ├── DEC-002.md                  # OSMD採用
     ├── DEC-003.md                  # TypeScript運指エンジン
     ├── DEC-004.md                  # node-midi採用
-    └── DEC-005.md                  # 時刻ベースデータモデル・noteId統一
+    ├── DEC-005.md                  # 時刻ベースデータモデル・noteId統一
+    ├── DEC-006.md                  # Salamander音源+Tone.Sampler採用
+    ├── DEC-007.md                  # ヘッダー1行+ポップオーバー方式
+    └── DEC-008.md                  # ライセンス一覧のビルド時自動生成
 ```

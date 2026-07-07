@@ -42,8 +42,9 @@
 | Phase 12: 実機フィードバック対応（2026-07-05） | 7 | 0 | 0 | 0 | [詳細](phase-12/) @phase-12/ |
 | Phase 13: UI改善要望（2026-07-06） | 6 | 0 | 0 | 0 | [詳細](phase-13/) @phase-13/ |
 | Phase 14: メトロノーム修正・アクセント（2026-07-07） | 7 | 0 | 0 | 0 | [詳細](phase-14/) @phase-14/ |
+| Phase 15: UI/UX改善（2026-07-07） | 0 | 0 | 10 | 0 | [詳細](phase-15/) @phase-15/ |
 
-**合計**: 67タスク / 推定合計: 約2990分（AIエージェント作業時間）
+**合計**: 77タスク / 推定合計: 約3510分（AIエージェント作業時間）
 
 > Phase 8〜10 は 2026-07-04 のトラブルシューティング分析
 > （[docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md](../troubleshooting/2026-07-04-app-unusable/analysis.md)）
@@ -123,6 +124,23 @@
 | TASK-054 | Toolbar/TempoControl.tsx, Toolbar/LoopControl.tsx, assets/base.css | - |
 
 > TASK-049/050/051 は TASK-048 完了後に着手する（049→050 は順次）。
+
+### グループI: Phase 15 第1陣（着手時に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-068 | resources/**, build/**, scripts/generate-icons.mjs, src/renderer/index.html, src/main/index.ts | - |
+| TASK-069 | src/renderer/src/types/score.ts, lib/musicxml-parser/** | - |
+| TASK-071 | lib/audio-engine/voices.ts, lib/audio-engine/index.ts, assets/samples/** | - |
+| TASK-074 | components/Header/Popover.tsx, components/Header/QuickPanel.tsx | - |
+
+### グループJ: Phase 15 第2陣（第1陣完了後に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-070 | lib/audio-engine/pedal-extension.ts, lib/audio-engine/index.ts | TASK-069, TASK-071 |
+| TASK-075 | components/Header/index.tsx, App.tsx, Toolbar/** | TASK-074 |
+
+> `lib/audio-engine/index.ts` を共有する TASK-070→072、`SettingsModal` を共有する
+> TASK-073→076 はそれぞれ順次実行とする。最後に TASK-077（統合検証）を単独実行する。
 
 ---
 
@@ -292,6 +310,26 @@
 | TASK-066 | メトロノーム単独再生（Tone.Clock） | DONE | TASK-065 | 60min | [詳細](phase-14/TASK-066.md) @phase-14/TASK-066.md |
 | TASK-067 | 再生中のテンポ設定UIロック | DONE | - | 30min | [詳細](phase-14/TASK-067.md) @phase-14/TASK-067.md |
 
+### Phase 15: UI/UX改善（2026-07-07）
+*推定期間: 520min（下記の並列実行グループ参照）*
+
+> 2026-07-07 のUI/UX改善要望（アイコン・タイトル・ヘッダー1行化・音色選択・ペダル再生・Aboutページ）
+> に基づくタスク群。要件: US-011〜015、設計: components/{app-branding,header,instrument-voices,pedal-playback,about-page}.md、
+> DEC-006〜008。作業ブランチ: `feature/phase-15-uiux-improvements`
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-068 | アプリのブランディング（アイコン生成・ウィンドウタイトル） | TODO | - | 60min | [詳細](phase-15/TASK-068.md) @phase-15/TASK-068.md |
+| TASK-069 | ペダル記号のパースとScore型拡張 | TODO | - | 40min | [詳細](phase-15/TASK-069.md) @phase-15/TASK-069.md |
+| TASK-070 | ペダル区間の再生反映（リリース延長） | TODO | TASK-069, TASK-071 | 40min | [詳細](phase-15/TASK-070.md) @phase-15/TASK-070.md |
+| TASK-071 | 再生音色ファクトリとSalamanderサンプル同梱 | TODO | - | 60min | [詳細](phase-15/TASK-071.md) @phase-15/TASK-071.md |
+| TASK-072 | メトロノーム音色の選択（エンジン実装） | TODO | TASK-070 | 40min | [詳細](phase-15/TASK-072.md) @phase-15/TASK-072.md |
+| TASK-073 | 音色設定の永続化と設定UI・再生時ロード待ち | TODO | TASK-071, TASK-072 | 50min | [詳細](phase-15/TASK-073.md) @phase-15/TASK-073.md |
+| TASK-074 | 汎用Popover・QuickPanelコンポーネント | TODO | - | 40min | [詳細](phase-15/TASK-074.md) @phase-15/TASK-074.md |
+| TASK-075 | 1行ヘッダー統合（Toolbar・上段バー置換） | TODO | TASK-074 | 90min | [詳細](phase-15/TASK-075.md) @phase-15/TASK-075.md |
+| TASK-076 | Aboutページ（ライセンス自動生成・バージョン・LICENSE） | TODO | TASK-073, TASK-071 | 60min | [詳細](phase-15/TASK-076.md) @phase-15/TASK-076.md |
+| TASK-077 | Phase 15統合検証・トレーサビリティ更新 | TODO | TASK-068〜076 | 40min | [詳細](phase-15/TASK-077.md) @phase-15/TASK-077.md |
+
 ---
 
 ## リスクと軽減策
@@ -340,5 +378,6 @@ docs/sdd/tasks/
 ├── phase-11/         # TASK-039〜047: 品質是正・機能補完（2026-07-05横断チェック起点）
 ├── phase-12/         # TASK-048〜054: 実機フィードバック対応（2026-07-05）
 ├── phase-13/         # TASK-055〜060: UI改善要望（2026-07-06）
-└── phase-14/         # TASK-061〜067: メトロノーム修正・一拍目アクセント（2026-07-07）
+├── phase-14/         # TASK-061〜067: メトロノーム修正・一拍目アクセント（2026-07-07）
+└── phase-15/         # TASK-068〜077: UI/UX改善（2026-07-07）
 ```

@@ -327,7 +327,7 @@
 | TASK-073 | 音色設定の永続化と設定UI・再生時ロード待ち | REVIEW | TASK-071, TASK-072 | 50min | [詳細](phase-15/TASK-073.md) @phase-15/TASK-073.md |
 | TASK-074 | 汎用Popover・QuickPanelコンポーネント | DONE | - | 40min | [詳細](phase-15/TASK-074.md) @phase-15/TASK-074.md |
 | TASK-075 | 1行ヘッダー統合（Toolbar・上段バー置換） | DONE | TASK-074 | 90min | [詳細](phase-15/TASK-075.md) @phase-15/TASK-075.md |
-| TASK-076 | Aboutページ（ライセンス自動生成・バージョン・LICENSE） | TODO | TASK-073, TASK-071 | 60min | [詳細](phase-15/TASK-076.md) @phase-15/TASK-076.md |
+| TASK-076 | Aboutページ（ライセンス自動生成・バージョン・LICENSE） | REVIEW | TASK-073, TASK-071 | 60min | [詳細](phase-15/TASK-076.md) @phase-15/TASK-076.md |
 | TASK-077 | Phase 15統合検証・トレーサビリティ更新 | TODO | TASK-068〜076 | 40min | [詳細](phase-15/TASK-077.md) @phase-15/TASK-077.md |
 
 ---

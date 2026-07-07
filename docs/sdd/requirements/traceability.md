@@ -87,7 +87,12 @@
 | REQ-013-005 | ○ | metronome-voices.test（各音色のtrigger(time, accent, velocity)がアクセント有無で音高・音量を書き分けることを検証）。TASK-072で対応済み |
 | REQ-013-006 | ○ | settings.test（DEFAULT_SETTINGS.audioの既定値、audioキー不在の既存設定ファイルへの後方互換マージ、settings:set/get往復）+ SettingsModal.test（音色selectの変更がui-slice即時反映＋settings:set永続化に到達、保存失敗時ロールバック）+ App.test（起動時にaudio.playbackVoice/metronomeVoiceをAudioEngineへ適用、キー欠落時は既定値維持）+ usePractice.test（store→audioEngine.setPlaybackVoice/setMetronomeVoice結線）。TASK-073で対応済み |
 | REQ-013-007 | ○ | voices.test（import.meta.globで解決したSalamanderサンプルURLがシャープ表記ノート名へ正規化されることを検証） |
-| REQ-013-008 | ×※ | README/Aboutページのクレジット表記は未実装（TASK-076予定） |
+| REQ-013-008 | ○ | README（同梱音源クレジット節）+ AboutPanel.test（Salamander/Alexander Holm/CC-BY 3.0表示）+ credits.ts静的定義。TASK-076で対応済み |
+| REQ-015-001 | ○ | AboutPanel.test（アプリ名・`__APP_VERSION__`・Apache License 2.0表示）。実起動でのpackage.json版数一致目視確認はTASK-077予定 |
+| REQ-015-002 | ○ | AboutPanel.test（licenses.json由来のライブラリ一覧表示、モックで決定的に検証）+ generate-licenses.test（実データ生成のユニット検証）。TASK-076で対応済み |
+| REQ-015-003 | ○ | AboutPanel.test（Salamander/Alexander Holm/CC-BY 3.0表示）+ credits.ts。TASK-076で対応済み |
+| REQ-015-004 | ○ | generate-licenses.test（dependencies全件収集・devDependencies除外・LICENSE本文取得・SPDXフォールバック）+ 実行確認（licenses.json未生成状態からのnpm run dev/buildでpredev/prebuildフックが再生成することを確認）。TASK-076で対応済み |
+| REQ-015-005 | ○ | AboutPanel.test（ライブラリ行クリックでlicenseTextが展開・再クリックで折りたたみ）。TASK-076で対応済み |
 
 ## 運用ルール
 

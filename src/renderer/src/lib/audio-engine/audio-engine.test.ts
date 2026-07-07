@@ -789,6 +789,44 @@ describe('AudioEngineService', () => {
     });
   });
 
+  describe('metronome re-enable resilience (TASK-065, REQ-006-005)', () => {
+    it('recreates the sequence on ON→OFF→ON so clicks resume (結線テスト)', () => {
+      service.setMetronomeEnabled(true);
+
+      // @ts-expect-error private
+      const firstSequence = service.metronome.sequence as { dispose: Mock };
+      const sequenceCallsBefore = (Tone.Sequence as unknown as Mock).mock.calls.length;
+
+      service.setMetronomeEnabled(false);
+      service.setMetronomeEnabled(true);
+
+      // tone@15.1.22は一度stop()したSequenceをstart(0)で再開できない仕様のため
+      // （内部Partに停止イベントが残る）、再有効化のたびに旧シーケンスを破棄して
+      // 新しいシーケンスを生成する必要がある。
+      expect(firstSequence.dispose).toHaveBeenCalled();
+      expect((Tone.Sequence as unknown as Mock).mock.calls.length).toBe(sequenceCallsBefore + 1);
+      // @ts-expect-error private
+      const secondSequence = service.metronome.sequence as { start: Mock };
+      expect(secondSequence.start).toHaveBeenCalledWith(0);
+    });
+
+    it('plays the regular click at velocity 1.0 (not 0.6) when accent is disabled (TASK-065、承認済み仕様変更)', () => {
+      service.setMetronomeAccentEnabled(false);
+      service.setMetronomeEnabled(true);
+
+      // @ts-expect-error private
+      const sequence = service.metronome.sequence as {
+        callback: (time: number, value: unknown) => void;
+        events: unknown[];
+      };
+      fireSequenceTick(sequence, 0);
+
+      // @ts-expect-error private
+      const clickSynth = service.metronome.synth as { triggerAttackRelease: Mock };
+      expect(clickSynth.triggerAttackRelease).toHaveBeenCalledWith('C5', '32n', 0, 1.0);
+    });
+  });
+
   describe('metronome accent (TASK-062, REQ-006-008)', () => {
     /** measures[].startTickの集合を指定した最小構成のスコアを作る（アクセント判定用）。 */
     function makeScoreWithMeasureStarts(startTicks: number[]): Score {
@@ -841,14 +879,14 @@ describe('AudioEngineService', () => {
       expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 480, 0.6);
     });
 
-    it('plays the regular click even at a measure startTick when accent is disabled via setMetronomeAccentEnabled(false)', () => {
+    it('plays the regular click at velocity 1.0 (not 0.6) at a measure startTick when accent is disabled via setMetronomeAccentEnabled(false) (TASK-065、承認済み仕様変更)', () => {
       service.loadScore(makeScoreWithMeasureStarts([0, 1920, 3840]));
       service.setMetronomeAccentEnabled(false);
       service.setMetronomeEnabled(true);
 
       fireAtTick(1920);
 
-      expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 1920, 0.6);
+      expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 1920, 1.0);
     });
 
     it('correctly accents an irregular (pickup-measure-like) set of measure startTicks', () => {
@@ -882,8 +920,9 @@ describe('AudioEngineService', () => {
 
       fireAtTick(1920);
 
-      // accent無効設定が再初期化後も維持され、小節頭tickでもC5・0.6で鳴る
-      expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 1920, 0.6);
+      // accent無効設定が再初期化後も維持され、小節頭tickでもC5・1.0で鳴る
+      // （TASK-065でアクセント無効時の通常拍velocityを0.6から1.0へ変更）。
+      expect(getSynthMock()).toHaveBeenCalledWith('C5', '32n', 1920, 1.0);
     });
 
     describe('click interval follows PPQ on loadScore (TASK-064, REQ-006-005)', () => {

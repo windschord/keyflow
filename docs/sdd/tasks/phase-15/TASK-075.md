@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-075 |
 | タイプ | feature |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 90分 |
 | 依存タスク | TASK-074 |
@@ -47,11 +47,33 @@ App.tsx上段バー + Toolbarの2ブロック（実質3〜4行）を、高さ48p
 
 ## 受入基準
 
-- [ ] ヘッダーが1行・高さ56px以下（E2E: bounding box検証を追加）
-- [ ] 現行の全操作がヘッダーまたはQuickPanelから実行可能（E2Eで代表操作: 開く→再生→ループ→音量変更→運指提案）
-- [ ] Space/L/R/Bショートカット動作維持
-- [ ] `npm run test` / `npm run test:e2e` / `npm run typecheck` / `npm run lint` 全通過
-- [ ] 実起動確認（開発モードStrictMode有効）で譜面表示領域が拡大している
+- [x] ヘッダーが1行・高さ56px以下（E2E: bounding box検証を追加）
+- [x] 現行の全操作がヘッダーまたはQuickPanelから実行可能（E2Eで代表操作: 開く→再生→ループ→音量変更→運指提案）
+- [x] Space/L/R/Bショートカット動作維持
+- [x] `npm run test` / `npm run test:e2e` / `npm run typecheck` / `npm run lint` 全通過
+- [x] 実起動確認（開発モードStrictMode有効）で譜面表示領域が拡大している
+
+## 完了サマリー（2026-07-07）
+
+- `src/renderer/src/components/Header/index.tsx` を新規実装し、App.tsx上段バー
+  （ファイルを開く+FingeringPanel直書き）とToolbar/index.tsxの2ブロック構成を
+  高さ48px（最大56px）の1行へ統合した。頻用操作（開く/再生/停止/ループ/テンポ/
+  練習対象）は常時表示し、右端の`...`ボタンでQuickPanel（音量・表示倍率・運指・
+  メトロノーム・成績）をPopover表示する。
+- `Toolbar/index.tsx`・`Toolbar.test.tsx`を削除。子コンポーネント
+  （PlaybackControls/LoopControl/PracticeModeSelector/TempoControl）は高さ36px
+  へコンパクト化し、説明ラベルはtitle属性（ツールチップ）へ集約。用途・
+  無効化条件はtoolbar.mdの定義を維持（REQ-012-004）。
+- TempoControlからメトロノーム関連チェックボックスを除去（QuickPanelの
+  MetronomeToggleへ移設済み、TASK-074）。
+- 旧Toolbar.test.tsxの検証内容はすべてHeader.test.tsxへ移行（BPM検証・
+  ループエラー・ズーム・Space再生トグル・練習対象ショートカット・設定
+  ツールチップ等）。App.test.tsx/practice-flow.test.tsxはHeaderをモックする
+  形へ更新し、onOpenFile/onFingeringSuggestedの結線を検証。
+- E2E（tests/e2e/app.spec.ts）: ヘッダー高さのbounding box検証、QuickPanel
+  経由のズーム・音量変更の代表操作を追加。
+- テスト結果: `npm run test` 628 tests passed / `npm run typecheck` エラーなし /
+  `npm run lint` エラーなし / `npm run test:e2e` 2 tests passed。
 
 ## 情報の明確性
 

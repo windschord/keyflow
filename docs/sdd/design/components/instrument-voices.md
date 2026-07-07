@@ -47,7 +47,7 @@ export interface PlaybackVoiceDefinition {
 - 構成: 短3度間隔（A, C, D#, F# × 各オクターブ、A0〜C8で計30ファイル）、単一ベロシティレイヤー（中位レイヤー）
   - Tone.js公式サンプル集と同じ構成。中間音は `Tone.Sampler` のピッチシフト補間で再生
   - 合計容量目標: 20MB以下（REQ-013-007。mp3再エンコードで調整）
-- 取得と加工: 実装タスクで Internet Archive の Salamander V3 配布物から該当ファイルを抽出し `ffmpeg` で変換（開発時の一回きり作業。手順はスクリプト化せず、README化する）
+- 取得と加工: 実装タスクで Internet Archive の Salamander V3 配布物から該当ファイルを抽出し `ffmpeg` で変換（開発時の1回きり作業。手順はスクリプト化せず、README化する）
 - Viteの `import.meta.glob('...assets/samples/salamander/*.mp3', { query: '?url' })` でURL解決し、`Tone.Sampler` の `urls` に渡す（ビルド成果物に自動同梱、オフライン動作）
 - クレジット: `README.md` と Aboutページ（[about-page.md](about-page.md)）に「Salamander Grand Piano V3 by Alexander Holm (CC-BY 3.0)」を表記（REQ-013-008）
 

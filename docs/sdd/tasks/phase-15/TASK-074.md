@@ -42,7 +42,7 @@
 ## 受入基準
 
 - [x] 全テスト通過
-- [x] StrictMode（開発モード）で開閉を繰り返してもリスナーリークがない（マウント/アンマウントの複数サイクルで`document.addEventListener`/`removeEventListener`の呼び出し数が一致することをテストで検証。実機のStrictMode開発モードでの目視確認は、本コンポーネントをヘッダーへ統合するTASK-075で実施する）
+- [x] StrictMode（開発モード）で開閉を繰り返してもリスナーリークがない。マウント/アンマウントを複数サイクル行い、`document.addEventListener`/`removeEventListener`の呼び出し数が一致することをテストで検証する。実機のStrictMode開発モードでの目視確認は、本コンポーネントをヘッダーへ統合するTASK-075で実施する
 - [x] `npm run test` / `npm run typecheck` / `npm run lint` 通過
 
 ## 完了サマリー

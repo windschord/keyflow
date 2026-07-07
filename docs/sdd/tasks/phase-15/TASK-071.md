@@ -46,7 +46,7 @@
 ### 実装手順（TDD）
 
 1. voices.test.ts 作成（Red→コミット）: 各IDで期待種別のインスタンス生成 / grand-pianoのみ `requiresLoading: true`
-2. audio-engine.test.ts に追加（Red→コミット）: `setPlaybackVoice` 後の発音が新インスタンスへ委譲される / dispose→再初期化後も音色維持 / `ensurePlaybackVoiceLoaded` がロード完了までpendingになる（Toneモックでonloadを手動発火）
+2. audio-engine.test.ts に追加（Red→コミット）。検証項目: `setPlaybackVoice` 後の発音が新インスタンスへ委譲される / dispose→再初期化後も音色維持 / `ensurePlaybackVoiceLoaded` がロード完了までpendingになる（Toneモックでonloadを手動発火）
 3. 実装 → Green → コミット（サンプルファイル配置は実装コミットに含める）
 
 ## 受入基準
@@ -73,12 +73,11 @@
   `applyPlaybackVoice()` で希望状態から `accompanimentSynth` / `playSynth`
   を生成し、Samplerの `onload`/`onerror` をPromise化して追跡。ロード失敗時は
   `synth` プリセットへ自動フォールバックしつつPromiseを解決する
-- `src/renderer/src/assets/samples/salamander/*.mp3` に30ファイル（短3度間隔
-  A/C/D#/F# × A0〜C8）を配置。取得元はTone.js公式が配布する変換済みmp3
-  （https://tonejs.github.io/audio/salamander/）。合計約2.0MB
-- 既存の3ファイル（`App.test.tsx` / `practice-flow.test.tsx` /
-  `audio-engine.test.ts`）のToneモックに `Sampler`/`FMSynth` を追加。既定音色が
-  grand-piano（Sampler）になったことに合わせ、StrictMode耐性テストの検証対象
+- `src/renderer/src/assets/samples/salamander/*.mp3` に30ファイル（短3度間隔 A/C/D#/F# × A0〜C8）を配置。
+  取得元はTone.js公式が配布する変換済みmp3で、URLは https://tonejs.github.io/audio/salamander/ である。合計約2.0MB
+- 既存の3ファイル `App.test.tsx` / `practice-flow.test.tsx` / `audio-engine.test.ts`
+  のToneモックに `Sampler`/`FMSynth` を追加。既定音色が
+  grand-piano（Sampler）へ変わったことに合わせ、StrictMode耐性テストの検証対象
   コンストラクタを `PolySynth` から `Sampler` へ更新（既存テストの弱体化ではなく、
   意図した既定音色変更に追従する更新）
 - `README.md` にSalamanderサンプルのクレジットとライセンス構成（コード:MIT /

@@ -25,7 +25,8 @@ src/renderer/src/components/Header/
 └── （既存コンポーネントを再利用）
 ```
 
-- `Toolbar/` 配下の既存子コンポーネント（`PracticeModeSelector` / `TempoControl` / `LoopControl` / `PlaybackControls` / `VolumeControl` / `ZoomControl` / `FingeringToggle`）と `StatsDisplay` / `FingeringPanel` は**ロジックを変更せず**、表示密度（高さ・ラベル）のみコンパクト化して再配置する
+- `Toolbar/` 配下の既存子コンポーネントと `StatsDisplay` / `FingeringPanel` は**ロジックを変更せず**、表示密度（高さ・ラベル）のみコンパクト化して再配置する
+  - 対象: `PracticeModeSelector` / `TempoControl` / `LoopControl` / `PlaybackControls` / `VolumeControl` / `ZoomControl` / `FingeringToggle`
 - `Toolbar/index.tsx` と App.tsx 上段バーは廃止し、`Header/index.tsx` に一本化する
 
 ## レイアウト（左→右）

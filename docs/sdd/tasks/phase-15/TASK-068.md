@@ -43,7 +43,7 @@
 ## 受入基準
 
 - [x] `npm run dev` 起動時のウィンドウタイトルが「MusicXML Piano Practice」
-      （`npm run build` 成果物 `out/renderer/index.html` の `<title>` で確認済み。
+      （`out/renderer/index.html` の `<title>` で確認済み。
       実起動での目視確認はTASK-077の統合検証で実施）
 - [x] `build/icon.ico` が存在する（electron-builder.ymlの参照欠落解消）
 - [x] `npm run generate:icons` で全アイコンが再生成できる
@@ -52,10 +52,10 @@
 
 ## 完了サマリー
 
-ウィンドウタイトルを「Electron」から「MusicXML Piano Practice」に変更し、
-`resources/icon.svg`（ピアノ鍵盤+八分音符モチーフ）と生成スクリプト
-`scripts/generate-icons.mjs`（`@resvg/resvg-js` + `png2icons`）を新設して
-`resources/icon.png` / `build/icon.icns` / `build/icon.ico` を生成・コミットした。
+ウィンドウタイトルを「Electron」から「MusicXML Piano Practice」に変更した。
+あわせて `resources/icon.svg`（ピアノ鍵盤+八分音符モチーフ）と生成スクリプト
+`scripts/generate-icons.mjs`（`@resvg/resvg-js` + `png2icons`）を新設した。
+これで `resources/icon.png` / `build/icon.icns` / `build/icon.ico` を生成・コミットした。
 `build/icon.ico` の欠落（electron-builder.ymlの参照エラー要因）を解消。
 BrowserWindow生成オプションは `src/main/window-options.ts` に切り出し、
 Electron実行環境なしで `title`/`icon` をユニットテスト可能にした。

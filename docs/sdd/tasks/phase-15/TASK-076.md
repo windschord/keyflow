@@ -56,9 +56,9 @@
   クリーンチェックアウトから独立に実行されるため、`prelint` / `pretest` /
   `pretest:coverage` フックも追加し、いずれの入口からもlicenses.jsonが事前生成される
   ようにした（`package.json`）
-- LICENSEファイルは初回コミット時点で既にApache License 2.0全文が配置されていたが、
-  末尾の著作権表記が`[yyyy] [name of copyright owner]`のプレースホルダーのまま
-  未置換だったため、`Copyright 2026 MusicXML Piano Practice contributors`へ修正した
+- LICENSEファイルは初回コミット時点で既にApache License 2.0全文が配置されていた。
+  ただし末尾の著作権表記は`[yyyy] [name of copyright owner]`のプレースホルダーのまま
+  未置換だった。そのため`Copyright 2026 MusicXML Piano Practice contributors`へ修正した
   （新規追加ではなく既存ファイルの是正）
 
 ## 情報の明確性

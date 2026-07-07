@@ -13,7 +13,7 @@
 
 ## 背景
 
-Phase 15の全機能を統合した状態での検証と、REQトレーサビリティの更新を行う（テスト方針の追加原則: タスク完了時にtraceability.mdを更新し検証なしREQを可視化する）。
+Phase 15の全機能を統合した状態での検証と、REQトレーサビリティを更新する（テスト方針の追加原則: タスク完了時にtraceability.mdを更新し検証なしREQを可視化する）。
 
 ## 実装内容
 
@@ -52,17 +52,17 @@ Phase 15の全機能を統合した状態での検証と、REQトレーサビリ
 ### 自動テスト
 - `npm run format:check` で報告されていた12件のフォーマット崩れを `npx prettier --write .` で解消（コード内容の変更なし）
 - `npm run test`（51ファイル706件）、`npm run typecheck`、`npm run lint` はすべて通過
-- `npm run test:e2e`（`npm run build` を含む）は既存2件に加え、設定モーダル→音色セクション（`#playbackVoice`/`#metronomeVoice`の表示・ラベル）とAboutセクション（`v{package.jsonのversion}`との一致・Apache License 2.0リンク・Salamanderクレジット表示）を検証する新規E2Eケースを追加し、計3件全通過（`tests/e2e/app.spec.ts`）
+- `npm run test:e2e`（`npm run build` を含む）に新規E2Eケースを追加し、計3件が全通過した（`tests/e2e/app.spec.ts`）。追加ケースは既存2件に加え、設定モーダル→音色セクション（`#playbackVoice`/`#metronomeVoice`の表示・ラベル）を検証する。あわせてAboutセクション（`v{package.jsonのversion}`との一致・Apache License 2.0リンク・Salamanderクレジット表示）も検証する
 
 ### パッケージ確認
 - `npm run build:mac`（`CSC_IDENTITY_AUTO_DISCOVERY=false`でコード署名なし）を実行し、x64/arm64双方のdmg/zipを生成
 - 生成された`.app`の`Contents/Resources/icon.icns`同梱を確認、`app.asar`内にSalamanderサンプル30件（mp3）が同梱されることを`npx asar list`で確認
-- `licenses.json`は`AboutPanel/index.tsx`が`import`で静的解決するため独立ファイルとしては同梱されず、rendererバンドルJS（`out/renderer/assets/index-*.js`）にライセンス文字列としてインライン化されることを`npx asar extract`で展開し確認（想定どおりの挙動）
+- `licenses.json`は`AboutPanel/index.tsx`が`import`で静的解決するため、独立ファイルとして同梱されない。かわりにrendererバンドルJS（`out/renderer/assets/index-*.js`）へライセンス文字列としてインライン化される。これを`npx asar extract`で展開して確認した（想定どおりの挙動）
 - Windows向け`build:win`はWindows環境がないため対象外（`build/icon.ico`の存在確認まで、TASK-068の`branding.test.ts`でカバー済み）
 
 ### ドキュメント同期
 - `docs/sdd/requirements/traceability.md`にREQ-011-001〜003、REQ-012-001〜006、REQ-014-001〜005の14行を追加。既存のREQ-013/REQ-015系はTASK-073/076で追記済みだったため重複させず、今回のE2E追加を反映して3行（REQ-013-006, REQ-015-001, REQ-015-003）を更新するにとどめた
-- `CLAUDE.md`のソースコード構成にHeader/AboutPanel/SettingsModal等の追加、Toolbar/index.tsx廃止（Header/index.tsxへ統合）、audio-engine配下のvoices.ts/metronome-voices.ts/pedal-extension.ts、`scripts/`の3スクリプト、設定スキーマへの`audio`追加、ライセンス方針（Apache 2.0）を反映
+- `CLAUDE.md`のソースコード構成を更新した。追加項目はHeader/AboutPanel/SettingsModal等・audio-engine配下のvoices.ts/metronome-voices.ts/pedal-extension.ts・`scripts/`の3スクリプト・設定スキーマへの`audio`。あわせてToolbar/index.tsx廃止（Header/index.tsxへ統合）とライセンス方針（Apache 2.0）も反映した
 - TASK-069/070/071/072/073/076のステータス不整合（実装済みにもかかわらずTODO/REVIEWのまま、または受入基準の一部が未チェックのまま）を是正し、全タスクをDONE化。実機での聴覚確認（ペダル残留なし、既定ピアノ音、メトロノームクリック音）と音色変更→再起動の実ファイル往復確認は自動化できないため、各タスクファイルに「ユーザー実機確認待ち」として明記した上でDONE化した
 - `docs/sdd/tasks/index.md`の進捗サマリをPhase 15「10/0/0/0（完了/進行中/未着手/ブロック）」に更新し、各タスク行のステータス列をDONEに統一
 

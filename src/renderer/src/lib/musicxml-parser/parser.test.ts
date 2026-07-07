@@ -612,6 +612,99 @@ describe('MusicXML Parser - 2段譜のNote.staff/hand（TASK-048）', () => {
   });
 });
 
+describe('MusicXML Parser - ペダル記号のパース（TASK-069）', () => {
+  it('ペダル記号がない楽曲ではpedalSpansが空配列になる', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    expect(score.pedalSpans).toEqual([]);
+  });
+
+  it('start/stopペアで1区間が生成される', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <direction><direction-type><pedal type="start"/></direction-type></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration></note>
+      <direction><direction-type><pedal type="stop"/></direction-type></direction>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    // divisions=1, PPQ=480 → duration2 = 960tick
+    expect(score.pedalSpans).toEqual([{ startTick: 0, endTick: 960 }]);
+  });
+
+  it('start/change/stopで2区間に分割され、境界tickが一致する', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <direction><direction-type><pedal type="start"/></direction-type></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration></note>
+      <direction><direction-type><pedal type="change"/></direction-type></direction>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration></note>
+      <direction><direction-type><pedal type="stop"/></direction-type></direction>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    expect(score.pedalSpans).toEqual([
+      { startTick: 0, endTick: 960 },
+      { startTick: 960, endTick: 1920 },
+    ]);
+  });
+
+  it('stopがないまま曲が終了する場合、最終tick（全ノートのstartTick+durationTicksの最大値）で閉じる', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <direction><direction-type><pedal type="start"/></direction-type></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    // 最終ノート(D4) startTick=960, durationTicks=960 → 最終tick=1920
+    expect(score.pedalSpans).toEqual([{ startTick: 0, endTick: 1920 }]);
+  });
+
+  it('既存フィクスチャ（SIMPLE_XML相当）のパース結果はpedalSpans追加以外は不変（非回帰）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+    const score = parse(xml);
+    expect(score.measures[0].notes[0].midiNumber).toBe(60);
+    expect(score.parts[0].hand).toBe('right');
+    expect(score.pedalSpans).toEqual([]);
+  });
+});
+
 describe('hand-detector', () => {
   it('detects right by name keywords', () => {
     expect(detectHand('Piano Right', undefined, 0)).toBe('right');

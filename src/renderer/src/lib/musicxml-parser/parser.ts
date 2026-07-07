@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { unzipSync } from 'fflate';
-import { Score, Part, Measure, Note, TempoEvent, Hand } from '../../types';
+import { Score, Part, Measure, Note, TempoEvent, Hand, PedalSpan } from '../../types';
 import { toMidiNumber } from './midi-utils';
 import { detectHand } from './hand-detector';
 
@@ -68,6 +68,30 @@ function parseNumberOrDefault(text: string | undefined, fallback: number): numbe
  */
 function toTicks(duration: number, divisions: number): number {
   return Math.round((duration * TICKS_PER_QUARTER) / divisions);
+}
+
+/**
+ * 複数パートから収集したペダル区間をtick昇順にソートし、重複（真に重なり合う）区間を
+ * 結合する（設計書「複数パートのペダルはマージし重複区間は結合する」）。
+ * `change`による分割で生じる境界が接するだけの区間（例: [0,960]と[960,1920]）は
+ * 別区間として維持する（次のstartTickが前のendTick未満の場合のみ結合対象とする）。
+ */
+function mergePedalSpans(spans: PedalSpan[]): PedalSpan[] {
+  if (spans.length === 0) return [];
+  const sorted = [...spans].sort((a, b) => a.startTick - b.startTick || a.endTick - b.endTick);
+  const merged: PedalSpan[] = [];
+  let current = { ...sorted[0] };
+  for (let i = 1; i < sorted.length; i++) {
+    const next = sorted[i];
+    if (next.startTick < current.endTick) {
+      current.endTick = Math.max(current.endTick, next.endTick);
+    } else {
+      merged.push(current);
+      current = { ...next };
+    }
+  }
+  merged.push(current);
+  return merged;
 }
 
 export function parse(xmlContent: string): Score {
@@ -226,6 +250,13 @@ export function parse(xmlContent: string): Score {
   const tempoEventsMap = new Map<number, number>();
   // TASK-048: staff/hand決定にPart.handを参照するためのルックアップ。
   const partsById = new Map<string, Part>(parts.map((p) => [p.id, p]));
+  // TASK-069: ペダル記号（<direction-type><pedal>）の解析。
+  // パートごとに開区間の開始tickを追跡し、確定した区間はrawPedalSpansへ積む。
+  // stopが現れないまま曲末尾に達した開区間はfinalTick（全ノートの
+  // startTick+durationTicksの最大値）で閉じるため、パート走査完了時点では
+  // 未クローズのまま openPedalStartsAtEnd に退避する。
+  const rawPedalSpans: PedalSpan[] = [];
+  const openPedalStartsAtEnd: number[] = [];
 
   const ensureMeasure = (measureNumber: number): MeasureBuilder => {
     if (!measuresMap.has(measureNumber)) {
@@ -246,6 +277,8 @@ export function parse(xmlContent: string): Score {
     // パートは従来通りPart.handを継承する。
     let staves = 1;
     const measureElements = Array.from(partEl.children).filter((c) => c.tagName === 'measure');
+    // TASK-069: このパート内で現在開いているペダル区間の開始tick（未開始はnull）。
+    let openPedalStart: number | null = null;
 
     for (const measureEl of measureElements) {
       const measureNumber = parseInt(measureEl.getAttribute('number') || '0', 10);
@@ -286,6 +319,30 @@ export function parse(xmlContent: string): Score {
           if (tempoAttr) {
             const absoluteTick = measureStartTick + cursor;
             tempoEventsMap.set(absoluteTick, parseNumberOrDefault(tempoAttr, DEFAULT_TEMPO));
+          }
+
+          // TASK-069: <direction-type><pedal type="start|stop|change"/>を解析する。
+          // continueほかは無視する（US-014備考）。
+          const directionTypeEl = getDirectChildByTag(child, 'direction-type');
+          const pedalEl = directionTypeEl ? getDirectChildByTag(directionTypeEl, 'pedal') : null;
+          if (pedalEl) {
+            const pedalType = pedalEl.getAttribute('type');
+            const absoluteTick = measureStartTick + cursor;
+            if (pedalType === 'start') {
+              if (openPedalStart === null) {
+                openPedalStart = absoluteTick;
+              }
+            } else if (pedalType === 'stop') {
+              if (openPedalStart !== null) {
+                rawPedalSpans.push({ startTick: openPedalStart, endTick: absoluteTick });
+                openPedalStart = null;
+              }
+            } else if (pedalType === 'change') {
+              if (openPedalStart !== null) {
+                rawPedalSpans.push({ startTick: openPedalStart, endTick: absoluteTick });
+              }
+              openPedalStart = absoluteTick;
+            }
           }
         } else if (tag === 'note') {
           const isRest = getDirectChildByTag(child, 'rest') !== null;
@@ -357,7 +414,29 @@ export function parse(xmlContent: string): Score {
         }
       }
     }
+
+    // TASK-069: このパートでstopが現れないまま曲末尾に達した開区間は、
+    // 全パート走査完了後にfinalTickで閉じるため一旦退避する。
+    if (openPedalStart !== null) {
+      openPedalStartsAtEnd.push(openPedalStart);
+    }
   }
+
+  // TASK-069: stopなしで曲末尾に達した開区間を、全ノートの
+  // startTick+durationTicksの最大値（finalTick）で閉じてから、
+  // 複数パート分のペダル区間をマージする。
+  if (openPedalStartsAtEnd.length > 0) {
+    let finalTick = 0;
+    for (const measure of measuresMap.values()) {
+      for (const note of measure.notes) {
+        finalTick = Math.max(finalTick, note.startTick + note.durationTicks);
+      }
+    }
+    for (const start of openPedalStartsAtEnd) {
+      rawPedalSpans.push({ startTick: start, endTick: finalTick });
+    }
+  }
+  const pedalSpans = mergePedalSpans(rawPedalSpans);
 
   // tempoMapを確定する（曲頭tick=0の要素を最低1つ保証する）。
   const tempoMap: TempoEvent[] = Array.from(tempoEventsMap.entries())
@@ -399,6 +478,7 @@ export function parse(xmlContent: string): Score {
     tempoMap,
     timeSignature: { beats, beatType },
     keySignature,
+    pedalSpans,
   };
 }
 

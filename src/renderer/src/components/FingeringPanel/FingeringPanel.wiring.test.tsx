@@ -79,6 +79,7 @@ describe('FingeringPanel wiring smoke test (real FingeringEngineService)', () =>
       tempoMap: [{ tick: 0, bpm: 120 }],
       timeSignature: { beats: 4, beatType: 4 },
       keySignature: 0,
+      pedalSpans: [],
     };
 
     const onSuggested = vi.fn();

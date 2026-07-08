@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-083 |
 | タイプ | feature |
-| ステータス | IN_PROGRESS |
+| ステータス | REVIEW |
 | 優先度 | High |
 | 見積もり | 40分 |
 | 依存タスク | TASK-082 |
@@ -48,10 +48,10 @@
 
 ## 受入基準
 
-- [ ] ウィンドウタイトルが「keyflow」（E2E `page.title()` 通過）
-- [ ] メニュー項目が「keyflowについて」でAboutが開く（E2E通過）
-- [ ] dmg成果物の `.app` 名・`Info.plist` CFBundleNameが「keyflow」
-- [ ] 全ゲート通過
+- [x] ウィンドウタイトルが「keyflow」（E2E `page.title()` 通過）
+- [x] メニュー項目が「keyflowについて」でAboutが開く（E2E通過）
+- [x] dmg成果物の `.app` 名・`Info.plist` CFBundleNameが「keyflow」
+- [x] 全ゲート通過
 - [ ] ユーザー実機確認（dmg版でメニューバー名が「keyflow」）
 
 ## 情報の明確性

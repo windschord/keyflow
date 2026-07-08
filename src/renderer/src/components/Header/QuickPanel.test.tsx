@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QuickPanel } from './QuickPanel';
 import { usePracticeStore } from '../../store';
+import type { Note, Score } from '../../types';
 
 // TASK-074: 低頻度操作パネル（QuickPanel、design/components/header.md）。
 // 音量・表示倍率・運指・成績・メトロノーム詳細の各セクションを内包し、
@@ -14,16 +15,57 @@ import { usePracticeStore } from '../../store';
 // へ再編成した。メトロノームON/OFF本体はヘッダー常駐（MetronomeToggle）へ移動した
 // ため、本パネルからは削除する。
 
+// CodeRabbit PR#28指摘#4: computeFingeringの戻り値をここで固定する。
+// QuickPanel → FingeringPanel → onFingeringSuggestedの結線を実経路で検証し、
+// 運指Workerを内包するFingeringEngineServiceのみモック境界とする。
+const mockComputeFingering = vi.fn();
+
 vi.mock('../../lib/fingering-engine', () => ({
   FingeringEngineService: vi.fn().mockImplementation(() => ({
-    computeFingering: vi.fn(),
+    computeFingering: mockComputeFingering,
     dispose: vi.fn(),
   })),
   DEFAULT_HAND_SETTINGS: { maxSpanSemitones: 14, scaleFactorLeft: 1.0 },
 }));
 
+function makeNote(overrides: Partial<Note> & Pick<Note, 'id' | 'midiNumber'>): Note {
+  return {
+    partId: 'P1',
+    measureNumber: 1,
+    noteIndex: 0,
+    pitch: { step: 'C', octave: 4 },
+    duration: 1,
+    startTick: 0,
+    durationTicks: 480,
+    startSeconds: 0,
+    durationSeconds: 0.5,
+    voice: 1,
+    isChord: false,
+    isRest: false,
+    staff: 1,
+    hand: 'right',
+    ...overrides,
+  };
+}
+
+function makeScore(): Score {
+  const note = makeNote({ id: 'P1-M1-N0', midiNumber: 60 });
+  return {
+    title: 'Test',
+    parts: [{ id: 'P1', name: 'Piano', hand: 'right', clef: 'treble' }],
+    measures: [{ number: 1, startTick: 0, notes: [note] }],
+    tempo: 120,
+    ticksPerQuarter: 480,
+    tempoMap: [{ tick: 0, bpm: 120 }],
+    timeSignature: { beats: 4, beatType: 4 },
+    keySignature: 0,
+    pedalSpans: [],
+  };
+}
+
 describe('QuickPanel', () => {
   beforeEach(() => {
+    mockComputeFingering.mockReset();
     usePracticeStore.setState({
       volume: 80,
       zoom: 1,
@@ -79,13 +121,15 @@ describe('QuickPanel', () => {
     expect(usePracticeStore.getState().metronomeAccentEnabled).toBe(false);
   });
 
-  it('forwards suggested fingerings from FingeringPanel to onFingeringSuggested', () => {
+  it('forwards suggested fingerings from FingeringPanel to onFingeringSuggested', async () => {
+    const assignments = [{ noteId: 'P1-M1-N0', finger: 1 as const, cost: 0 }];
+    mockComputeFingering.mockResolvedValue({ assignments, totalCost: 0 });
     const onFingeringSuggested = vi.fn();
-    render(<QuickPanel score={null} onFingeringSuggested={onFingeringSuggested} />);
-    // score が null の場合、運指提案ボタンは無効化されクリックしても
-    // computeFingering は呼ばれない（FingeringPanelの既存挙動）。
-    // ここではpropsが正しくFingeringPanelへ橋渡しされていることを型面で保証する。
-    expect(screen.getByText('運指提案')).toBeInTheDocument();
-    expect(onFingeringSuggested).not.toHaveBeenCalled();
+    render(<QuickPanel score={makeScore()} onFingeringSuggested={onFingeringSuggested} />);
+
+    fireEvent.click(screen.getByText('運指提案'));
+
+    await waitFor(() => expect(mockComputeFingering).toHaveBeenCalled());
+    await waitFor(() => expect(onFingeringSuggested).toHaveBeenCalledWith(assignments));
   });
 });

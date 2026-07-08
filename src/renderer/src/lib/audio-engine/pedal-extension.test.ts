@@ -112,4 +112,20 @@ describe('resolveEffectiveDurations (REQ-014-002/US-014 同音再打鍵の抑制
     expect(() => resolveEffectiveDurations([], [{ startTick: 0, endTick: 960 }])).not.toThrow();
     expect(resolveEffectiveDurations([], []).size).toBe(0);
   });
+
+  it('does not silence a same-tick same-pitch pair (e.g. both-hands unison): each note stays at or above its notated duration (CodeRabbit PR#28指摘#6)', () => {
+    // 両手ユニゾン等でstartTick・midiNumberが同一の2音が存在する場合、
+    // 従来実装では「次の同音のstartTick」が自分自身と同tickになり、
+    // effectiveEndTick - startTick = 0（無音）となっていた。
+    // 切り詰め後の実効リリースは記譜上の元のリリースtick（ペダル延長前）を
+    // 下回ってはならない。
+    const first = makeNote({ id: 'a', startTick: 0, durationTicks: 480, midiNumber: 60 });
+    const second = makeNote({ id: 'b', startTick: 0, durationTicks: 480, midiNumber: 60 });
+    const spans: PedalSpan[] = [{ startTick: 0, endTick: 960 }];
+
+    const result = resolveEffectiveDurations([first, second], spans);
+
+    expect(result.get(first)).toBeGreaterThanOrEqual(480);
+    expect(result.get(second)).toBeGreaterThanOrEqual(480);
+  });
 });

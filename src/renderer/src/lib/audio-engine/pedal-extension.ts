@@ -49,6 +49,12 @@ export function resolveEffectiveEndTick(
  *
  * 戻り値は入力の `Note` オブジェクト参照をキーとした `Map`。呼び出し側
  * （`loadScore`）は同一の配列を渡し、同一の参照でルックアップすること。
+ *
+ * 切り詰め後の実効リリースは記譜上の元のリリースtick（ペダル延長前の
+ * startTick + durationTicks）を下回らないようガードする。両手ユニゾン等で
+ * 同一startTick・同一midiNumberの音符が存在する場合、ソート順で隣接する
+ * 次の同音のstartTickが自分自身と同tickになり得るため、ガードなしでは
+ * 実効リリース差分が0になり無音化してしまう（CodeRabbit PR#28指摘#6）。
  */
 export function resolveEffectiveDurations(
   notes: readonly Note[],
@@ -69,8 +75,9 @@ export function resolveEffectiveDurations(
     sortedByStartTick.forEach((note, index) => {
       const extendedEndTick = resolveEffectiveEndTick(note, pedalSpans);
       const nextNote = sortedByStartTick[index + 1];
+      const notatedEndTick = note.startTick + note.durationTicks;
       const effectiveEndTick = nextNote
-        ? Math.min(extendedEndTick, nextNote.startTick)
+        ? Math.max(notatedEndTick, Math.min(extendedEndTick, nextNote.startTick))
         : extendedEndTick;
 
       result.set(note, effectiveEndTick - note.startTick);

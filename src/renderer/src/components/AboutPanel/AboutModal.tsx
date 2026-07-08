@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AboutPanel } from './index';
 
 export interface AboutModalProps {
@@ -13,10 +13,20 @@ export interface AboutModalProps {
  * クローズにも対応する（Popover.tsxのEscape購読パターンに倣う）。
  * documentへのイベントリスナー登録はuseEffect内で行い、cleanupで確実に解除する
  * （StrictModeのマウント→クリーンアップ→再マウントに耐える）。
+ *
+ * PR#28指摘対応（アクセシビリティ）: 開いた際にダイアログ要素自体（tabIndex=-1）へ
+ * 初期フォーカスを移動し、閉じた際は開く直前のdocument.activeElementへフォーカスを
+ * 復帰する。記憶した要素がDOMから消えている場合は何もしない。
  */
 export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!isOpen) return undefined;
+
+    previouslyFocusedElementRef.current = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
 
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') onClose();
@@ -25,6 +35,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocusedElementRef.current?.focus();
     };
   }, [isOpen, onClose]);
 
@@ -46,8 +57,11 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
+        aria-modal="true"
         aria-label="このアプリについて"
+        tabIndex={-1}
         style={{
           position: 'absolute',
           top: '50%',

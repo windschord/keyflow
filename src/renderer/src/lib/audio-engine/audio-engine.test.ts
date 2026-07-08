@@ -1336,6 +1336,56 @@ describe('AudioEngineService', () => {
       ).toBe(true);
     });
 
+    it('disposes the failed grand-piano Sampler pair when falling back to the synth preset (CodeRabbit PR#28指摘#5(a))', () => {
+      const onerrorHandlers = getSamplerOnerrorHandlers();
+      // @ts-expect-error private
+      const failedAccompaniment = service.accompanimentSynth;
+      // @ts-expect-error private
+      const failedPlaySynth = service.playSynth;
+
+      onerrorHandlers.forEach((onerror) => onerror(new Error('404 Not Found')));
+
+      expect(failedAccompaniment.dispose).toHaveBeenCalled();
+      expect(failedPlaySynth.dispose).toHaveBeenCalled();
+    });
+
+    it('setPlaybackVoiceを連続呼び出しした場合、最後に呼び出した音色が最終的に反映される（CodeRabbit PR#28指摘#5(b)）', async () => {
+      const staleOnerrorHandlers = getSamplerOnerrorHandlers();
+
+      await service.setPlaybackVoice('electric-piano');
+
+      // @ts-expect-error private
+      const currentAccompaniment = service.accompanimentSynth;
+      // @ts-expect-error private
+      const currentPlaySynth = service.playSynth;
+
+      // 先に発行した古い(grand-piano)世代のonerrorが後から届いても、
+      // 既に切り替わった最新の音色(electric-piano)を上書きしてはならない。
+      staleOnerrorHandlers.forEach((onerror) => onerror(new Error('stale 404')));
+
+      // @ts-expect-error private
+      expect(service.accompanimentSynth).toBe(currentAccompaniment);
+      // @ts-expect-error private
+      expect(service.playSynth).toBe(currentPlaySynth);
+    });
+
+    it('古い世代のonerrorフォールバックが生成した破棄済みインスタンスをリークさせない（CodeRabbit PR#28指摘#5(b)）', async () => {
+      const staleOnerrorHandlers = getSamplerOnerrorHandlers();
+
+      await service.setPlaybackVoice('electric-piano');
+
+      const polySynthCallsBefore = (Tone.PolySynth as unknown as Mock).mock.results.length;
+      staleOnerrorHandlers.forEach((onerror) => onerror(new Error('stale 404')));
+      const orphanedFallbackInstances = (Tone.PolySynth as unknown as Mock).mock.results
+        .slice(polySynthCallsBefore)
+        .map((r) => r.value as { dispose: Mock });
+
+      expect(orphanedFallbackInstances.length).toBeGreaterThan(0);
+      orphanedFallbackInstances.forEach((instance) => {
+        expect(instance.dispose).toHaveBeenCalled();
+      });
+    });
+
     describe('StrictMode resilience (selected playback voice retained across dispose()+reinit)', () => {
       it('retains grand-piano (the default voice) after dispose(): a fresh Tone.Sampler pair is (re)created and produces sound', () => {
         const samplerCallsBefore = (Tone.Sampler as unknown as Mock).mock.calls.length;

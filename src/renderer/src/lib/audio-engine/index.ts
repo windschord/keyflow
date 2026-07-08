@@ -85,6 +85,11 @@ export class AudioEngineService {
   // 選択中の音色を維持する（metronomeAccentEnabled等と同じStrictMode耐性設計）。
   private playbackVoiceId: PlaybackVoiceId = 'grand-piano';
   private voiceLoadingCallback: ((loading: boolean) => void) | null = null;
+  // CodeRabbit PR#28指摘#5(b): setPlaybackVoice連打時、古い世代のSamplerの
+  // onload/onerrorが後から届いても最新世代の状態を上書きしないための世代カウンタ。
+  // applyPlaybackVoice呼び出しごとにインクリメントし、非同期コールバック内で
+  // 自身の世代が最新かどうかを判定する。
+  private voiceGeneration = 0;
   // grand-piano（Tone.Sampler）のサンプルダウンロード完了、またはそれ以外の即時利用可な
   // 音色への切替完了で解決するPromise。ensurePlaybackVoiceLoaded()が参照する。
   private voiceReadyPromise: Promise<void> = Promise.resolve();
@@ -115,8 +120,16 @@ export class AudioEngineService {
    * `onload` が揃うまで解決しないPromiseを返す。ロード失敗時は
    * `synth` プリセットへフォールバックし、フォールバック完了をもって解決する
    * （ロード待ちPromiseを永久のpendingとしないための措置）。
+   *
+   * CodeRabbit PR#28指摘#5: `setPlaybackVoice`連打時、古い世代の`onload`/`onerror`が
+   * 後から届いても最新世代の状態を上書きしないよう、呼び出しごとに`voiceGeneration`を
+   * 採番し非同期コールバック内で世代を照合する。stale callbackが生成したインスタンスは
+   * 使わずdisposeする。また、フォールバック時はロードに失敗した現世代のSampler自体も
+   * disposeし、旧インスタンスの残留を防ぐ。
    */
   private applyPlaybackVoice(id: PlaybackVoiceId): Promise<void> {
+    const generation = ++this.voiceGeneration;
+    const isCurrentGeneration = (): boolean => generation === this.voiceGeneration;
     const definition = PLAYBACK_VOICES[id];
 
     if (!definition.requiresLoading) {
@@ -137,7 +150,9 @@ export class AudioEngineService {
     const finishLoading = (): void => {
       if (settled) return;
       settled = true;
-      this.voiceLoadingCallback?.(false);
+      if (isCurrentGeneration()) {
+        this.voiceLoadingCallback?.(false);
+      }
       resolveReady();
     };
 
@@ -152,19 +167,40 @@ export class AudioEngineService {
         '[AudioEngineService] Failed to load Salamander piano samples; falling back to the synth preset',
         error
       );
-      this.accompanimentSynth = createPlaybackInstrument('synth').toDestination();
-      this.playSynth = createPlaybackInstrument('synth').toDestination();
+
+      // ロードに失敗した（この世代の）grand-pianoペアはこの時点で不要になるため、
+      // 世代の新旧に関わらず必ずdisposeする（旧インスタンス残留防止、指摘#5(a)）。
+      accompanimentSynthInstance.dispose();
+      playSynthInstance.dispose();
+
+      const accompanimentFallback = createPlaybackInstrument('synth').toDestination();
+      const playFallback = createPlaybackInstrument('synth').toDestination();
+
+      if (isCurrentGeneration()) {
+        this.accompanimentSynth = accompanimentFallback;
+        this.playSynth = playFallback;
+      } else {
+        // 既に新しいsetPlaybackVoice呼び出しが走っている場合、このフォールバックは
+        // 最新状態を上書きしてはならない。生成したインスタンスは使わずdisposeする
+        // （指摘#5(b)）。
+        accompanimentFallback.dispose();
+        playFallback.dispose();
+      }
+
       finishLoading();
     };
 
-    this.accompanimentSynth = createPlaybackInstrument(id, {
+    const accompanimentSynthInstance = createPlaybackInstrument(id, {
       onload: markLoaded,
       onerror: fallbackToSynth,
     }).toDestination();
-    this.playSynth = createPlaybackInstrument(id, {
+    const playSynthInstance = createPlaybackInstrument(id, {
       onload: markLoaded,
       onerror: fallbackToSynth,
     }).toDestination();
+
+    this.accompanimentSynth = accompanimentSynthInstance;
+    this.playSynth = playSynthInstance;
 
     return ready;
   }

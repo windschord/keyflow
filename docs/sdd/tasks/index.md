@@ -338,6 +338,7 @@
 | TASK-081 | [BugFix] 和音を含む譜面でグレーアウトが残留・累積する問題の修正 | REVIEW | - | 40min | [詳細](phase-15/TASK-081.md) @phase-15/TASK-081.md |
 | TASK-082 | Aboutを設定画面から分離しメニューバーから開く独立モーダルへ | REVIEW | TASK-076 | 50min | [詳細](phase-15/TASK-082.md) @phase-15/TASK-082.md |
 | TASK-083 | アプリ名をリポジトリ名「keyflow」へ統一 | REVIEW | TASK-082 | 40min | [詳細](phase-15/TASK-083.md) @phase-15/TASK-083.md |
+| TASK-084 | [BugFix] パッケージ版でメインウィンドウが表示されない問題の修正 | REVIEW | TASK-080, TASK-083 | 50min | [詳細](phase-15/TASK-084.md) @phase-15/TASK-084.md |
 
 ---
 

@@ -340,6 +340,17 @@
 | TASK-083 | アプリ名をリポジトリ名「keyflow」へ統一 | REVIEW | TASK-082 | 40min | [詳細](phase-15/TASK-083.md) @phase-15/TASK-083.md |
 | TASK-084 | [BugFix] パッケージ版でメインウィンドウが表示されない問題の修正 | REVIEW | TASK-080, TASK-083 | 50min | [詳細](phase-15/TASK-084.md) @phase-15/TASK-084.md |
 
+### Phase 16: リリース自動化（2026-07-09）
+*推定期間: 40min*
+
+> リリースワークフロー（`.github/workflows/release.yml`）のmacOS対応。TASK-035で整備した
+> `build:mac` をCIへ組み込み、タグpush時にWindows/macOS両方の成果物を単一のGitHub Releaseへ
+> 添付する。作業ブランチ: `feature/task-085-mac-release-ci`
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-085 | リリースワークフローへのmacOSビルドジョブ追加 | REVIEW | TASK-035 | 40min | [詳細](phase-16/TASK-085.md) @phase-16/TASK-085.md |
+
 ---
 
 ## リスクと軽減策

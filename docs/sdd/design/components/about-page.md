@@ -43,6 +43,9 @@ interface LicenseEntry {
 ### 配置（分類基準: 一度決めたら変えないもの）
 
 - `SettingsModal` に「このアプリについて」セクションを追加し、その中に `AboutPanel` を表示する
+- TASK-082でAboutを設定モーダルから分離し、メニューバー経由の独立モーダル`AboutModal`から表示する方式へ変更した。
+  Main側の`menu.ts`が`menu:open-about`（Main→Renderer）を送信し、preloadの`electronAPI.menu.onOpenAbout`が
+  これを購読する。この購読APIは受信専用でありrenderer→mainの送信機能は持たない
 
 ```
 src/renderer/src/components/AboutPanel/

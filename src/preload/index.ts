@@ -38,6 +38,7 @@ if (process.contextIsolated) {
           ipcRenderer.invoke('settings:get-recent-files'),
       },
       // TASK-082: アプリケーションメニューの「About」項目クリック（Main→Renderer）を購読するAPI。
+      // renderer→mainへの送信機能は持たない受信専用の購読APIである。
       menu: {
         onOpenAbout: (callback: () => void): (() => void) => {
           const handler = (): void => callback();
@@ -76,6 +77,7 @@ if (process.contextIsolated) {
       getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
         ipcRenderer.invoke('settings:get-recent-files'),
     },
+    // renderer→mainへの送信機能は持たない受信専用の購読API（TASK-082）。
     menu: {
       onOpenAbout: (callback: () => void): (() => void) => {
         const handler = (): void => callback();

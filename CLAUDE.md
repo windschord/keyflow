@@ -63,7 +63,9 @@ src/
 │   ├── window-options.ts  # BrowserWindowのtitle/iconオプション生成（プラットフォーム分岐、REQ-011）
 │   └── path-allowlist.ts  # ファイル書き込み許可パスの検証
 ├── preload/
-│   └── index.ts           # contextBridge 定義（file/settings系APIのみ公開。MIDI関連IPCは公開していない）
+│   └── index.ts           # contextBridge 定義（file/settings/menu系APIを公開。menuはMain→Rendererの
+│                                #   受信専用購読のみでrenderer→mainの送信機能を持たない、TASK-082。
+│                                #   MIDI関連IPCは公開していない）
 └── renderer/
     └── src/
         ├── lib/

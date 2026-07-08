@@ -95,15 +95,18 @@ function createGrandPiano(options: CreatePlaybackInstrumentOptions): PlaybackIns
 }
 
 function createElectricPiano(): PlaybackInstrument {
-  // Tone.PolySynth<FMSynth>はPlaybackInstrument（既定型引数Synthのunion）と
-  // ジェネリック型引数が不変のため直接代入できない。triggerAttackRelease/dispose/
-  // toDestinationの実シグネチャはSynth版と同一であり実害がないためunknown経由でキャストする。
-  return new Tone.PolySynth(Tone.FMSynth, {
+  // Tone.PolySynth<FMSynth>はtriggerAttackRelease/dispose/toDestinationの
+  // シグネチャがPlaybackInstrumentのPolySynth側と構造的に一致する。
+  // 変数へ代入する形にすればキャストなしで型チェックを通過するため、
+  // 従来の`as unknown as PlaybackInstrument`という二重キャストは不要だった
+  // （CodeRabbit PR#28指摘#7、プロジェクト規約の二重キャスト禁止に対応）。
+  const instrument: PlaybackInstrument = new Tone.PolySynth(Tone.FMSynth, {
     harmonicity: 3.01,
     modulationIndex: 14,
     envelope: { attack: 0.001, decay: 2, sustain: 0.1, release: 0.5 },
     modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 },
-  }) as unknown as PlaybackInstrument;
+  });
+  return instrument;
 }
 
 function createOrgan(): PlaybackInstrument {

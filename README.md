@@ -89,6 +89,11 @@ npm run typecheck     # TypeScript型チェック
 （Electronの既知の制約）。正式な見た目（アプリ名・全アイコン）は`npm run build:mac`等の
 パッケージビルド版で確認すること。
 
+### リリース前チェック（TASK-084）
+
+macOS向けリリース前は`npm run build:mac`でパッケージビルドした後、実バイナリの
+起動スモークテスト`npm run test:packaged`を実行し、メインウィンドウが表示されることを確認する。
+
 ---
 
 ## ドキュメント

@@ -32,6 +32,7 @@
     "pretest:coverage": "npm run generate:licenses",
     "test:coverage": "vitest run --coverage --passWithNoTests",
     "test:e2e": "npm run build && playwright test",
+    "test:packaged": "node scripts/smoke-packaged-app.mjs",
     "playwright:install": "playwright install chromium",
     "postinstall": "node node_modules/electron/install.js"
   },

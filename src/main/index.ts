@@ -53,25 +53,6 @@ app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
 
-  // TASK-080: 開発モードでもmacOSのDockアイコンを独自アイコンへ差し替える
-  // （パッケージ版はicon.icnsが自動適用されるため常時呼んでも害はない）。
-  applyDockIcon({ platform: process.platform, dock: app.dock, iconPath: icon });
-
-  // TASK-082: アプリケーションメニューを設定する。カスタムメニューはElectronの
-  // 既定メニュー（コピー/ペースト等の標準ロールを含む）を丸ごと置き換えるため、
-  // createApplicationMenuTemplate内で標準ロールを再現している。
-  const applicationMenu = Menu.buildFromTemplate(
-    createApplicationMenuTemplate({
-      platform: process.platform,
-      appTitle: APP_TITLE,
-      onOpenAbout: () => {
-        const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-        targetWindow?.webContents.send('menu:open-about');
-      },
-    })
-  );
-  Menu.setApplicationMenu(applicationMenu);
-
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
@@ -207,6 +188,30 @@ app.whenReady().then(() => {
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+
+  // TASK-084: 装飾的な処理（Dockアイコン・メニュー）はウィンドウ生成とIPCハンドラ登録より
+  // 後に呼ぶ。ここで例外が発生してもメインウィンドウの表示を道連れにせず起動を継続する構成とする
+  // （詳細はdocs/sdd/troubleshooting/2026-07-08-packaged-no-window/analysis.md）。
+  if (is.dev) {
+    // TASK-080: 開発モードのみDockアイコンを独自アイコンへ差し替える
+    // （パッケージ版はicon.icnsが自動適用されるため不要）。
+    applyDockIcon({ platform: process.platform, dock: app.dock, iconPath: icon });
+  }
+
+  // TASK-082: アプリケーションメニューを設定する。カスタムメニューはElectronの
+  // 既定メニュー（コピー/ペースト等の標準ロールを含む）を丸ごと置き換えるため、
+  // createApplicationMenuTemplate内で標準ロールを再現している。
+  const applicationMenu = Menu.buildFromTemplate(
+    createApplicationMenuTemplate({
+      platform: process.platform,
+      appTitle: APP_TITLE,
+      onOpenAbout: () => {
+        const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+        targetWindow?.webContents.send('menu:open-about');
+      },
+    })
+  );
+  Menu.setApplicationMenu(applicationMenu);
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

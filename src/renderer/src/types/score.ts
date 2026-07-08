@@ -11,6 +11,19 @@ export interface Score {
   tempoMap: TempoEvent[];
   timeSignature: { beats: number; beatType: number };
   keySignature: number;
+  /** ダンパーペダル区間（tick昇順、互いに重複しない）。ペダルなしの楽曲は空配列。 */
+  pedalSpans: PedalSpan[];
+}
+
+/**
+ * MusicXMLの `<direction><direction-type><pedal>` に由来するダンパーペダル区間（TASK-069）。
+ * `change` は「直前区間の終了 = 新区間の開始」として2区間に分割表現する。
+ */
+export interface PedalSpan {
+  /** ペダルON（start / changeの踏み直し）の絶対tick */
+  startTick: number;
+  /** ペダルOFF（stop / 次のchange / 曲末尾）の絶対tick */
+  endTick: number;
 }
 
 export interface Part {

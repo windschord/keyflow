@@ -80,6 +80,33 @@
 | REQ-010-008 | △ | setLoopPointsユニット+結線。実ループは代理指標 |
 | REQ-010-009 | ○ | audio-engine.test（setMasterVolumeのdB変換・ミュート・境界値）+ ui-slice.test（volume/setVolumeクランプ）+ VolumeControl.test（スライダー操作・ラベル・ツールチップ・electron-store永続化）+ usePractice.test（store→audioEngine同期）+ App.test（起動時ロード）。TASK-052で対応済み |
 | REQ-010-010 | ○ | audio-engine.test（loadScoreがpracticeMode='left'/'right'/'both'でスケジュール対象ノーツをNote.hand基準に絞り込むことを検証、カーソル連動スケジュールはpracticeModeに関わらず不変であることも検証）+ usePractice.test（score/practiceMode変更時にaudioEngine.loadScoreを再スケジュールし、再生中の変更は停止することを検証）。TASK-051で対応済み |
+| REQ-011-001 | ○ | branding.test（index.htmlの`<title>`）+ window-options.test（BrowserWindowのtitle、プラットフォーム問わず）+ E2E（`window.title()`が実バイナリで一致することを検証）。TASK-068で対応済み |
+| REQ-011-002 | ○ | branding.test（`resources/icon.png`生成・サイズ>0）+ window-options.test（win32/linuxでiconオプション設定、darwinは非設定＝パッケージ版のicon.icns適用に委譲）。実機でのタスクバー/Dock表示の目視確認は本タスク（TASK-077）の`build:mac`成果物で`icon.icns`同梱を確認したが、実際のDock表示の目視はユーザー実機確認待ち |
+| REQ-011-003 | ○ | branding.test（`build/icon.icns`/`build/icon.ico`の生成・サイズ>0）+ TASK-077で`npm run build:mac`実行しicon.icnsがapp.asar外の`Contents/Resources/icon.icns`として実際に同梱されることを確認。Windows向け`build:win`はWindows環境がないため`icon.ico`のファイル存在確認までが対象（設計判断としてTASK-077記載済み） |
+| REQ-012-001 | ○ | Header.test（bounding box高さ56px以下）+ E2E（実バイナリでのapp-header高さ検証、TASK-075） |
+| REQ-012-002 | ○ | Header.test（QuickPanelが「...」ボタン1クリックで開閉）+ E2E（QuickPanel経由の音量・ズーム操作） |
+| REQ-012-003 | ○ | Popover.test（outside mousedown/Escapeで閉じる、内側クリック・anchor要素クリックでは閉じない、リスナーリークなし）+ Header.test（QuickPanel文脈での同挙動） |
+| REQ-012-004 | ○ | QuickPanel.test（音量・ズーム・運指・メトロノーム・成績の全セクションが既存コンポーネントの再利用で表示）+ Header.test（頻用操作の常時表示）+ E2E（開く→再生→ループ→音量→運指提案の一連操作） |
+| REQ-012-005 | △ | Header.test/E2Eはヘッダーが56px以下であることのみ検証。「現状より拡大」という旧構成との相対比較の自動検証はなし。TASK-075受入基準の実起動確認（開発モードStrictMode有効）で譜面表示領域拡大を目視確認済みだが、E2Eでの定量的な前後比較はしていない |
+| REQ-012-006 | ○ | Header.test（playbackState='playing'中はテンポスライダー・数値入力・リセットボタンがdisabled、メトロノーム系は操作可能） |
+| REQ-014-001 | ○ | parser.test（`<pedal type="start/stop/change">`の解析、pedalSpans生成、区間分割、ペダルなし楽曲でのpedalSpans空配列、既存フィクスチャ非回帰） |
+| REQ-014-002 | ○ | pedal-extension.test（resolveEffectiveEndTick/resolveEffectiveDurations、境界値・同音再打鍵での切り詰め）+ audio-engine.test（Tone.Partイベントのduration延長結線） |
+| REQ-014-003 | ○ | parser.test（`change`による区間分割）+ pedal-extension.test（複数区間にまたがる延長・切り詰めロジック） |
+| REQ-014-004 | ○ | pedal-extension.test（pedalSpansなし時は記譜どおりのdurationを維持、non-regression）+ parser.test（既存フィクスチャのパース結果がpedalSpans追加以外不変）+ audio-engine.test（non-regression） |
+| REQ-014-005 | ○ | audio-engine.test（stop/pause/ループ折り返し時に`accompanimentSynth.releaseAll()`が呼ばれることを検証）。ただし「実際に音が残留しないこと」の聴感確認はTASK-070の実起動確認項目が未実施のまま残っており、ユーザー実機確認待ち |
+| REQ-013-001 | ○ | voices.test（PLAYBACK_VOICES 4種のid・requiresLoading・ラベル、各idごとのTone.Sampler/PolySynth生成）。TASK-071で対応済み |
+| REQ-013-002 | ○ | audio-engine.test（setPlaybackVoiceが旧Sampler/PolySynthをdisposeし新音色へ差し替え、loadScore済みTone.Partの再スケジュールなしで次発音から反映されることを検証）。TASK-071で対応済み |
+| REQ-013-003 | ○ | audio-engine.test（ensurePlaybackVoiceLoadedがSampler onload/onerrorに応じて解決、synth系音色は即時解決、setVoiceLoadingCallbackのtrue/false通知）+ usePractice.test（store.playbackVoice→setPlaybackVoice結線、setVoiceLoadingCallback→ui-slice.voiceLoading結線）+ PlaybackControls.test（voiceLoading中は再生ボタン無効化・「読込中...」表示、audioEngine.playAccompaniment()の解決を待ってからplaybackStateを'playing'にする）+ App.test（playbackAudioEngineラッパーがensurePlaybackVoiceLoadedを内包）。TASK-073で対応済み |
+| REQ-013-004 | ○ | metronome-voices.test（METRONOME_VOICES 4種のid・ラベル、各idごとのTone.Synth/MembraneSynth/MetalSynth生成）+ audio-engine.test（setMetronomeVoiceの差し替え結線）。TASK-072で対応済み |
+| REQ-013-005 | ○ | metronome-voices.test（各音色のtrigger(time, accent, velocity)がアクセント有無で音高・音量を書き分けることを検証）。TASK-072で対応済み |
+| REQ-013-006 | ○ | settings.test（DEFAULT_SETTINGS.audioの既定値、audioキー不在の既存設定ファイルへの後方互換マージ、settings:set/get往復）+ SettingsModal.test（音色selectの変更がui-slice即時反映＋settings:set永続化に到達、保存失敗時ロールバック）+ App.test（起動時にaudio.playbackVoice/metronomeVoiceをAudioEngineへ適用、キー欠落時は既定値維持）+ usePractice.test（store→audioEngine.setPlaybackVoice/setMetronomeVoice結線）。TASK-073で対応済み。「音色変更→アプリ再起動で選択が復元される」という実機での往復確認（electron-storeの実ファイル永続化を挟む）はユニット・結線レベルの検証にとどまり、TASK-077でも自動化しておらず、ユーザー実機確認待ち |
+| REQ-013-007 | ○ | voices.test（import.meta.globで解決したSalamanderサンプルURLがシャープ表記ノート名へ正規化されることを検証） |
+| REQ-013-008 | ○ | README（同梱音源クレジット節）+ AboutPanel.test（Salamander/Alexander Holm/CC-BY 3.0表示）+ credits.ts静的定義。TASK-076で対応済み |
+| REQ-015-001 | ○ | AboutPanel.test（アプリ名・`__APP_VERSION__`・Apache License 2.0表示）+ E2E（実バイナリで設定モーダル→Aboutセクションのバージョン表示`v{package.jsonのversion}`とApache License 2.0リンクを検証、TASK-077で追加） |
+| REQ-015-002 | ○ | AboutPanel.test（licenses.json由来のライブラリ一覧表示、モックで決定的に検証）+ generate-licenses.test（実データ生成のユニット検証）。TASK-076で対応済み |
+| REQ-015-003 | ○ | AboutPanel.test（Salamander/Alexander Holm/CC-BY 3.0表示）+ credits.ts + E2E（実バイナリでSalamanderクレジット文言の表示を検証、TASK-077で追加）。TASK-076で対応済み |
+| REQ-015-004 | ○ | generate-licenses.test（dependencies全件収集・devDependencies除外・LICENSE本文取得・SPDXフォールバック）+ 実行確認（licenses.json未生成状態からのnpm run dev/buildでpredev/prebuildフックが再生成することを確認）。TASK-076で対応済み |
+| REQ-015-005 | ○ | AboutPanel.test（ライブラリ行クリックでlicenseTextが展開・再クリックで折りたたみ）。TASK-076で対応済み |
 
 ## 運用ルール
 

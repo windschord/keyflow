@@ -2,6 +2,14 @@ import * as Tone from 'tone';
 import { Score, PracticeMode } from '../../types';
 import { Metronome } from './metronome';
 import { groupNotesByStartTick, filterNotesByPracticeMode } from '../practice-engine/note-grouping';
+import {
+  createPlaybackInstrument,
+  PLAYBACK_VOICES,
+  type PlaybackVoiceId,
+  type PlaybackInstrument,
+} from './voices';
+import type { MetronomeVoiceId } from './metronome-voices';
+import { resolveEffectiveDurations } from './pedal-extension';
 
 /** 再生位置（判定グループ単位）が進むたびに呼ばれるコールバック。 */
 export type PositionChangeCallback = (measureNumber: number, groupIndex: number) => void;
@@ -33,15 +41,20 @@ interface NoteBoundaryEvent {
  * `ensureInitialized()` が自動的に再初期化する。
  */
 export class AudioEngineService {
-  private accompanimentSynth!: Tone.PolySynth;
+  private accompanimentSynth!: PlaybackInstrument;
   private clickSynth!: Tone.Synth;
-  private playSynth!: Tone.PolySynth;
+  private playSynth!: PlaybackInstrument;
   private metronome!: Metronome;
 
   private initialized = false;
 
   private scorePart: Tone.Part | null = null;
   private positionEventIds: number[] = [];
+
+  // TASK-070: ループ折り返し（loopEnd）でaccompanimentSynth.releaseAll()を呼ぶ
+  // Transport.scheduleのID（REQ-014-005）。スコア差し替え・ループ再設定のたびに
+  // クリアしてから必要なら再登録する。
+  private loopReleaseEventId: number | null = null;
 
   // TASK-057: 発音中ノーツ（durationTicks満了までキーボード表示を継続させる
   // ための派生状態）。判定グループ（同一startTick）単位で入れ替わる
@@ -64,6 +77,22 @@ export class AudioEngineService {
   // Metronome再生成後にも再適用する（accentEnabled等と同じStrictMode耐性設計）。
   private metronomeBpm = 120;
   private metronomeBeatsPerMeasure = 4;
+  // TASK-072: メトロノーム音色の希望状態。dispose()でのMetronome再生成後にも
+  // 選択中の音色を維持する（metronomeAccentEnabled等と同じStrictMode耐性設計）。
+  private metronomeVoiceId: MetronomeVoiceId = 'click';
+
+  // TASK-071: 再生音色（伴奏・手動プレビュー共通）の希望状態。dispose()での再生成後にも
+  // 選択中の音色を維持する（metronomeAccentEnabled等と同じStrictMode耐性設計）。
+  private playbackVoiceId: PlaybackVoiceId = 'grand-piano';
+  private voiceLoadingCallback: ((loading: boolean) => void) | null = null;
+  // CodeRabbit PR#28指摘#5(b): setPlaybackVoice連打時、古い世代のSamplerの
+  // onload/onerrorが後から届いても最新世代の状態を上書きしないための世代カウンタ。
+  // applyPlaybackVoice呼び出しごとにインクリメントし、非同期コールバック内で
+  // 自身の世代が最新かどうかを判定する。
+  private voiceGeneration = 0;
+  // grand-piano（Tone.Sampler）のサンプルダウンロード完了、またはそれ以外の即時利用可な
+  // 音色への切替完了で解決するPromise。ensurePlaybackVoiceLoaded()が参照する。
+  private voiceReadyPromise: Promise<void> = Promise.resolve();
 
   constructor() {
     this.ensureInitialized();
@@ -73,15 +102,140 @@ export class AudioEngineService {
   private ensureInitialized(): void {
     if (this.initialized) return;
 
-    this.accompanimentSynth = new Tone.PolySynth(Tone.Synth).toDestination();
     this.clickSynth = new Tone.Synth().toDestination();
-    this.playSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+    this.voiceReadyPromise = this.applyPlaybackVoice(this.playbackVoiceId);
     this.metronome = new Metronome();
     this.metronome.setAccentEnabled(this.metronomeAccentEnabled);
     this.metronome.setMeasureStartTicks(this.measureStartTicks);
     this.metronome.setBpm(this.metronomeBpm);
     this.metronome.setBeatsPerMeasure(this.metronomeBeatsPerMeasure);
+    this.metronome.setVoice(this.metronomeVoiceId);
     this.initialized = true;
+  }
+
+  /**
+   * 再生音色（伴奏・手動プレビューの両方）を生成し、`accompanimentSynth` /
+   * `playSynth` へ割り当てる（TASK-071）。`grand-piano`（Tone.Sampler）は
+   * ネットワークからのサンプルダウンロードを伴うため、両インスタンスの
+   * `onload` が揃うまで解決しないPromiseを返す。ロード失敗時は
+   * `synth` プリセットへフォールバックし、フォールバック完了をもって解決する
+   * （ロード待ちPromiseを永久のpendingとしないための措置）。
+   *
+   * CodeRabbit PR#28指摘#5: `setPlaybackVoice`連打時、古い世代の`onload`/`onerror`が
+   * 後から届いても最新世代の状態を上書きしないよう、呼び出しごとに`voiceGeneration`を
+   * 採番し非同期コールバック内で世代を照合する。stale callbackが生成したインスタンスは
+   * 使わずdisposeする。また、フォールバック時はロードに失敗した現世代のSampler自体も
+   * disposeし、旧インスタンスの残留を防ぐ。
+   */
+  private applyPlaybackVoice(id: PlaybackVoiceId): Promise<void> {
+    const generation = ++this.voiceGeneration;
+    const isCurrentGeneration = (): boolean => generation === this.voiceGeneration;
+    const definition = PLAYBACK_VOICES[id];
+
+    if (!definition.requiresLoading) {
+      this.accompanimentSynth = createPlaybackInstrument(id).toDestination();
+      this.playSynth = createPlaybackInstrument(id).toDestination();
+      return Promise.resolve();
+    }
+
+    this.voiceLoadingCallback?.(true);
+
+    let settled = false;
+    let loadedCount = 0;
+    let resolveReady!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      resolveReady = resolve;
+    });
+
+    const finishLoading = (): void => {
+      if (settled) return;
+      settled = true;
+      if (isCurrentGeneration()) {
+        this.voiceLoadingCallback?.(false);
+      }
+      resolveReady();
+    };
+
+    const markLoaded = (): void => {
+      loadedCount += 1;
+      if (loadedCount >= 2) finishLoading();
+    };
+
+    const fallbackToSynth = (error: Error): void => {
+      if (settled) return;
+      console.error(
+        '[AudioEngineService] Failed to load Salamander piano samples; falling back to the synth preset',
+        error
+      );
+
+      // ロードに失敗した（この世代の）grand-pianoペアはこの時点で不要になるため、
+      // 世代の新旧に関わらず必ずdisposeする（旧インスタンス残留防止、指摘#5(a)）。
+      accompanimentSynthInstance.dispose();
+      playSynthInstance.dispose();
+
+      const accompanimentFallback = createPlaybackInstrument('synth').toDestination();
+      const playFallback = createPlaybackInstrument('synth').toDestination();
+
+      if (isCurrentGeneration()) {
+        this.accompanimentSynth = accompanimentFallback;
+        this.playSynth = playFallback;
+      } else {
+        // 既に新しいsetPlaybackVoice呼び出しが走っている場合、このフォールバックは
+        // 最新状態を上書きしてはならない。生成したインスタンスは使わずdisposeする
+        // （指摘#5(b)）。
+        accompanimentFallback.dispose();
+        playFallback.dispose();
+      }
+
+      finishLoading();
+    };
+
+    const accompanimentSynthInstance = createPlaybackInstrument(id, {
+      onload: markLoaded,
+      onerror: fallbackToSynth,
+    }).toDestination();
+    const playSynthInstance = createPlaybackInstrument(id, {
+      onload: markLoaded,
+      onerror: fallbackToSynth,
+    }).toDestination();
+
+    this.accompanimentSynth = accompanimentSynthInstance;
+    this.playSynth = playSynthInstance;
+
+    return ready;
+  }
+
+  /**
+   * 再生音色を切り替える（TASK-071、REQ-013-001/002）。現在のインスタンスを
+   * disposeしたうえで新しい音色を生成し、`accompanimentSynth` / `playSynth` を
+   * 差し替える。`loadScore` 済みの `Tone.Part` はコールバック内で
+   * `this.accompanimentSynth` を都度参照するため、再スケジュールは不要
+   * （次の発音から新音色が反映される）。`grand-piano` へ切り替えた場合は
+   * サンプルのロード完了まで返り値のPromiseがpendingになる。
+   */
+  setPlaybackVoice(id: PlaybackVoiceId): Promise<void> {
+    this.ensureInitialized();
+    this.playbackVoiceId = id;
+
+    this.accompanimentSynth.dispose();
+    this.playSynth.dispose();
+
+    this.voiceReadyPromise = this.applyPlaybackVoice(id);
+    return this.voiceReadyPromise;
+  }
+
+  /**
+   * 現在選択中の再生音色が発音可能になるまで待つ（REQ-013-003）。
+   * ロード済み・ロード不要な音色の場合は即座に解決する。
+   */
+  ensurePlaybackVoiceLoaded(): Promise<void> {
+    this.ensureInitialized();
+    return this.voiceReadyPromise;
+  }
+
+  /** 再生音色のロード状態（true=ロード中）の変化を購読する（UIのローディング表示用）。 */
+  setVoiceLoadingCallback(callback: ((loading: boolean) => void) | null): void {
+    this.voiceLoadingCallback = callback;
   }
 
   /** 判定グループ進行時のコールバックを登録する（カーソル連動、REQ-010-005）。 */
@@ -121,6 +275,13 @@ export class AudioEngineService {
     this.ensureInitialized();
     this.metronomeAccentEnabled = enabled;
     this.metronome.setAccentEnabled(enabled);
+  }
+
+  /** メトロノーム音色を切り替える（即時反映、TASK-072、REQ-013-004）。 */
+  setMetronomeVoice(id: MetronomeVoiceId): void {
+    this.ensureInitialized();
+    this.metronomeVoiceId = id;
+    this.metronome.setVoice(id);
   }
 
   /**
@@ -182,6 +343,10 @@ export class AudioEngineService {
     this.clearPositionEvents();
     this.clearSoundingNoteEvents();
     this.resetSoundingNotes();
+    // TASK-070: 旧スコアのloopEnd tickに基づくreleaseAllスケジュールは
+    // 新スコアのタイムラインでは無意味になるため、差し替え時にクリアする
+    // （setLoopPointsが呼ばれていなければ何もしない）。
+    this.clearLoopReleaseEvent();
 
     Tone.getTransport().PPQ = score.ticksPerQuarter;
 
@@ -208,15 +373,29 @@ export class AudioEngineService {
       boundaryEvents.set(tick, entry);
     };
 
-    score.measures.forEach((measure) => {
+    // TASK-070: 実際にスケジュールされるノーツ（practiceMode適用後）全体を対象に、
+    // ペダル延長・同音再打鍵の切り詰めを静的に解決する（US-014、REQ-014-002）。
+    // 小節をまたぐ同音の切り詰め判定のため、小節単位ではなくスコア全体で計算する。
+    const measureScheduledNotes = score.measures.map((measure) => {
       const soundingNotes = measure.notes.filter((note) => !note.isRest);
       const scheduledNotes = filterNotesByPracticeMode(soundingNotes, practiceMode);
+      return { measure, scheduledNotes };
+    });
+    const effectiveDurations = resolveEffectiveDurations(
+      measureScheduledNotes.flatMap(({ scheduledNotes }) => scheduledNotes),
+      score.pedalSpans
+    );
+
+    measureScheduledNotes.forEach(({ measure, scheduledNotes }) => {
       scheduledNotes.forEach((note) => {
         events.push({
           time: `${note.startTick}i`,
           note: Tone.Frequency(note.midiNumber, 'midi').toNote(),
-          duration: `${note.durationTicks}i`,
+          duration: `${effectiveDurations.get(note) ?? note.durationTicks}i`,
         });
+        // NOTE: 発音境界（鍵盤ハイライト用）と判定グループは記譜上の音価
+        // （note.durationTicks）のまま変更しない（US-014データ要件、鍵盤ガイドは
+        // 記譜基準）。ペダル延長はTone.Partへ渡す発音長にのみ反映する。
         registerBoundary(note.startTick, 'starts', note.midiNumber);
         registerBoundary(note.startTick + note.durationTicks, 'ends', note.midiNumber);
       });
@@ -261,6 +440,9 @@ export class AudioEngineService {
   setLoopPoints(score: Score | null, enabled: boolean, loopStart: number, loopEnd: number): void {
     this.ensureInitialized();
     const transport = Tone.getTransport();
+    // TASK-070: 前回のループ設定に紐づくreleaseAllスケジュールは、範囲変更・無効化の
+    // いずれでも無効になるため、再設定前に必ずクリアする。
+    this.clearLoopReleaseEvent();
 
     if (!enabled || !score) {
       transport.loop = false;
@@ -276,6 +458,21 @@ export class AudioEngineService {
     const endTick = this.resolveLoopEndTick(score, loopEnd);
     transport.setLoopPoints(`${startMeasure.startTick}i`, `${endTick}i`);
     transport.loop = true;
+
+    // TASK-070: ループ折り返し時、Tone.Partのイベントはループ境界で
+    // triggerAttackReleaseのreleaseが範囲外になり得るため、loopEnd到達時に
+    // 明示的にreleaseAll()を呼び延長中ノーツの残留を防ぐ（REQ-014-005）。
+    this.loopReleaseEventId = transport.schedule(() => {
+      this.accompanimentSynth.releaseAll();
+    }, `${endTick}i`);
+  }
+
+  /** TASK-070: ループ折り返しのreleaseAllスケジュールを解除する（スコア差し替え・ループ再設定時）。 */
+  private clearLoopReleaseEvent(): void {
+    if (this.loopReleaseEventId !== null) {
+      Tone.getTransport().clear(this.loopReleaseEventId);
+      this.loopReleaseEventId = null;
+    }
   }
 
   /** `loopEnd`小節（inclusive）の終端tickを解決する。次小節の頭、もしくは終端音符から算出する。 */
@@ -321,6 +518,8 @@ export class AudioEngineService {
     this.ensureInitialized();
     Tone.getTransport().stop();
     this.resetSoundingNotes();
+    // TASK-070: ペダル延長中のノーツが停止後も残留しないよう解放する（REQ-014-005）。
+    this.accompanimentSynth.releaseAll();
     // TASK-066: 停止時、メトロノームが有効なら独立クロックへ戻す
     // （REQ-006-009）。
     this.metronome.setTransportRunning(false);
@@ -331,6 +530,8 @@ export class AudioEngineService {
     this.ensureInitialized();
     Tone.getTransport().pause();
     this.resetSoundingNotes();
+    // TASK-070: ペダル延長中のノーツが一時停止後も残留しないよう解放する（REQ-014-005）。
+    this.accompanimentSynth.releaseAll();
     // TASK-066: 一時停止時、メトロノームが有効なら独立クロックへ戻す
     // （REQ-006-009）。
     this.metronome.setTransportRunning(false);
@@ -397,6 +598,7 @@ export class AudioEngineService {
     this.disposeScorePart();
     this.clearPositionEvents();
     this.clearSoundingNoteEvents();
+    this.clearLoopReleaseEvent();
     this.currentSoundingNotes = new Set();
 
     this.initialized = false;

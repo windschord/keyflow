@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { AppSettings, ErrorMode } from '../../types';
 import { usePracticeStore } from '../../store';
 import type { WebMidiService } from '../../lib/midi/web-midi';
+import { PLAYBACK_VOICES } from '../../lib/audio-engine/voices';
+import { METRONOME_VOICES } from '../../lib/audio-engine/metronome-voices';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -15,7 +17,7 @@ interface SettingsModalProps {
   webMidiService?: Pick<WebMidiService, 'getDevices'>;
 }
 
-type SettingsModalState = Pick<AppSettings, 'ui' | 'practice' | 'midi'>;
+type SettingsModalState = Pick<AppSettings, 'ui' | 'practice' | 'midi' | 'audio'>;
 
 const DEFAULT_SETTINGS: SettingsModalState = {
   ui: {
@@ -29,6 +31,7 @@ const DEFAULT_SETTINGS: SettingsModalState = {
   },
   practice: { defaultErrorMode: 'wait', metronomeEnabled: false, metronomeAccentEnabled: true },
   midi: { selectedDeviceId: null, selectedDeviceIndex: 0 },
+  audio: { playbackVoice: 'grand-piano', metronomeVoice: 'click' },
 };
 
 // 鍵盤数プリセットの選択肢（TASK-056）。key-layout.tsのKEYBOARD_PRESETSと
@@ -70,6 +73,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           const ui = await window.electronAPI.settings.get('ui');
           const practice = await window.electronAPI.settings.get('practice');
           const midi = await window.electronAPI.settings.get('midi');
+          const audio = await window.electronAPI.settings.get('audio');
           const files = await window.electronAPI.settings.getRecentFiles();
 
           // PR #27 CodeRabbit指摘: electron-storeはネストオブジェクトを深くマージしない。
@@ -83,6 +87,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             ui: { ...DEFAULT_SETTINGS.ui, ...(ui || {}) },
             practice: { ...DEFAULT_SETTINGS.practice, ...(practice || {}) },
             midi: { ...DEFAULT_SETTINGS.midi, ...(midi || {}) },
+            audio: { ...DEFAULT_SETTINGS.audio, ...(audio || {}) },
           });
           setRecentFiles(files || []);
         } catch {
@@ -229,6 +234,52 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           midi: { ...currentSettings.midi, selectedDeviceId: previousDeviceId },
         }));
         usePracticeStore.getState().setMidiDeviceId(previousStoreDeviceId);
+        showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+      }
+    }
+  };
+
+  // 音色設定（再生音色・メトロノーム音色）の変更（TASK-073、US-013）。
+  // metronomeEnabled/defaultErrorModeと同じ即時反映＋保存失敗時ロールバックの
+  // パターンに揃える。ui-slice側の値変更はusePractice.tsのuseEffectが
+  // AudioEngineService.setPlaybackVoice/setMetronomeVoiceへ反映する。
+  // store→AudioEngineの同期経路は単一であり、bpm/metronomeEnabled等と同じ設計。
+  const updateAudioSetting = async <K extends keyof AppSettings['audio']>(
+    key: K,
+    value: AppSettings['audio'][K]
+  ): Promise<void> => {
+    const requestId = ++requestIdRef.current;
+
+    const previousValue = settings.audio[key];
+    const previousPlaybackVoice = usePracticeStore.getState().playbackVoice;
+    const previousMetronomeVoice = usePracticeStore.getState().metronomeVoice;
+
+    const updatedAudio = { ...settings.audio, [key]: value };
+    setSettings({ ...settings, audio: updatedAudio });
+
+    if (key === 'playbackVoice') {
+      usePracticeStore.getState().setPlaybackVoice(value as AppSettings['audio']['playbackVoice']);
+    }
+    if (key === 'metronomeVoice') {
+      usePracticeStore
+        .getState()
+        .setMetronomeVoice(value as AppSettings['audio']['metronomeVoice']);
+    }
+
+    try {
+      await window.electronAPI.settings.set('audio', updatedAudio);
+    } catch {
+      if (requestId === requestIdRef.current) {
+        setSettings((currentSettings) => ({
+          ...currentSettings,
+          audio: { ...currentSettings.audio, [key]: previousValue },
+        }));
+        if (key === 'playbackVoice') {
+          usePracticeStore.getState().setPlaybackVoice(previousPlaybackVoice);
+        }
+        if (key === 'metronomeVoice') {
+          usePracticeStore.getState().setMetronomeVoice(previousMetronomeVoice);
+        }
         showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
       }
     }
@@ -491,6 +542,87 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </option>
                 ))}
               </select>
+            </div>
+          </section>
+
+          {/* Voice Settings (TASK-073, US-013) */}
+          <section style={{ marginBottom: '24px' }}>
+            <h3
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                marginBottom: '12px',
+              }}
+            >
+              音色
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label
+                  htmlFor="playbackVoice"
+                  style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
+                >
+                  再生音色
+                </label>
+                <select
+                  id="playbackVoice"
+                  value={settings.audio.playbackVoice}
+                  onChange={(e) =>
+                    updateAudioSetting(
+                      'playbackVoice',
+                      e.target.value as AppSettings['audio']['playbackVoice']
+                    )
+                  }
+                  title="曲の再生・手動プレビューで使う音色を選択します"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #d1d5db',
+                  }}
+                >
+                  {Object.values(PLAYBACK_VOICES).map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="metronomeVoice"
+                  style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
+                >
+                  メトロノーム音色
+                </label>
+                <select
+                  id="metronomeVoice"
+                  value={settings.audio.metronomeVoice}
+                  onChange={(e) =>
+                    updateAudioSetting(
+                      'metronomeVoice',
+                      e.target.value as AppSettings['audio']['metronomeVoice']
+                    )
+                  }
+                  title="メトロノームのクリック音を選択します"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    border: '1px solid #d1d5db',
+                  }}
+                >
+                  {Object.values(METRONOME_VOICES).map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </section>
 

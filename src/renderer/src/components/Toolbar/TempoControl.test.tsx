@@ -4,101 +4,53 @@ import React from 'react';
 import { TempoControl } from './TempoControl';
 import { usePracticeStore } from '../../store';
 
-describe('TempoControl labels and tooltips', () => {
+// TASK-075: メトロノーム関連チェックボックスはHeader/MetronomeToggle.tsx
+// （QuickPanel内）へ移設した。移設先の挙動はMetronomeToggle.test.tsxで
+// 検証済みのため、本ファイルではテンポ系のみを検証する。
+// また「テンポ:」「BPM:」の可視ラベルはツールチップ（title属性）へ
+// 移したため、可視テキストの存在ではなくtitle属性を検証する
+// （design/components/header.md: ラベルテキストのツールチップ化）。
+describe('TempoControl tooltips (TASK-075: compacted, labels moved to tooltips)', () => {
   beforeEach(() => {
     usePracticeStore.setState({
       bpm: 120,
       originalBpm: 120,
-      metronomeEnabled: false,
-      metronomeAccentEnabled: true,
       playbackState: 'stopped',
     });
   });
 
-  it('shows a Japanese label for the tempo slider and a tooltip explaining its purpose', () => {
+  it('shows a tooltip explaining the tempo slider purpose', () => {
     render(<TempoControl />);
     const slider = screen.getByTestId('tempo-slider');
-    expect(screen.getByText('テンポ:')).toBeInTheDocument();
     expect(slider.getAttribute('title')).toMatch(/テンポ/);
   });
 
-  it('shows a Japanese label for the BPM input and a tooltip explaining its purpose', () => {
+  it('shows a tooltip explaining the BPM input purpose', () => {
     render(<TempoControl />);
     const input = screen.getByTestId('tempo-input');
-    expect(screen.getByText('BPM:')).toBeInTheDocument();
     expect(input.getAttribute('title')).toMatch(/BPM|テンポ/);
   });
 
-  it('shows a Japanese label for the reset button with a tooltip', () => {
+  it('shows a tooltip for the reset button', () => {
     render(<TempoControl />);
-    const resetButton = screen.getByText('リセット');
+    const resetButton = screen.getByRole('button', { name: 'テンポをリセット' });
     expect(resetButton.getAttribute('title')).toBeTruthy();
   });
 
-  it('shows a Japanese label for the metronome checkbox with a tooltip', () => {
+  it('does not render metronome checkboxes (moved to Header/MetronomeToggle.tsx, TASK-075)', () => {
     render(<TempoControl />);
-    expect(screen.getByText('メトロノーム')).toBeInTheDocument();
-    const checkbox = screen.getByTestId('metronome-checkbox');
-    const label = checkbox.closest('label');
-    expect(label?.getAttribute('title')).toMatch(/メトロノーム/);
-  });
-
-  it('gives the metronome label an explicit readable text color (TASK-054)', () => {
-    render(<TempoControl />);
-    const checkbox = screen.getByTestId('metronome-checkbox');
-    const label = checkbox.closest('label');
-    // #374151 is the readable dark gray used elsewhere in the toolbar labels.
-    expect(label?.style.color).toBe('rgb(55, 65, 81)');
-  });
-});
-
-// TASK-063: メトロノームの一拍目アクセント有効/無効チェックボックス（REQ-006-008）。
-// 配置はツールバーのメトロノームチェックボックス横、既定でON。
-describe('TempoControl metronome accent checkbox (TASK-063, REQ-006-008)', () => {
-  beforeEach(() => {
-    usePracticeStore.setState({
-      bpm: 120,
-      originalBpm: 120,
-      metronomeEnabled: false,
-      metronomeAccentEnabled: true,
-      playbackState: 'stopped',
-    });
-  });
-
-  it('shows a Japanese "1拍目強調" checkbox next to the metronome checkbox, checked by default', () => {
-    render(<TempoControl />);
-    const checkbox = screen.getByTestId('metronome-accent-checkbox') as HTMLInputElement;
-    expect(screen.getByText('1拍目強調')).toBeInTheDocument();
-    expect(checkbox.checked).toBe(true);
-  });
-
-  it('calls setMetronomeAccentEnabled(false) and reflects the store when unchecked', () => {
-    render(<TempoControl />);
-    const checkbox = screen.getByTestId('metronome-accent-checkbox') as HTMLInputElement;
-
-    checkbox.click();
-
-    expect(usePracticeStore.getState().metronomeAccentEnabled).toBe(false);
-  });
-
-  it('remains operable when the metronome itself is OFF (not disabled)', () => {
-    usePracticeStore.setState({ metronomeEnabled: false });
-    render(<TempoControl />);
-    const checkbox = screen.getByTestId('metronome-accent-checkbox') as HTMLInputElement;
-
-    expect(checkbox.disabled).toBe(false);
+    expect(screen.queryByTestId('metronome-checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('metronome-accent-checkbox')).not.toBeInTheDocument();
   });
 });
 
 // TASK-067: 再生中はテンポ設定UI（スライダー・数値入力・リセット）を無効化する
-// （REQ-006-010、ユーザー要望2026-07-07）。メトロノーム系チェックボックスは対象外。
+// （REQ-006-010、ユーザー要望2026-07-07）。
 describe('TempoControl playback lock (TASK-067, REQ-006-010)', () => {
   beforeEach(() => {
     usePracticeStore.setState({
       bpm: 120,
       originalBpm: 120,
-      metronomeEnabled: false,
-      metronomeAccentEnabled: true,
       playbackState: 'stopped',
     });
   });
@@ -109,7 +61,7 @@ describe('TempoControl playback lock (TASK-067, REQ-006-010)', () => {
 
     expect((screen.getByTestId('tempo-slider') as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByTestId('tempo-input') as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByText('リセット') as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'テンポをリセット' })).toBeDisabled();
   });
 
   it.each(['stopped', 'paused'] as const)(
@@ -120,17 +72,7 @@ describe('TempoControl playback lock (TASK-067, REQ-006-010)', () => {
 
       expect((screen.getByTestId('tempo-slider') as HTMLInputElement).disabled).toBe(false);
       expect((screen.getByTestId('tempo-input') as HTMLInputElement).disabled).toBe(false);
-      expect((screen.getByText('リセット') as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.getByRole('button', { name: 'テンポをリセット' })).not.toBeDisabled();
     }
   );
-
-  it('keeps the metronome and accent checkboxes operable while playbackState is "playing"', () => {
-    usePracticeStore.setState({ playbackState: 'playing' });
-    render(<TempoControl />);
-
-    expect((screen.getByTestId('metronome-checkbox') as HTMLInputElement).disabled).toBe(false);
-    expect((screen.getByTestId('metronome-accent-checkbox') as HTMLInputElement).disabled).toBe(
-      false
-    );
-  });
 });

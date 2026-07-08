@@ -139,14 +139,16 @@ export class OSMDController {
   /** setGrayedOutNotesで最後に指定された不透明度（0〜1、既定0.5）。 */
   private grayoutOpacity = 0.5;
   /**
-   * 現在減光を適用中のnoteId→（SVG要素・適用前のopacity）のマップ（TASK-060）。
+   * 現在減光を適用中のSVG要素→適用前のopacityのマップ（TASK-060）。
+   *
+   * TASK-081: 当初はnoteId単位（`Map<noteId, {element, originalOpacity}>`）で管理していた。
+   * 和音は複数のnoteIdが同一のSVG要素を共有する。そのため2件目以降の処理で「既に減光後の
+   * opacity(0.5)」を元値として誤って記録してしまい、復元時に減光が残留・累積する不具合に
+   * なっていた。要素そのものをキーにすることで、同一要素への記録は必ず1回だけになる。
    * renderGrayoutLayerを呼び出すたび、必ず元のopacityへ先に復元してからクリアし、
    * 新しい対象集合へ改めて適用する。
    */
-  private grayoutAppliedElements = new Map<
-    string,
-    { element: SVGGElement; originalOpacity: string }
-  >();
+  private grayoutAppliedElements = new Map<SVGGElement, string>();
   /** noteIdごとの正誤ハイライト状態（'expected'は「ハイライトなし」を意味するため保持しない）。 */
   private noteHighlights = new Map<string, 'correct' | 'incorrect'>();
   /** 小節クリック時に呼び出されるコールバック（App.tsx側でpracticeEngine.resetToMeasureに結線する）。 */
@@ -339,11 +341,16 @@ export class OSMDController {
    * 返すSVGグループには符頭のみが含まれ符幹・連桁は含まれないことがあるため、
    * 減光が符頭のみに適用され符幹・連桁の減光が伴わない（見た目上部分的な減光になる）
    * ことがある。
+   *
+   * TASK-081: 和音は複数のnoteIdが同一のSVG要素を共有する。元opacityの二重記録を
+   * 防ぐため、対象noteIdのSVG要素をSetでまず重複排除する。その後、要素ごとに1回だけ
+   * 「変更前のopacity」を記録し、0.5（またはopacity引数の値）を適用する。
    */
   private renderGrayoutLayer(): void {
     this.restoreGrayoutOpacity();
     if (this.grayedOutNoteIds.size === 0) return;
 
+    const targetElements = new Set<SVGGElement>();
     for (const noteId of this.grayedOutNoteIds) {
       const graphicalNote = this.noteIdToGraphicalNote.get(noteId);
       if (!graphicalNote) continue; // 対応するGraphicalNote未解決（buildNoteIdMap未完了等）のノートは無視する
@@ -354,9 +361,7 @@ export class OSMDController {
       try {
         const element = svgCapable.getSVGGElement();
         if (!element) continue;
-        const originalOpacity = element.style.opacity;
-        element.style.opacity = String(this.grayoutOpacity);
-        this.grayoutAppliedElements.set(noteId, { element, originalOpacity });
+        targetElements.add(element);
       } catch (e) {
         console.warn(
           '[OSMDController] renderGrayoutLayer: failed to get SVG element for ' +
@@ -365,11 +370,17 @@ export class OSMDController {
         );
       }
     }
+
+    for (const element of targetElements) {
+      const originalOpacity = element.style.opacity;
+      element.style.opacity = String(this.grayoutOpacity);
+      this.grayoutAppliedElements.set(element, originalOpacity);
+    }
   }
 
   /** grayoutAppliedElementsに記録済みの全要素のopacityを適用前の値へ復元し、記録をクリアする。 */
   private restoreGrayoutOpacity(): void {
-    for (const { element, originalOpacity } of this.grayoutAppliedElements.values()) {
+    for (const [element, originalOpacity] of this.grayoutAppliedElements.entries()) {
       if (originalOpacity) {
         element.style.opacity = originalOpacity;
       } else {

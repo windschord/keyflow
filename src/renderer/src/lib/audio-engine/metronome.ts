@@ -1,7 +1,14 @@
 import * as Tone from 'tone';
+import {
+  createMetronomeVoice,
+  type MetronomeVoiceId,
+  type MetronomeVoiceInstance,
+} from './metronome-voices';
 
 export class Metronome {
-  private synth: Tone.Synth;
+  // TASK-072: 発音はvoice（音色ごとのMetronomeVoiceInstance）へ委譲する。
+  // アクセント判定ロジック（measureStartTicks照合・beatCounter）はここでは変更しない。
+  private voice: MetronomeVoiceInstance;
   private sequence: Tone.Sequence | null = null;
   private clock: Tone.Clock | null = null;
   private enabled: boolean = false;
@@ -17,7 +24,13 @@ export class Metronome {
   private transportRunning = false;
 
   constructor() {
-    this.synth = new Tone.Synth().toDestination();
+    this.voice = createMetronomeVoice('click');
+  }
+
+  /** メトロノーム音色を切り替える（TASK-072、REQ-013-004）。旧音色は破棄する。 */
+  setVoice(id: MetronomeVoiceId): void {
+    this.voice.dispose();
+    this.voice = createMetronomeVoice(id);
   }
 
   /**
@@ -125,15 +138,11 @@ export class Metronome {
         const ticks = Math.round(Tone.getTransport().getTicksAtTime(time));
         if (this.accentEnabled) {
           const isAccent = this.measureStartTicks.has(ticks);
-          if (isAccent) {
-            this.synth.triggerAttackRelease('C6', '32n', time, 1.0);
-          } else {
-            this.synth.triggerAttackRelease('C5', '32n', time, 0.6);
-          }
+          this.voice.trigger(time, isAccent, isAccent ? 1.0 : 0.6);
         } else {
           // TASK-065: アクセント無効時は強弱の差を付ける必要がないため、
           // 全拍を通常音量（1.0）で鳴らす（承認済み仕様変更、2026-07-07）。
-          this.synth.triggerAttackRelease('C5', '32n', time, 1.0);
+          this.voice.trigger(time, false, 1.0);
         }
       },
       // tone@15.1.22のSequenceはnullイベントを休符として扱いコールバックを
@@ -168,13 +177,10 @@ export class Metronome {
       const beat = this.beatCounter % this.beatsPerMeasure;
       this.beatCounter += 1;
       if (this.accentEnabled) {
-        if (beat === 0) {
-          this.synth.triggerAttackRelease('C6', '32n', time, 1.0);
-        } else {
-          this.synth.triggerAttackRelease('C5', '32n', time, 0.6);
-        }
+        const isAccent = beat === 0;
+        this.voice.trigger(time, isAccent, isAccent ? 1.0 : 0.6);
       } else {
-        this.synth.triggerAttackRelease('C5', '32n', time, 1.0);
+        this.voice.trigger(time, false, 1.0);
       }
     }, this.bpm / 60);
     this.clock.start();
@@ -197,6 +203,6 @@ export class Metronome {
       this.clock.dispose();
       this.clock = null;
     }
-    this.synth.dispose();
+    this.voice.dispose();
   }
 }

@@ -2,9 +2,9 @@ import React, { useEffect } from 'react';
 import { usePracticeStore } from '../../store';
 
 const BTN_STYLE: React.CSSProperties = {
-  height: '44px',
-  padding: '0 14px',
-  fontSize: '15px',
+  height: '36px',
+  padding: '0 12px',
+  fontSize: '14px',
   borderRadius: '6px',
   border: '1px solid #9ca3af',
   backgroundColor: 'white',
@@ -18,6 +18,14 @@ const BTN_ACTIVE_STYLE: React.CSSProperties = {
   borderColor: '#3b82f6',
 };
 
+/**
+ * 練習対象（左手/右手/両手）セグメントボタン（TASK-075でコンパクト化）。
+ *
+ * 「練習対象:」の可視グループラベルは、運指対象選択（FingeringPanel）との
+ * 混同を避けるための説明であるため、コンテナ全体の`title`属性（ツールチップ）へ
+ * 移す（design/components/header.md: ラベルテキストのツールチップ化）。
+ * 各ボタン自体の日本語ラベル・ショートカット表記（toolbar.md）は変更しない。
+ */
 export const PracticeModeSelector: React.FC = () => {
   const { practiceMode, setPracticeMode } = usePracticeStore();
 
@@ -49,8 +57,11 @@ export const PracticeModeSelector: React.FC = () => {
   }, [setPracticeMode]);
 
   return (
-    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-      <span style={{ fontSize: '14px', color: '#374151', whiteSpace: 'nowrap' }}>練習対象:</span>
+    <div
+      data-testid="practice-mode-group"
+      title="練習対象（左手/右手/両手）を切り替えます。運指対象の選択とは別です"
+      style={{ display: 'flex', gap: '6px', alignItems: 'center' }}
+    >
       <button
         data-testid="mode-left"
         title="左手のみを練習対象にします（ショートカット: L）"

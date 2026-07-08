@@ -44,6 +44,19 @@ vi.mock('tone', () => {
       triggerAttackRelease: vi.fn(),
       dispose: vi.fn(),
     })),
+    // TASK-071: 既定の再生音色（grand-piano）がTone.Samplerを生成するため、
+    // AudioEngineServiceの初期化そのものを検証しない本ファイルの他のテストが
+    // 壊れないよう、onload/onerrorを受け取れる最小限のモックを用意する。
+    Sampler: vi
+      .fn()
+      .mockImplementation((options: { onload?: () => void; onerror?: (error: Error) => void }) => ({
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+        onload: options?.onload,
+        onerror: options?.onerror,
+      })),
+    FMSynth: vi.fn(),
     Sequence: vi.fn().mockImplementation(() => ({
       start: vi.fn(),
       stop: vi.fn(),
@@ -67,12 +80,16 @@ vi.mock('../../components/PianoKeyboard', () => ({
   PianoKeyboard: () => null,
 }));
 
-vi.mock('../../components/Toolbar', () => ({
-  Toolbar: () => null,
-}));
-
-vi.mock('../../components/FingeringPanel', () => ({
-  FingeringPanel: () => null,
+// TASK-075: App.tsx上段バー＋Toolbarの2ブロック構成をHeader/index.tsxへ統合した。
+// ここではHeader自体をモックする。
+// onOpenFileが呼ばれたときにクリック可能な「ファイルを開く」ボタンを描画する
+// 薄いスタブへ差し替える。
+// このファイルの各テストはApp本体の結線検証が目的であり、Headerの内部実装は
+// Header.test.tsxで検証済みである。
+vi.mock('../../components/Header', () => ({
+  Header: (props: { onOpenFile: () => void }) => (
+    <button onClick={props.onOpenFile}>ファイルを開く</button>
+  ),
 }));
 
 const SAMPLE_MUSICXML_2PARTS = `<?xml version="1.0"?>

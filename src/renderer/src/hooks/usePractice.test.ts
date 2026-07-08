@@ -12,6 +12,10 @@ const setBpmMock = vi.fn();
 const setMetronomeEnabledMock = vi.fn();
 const setMetronomeAccentEnabledMock = vi.fn();
 const setMasterVolumeMock = vi.fn();
+const setPlaybackVoiceMock = vi.fn().mockResolvedValue(undefined);
+const setMetronomeVoiceMock = vi.fn();
+const ensurePlaybackVoiceLoadedMock = vi.fn().mockResolvedValue(undefined);
+const setVoiceLoadingCallbackMock = vi.fn();
 const playCorrectSoundMock = vi.fn();
 const playIncorrectSoundMock = vi.fn();
 const playNoteMock = vi.fn();
@@ -41,6 +45,10 @@ vi.mock('../lib/audio-engine', () => ({
     setMetronomeEnabled: setMetronomeEnabledMock,
     setMetronomeAccentEnabled: setMetronomeAccentEnabledMock,
     setMasterVolume: setMasterVolumeMock,
+    setPlaybackVoice: setPlaybackVoiceMock,
+    setMetronomeVoice: setMetronomeVoiceMock,
+    ensurePlaybackVoiceLoaded: ensurePlaybackVoiceLoadedMock,
+    setVoiceLoadingCallback: setVoiceLoadingCallbackMock,
     playCorrectSound: playCorrectSoundMock,
     playIncorrectSound: playIncorrectSoundMock,
     playNote: playNoteMock,
@@ -74,6 +82,9 @@ describe('usePractice', () => {
       metronomeEnabled: false,
       metronomeAccentEnabled: true,
       volume: 80,
+      playbackVoice: 'grand-piano',
+      metronomeVoice: 'click',
+      voiceLoading: false,
       currentMeasure: 1,
       currentNoteIndex: 0,
       score: null,
@@ -128,6 +139,61 @@ describe('usePractice', () => {
     });
 
     expect(setMasterVolumeMock).toHaveBeenCalledWith(30);
+  });
+
+  // TASK-073: 再生音色・メトロノーム音色（US-013）。
+  it('applies the current store playbackVoice to audioEngine.setPlaybackVoice on mount and on change', () => {
+    renderHook(() => usePractice());
+    expect(setPlaybackVoiceMock).toHaveBeenCalledWith('grand-piano');
+
+    setPlaybackVoiceMock.mockClear();
+    act(() => {
+      usePracticeStore.getState().setPlaybackVoice('organ');
+    });
+
+    expect(setPlaybackVoiceMock).toHaveBeenCalledWith('organ');
+  });
+
+  it('applies the current store metronomeVoice to audioEngine.setMetronomeVoice on mount and on change', () => {
+    renderHook(() => usePractice());
+    expect(setMetronomeVoiceMock).toHaveBeenCalledWith('click');
+
+    setMetronomeVoiceMock.mockClear();
+    act(() => {
+      usePracticeStore.getState().setMetronomeVoice('cowbell');
+    });
+
+    expect(setMetronomeVoiceMock).toHaveBeenCalledWith('cowbell');
+  });
+
+  describe('voice loading wiring (REQ-013-003, TASK-073)', () => {
+    it('wires audioEngine voice-loading callback to ui-slice.voiceLoading', () => {
+      renderHook(() => usePractice());
+
+      expect(setVoiceLoadingCallbackMock).toHaveBeenCalledWith(expect.any(Function));
+      const loadingCallback = setVoiceLoadingCallbackMock.mock.calls[0][0] as (
+        loading: boolean
+      ) => void;
+
+      act(() => {
+        loadingCallback(true);
+      });
+      expect(usePracticeStore.getState().voiceLoading).toBe(true);
+
+      act(() => {
+        loadingCallback(false);
+      });
+      expect(usePracticeStore.getState().voiceLoading).toBe(false);
+    });
+
+    it('unregisters the voice-loading callback on unmount', () => {
+      const { unmount } = renderHook(() => usePractice());
+      setVoiceLoadingCallbackMock.mockClear();
+
+      unmount();
+
+      expect(setVoiceLoadingCallbackMock).toHaveBeenCalledWith(null);
+    });
   });
 
   it('plays the correct sound when a MIDI note-on judgement is correct', () => {

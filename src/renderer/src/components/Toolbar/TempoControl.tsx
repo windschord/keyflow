@@ -2,31 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { usePracticeStore } from '../../store';
 
 const INPUT_STYLE: React.CSSProperties = {
-  height: '44px',
-  fontSize: '16px',
-  padding: '0 8px',
+  height: '36px',
+  fontSize: '14px',
+  padding: '0 6px',
   borderRadius: '6px',
   border: '1px solid #d1d5db',
   boxSizing: 'border-box',
 };
 
+/**
+ * テンポ（BPM入力＋原曲比スライダー＋リセット）を操作するコントロール（TASK-075でコンパクト化）。
+ *
+ * メトロノームのON/OFF・1拍目強調はQuickPanel内のMetronomeToggleへ移設済み（TASK-074）であり、
+ * 本コンポーネントはテンポ系のみを扱う。
+ * 説明ラベルは可視テキストとして表示せず、各入力のtitle属性（ツールチップ）へ集約する。
+ * 詳細はdesign/components/header.mdを参照。
+ */
 export const TempoControl: React.FC = () => {
-  const {
-    bpm,
-    originalBpm,
-    setBpm,
-    metronomeEnabled,
-    setMetronomeEnabled,
-    metronomeAccentEnabled,
-    setMetronomeAccentEnabled,
-    playbackState,
-  } = usePracticeStore();
+  const { bpm, originalBpm, setBpm, playbackState } = usePracticeStore();
   const [inputValue, setInputValue] = useState(bpm.toString());
 
   // TASK-067: 再生中（playing）はテンポ設定UI（スライダー・数値入力・
   // リセットボタン）を無効化する（REQ-006-010、ユーザー要望2026-07-07）。
   // エンジン側のテンポ変更自体は再生中も機能しているが、UI仕様として
-  // 変更操作を制限する。メトロノーム系チェックボックスは対象外とする。
+  // 変更操作を制限する。メトロノーム系チェックボックスは対象外とする
+  // （MetronomeToggle.tsx側で再生中も操作可能であることを検証済み）。
   const isTempoLocked = playbackState === 'playing';
 
   useEffect(() => {
@@ -58,25 +58,14 @@ export const TempoControl: React.FC = () => {
   const bpmMax = originalBpm > 0 ? Math.round(originalBpm * 2.0) : 240;
 
   return (
-    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-      <label htmlFor="tempo-slider" style={{ fontSize: '14px', color: '#374151' }}>
-        テンポ:
-      </label>
-      <input
-        id="tempo-slider"
-        type="range"
-        min="20"
-        max="200"
-        value={currentRatio}
-        onChange={handleSliderChange}
-        disabled={isTempoLocked}
-        title="テンポ（原曲テンポに対する割合。20%〜200%）"
-        style={{ height: '44px', cursor: isTempoLocked ? 'not-allowed' : 'pointer' }}
-        data-testid="tempo-slider"
-      />
-      <label htmlFor="tempo-input" style={{ fontSize: '14px', color: '#374151' }}>
-        BPM:
-      </label>
+    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+      <span
+        aria-hidden="true"
+        title="テンポ（BPM: 1分あたりの拍数）"
+        style={{ fontSize: '15px', color: '#374151' }}
+      >
+        &#9834;=
+      </span>
       <input
         id="tempo-input"
         type="number"
@@ -87,16 +76,35 @@ export const TempoControl: React.FC = () => {
         onBlur={handleInputBlur}
         disabled={isTempoLocked}
         title="テンポをBPM（1分あたりの拍数）で直接指定します"
-        style={{ ...INPUT_STYLE, width: '72px' }}
+        style={{ ...INPUT_STYLE, width: '56px' }}
         data-testid="tempo-input"
       />
+      <input
+        id="tempo-slider"
+        type="range"
+        min="20"
+        max="200"
+        value={currentRatio}
+        onChange={handleSliderChange}
+        disabled={isTempoLocked}
+        title="テンポ（原曲テンポに対する割合。20%〜200%）"
+        style={{
+          height: '36px',
+          width: '100px',
+          cursor: isTempoLocked ? 'not-allowed' : 'pointer',
+        }}
+        data-testid="tempo-slider"
+      />
       <button
+        type="button"
         onClick={() => setBpm(originalBpm)}
         disabled={isTempoLocked}
         title="テンポを楽譜本来のテンポに戻します"
+        aria-label="テンポをリセット"
         style={{
-          height: '44px',
-          padding: '0 12px',
+          height: '36px',
+          width: '36px',
+          padding: 0,
           fontSize: '15px',
           borderRadius: '6px',
           border: '1px solid #9ca3af',
@@ -104,50 +112,8 @@ export const TempoControl: React.FC = () => {
           cursor: isTempoLocked ? 'not-allowed' : 'pointer',
         }}
       >
-        リセット
+        &#8635;
       </button>
-      <label
-        title="メトロノームの音を鳴らします"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          height: '44px',
-          cursor: 'pointer',
-          fontSize: '15px',
-          color: '#374151',
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={metronomeEnabled}
-          onChange={(e) => setMetronomeEnabled(e.target.checked)}
-          style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-          data-testid="metronome-checkbox"
-        />
-        メトロノーム
-      </label>
-      <label
-        title="メトロノームの一拍目のクリック音を他拍より強く鳴らします"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          height: '44px',
-          cursor: 'pointer',
-          fontSize: '15px',
-          color: '#374151',
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={metronomeAccentEnabled}
-          onChange={(e) => setMetronomeAccentEnabled(e.target.checked)}
-          style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-          data-testid="metronome-accent-checkbox"
-        />
-        1拍目強調
-      </label>
     </div>
   );
 };

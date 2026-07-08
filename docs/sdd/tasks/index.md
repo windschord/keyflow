@@ -42,8 +42,12 @@
 | Phase 12: 実機フィードバック対応（2026-07-05） | 7 | 0 | 0 | 0 | [詳細](phase-12/) @phase-12/ |
 | Phase 13: UI改善要望（2026-07-06） | 6 | 0 | 0 | 0 | [詳細](phase-13/) @phase-13/ |
 | Phase 14: メトロノーム修正・アクセント（2026-07-07） | 7 | 0 | 0 | 0 | [詳細](phase-14/) @phase-14/ |
+| Phase 15: UI/UX改善（2026-07-07） | 11 | 4 | 0 | 0 | [詳細](phase-15/) @phase-15/ |
 
-**合計**: 67タスク / 推定合計: 約2990分（AIエージェント作業時間）
+**合計**: 82タスク / 推定合計: 約3760分（AIエージェント作業時間）
+
+> 進行中カウントの基準: `REVIEW`はユーザー実機確認待ちであり完了扱いにしないため、
+> 本表の「進行中」列に計上する（TASK-078/080/081/082が該当、2026-07-08是正）。
 
 > Phase 8〜10 は 2026-07-04 のトラブルシューティング分析
 > （[docs/sdd/troubleshooting/2026-07-04-app-unusable/analysis.md](../troubleshooting/2026-07-04-app-unusable/analysis.md)）
@@ -123,6 +127,23 @@
 | TASK-054 | Toolbar/TempoControl.tsx, Toolbar/LoopControl.tsx, assets/base.css | - |
 
 > TASK-049/050/051 は TASK-048 完了後に着手する（049→050 は順次）。
+
+### グループI: Phase 15 第1陣（着手時に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-068 | resources/**, build/**, scripts/generate-icons.mjs, src/renderer/index.html, src/main/index.ts | - |
+| TASK-069 | src/renderer/src/types/score.ts, lib/musicxml-parser/** | - |
+| TASK-071 | lib/audio-engine/voices.ts, lib/audio-engine/index.ts, assets/samples/** | - |
+| TASK-074 | components/Header/Popover.tsx, components/Header/QuickPanel.tsx | - |
+
+### グループJ: Phase 15 第2陣（第1陣完了後に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-070 | lib/audio-engine/pedal-extension.ts, lib/audio-engine/index.ts | TASK-069, TASK-071 |
+| TASK-075 | components/Header/index.tsx, App.tsx, Toolbar/** | TASK-074 |
+
+> `lib/audio-engine/index.ts` を共有する TASK-070→072、`SettingsModal` を共有する
+> TASK-073→076 はそれぞれ順次実行とする。最後に TASK-077（統合検証）を単独実行する。
 
 ---
 
@@ -292,6 +313,33 @@
 | TASK-066 | メトロノーム単独再生（Tone.Clock） | DONE | TASK-065 | 60min | [詳細](phase-14/TASK-066.md) @phase-14/TASK-066.md |
 | TASK-067 | 再生中のテンポ設定UIロック | DONE | - | 30min | [詳細](phase-14/TASK-067.md) @phase-14/TASK-067.md |
 
+### Phase 15: UI/UX改善（2026-07-07）
+*推定期間: 520min（下記の並列実行グループ参照）*
+
+> 2026-07-07 のUI/UX改善要望（アイコン・タイトル・ヘッダー1行化・音色選択・ペダル再生・Aboutページ）
+> に基づくタスク群。要件: US-011〜015、設計: components/{app-branding,header,instrument-voices,pedal-playback,about-page}.md、
+> DEC-006〜008。作業ブランチ: `feature/phase-15-uiux-improvements`
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-068 | アプリのブランディング（アイコン生成・ウィンドウタイトル） | DONE | - | 60min | [詳細](phase-15/TASK-068.md) @phase-15/TASK-068.md |
+| TASK-069 | ペダル記号のパースとScore型拡張 | DONE | - | 40min | [詳細](phase-15/TASK-069.md) @phase-15/TASK-069.md |
+| TASK-070 | ペダル区間の再生反映（リリース延長） | DONE | TASK-069, TASK-071 | 40min | [詳細](phase-15/TASK-070.md) @phase-15/TASK-070.md |
+| TASK-071 | 再生音色ファクトリとSalamanderサンプル同梱 | DONE | - | 60min | [詳細](phase-15/TASK-071.md) @phase-15/TASK-071.md |
+| TASK-072 | メトロノーム音色の選択（エンジン実装） | DONE | TASK-070 | 40min | [詳細](phase-15/TASK-072.md) @phase-15/TASK-072.md |
+| TASK-073 | 音色設定の永続化と設定UI・再生時ロード待ち | DONE | TASK-071, TASK-072 | 50min | [詳細](phase-15/TASK-073.md) @phase-15/TASK-073.md |
+| TASK-074 | 汎用Popover・QuickPanelコンポーネント | DONE | - | 40min | [詳細](phase-15/TASK-074.md) @phase-15/TASK-074.md |
+| TASK-075 | 1行ヘッダー統合（Toolbar・上段バー置換） | DONE | TASK-074 | 90min | [詳細](phase-15/TASK-075.md) @phase-15/TASK-075.md |
+| TASK-076 | Aboutページ（ライセンス自動生成・バージョン・LICENSE） | DONE | TASK-073, TASK-071 | 60min | [詳細](phase-15/TASK-076.md) @phase-15/TASK-076.md |
+| TASK-077 | Phase 15統合検証・トレーサビリティ更新 | DONE | TASK-068〜076 | 40min | [詳細](phase-15/TASK-077.md) @phase-15/TASK-077.md |
+| TASK-078 | [BugFix] QuickPanelがoverflow:hiddenでクリップされ表示されない | REVIEW | TASK-075 | 40min | [詳細](phase-15/TASK-078.md) @phase-15/TASK-078.md |
+| TASK-079 | ヘッダー再編成（メトロノーム常駐・表示補助パネル整理） | DONE | TASK-078 | 50min | [詳細](phase-15/TASK-079.md) @phase-15/TASK-079.md |
+| TASK-080 | 開発モードのDockアイコン適用とブランディング制約の明文化 | REVIEW | TASK-068 | 20min | [詳細](phase-15/TASK-080.md) @phase-15/TASK-080.md |
+| TASK-081 | [BugFix] 和音を含む譜面でグレーアウトが残留・累積する問題の修正 | REVIEW | - | 40min | [詳細](phase-15/TASK-081.md) @phase-15/TASK-081.md |
+| TASK-082 | Aboutを設定画面から分離しメニューバーから開く独立モーダルへ | REVIEW | TASK-076 | 50min | [詳細](phase-15/TASK-082.md) @phase-15/TASK-082.md |
+| TASK-083 | アプリ名をリポジトリ名「keyflow」へ統一 | REVIEW | TASK-082 | 40min | [詳細](phase-15/TASK-083.md) @phase-15/TASK-083.md |
+| TASK-084 | [BugFix] パッケージ版でメインウィンドウが表示されない問題の修正 | REVIEW | TASK-080, TASK-083 | 50min | [詳細](phase-15/TASK-084.md) @phase-15/TASK-084.md |
+
 ---
 
 ## リスクと軽減策
@@ -340,5 +388,6 @@ docs/sdd/tasks/
 ├── phase-11/         # TASK-039〜047: 品質是正・機能補完（2026-07-05横断チェック起点）
 ├── phase-12/         # TASK-048〜054: 実機フィードバック対応（2026-07-05）
 ├── phase-13/         # TASK-055〜060: UI改善要望（2026-07-06）
-└── phase-14/         # TASK-061〜067: メトロノーム修正・一拍目アクセント（2026-07-07）
+├── phase-14/         # TASK-061〜067: メトロノーム修正・一拍目アクセント（2026-07-07）
+└── phase-15/         # TASK-068〜077: UI/UX改善（2026-07-07）
 ```

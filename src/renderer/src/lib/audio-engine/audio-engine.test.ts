@@ -57,11 +57,54 @@ vi.mock('tone', () => {
       triggerAttackRelease: vi.fn(),
       dispose: vi.fn(),
     })),
-    PolySynth: vi.fn().mockImplementation(() => ({
+    // TASK-072: メトロノーム音色（woodblock/cowbell）用のモック。clickSynth/beep用の
+    // Tone.Synthモックと同じ形状にしておき、voice切替後もtriggerAttackRelease/dispose
+    // の呼び出しを検証できるようにする。
+    MembraneSynth: vi.fn().mockImplementation(() => ({
       toDestination: vi.fn().mockReturnThis(),
       triggerAttackRelease: vi.fn(),
       dispose: vi.fn(),
     })),
+    MetalSynth: vi.fn().mockImplementation(() => ({
+      toDestination: vi.fn().mockReturnThis(),
+      triggerAttackRelease: vi.fn(),
+      dispose: vi.fn(),
+    })),
+    PolySynth: vi.fn().mockImplementation((voice: unknown) => ({
+      toDestination: vi.fn().mockReturnThis(),
+      triggerAttackRelease: vi.fn(),
+      dispose: vi.fn(),
+      // TASK-070: 停止/一時停止/ループ折り返し時の延長ノーツ解放（REQ-014-005）を
+      // 検証するためのモック。
+      releaseAll: vi.fn(),
+      __voice: voice,
+    })),
+    // TASK-071: 再生音色（グランドピアノ）用のSamplerモック。onload/onerrorは
+    // コンストラクタに渡されたオプションから取り出せるようにし、テスト側から
+    // 「ロード完了/失敗を手動発火する」ことで AudioEngineService.ensurePlaybackVoiceLoaded()
+    // のPromise化ロジックを検証できるようにする。
+    Sampler: vi
+      .fn()
+      .mockImplementation(
+        (options: {
+          urls?: Record<string, string>;
+          onload?: () => void;
+          onerror?: (error: Error) => void;
+        }) => ({
+          toDestination: vi.fn().mockReturnThis(),
+          triggerAttackRelease: vi.fn(),
+          dispose: vi.fn(),
+          // TASK-070: 停止/一時停止/ループ折り返し時の延長ノーツ解放（REQ-014-005）を
+          // 検証するためのモック。
+          releaseAll: vi.fn(),
+          onload: options?.onload,
+          onerror: options?.onerror,
+        })
+      ),
+    // TASK-071: electric-pianoはTone.PolySynth(Tone.FMSynth, ...)で生成される。
+    // FMSynth自体は直接インスタンス化されない（PolySynthへ voice constructor として
+    // 渡されるだけ）ため、コンストラクタの同一性検証にのみ使う。
+    FMSynth: vi.fn(),
     Sequence: vi
       .fn()
       .mockImplementation((callback: (time: number, value: unknown) => void, events: unknown[]) => {
@@ -183,6 +226,7 @@ function makeScore(): Score {
     tempoMap: [{ tick: 0, bpm: 120 }],
     timeSignature: { beats: 4, beatType: 4 },
     keySignature: 0,
+    pedalSpans: [],
   };
 }
 
@@ -251,6 +295,7 @@ function makeDurationScore(): Score {
     tempoMap: [{ tick: 0, bpm: 120 }],
     timeSignature: { beats: 4, beatType: 4 },
     keySignature: 0,
+    pedalSpans: [],
   };
 }
 
@@ -293,7 +338,27 @@ function makeHandScore(): Score {
     tempoMap: [{ tick: 0, bpm: 120 }],
     timeSignature: { beats: 4, beatType: 4 },
     keySignature: 0,
+    pedalSpans: [],
   };
+}
+
+/**
+ * TASK-072: Metronomeは発音を`voice: MetronomeVoiceInstance`（metronome-voices.ts）へ
+ * 委譲するようになり、`synth`フィールドを直接公開しなくなった。既定の'click'音色は
+ * Tone.Synthを直接生成するため、グローバルなTone.Synthモックの最新の生成結果
+ * （AudioEngineService.clickSynthの次に生成されるMetronomeのclick voice用インスタンス）
+ * を辿って取得する。voice切替後のテストではMembraneSynth/MetalSynthについても同様に使う。
+ */
+function getLastSynthMockInstance(ctorName: 'Synth' | 'MembraneSynth' | 'MetalSynth'): {
+  triggerAttackRelease: Mock;
+  dispose: Mock;
+} {
+  const ctor = Tone[ctorName] as unknown as Mock;
+  return ctor.mock.results.at(-1)?.value as { triggerAttackRelease: Mock; dispose: Mock };
+}
+
+function getLastMetronomeSynthTrigger(): Mock {
+  return getLastSynthMockInstance('Synth').triggerAttackRelease;
 }
 
 describe('AudioEngineService', () => {
@@ -356,7 +421,10 @@ describe('AudioEngineService', () => {
 
   describe('StrictMode resilience (2026-07-05 troubleshooting, root cause 1)', () => {
     it('re-initializes synths after dispose(), so calling a method afterwards still produces sound', () => {
-      const polySynthCallsBefore = (Tone.PolySynth as unknown as Mock).mock.calls.length;
+      // TASK-071: 既定の再生音色はgrand-piano（Tone.Sampler）のため、
+      // 再初期化を検証する対象コンストラクタもSamplerに合わせる
+      // （PolySynthは既定音色では使用されない）。
+      const samplerCallsBefore = (Tone.Sampler as unknown as Mock).mock.calls.length;
 
       // Simulates React 18 StrictMode's "run effect -> cleanup -> run effect again"
       // cycle disposing the AudioEngineService instance retained by useMemo.
@@ -366,8 +434,8 @@ describe('AudioEngineService', () => {
       // must not operate on disposed/undefined synths.
       expect(() => service.playNote(60)).not.toThrow();
 
-      const polySynthCallsAfter = (Tone.PolySynth as unknown as Mock).mock.calls.length;
-      expect(polySynthCallsAfter).toBeGreaterThan(polySynthCallsBefore);
+      const samplerCallsAfter = (Tone.Sampler as unknown as Mock).mock.calls.length;
+      expect(samplerCallsAfter).toBeGreaterThan(samplerCallsBefore);
       // @ts-expect-error private
       expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
     });
@@ -790,8 +858,7 @@ describe('AudioEngineService', () => {
         callback: (time: number, value: unknown) => void;
         events: unknown[];
       };
-      // @ts-expect-error private
-      const clickSynth = service.metronome.synth as { triggerAttackRelease: Mock };
+      const clickSynth = { triggerAttackRelease: getLastMetronomeSynthTrigger() };
 
       fireSequenceTick(sequence, 0);
 
@@ -849,8 +916,7 @@ describe('AudioEngineService', () => {
       };
       fireSequenceTick(sequence, 0);
 
-      // @ts-expect-error private
-      const clickSynth = service.metronome.synth as { triggerAttackRelease: Mock };
+      const clickSynth = { triggerAttackRelease: getLastMetronomeSynthTrigger() };
       expect(clickSynth.triggerAttackRelease).toHaveBeenCalledWith('C5', '32n', 0, 1.0);
     });
   });
@@ -881,6 +947,7 @@ describe('AudioEngineService', () => {
         tempoMap: [{ tick: 0, bpm: 120 }],
         timeSignature: { beats: 4, beatType: 4 },
         keySignature: 0,
+        pedalSpans: [],
       };
     }
 
@@ -895,8 +962,7 @@ describe('AudioEngineService', () => {
     }
 
     function getSynthMock(): Mock {
-      // @ts-expect-error private
-      return (service.metronome.synth as { triggerAttackRelease: Mock }).triggerAttackRelease;
+      return getLastMetronomeSynthTrigger();
     }
 
     it('plays the accent (C6, velocity 1.0) when the click tick matches a measure startTick', () => {
@@ -1035,6 +1101,7 @@ describe('AudioEngineService', () => {
         tempoMap: [{ tick: 0, bpm: 120 }],
         timeSignature: { beats, beatType: 4 },
         keySignature: 0,
+        pedalSpans: [],
       };
     }
 
@@ -1054,8 +1121,7 @@ describe('AudioEngineService', () => {
     }
 
     function getSynthMock(): Mock {
-      // @ts-expect-error private
-      return (service.metronome.synth as { triggerAttackRelease: Mock }).triggerAttackRelease;
+      return getLastMetronomeSynthTrigger();
     }
 
     it('creates and starts a Tone.Clock at bpm/60 Hz when enabling the metronome while stopped, without starting Transport (結線テスト)', () => {
@@ -1164,6 +1230,429 @@ describe('AudioEngineService', () => {
       expect(getSynthMock()).toHaveBeenLastCalledWith('C5', '32n', 2, 0.6);
       fireClockTick(3);
       expect(getSynthMock()).toHaveBeenLastCalledWith('C6', '32n', 3, 1.0);
+    });
+  });
+
+  describe('playback voice switching (TASK-071, REQ-013-001/002/003)', () => {
+    function getSamplerOnloadHandlers(): Array<() => void> {
+      return (Tone.Sampler as unknown as Mock).mock.calls.map(
+        ([options]: [{ onload?: () => void }]) => options.onload as () => void
+      );
+    }
+
+    function getSamplerOnerrorHandlers(): Array<(error: Error) => void> {
+      return (Tone.Sampler as unknown as Mock).mock.calls.map(
+        ([options]: [{ onerror?: (error: Error) => void }]) =>
+          options.onerror as (error: Error) => void
+      );
+    }
+
+    it('defaults to the grand-piano voice: constructs Tone.Sampler for both accompaniment and manual-preview playback', () => {
+      // beforeEach's `new AudioEngineService()` already triggered ensureInitialized().
+      expect((Tone.Sampler as unknown as Mock).mock.calls.length).toBe(2);
+    });
+
+    it('setPlaybackVoice("synth") disposes the previous Sampler pair and routes subsequent sound through the new Tone.PolySynth', async () => {
+      // @ts-expect-error private
+      const previousAccompaniment = service.accompanimentSynth;
+      // @ts-expect-error private
+      const previousPlaySynth = service.playSynth;
+
+      await service.setPlaybackVoice('synth');
+
+      expect(previousAccompaniment.dispose).toHaveBeenCalled();
+      expect(previousPlaySynth.dispose).toHaveBeenCalled();
+
+      service.playNote(60);
+      // @ts-expect-error private
+      expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
+    });
+
+    it('setPlaybackVoice("electric-piano") constructs Tone.PolySynth with Tone.FMSynth as the voice class', async () => {
+      await service.setPlaybackVoice('electric-piano');
+
+      const lastCall = (Tone.PolySynth as unknown as Mock).mock.calls.at(-1);
+      expect(lastCall?.[0]).toBe(Tone.FMSynth);
+    });
+
+    it('ensurePlaybackVoiceLoaded() resolves immediately once switched to a synth-based voice (no sample loading required)', async () => {
+      await service.setPlaybackVoice('electric-piano');
+
+      await expect(service.ensurePlaybackVoiceLoaded()).resolves.toBeUndefined();
+    });
+
+    it('ensurePlaybackVoiceLoaded() stays pending until every Sampler instance fires onload (grand-piano, the default voice)', async () => {
+      let resolved = false;
+      service.ensurePlaybackVoiceLoaded().then(() => {
+        resolved = true;
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(resolved).toBe(false);
+
+      const onloadHandlers = getSamplerOnloadHandlers();
+      expect(onloadHandlers).toHaveLength(2);
+      onloadHandlers[0]();
+
+      await Promise.resolve();
+      expect(resolved).toBe(false); // only 1 of 2 instruments loaded so far
+
+      onloadHandlers[1]();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(resolved).toBe(true);
+    });
+
+    it('notifies the loading callback with true while sampling downloads and false once every instrument has loaded', async () => {
+      const onLoadingChange = vi.fn();
+      service.setVoiceLoadingCallback(onLoadingChange);
+
+      const readyPromise = service.setPlaybackVoice('grand-piano');
+      expect(onLoadingChange).toHaveBeenCalledWith(true);
+      expect(onLoadingChange).not.toHaveBeenCalledWith(false);
+
+      getSamplerOnloadHandlers()
+        .slice(-2)
+        .forEach((onload) => onload());
+      await readyPromise;
+
+      expect(onLoadingChange).toHaveBeenLastCalledWith(false);
+    });
+
+    it('falls back to the synth preset and still resolves ensurePlaybackVoiceLoaded() when a Sampler reports a load error (missing sample file)', async () => {
+      const readyPromise = service.ensurePlaybackVoiceLoaded();
+
+      const onerrorHandlers = getSamplerOnerrorHandlers();
+      onerrorHandlers.forEach((onerror) => onerror(new Error('404 Not Found')));
+
+      await expect(readyPromise).resolves.toBeUndefined();
+
+      service.playNote(60);
+      // @ts-expect-error private
+      expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
+      expect(
+        (Tone.PolySynth as unknown as Mock).mock.calls.some(([voice]) => voice === Tone.Synth)
+      ).toBe(true);
+    });
+
+    it('disposes the failed grand-piano Sampler pair when falling back to the synth preset (CodeRabbit PR#28指摘#5(a))', () => {
+      const onerrorHandlers = getSamplerOnerrorHandlers();
+      // @ts-expect-error private
+      const failedAccompaniment = service.accompanimentSynth;
+      // @ts-expect-error private
+      const failedPlaySynth = service.playSynth;
+
+      onerrorHandlers.forEach((onerror) => onerror(new Error('404 Not Found')));
+
+      expect(failedAccompaniment.dispose).toHaveBeenCalled();
+      expect(failedPlaySynth.dispose).toHaveBeenCalled();
+    });
+
+    it('setPlaybackVoiceを連続呼び出しした場合、最後に呼び出した音色が最終的に反映される（CodeRabbit PR#28指摘#5(b)）', async () => {
+      const staleOnerrorHandlers = getSamplerOnerrorHandlers();
+
+      await service.setPlaybackVoice('electric-piano');
+
+      // @ts-expect-error private
+      const currentAccompaniment = service.accompanimentSynth;
+      // @ts-expect-error private
+      const currentPlaySynth = service.playSynth;
+
+      // 先に発行した古い(grand-piano)世代のonerrorが後から届いても、
+      // 既に切り替わった最新の音色(electric-piano)を上書きしてはならない。
+      staleOnerrorHandlers.forEach((onerror) => onerror(new Error('stale 404')));
+
+      // @ts-expect-error private
+      expect(service.accompanimentSynth).toBe(currentAccompaniment);
+      // @ts-expect-error private
+      expect(service.playSynth).toBe(currentPlaySynth);
+    });
+
+    it('古い世代のonerrorフォールバックが生成した破棄済みインスタンスをリークさせない（CodeRabbit PR#28指摘#5(b)）', async () => {
+      const staleOnerrorHandlers = getSamplerOnerrorHandlers();
+
+      await service.setPlaybackVoice('electric-piano');
+
+      const polySynthCallsBefore = (Tone.PolySynth as unknown as Mock).mock.results.length;
+      staleOnerrorHandlers.forEach((onerror) => onerror(new Error('stale 404')));
+      const orphanedFallbackInstances = (Tone.PolySynth as unknown as Mock).mock.results
+        .slice(polySynthCallsBefore)
+        .map((r) => r.value as { dispose: Mock });
+
+      expect(orphanedFallbackInstances.length).toBeGreaterThan(0);
+      orphanedFallbackInstances.forEach((instance) => {
+        expect(instance.dispose).toHaveBeenCalled();
+      });
+    });
+
+    describe('StrictMode resilience (selected playback voice retained across dispose()+reinit)', () => {
+      it('retains grand-piano (the default voice) after dispose(): a fresh Tone.Sampler pair is (re)created and produces sound', () => {
+        const samplerCallsBefore = (Tone.Sampler as unknown as Mock).mock.calls.length;
+
+        service.dispose();
+        service.playNote(60);
+
+        const samplerCallsAfter = (Tone.Sampler as unknown as Mock).mock.calls.length;
+        expect(samplerCallsAfter).toBeGreaterThan(samplerCallsBefore);
+        // @ts-expect-error private
+        expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
+      });
+
+      it('retains a non-default voice (electric-piano) selected via setPlaybackVoice after dispose() and re-initialization', async () => {
+        await service.setPlaybackVoice('electric-piano');
+        (Tone.PolySynth as unknown as Mock).mockClear();
+
+        service.dispose();
+        service.playNote(60);
+
+        const lastCall = (Tone.PolySynth as unknown as Mock).mock.calls.at(-1);
+        expect(lastCall?.[0]).toBe(Tone.FMSynth);
+      });
+    });
+  });
+
+  describe('metronome voice switching (TASK-072, REQ-013-004/005)', () => {
+    // TASK-066: Sequence（楽譜同期）側の挙動を検証するため、再生中の状態にしておく。
+    beforeEach(() => {
+      service.playAccompaniment();
+    });
+
+    /** measures[].startTickの集合を指定した最小構成のスコアを作る（アクセント判定用）。 */
+    function measureStartScore(startTicks: number[]): Score {
+      return {
+        title: 'Voice Accent Test',
+        parts: [{ id: 'P1', name: 'Right', hand: 'right', clef: 'treble' }],
+        measures: startTicks.map((startTick, index) => ({
+          number: index + 1,
+          startTick,
+          notes: [],
+        })),
+        tempo: 120,
+        ticksPerQuarter: 480,
+        tempoMap: [{ tick: 0, bpm: 120 }],
+        timeSignature: { beats: 4, beatType: 4 },
+        keySignature: 0,
+        pedalSpans: [],
+      };
+    }
+
+    function fireClick(tick: number): void {
+      // @ts-expect-error private
+      const sequence = service.metronome.sequence as {
+        callback: (time: number, value: unknown) => void;
+        events: unknown[];
+      };
+      fireSequenceTick(sequence, tick);
+    }
+
+    it('defaults to the click voice (Tone.Synth, C6/C5 convention)', () => {
+      service.setMetronomeEnabled(true);
+
+      fireClick(0);
+
+      expect(getLastMetronomeSynthTrigger()).toHaveBeenCalledWith('C5', '32n', 0, 0.6);
+    });
+
+    it('setMetronomeVoice("beep") disposes the previous (click) voice and routes subsequent clicks through the new voice (結線テスト)', () => {
+      service.setMetronomeEnabled(true);
+      const previousClickSynth = getLastSynthMockInstance('Synth');
+
+      service.setMetronomeVoice('beep');
+      fireClick(0);
+
+      expect(previousClickSynth.dispose).toHaveBeenCalled();
+      // beep uses a distinct pitch convention (A5/A4) from click (C6/C5), so a real
+      // voice switch (not a no-op) is observable through the trigger arguments.
+      expect(getLastSynthMockInstance('Synth').triggerAttackRelease).toHaveBeenCalledWith(
+        'A4',
+        '32n',
+        0,
+        0.6
+      );
+    });
+
+    it('setMetronomeVoice("woodblock") routes clicks through Tone.MembraneSynth', () => {
+      service.setMetronomeVoice('woodblock');
+      service.setMetronomeEnabled(true);
+
+      fireClick(0);
+
+      expect(getLastSynthMockInstance('MembraneSynth').triggerAttackRelease).toHaveBeenCalledWith(
+        'G4',
+        '32n',
+        0,
+        0.6
+      );
+    });
+
+    it('setMetronomeVoice("cowbell") routes clicks through Tone.MetalSynth', () => {
+      service.setMetronomeVoice('cowbell');
+      service.setMetronomeEnabled(true);
+
+      fireClick(0);
+
+      expect(getLastSynthMockInstance('MetalSynth').triggerAttackRelease).toHaveBeenCalledWith(
+        'F3',
+        '32n',
+        0,
+        0.6
+      );
+    });
+
+    it('keeps the accent audible difference after switching voice (REQ-013-005): accent plays a different pitch/velocity than a regular click', () => {
+      service.loadScore(measureStartScore([0]));
+      service.setMetronomeVoice('beep');
+      service.setMetronomeEnabled(true);
+
+      fireClick(0);
+
+      expect(getLastSynthMockInstance('Synth').triggerAttackRelease).toHaveBeenLastCalledWith(
+        'A5',
+        '32n',
+        0,
+        1.0
+      );
+    });
+
+    describe('StrictMode resilience (selected metronome voice retained across dispose()+reinit)', () => {
+      it('retains a non-default voice (beep) selected via setMetronomeVoice after dispose() and re-initialization', () => {
+        service.setMetronomeVoice('beep');
+
+        service.dispose();
+        service.playAccompaniment();
+        service.setMetronomeEnabled(true);
+        fireClick(0);
+
+        expect(getLastSynthMockInstance('Synth').triggerAttackRelease).toHaveBeenCalledWith(
+          'A4',
+          '32n',
+          0,
+          0.6
+        );
+      });
+    });
+  });
+
+  describe('pedal reflect in playback duration (TASK-070, REQ-014-002/003/004/005)', () => {
+    function makePedalScore(pedalSpans: Score['pedalSpans']): Score {
+      const note = makeNote({
+        id: 'P1-M1-N0',
+        partId: 'P1',
+        midiNumber: 60,
+        startTick: 0,
+        durationTicks: 480,
+      });
+
+      return {
+        title: 'Pedal Test',
+        parts: [{ id: 'P1', name: 'Right', hand: 'right', clef: 'treble' }],
+        measures: [{ number: 1, startTick: 0, notes: [note] }],
+        tempo: 120,
+        ticksPerQuarter: 480,
+        tempoMap: [{ tick: 0, bpm: 120 }],
+        timeSignature: { beats: 4, beatType: 4 },
+        keySignature: 0,
+        pedalSpans,
+      };
+    }
+
+    it('extends the Tone.Part event duration to the pedal span end tick when the notated release falls inside the span (結線テスト)', () => {
+      service.loadScore(makePedalScore([{ startTick: 0, endTick: 960 }]));
+
+      const events = (Tone.Part as unknown as Mock).mock.calls[0][1] as {
+        time: string;
+        note: string;
+        duration: string;
+      }[];
+      expect(events).toEqual([{ time: '0i', note: 'C4', duration: '960i' }]);
+    });
+
+    it('keeps the notated duration unchanged when the score has no pedal spans (non-regression, REQ-014-004)', () => {
+      service.loadScore(makePedalScore([]));
+
+      const events = (Tone.Part as unknown as Mock).mock.calls[0][1] as {
+        time: string;
+        note: string;
+        duration: string;
+      }[];
+      expect(events).toEqual([{ time: '0i', note: 'C4', duration: '480i' }]);
+    });
+
+    it('does not change the sounding-notes boundary tick (registerBoundary) used for the keyboard highlight, even when the playback duration is extended', () => {
+      service.loadScore(makePedalScore([{ startTick: 0, endTick: 960 }]));
+
+      // 1 judgement-group schedule + 2 boundary schedules (start tick 0, end tick 480:
+      // the notated release, unaffected by the pedal extension applied to the Tone.Part
+      // event duration verified above).
+      const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
+      expect(scheduleCalls).toHaveLength(3);
+      expect(scheduleCalls[1][1]).toBe('0i');
+      expect(scheduleCalls[2][1]).toBe('480i');
+    });
+
+    it('calls accompanimentSynth.releaseAll() when stopAccompaniment is called (REQ-014-005)', () => {
+      // @ts-expect-error private
+      const releaseAllSpy = service.accompanimentSynth.releaseAll as Mock;
+
+      service.stopAccompaniment();
+
+      expect(releaseAllSpy).toHaveBeenCalled();
+    });
+
+    it('calls accompanimentSynth.releaseAll() when pauseAccompaniment is called (REQ-014-005)', () => {
+      // @ts-expect-error private
+      const releaseAllSpy = service.accompanimentSynth.releaseAll as Mock;
+
+      service.pauseAccompaniment();
+
+      expect(releaseAllSpy).toHaveBeenCalled();
+    });
+
+    it('schedules accompanimentSynth.releaseAll() at the loop end tick so extended notes do not bleed across the loop wraparound (REQ-014-005)', () => {
+      const score = makeScore();
+      score.measures.push({
+        number: 2,
+        startTick: 1920,
+        notes: [makeNote({ id: 'P1-M2-N0', startTick: 1920, durationTicks: 480 })],
+      });
+
+      service.setLoopPoints(score, true, 1, 1);
+
+      const scheduleCalls = (Tone.getTransport().schedule as unknown as Mock).mock.calls;
+      const loopReleaseCall = scheduleCalls.find(([, time]) => time === '1920i');
+      expect(loopReleaseCall).toBeDefined();
+
+      // @ts-expect-error private
+      const releaseAllSpy = service.accompanimentSynth.releaseAll as Mock;
+      releaseAllSpy.mockClear();
+      (loopReleaseCall![0] as (time: number) => void)(0);
+
+      expect(releaseAllSpy).toHaveBeenCalled();
+    });
+
+    it('clears the previously scheduled loop-end releaseAll when setLoopPoints is called again (loop range change/disable)', () => {
+      const score = makeScore();
+      score.measures.push({ number: 2, startTick: 1920, notes: [] });
+      service.setLoopPoints(score, true, 1, 1);
+      const clearSpy = Tone.getTransport().clear as Mock;
+      clearSpy.mockClear();
+
+      service.setLoopPoints(score, false, 1, 1);
+
+      expect(clearSpy).toHaveBeenCalled();
+    });
+
+    it('clears the previously scheduled loop-end releaseAll when the score is replaced via loadScore', () => {
+      const score = makeScore();
+      score.measures.push({ number: 2, startTick: 1920, notes: [] });
+      service.setLoopPoints(score, true, 1, 1);
+      const clearSpy = Tone.getTransport().clear as Mock;
+      clearSpy.mockClear();
+
+      service.loadScore(makeScore());
+
+      expect(clearSpy).toHaveBeenCalled();
     });
   });
 });

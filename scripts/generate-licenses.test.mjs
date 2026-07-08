@@ -2,7 +2,7 @@
 //
 // 実際のnode_modulesに依存せず、mkdtempSyncで作成した一時フィクスチャ
 // ディレクトリに対して走査ロジックを検証する（自前実装、外部ライブラリ不使用）。
-import { describe, expect, it, afterEach } from 'vitest';
+import { describe, expect, it, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -122,5 +122,37 @@ describe('generate-licenses.mjs', () => {
     fixtureRoot = createFixture({ name: 'fixture-root', version: '1.0.0' }, {});
 
     expect(generateLicensesFromPackageRoot(fixtureRoot)).toEqual([]);
+  });
+
+  it('壊れたpackage.jsonのパッケージをスキップし、他のパッケージの出力は継続する（CodeRabbit PR#28指摘#3）', () => {
+    fixtureRoot = createFixture(
+      {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { 'pkg-a': '^1.0.0', 'pkg-broken': '^1.0.0', 'pkg-c': '^2.0.0' },
+      },
+      {
+        'pkg-a': { pkg: { name: 'pkg-a', version: '1.2.3', license: 'MIT' } },
+        'pkg-c': { pkg: { name: 'pkg-c', version: '2.0.1', license: 'Apache-2.0' } },
+      }
+    );
+    // JSON.stringifyでは生成できない壊れたJSONを直接書き込む
+    // （node_modules内の1パッケージが破損しているケースの再現）。
+    const pkgBrokenDir = join(fixtureRoot, 'node_modules', 'pkg-broken');
+    mkdirSync(pkgBrokenDir, { recursive: true });
+    writeFileSync(join(pkgBrokenDir, 'package.json'), '{ invalid json,,, ', 'utf-8');
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const licenses = generateLicensesFromPackageRoot(fixtureRoot);
+    const names = licenses.map((l) => l.name);
+
+    expect(names).toContain('pkg-a');
+    expect(names).toContain('pkg-c');
+    expect(names).not.toContain('pkg-broken');
+    expect(licenses).toHaveLength(2);
+    expect(warnSpy).toHaveBeenCalled();
+
+    warnSpy.mockRestore();
   });
 });

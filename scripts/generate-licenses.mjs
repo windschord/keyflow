@@ -77,7 +77,9 @@ export function findLicenseFile(pkgDir) {
  * @returns {Array<{ name: string, version: string, license: string, licenseText: string }>}
  */
 export function collectLicenses({ dependencies, nodeModulesDir }) {
-  return Object.keys(dependencies).map((name) => {
+  const results = [];
+
+  for (const name of Object.keys(dependencies)) {
     const pkgDir = join(nodeModulesDir, name);
     const pkgJsonPath = join(pkgDir, 'package.json');
 
@@ -85,7 +87,19 @@ export function collectLicenses({ dependencies, nodeModulesDir }) {
     let license = 'UNKNOWN';
 
     if (existsSync(pkgJsonPath)) {
-      const depPkg = JSON.parse(readFileSync(pkgJsonPath, 'utf-8'));
+      let depPkg;
+      try {
+        depPkg = JSON.parse(readFileSync(pkgJsonPath, 'utf-8'));
+      } catch (error) {
+        // 1パッケージのpackage.json破損でスクリプト全体（predev/prebuild/prelint/
+        // pretest各フック）を停止させないため、当該パッケージのみスキップして継続する
+        // （CodeRabbit PR#28指摘#3）。
+        console.warn(
+          `[generate-licenses] ${pkgJsonPath} の読み込みに失敗したため、${name} をスキップします:`,
+          error
+        );
+        continue;
+      }
       version = typeof depPkg.version === 'string' ? depPkg.version : 'unknown';
       license = normalizeLicense(depPkg);
     }
@@ -93,8 +107,10 @@ export function collectLicenses({ dependencies, nodeModulesDir }) {
     const licenseFilePath = findLicenseFile(pkgDir);
     const licenseText = licenseFilePath ? readFileSync(licenseFilePath, 'utf-8') : license;
 
-    return { name, version, license, licenseText };
-  });
+    results.push({ name, version, license, licenseText });
+  }
+
+  return results;
 }
 
 /**

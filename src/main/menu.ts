@@ -2,6 +2,8 @@ import type { MenuItemConstructorOptions } from 'electron';
 
 /**
  * TASK-082: Aboutを設定画面から分離し、メニューバー経由で開く独立モーダルへ（US-015）。
+ * TASK-083: アプリ名をリポジトリ名「keyflow」へ統一（REQ-011-001改訂）。
+ * win32/linuxのヘルプメニュー項目ラベルも「バージョン情報」から「{appTitle}について」へ統一する。
  *
  * アプリケーションメニューのテンプレートを純関数として組み立てる。Electron本体を
  * importせず型のみ利用するため、Electron実行環境なしでもユニットテストで検証できる
@@ -28,7 +30,7 @@ export function createApplicationMenuTemplate({
 
   const aboutMenuItem: MenuItemConstructorOptions = {
     id: 'open-about',
-    label: isMac ? `${appTitle}について` : 'バージョン情報',
+    label: `${appTitle}について`,
     click: () => onOpenAbout(),
   };
 

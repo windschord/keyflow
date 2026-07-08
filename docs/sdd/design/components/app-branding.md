@@ -5,7 +5,7 @@
 **目的**: アプリのウィンドウタイトルとアイコンをElectronデフォルトから独自ブランディングへ置き換える（US-011）。
 
 **責務**:
-- ウィンドウタイトル「MusicXML Piano Practice」の設定（REQ-011-001）
+- ウィンドウタイトル「keyflow」の設定（REQ-011-001）
 - ピアノ+楽譜モチーフの独自アイコンの提供（REQ-011-002）
 - 全対象OS向けアイコン形式の生成と配置（REQ-011-003）
 
@@ -17,10 +17,10 @@
 
 | 設定箇所 | 変更内容 |
 |---------|---------|
-| `src/renderer/index.html` | `<title>Electron</title>` → `<title>MusicXML Piano Practice</title>` |
-| `src/main/index.ts` の BrowserWindow options | `title: 'MusicXML Piano Practice'` を追加 |
+| `src/renderer/index.html` | `<title>Electron</title>` → `<title>keyflow</title>` |
+| `src/main/index.ts` の BrowserWindow options | `title: 'keyflow'` を追加 |
 
-- タイトル文字列は `electron-builder.yml` の `productName`（`MusicXML Piano Practice`）と一致させる
+- タイトル文字列は `electron-builder.yml` の `productName`（`keyflow`）と一致させる
 - Rendererが `document.title` を変更しない限りHTML側が優先されるため、両方を設定して整合を保つ
 
 ## アイコン
@@ -56,8 +56,8 @@
 
 ## テスト観点
 
-- `index.html` の `<title>` が「MusicXML Piano Practice」であること（ユニットテストまたはE2Eの `title()` 検証）
-- E2E: 起動したウィンドウの `page.title()` が「MusicXML Piano Practice」であること
+- `index.html` の `<title>` が「keyflow」であること（ユニットテストまたはE2Eの `title()` 検証）
+- E2E: 起動したウィンドウの `page.title()` が「keyflow」であること
 - `build/icon.ico` / `build/icon.icns` / `resources/icon.png` が存在すること（生成スクリプトのテストまたはCIチェック）
 
 ## 対応要件

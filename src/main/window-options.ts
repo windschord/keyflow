@@ -2,11 +2,12 @@ import type { BrowserWindowConstructorOptions } from 'electron';
 
 /**
  * TASK-068: アプリのブランディング（アイコン生成・ウィンドウタイトル）
+ * TASK-083: アプリ名をリポジトリ名「keyflow」へ統一（REQ-011-001改訂）
  *
  * ウィンドウタイトルを一元管理する（REQ-011-001）。
  * `electron-builder.yml` の productName と一致させる。
  */
-export const APP_TITLE = 'MusicXML Piano Practice';
+export const APP_TITLE = 'keyflow';
 
 export interface CreateWindowOptionsParams {
   platform: NodeJS.Platform;

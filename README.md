@@ -1,4 +1,4 @@
-# KeyFlow — MusicXML ピアノ練習アプリ
+# keyflow — MusicXML ピアノ練習アプリ
 
 MusicXMLファイルを読み込み、MIDI入力で練習できるデスクトップアプリ。  
 Synthesia / Piano Marvel ライクな体験を、自分の楽譜で実現します。

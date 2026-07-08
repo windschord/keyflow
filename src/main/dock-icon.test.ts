@@ -48,4 +48,28 @@ describe('applyDockIcon (REQ-011-002, TASK-080)', () => {
       applyDockIcon({ platform: 'win32', dock: undefined, iconPath: '/path/to/icon.png' })
     ).not.toThrow();
   });
+
+  it('setIconが例外を投げても関数が例外を伝播しない（TASK-084、パッケージ版asarパス対策）', () => {
+    const setIcon = vi.fn(() => {
+      throw new Error('Failed to load image from path');
+    });
+    const dock = { setIcon } as unknown as Dock;
+
+    expect(() =>
+      applyDockIcon({ platform: 'darwin', dock, iconPath: '/path/to/icon.png' })
+    ).not.toThrow();
+  });
+
+  it('setIconが例外を投げた場合はconsole.warnで通知する（TASK-084）', () => {
+    const setIcon = vi.fn(() => {
+      throw new Error('Failed to load image from path');
+    });
+    const dock = { setIcon } as unknown as Dock;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    applyDockIcon({ platform: 'darwin', dock, iconPath: '/path/to/icon.png' });
+
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
 });

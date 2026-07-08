@@ -50,6 +50,9 @@ describe('applyDockIcon (REQ-011-002, TASK-080)', () => {
   });
 
   it('setIconが例外を投げても関数が例外を伝播しない（TASK-084、パッケージ版asarパス対策）', () => {
+    // console.warnをモックし、捕捉済み警告がテスト出力へ漏れてCIのログ解析に
+    // エラーとして誤検知されるのを防ぐ（CodeRabbit PR#28指摘、2026-07-09）。
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const setIcon = vi.fn(() => {
       throw new Error('Failed to load image from path');
     });
@@ -58,6 +61,7 @@ describe('applyDockIcon (REQ-011-002, TASK-080)', () => {
     expect(() =>
       applyDockIcon({ platform: 'darwin', dock, iconPath: '/path/to/icon.png' })
     ).not.toThrow();
+    warn.mockRestore();
   });
 
   it('setIconが例外を投げた場合はconsole.warnで通知する（TASK-084）', () => {

@@ -83,14 +83,14 @@ test.afterEach(async () => {
   await electronApp?.close();
 });
 
-test('ウィンドウタイトルが「MusicXML Piano Practice」である（TASK-068, REQ-011-001）', async () => {
+test('ウィンドウタイトルが「keyflow」である（TASK-068/083, REQ-011-001改訂）', async () => {
   await expect
     .poll(async () =>
       electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
     )
     .toBeGreaterThan(0);
 
-  expect(await window.title()).toBe('MusicXML Piano Practice');
+  expect(await window.title()).toBe('keyflow');
 });
 
 test('アプリ起動→サンプルMusicXML読み込み→再生→手動スクロール→MIDIモック注入で正誤判定・カーソル進行', async () => {
@@ -338,7 +338,7 @@ test('設定モーダル→音色セクションの表示、Aboutセクション
   await expect(window.getByText('このアプリについて')).toHaveCount(0);
 });
 
-test('メニュー「バージョン情報/…について」→Aboutモーダルが開きバージョン・ライセンスが表示される（TASK-082, REQ-015-001/003/005）', async () => {
+test('メニュー「keyflowについて」→Aboutモーダルが開きバージョン・ライセンスが表示される（TASK-082/083, REQ-015-001/003/005）', async () => {
   await expect
     .poll(async () =>
       electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)

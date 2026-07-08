@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 
 /**
  * TASK-068: アプリのブランディング（アイコン生成・ウィンドウタイトル）
+ * TASK-083: アプリ名をリポジトリ名「keyflow」へ統一（REQ-011-001改訂）
  *
  * US-011 / REQ-011-001〜003 に対応する検証。
  * ウィンドウタイトルが「Electron」のままであること、
@@ -13,9 +14,9 @@ import { resolve } from 'node:path';
 const REPO_ROOT = resolve(__dirname, '../../../..');
 
 describe('App branding (US-011)', () => {
-  it('index.htmlの<title>が「MusicXML Piano Practice」である（REQ-011-001）', () => {
+  it('index.htmlの<title>が「keyflow」である（REQ-011-001改訂）', () => {
     const html = readFileSync(resolve(REPO_ROOT, 'src/renderer/index.html'), 'utf-8');
-    expect(html).toMatch(/<title>MusicXML Piano Practice<\/title>/);
+    expect(html).toMatch(/<title>keyflow<\/title>/);
   });
 
   it('resources/icon.pngが生成されておりサイズ>0である（REQ-011-002/003）', () => {

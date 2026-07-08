@@ -28,7 +28,7 @@ function clickItem(item: MenuItemConstructorOptions | undefined): void {
   (item?.click as unknown as (() => void) | undefined)?.();
 }
 
-const APP_TITLE = 'MusicXML Piano Practice';
+const APP_TITLE = 'keyflow';
 
 describe('createApplicationMenuTemplate (REQ-015, TASK-082)', () => {
   it('darwinではアプリメニュー内に「{appTitle}について」項目（id: open-about）を持ち、クリックでonOpenAboutを呼ぶ', () => {
@@ -46,7 +46,7 @@ describe('createApplicationMenuTemplate (REQ-015, TASK-082)', () => {
     expect(onOpenAbout).toHaveBeenCalledTimes(1);
   });
 
-  it('win32/linuxではヘルプメニュー内に「バージョン情報」項目（id: open-about）を持ち、クリックでonOpenAboutを呼ぶ', () => {
+  it('win32/linuxではヘルプメニュー内に「{appTitle}について」項目（id: open-about）を持ち、クリックでonOpenAboutを呼ぶ（TASK-083: 「バージョン情報」から統一）', () => {
     for (const platform of ['win32', 'linux'] as const) {
       const onOpenAbout = vi.fn();
       const template = createApplicationMenuTemplate({
@@ -56,7 +56,7 @@ describe('createApplicationMenuTemplate (REQ-015, TASK-082)', () => {
       });
 
       const aboutItem = findMenuItem(template, (item) => item.id === 'open-about');
-      expect(aboutItem?.label).toBe('バージョン情報');
+      expect(aboutItem?.label).toBe(`${APP_TITLE}について`);
 
       clickItem(aboutItem);
       expect(onOpenAbout).toHaveBeenCalledTimes(1);

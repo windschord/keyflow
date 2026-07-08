@@ -19,10 +19,10 @@ vi.mock('../../generated/licenses.json', () => ({
 }));
 
 describe('AboutPanel', () => {
-  it('アプリ名・バージョン・本体ライセンスが表示される（REQ-015-001）', () => {
+  it('アプリ名・バージョン・本体ライセンスが表示される（REQ-015-001、TASK-083: アプリ名は「keyflow」）', () => {
     render(<AboutPanel />);
 
-    expect(screen.getByText('MusicXML Piano Practice')).toBeInTheDocument();
+    expect(screen.getByText('keyflow')).toBeInTheDocument();
     expect(screen.getByText(new RegExp(__APP_VERSION__))).toBeInTheDocument();
     expect(screen.getByText(/Apache License 2\.0/)).toBeInTheDocument();
   });

@@ -17,11 +17,11 @@ describe('AboutModal (TASK-082, US-015)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('isOpenがtrueの場合、AboutPanelの内容（アプリ名・バージョン）を表示する（REQ-015-001）', () => {
+  it('isOpenがtrueの場合、AboutPanelの内容（アプリ名・バージョン）を表示する（REQ-015-001、TASK-083: アプリ名は「keyflow」）', () => {
     render(<AboutModal isOpen onClose={vi.fn()} />);
 
     expect(screen.getByRole('dialog', { name: 'このアプリについて' })).toBeInTheDocument();
-    expect(screen.getByText('MusicXML Piano Practice')).toBeInTheDocument();
+    expect(screen.getByText('keyflow')).toBeInTheDocument();
     expect(screen.getByText(new RegExp(__APP_VERSION__))).toBeInTheDocument();
   });
 

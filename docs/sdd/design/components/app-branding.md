@@ -32,7 +32,7 @@
 | `resources/icon.svg` | マスター（新規作成、1024x1024相当のviewBox） | 手書きSVG（リポジトリにコミット） |
 | `resources/icon.png` | Linux実行時・変換元（1024x1024） | 生成スクリプトでSVGからレンダリング |
 | `build/icon.icns` | macOSパッケージ用 | 生成スクリプトでPNGから変換 |
-| `build/icon.ico` | Windowsパッケージ用（**現在欠落**） | 生成スクリプトでPNGから変換 |
+| `build/icon.ico` | Windowsパッケージ用（TASK-068で生成・解消済み） | 生成スクリプトでPNGから変換 |
 
 生成物（png/icns/ico）もリポジトリにコミットする（ビルド環境に生成ツールを要求しないため）。
 

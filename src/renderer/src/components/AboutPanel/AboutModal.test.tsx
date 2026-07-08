@@ -51,4 +51,49 @@ describe('AboutModal (TASK-082, US-015)', () => {
 
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('aria-modal属性がtrueである（アクセシビリティ、PR#28指摘対応）', () => {
+    render(<AboutModal isOpen onClose={vi.fn()} />);
+
+    expect(screen.getByRole('dialog', { name: 'このアプリについて' })).toHaveAttribute(
+      'aria-modal',
+      'true'
+    );
+  });
+
+  it('開いた時、初期フォーカスがダイアログ内へ移動する（アクセシビリティ、PR#28指摘対応）', () => {
+    render(<AboutModal isOpen onClose={vi.fn()} />);
+
+    expect(screen.getByRole('dialog', { name: 'このアプリについて' })).toHaveFocus();
+  });
+
+  it('閉じた後、開く直前にフォーカスしていた要素へフォーカスが復帰する（アクセシビリティ、PR#28指摘対応）', () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <div>
+        <button type="button">トリガー</button>
+        <AboutModal isOpen={false} onClose={onClose} />
+      </div>
+    );
+    const trigger = screen.getByRole('button', { name: 'トリガー' });
+    trigger.focus();
+    expect(trigger).toHaveFocus();
+
+    rerender(
+      <div>
+        <button type="button">トリガー</button>
+        <AboutModal isOpen onClose={onClose} />
+      </div>
+    );
+    expect(screen.getByRole('dialog', { name: 'このアプリについて' })).toHaveFocus();
+
+    rerender(
+      <div>
+        <button type="button">トリガー</button>
+        <AboutModal isOpen={false} onClose={onClose} />
+      </div>
+    );
+
+    expect(trigger).toHaveFocus();
+  });
 });

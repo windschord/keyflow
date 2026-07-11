@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-091 |
 | タイプ | fix（セキュリティ強化・DoS耐性） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 60分 |
 | 依存タスク | なし |
@@ -60,19 +60,20 @@
 
 ## 受入基準
 
-- [ ] XMLサイズ上限・DOCTYPE拒否・zip展開サイズ上限が実装され、それぞれのテストがある
-- [ ] 両 `XMLParser` に `processEntities: false` が明示されている
-- [ ] 正常なMusicXML/MXL（既存サンプル）が引き続きパースできる（リグレッションなし）
-- [ ] 拒否時に `MusicXMLParseError` が送出される
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` がすべて通過する
+- [x] XMLサイズ上限・DOCTYPE拒否・zip展開サイズ上限が実装され、それぞれのテストがある
+- [x] 実体展開DoS（billion laughs）が遮断されている（下記の設計変更参照。`processEntities: false` は不採用）
+- [x] 正常なMusicXML/MXL（既存サンプル）が引き続きパースできる（リグレッションなし）
+- [x] 拒否時に `MusicXMLParseError` が送出される
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` がすべて通過する
 
 ## テスト項目
 
-- [ ] `MAX_XML_BYTES` 超過の文字列で `MusicXMLParseError`
-- [ ] `<!DOCTYPE ...>` を含むXMLで `MusicXMLParseError`
-- [ ] 展開後サイズが `MAX_UNZIPPED_BYTES` を超える細工 `.mxl` で拒否（fflateで高圧縮のダミーを合成してテスト）
-- [ ] 既存の正常な `.xml` / `.musicxml` / `.mxl` は成功
-- [ ] `processEntities: false` により内部エンティティが展開されない（`&entity;` がそのまま扱われる）ことの確認
+- [x] `MAX_XML_LENGTH` 超過の文字列で `MusicXMLParseError`
+- [x] 内部サブセット付きDOCTYPE（billion laughs）で `MusicXMLParseError`
+- [x] 外部DTD参照のみのDOCTYPEは許可される（実在MusicXMLとの互換性維持）
+- [x] 宣言サイズが `MAX_UNZIPPED_BYTES` を超える細工 `.mxl` で拒否（fflateで高圧縮のダミーを合成してテスト）
+- [x] 既存の正常な `.xml` / `.musicxml` / `.mxl` は成功
+- [x] 予約実体参照（`&amp;` 等）は従来どおり復号される（processEntities維持の回帰確認）
 
 ## 情報の明確性
 
@@ -85,3 +86,58 @@
 ### 不明/要確認の情報
 
 - 上限値の具体値（実サンプル譜面のサイズを確認し、余裕を持った値を実装時に決定する）
+  → 完了サマリー参照。既存サンプル（8.7KB）に対し十分な余裕を持つ値を採用した。
+
+## 完了サマリー（2026-07-11）
+
+### 実装内容
+
+- `src/renderer/src/lib/musicxml-parser/parser.ts`:
+  - `parse()` 冒頭にXMLサイズ上限（`MAX_XML_LENGTH = 30_000_000` 文字）超過の拒否を追加
+  - `parse()` に `hasDoctypeWithInternalSubset` を追加し、内部サブセット付きDOCTYPEのみ拒否する
+  - `extractXmlFromMxl()` の `unzipSync` に `filter` コールバックを渡し、展開前に宣言サイズ（`originalSize`）・エントリ数を検査する
+- `src/renderer/src/lib/musicxml-parser/parser.test.ts`: 拒否ケースと回帰テスト計7件を追加
+
+### 設計上の要点1: DOCTYPEは内部サブセット付きのみ拒否する
+
+当初は「DOCTYPEを一律拒否」で実装した。
+しかし実在の標準MusicXMLは外部DTD参照のDOCTYPEを持つことが判明した。
+E2Eフィクスチャ（`tests/e2e/fixtures/sample-two-hands.musicxml`）も
+`<!DOCTYPE score-partwise PUBLIC ...>` の形式を含む。
+一律拒否は正常な譜面を開けなくするリグレッションになるため、
+実体展開DoS（billion laughs）の攻撃面である**内部サブセット（角括弧部分）を伴うDOCTYPEのみ**を
+拒否する方式へ是正した。外部DTDは両パーサとも取得しない（XXE不成立）ため許可して問題ない。
+
+### 設計上の要点2: `processEntities` はメインパーサで既定（true）を維持する
+
+`processEntities: false` は `&amp;` / `&lt;` 等の予約実体参照まで復号しなくなり
+（`fast-xml-parser` v5で `"Rock &amp; Roll"` が復号されない）、曲名・歌詞の表示を壊す。
+実体展開DoSは上記のDOCTYPE内部サブセット拒否で既に防げるため、メインパーサでは
+`processEntities` を既定のまま維持し、表示の正しさを保つ。
+一方 `container.xml` 用パーサはDOCTYPE検査を通していないため、そこだけ `processEntities: false` として
+実体展開を遮断する（container.xmlはパス属性のみで予約実体参照を含む理由がなく副作用もない）。
+
+### 設計上の要点3: zip爆弾は展開前に遮断する
+
+`unzipSync` の `filter` コールバックはエントリの実際の展開（`inflateSync`）の直前に呼ばれるため、
+そこでZIPヘッダの宣言サイズ（`originalSize`）と累計・エントリ数を検査し、
+巨大バッファを確保する前に `MusicXMLParseError` を投げる。展開後に合計を検査する方式より堅牢。
+
+### 採用した上限値と根拠
+
+- `MAX_XML_LENGTH = 30,000,000` 文字: 既存サンプル（`sample-two-hands.musicxml` = 8.7KB）や
+  実在の譜面（数KB〜数百KB規模）に対し十分な余裕。悪意ある巨大入力のみを拒否する
+- `MAX_UNZIPPED_BYTES = 50MB` / `MAX_ZIP_ENTRIES = 1000`: 通常の.mxl（数十KB〜数MB）を許容しつつ、
+  高圧縮率のzip爆弾を拒否する
+
+### 実装プロセス上の注意（再発防止）
+
+本タスクは当初 task-executing サブエージェントへ委任した。しかし当該エージェントが共有ワーキング
+ツリー上で想定外のgit操作をして、未コミットの実装差分を巻き戻す事象が発生した。チームリードが
+実装を直接再適用し、コミット（テスト先行→実装）を完了させた。並列委任時は各エージェントを
+worktree分離するか、単一ツリーでは同時に1エージェントのみが書き込む運用とすること。
+
+### テスト結果
+
+- `npm run test`: 752件全通過（parser.test.tsは46件）
+- `npm run typecheck` / `npm run lint` / `npm run lint:jp:ts`: いずれも通過

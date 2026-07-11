@@ -24,7 +24,7 @@ function createWindow(): void {
     ...createWindowOptions({ platform: process.platform, iconPath: icon }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
     },

@@ -27,4 +27,25 @@ export class PathAllowlist {
 
     return resolvedPath;
   }
+
+  /**
+   * file:read系IPCが読み取れるパスを、ユーザーが選択したMusicXML本体と
+   * その注釈サイドカー（*.annotation.json）のみに制限する（TASK-086）。
+   */
+  assertAllowedReadPath(requestedPath: string): string {
+    const resolvedPath = resolve(requestedPath);
+
+    if (this.allowedMusicXmlPaths.has(resolvedPath)) {
+      return resolvedPath;
+    }
+
+    if (resolvedPath.endsWith(ANNOTATION_SUFFIX)) {
+      const musicXmlPath = resolvedPath.slice(0, -ANNOTATION_SUFFIX.length);
+      if (this.allowedMusicXmlPaths.has(musicXmlPath)) {
+        return resolvedPath;
+      }
+    }
+
+    throw new Error(`Refused to read from disallowed path: ${requestedPath}`);
+  }
 }

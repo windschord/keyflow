@@ -6,7 +6,13 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
 import { PathAllowlist } from './path-allowlist';
-import { createRegisterDroppedFileHandler, createShowOpenDialogHandler } from './file-handlers';
+import {
+  createReadBinaryFileHandler,
+  createReadFileHandler,
+  createReadFileIfExistsHandler,
+  createRegisterDroppedFileHandler,
+  createShowOpenDialogHandler,
+} from './file-handlers';
 import { createWindowOptions, APP_TITLE } from './window-options';
 import { applyDockIcon } from './dock-icon';
 import { createApplicationMenuTemplate } from './menu';
@@ -73,28 +79,17 @@ app.whenReady().then(() => {
     createRegisterDroppedFileHandler(pathAllowlist, settingsService)
   );
 
-  ipcMain.handle('file:read', async (_, path: string) => {
-    const content = await fs.promises.readFile(path, 'utf-8');
-    return content;
-  });
+  // TASK-086: 読み取り3ハンドラはすべて PathAllowlist.assertAllowedReadPath を経由し、
+  // ユーザーが開いたMusicXML本体・その注釈サイドカー以外の読み取りを拒否する
+  // （書き込み側 file:write の allowlist と同様の非対称解消）。
+  ipcMain.handle('file:read', createReadFileHandler(pathAllowlist, fs.promises));
 
   // アノテーションのサイドカーファイル（*.annotation.json）のように「存在しないのが
   // 正常」なファイル用。ENOENTはエラーではなくnullを返す（file:readをそのまま使うと
   // 初回オープンのたびにメインプロセスへ未処理エラーがログされるため。2026-07-05）。
-  ipcMain.handle('file:read-if-exists', async (_, path: string) => {
-    try {
-      return await fs.promises.readFile(path, 'utf-8');
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
-      throw err;
-    }
-  });
+  ipcMain.handle('file:read-if-exists', createReadFileIfExistsHandler(pathAllowlist, fs.promises));
 
-  ipcMain.handle('file:read-binary', async (_, path: string) => {
-    const content = await fs.promises.readFile(path);
-    // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換
-    return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
-  });
+  ipcMain.handle('file:read-binary', createReadBinaryFileHandler(pathAllowlist, fs.promises));
 
   ipcMain.handle('file:write', async (_, path: string, content: string) => {
     const allowedPath = pathAllowlist.assertAllowedAnnotationPath(path);

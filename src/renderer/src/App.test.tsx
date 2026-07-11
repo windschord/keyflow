@@ -1699,3 +1699,32 @@ describe('App - Aboutモーダル結線（TASK-082, US-015）', () => {
     expect(() => render(<App />)).not.toThrow();
   });
 });
+
+// TASK-088: window.__e2eStore__ は実起動E2E専用の計装であり、本番ビルドでは
+// 攻撃対象領域を無用に広げるため公開してはならない。electronAPI.isE2E（preload経由で
+// --keyflow-e2e引数から判定される）が true の場合のみ公開する。
+describe('App - __e2eStore__ instrumentation guard (TASK-088)', () => {
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).__e2eStore__;
+  });
+
+  it('does not expose __e2eStore__ on window when electronAPI.isE2E is not true', () => {
+    render(<App />);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((window as any).__e2eStore__).toBeUndefined();
+  });
+
+  it('exposes __e2eStore__ on window when electronAPI.isE2E is true', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = { isE2E: true };
+
+    render(<App />);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((window as any).__e2eStore__).toBe(usePracticeStore);
+  });
+});

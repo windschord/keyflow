@@ -695,4 +695,50 @@ describe('usePractice', () => {
     expect(result.current.webMidiService).toBeDefined();
     expect(result.current.webMidiService.setSelectedDevice).toBe(setSelectedDeviceMock);
   });
+
+  // TASK-088: window.__e2eMidiHooks__ は実起動E2E専用の計装であり、本番ビルドでは
+  // 攻撃対象領域を無用に広げるため公開してはならない。electronAPI.isE2E（preload経由で
+  // --keyflow-e2e引数から判定される）が true の場合のみ公開する。
+  describe('__e2eMidiHooks__ instrumentation guard (TASK-088)', () => {
+    afterEach(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).electronAPI;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).__e2eMidiHooks__;
+    });
+
+    it('does not expose __e2eMidiHooks__ on window when electronAPI.isE2E is not true', () => {
+      renderHook(() => usePractice());
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((window as any).__e2eMidiHooks__).toBeUndefined();
+    });
+
+    it('exposes __e2eMidiHooks__ on window when electronAPI.isE2E is true', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).electronAPI = { isE2E: true };
+
+      renderHook(() => usePractice());
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hooks = (window as any).__e2eMidiHooks__;
+      expect(hooks).toBeDefined();
+      expect(hooks.noteOn).toBeInstanceOf(Function);
+      expect(hooks.noteOff).toBeInstanceOf(Function);
+    });
+
+    it('removes __e2eMidiHooks__ from window on unmount when it was exposed', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).electronAPI = { isE2E: true };
+
+      const { unmount } = renderHook(() => usePractice());
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((window as any).__e2eMidiHooks__).toBeDefined();
+
+      unmount();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((window as any).__e2eMidiHooks__).toBeUndefined();
+    });
+  });
 });

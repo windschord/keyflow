@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-089 |
 | タイプ | chore（セキュリティ強化） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Low |
 | 見積もり | 30分 |
 | 依存タスク | なし（TASK-086〜088と並列実行可能） |
@@ -59,17 +59,17 @@
 
 ## 受入基準
 
-- [ ] `npm audit`（省略オプションなし）が 0 vulnerabilities となる
-- [ ] `npm run lint` が通過する
-- [ ] `scripts/lint-jp-ts-comments.mjs` が従来どおり機能する（実行して確認）
-- [ ] `npm run test` / `npm run typecheck` が通過する
-- [ ] `dependencies`（本番依存）に変更がない
+- [x] `npm audit`（省略オプションなし）が 0 vulnerabilities となる
+- [x] `npm run lint` が通過する
+- [x] `scripts/lint-jp-ts-comments.mjs` が従来どおり機能する（実行して確認）
+- [x] `npm run test` / `npm run typecheck` が通過する
+- [x] `dependencies`（本番依存）に変更がない
 
 ## テスト項目
 
-- [ ] `npm audit` 0件
-- [ ] 日本語コメントlintの実行結果が更新前と同等（既存コードで新規エラーが出ない）
-- [ ] 既存ユニットテスト全件通過
+- [x] `npm audit` 0件
+- [x] 日本語コメントlintの実行結果が更新前と同等（既存コードで新規エラーが出ない）
+- [x] 既存ユニットテスト全件通過
 
 ## 情報の明確性
 
@@ -80,4 +80,38 @@
 
 ### 不明/要確認の情報
 
-- textlint 15系と現行prh等プラグインの互換性（実装時にリリースノートと実行確認で検証する）
+- textlint 15系と現行prh等プラグインの互換性（実装時にリリースノートと実行確認で検証する）→ 実装時に検証済み（下記サマリー参照）
+
+## 完了サマリー（2026-07-11）
+
+### 変更内容
+
+- `textlint`: `^13.4.0` → `^15.7.1`
+- `textlint-rule-preset-ja-technical-writing`: `^10.0.0` → `^12.0.2`
+- 残余の`js-yaml`系moderate脆弱性は `npm audit fix`（非破壊）で解消
+- `package.json`のprh依存は元々存在せず（本タスク背景記載のprhは`@textlint/linter-formatter`経由の間接依存であり、textlint本体の更新で解消）
+
+### npm audit結果
+
+- 更新前: high 4件（flatted / flat-cache / file-entry-cache / textlint本体, すべてtextlint 15.7.1へのアップデートで解消可能）+ moderate 1件（js-yaml）
+- 更新後: `npm audit` で **0 vulnerabilities**
+
+### 互換性確認
+
+- `.textlintrc.json`（`rules.preset-ja-technical-writing`形式）はtextlint 15系でもそのまま動作することを実行確認した
+- `textlint --config .textlintrc.json` のCLIオプションも変更なく動作
+- Node.js要件: textlint 15系は`engines.node: >=20.0.0`。本プロジェクトの`engines.node`（`^20.19.0 || >=22.12.0`）と実行環境（v22.19.0）はいずれも満たす
+- prhプラグインは本プロジェクトのdevDependenciesに存在せず、互換性確認は不要だった（タスク背景の記載を実装時に精査し、直接依存していないことを確認）
+
+### 回帰確認結果
+
+- `npm run lint`（ESLint）: 通過
+- `scripts/lint-jp-ts-comments.mjs`: 実行し、既存の2件のエラー（`usePractice.test.ts`・`App.test.tsx`内の全角括弧誤検知）を確認。旧バージョン（textlint 13.4.0 + preset 10.0.0）で同一の一時ファイルを検査し、更新前から存在する既知の誤検知であり新規エラーではないことを確認済み（本タスクのスコープ外）
+- `npm run lint:jp:md`（受入基準外・参考確認）: 既存ドキュメント9件のエラーを確認したが、同様に旧バージョンでも同一の9件が検出されることを確認済み。新規エラーなし
+- `npm run test`: 全55ファイル・777テスト成功
+- `npm run typecheck`: エラーなし
+- `dependencies`（本番依存）: 変更なし（`git diff`で確認済み）
+
+### 残件
+
+- なし（受入基準はすべて満たされた）

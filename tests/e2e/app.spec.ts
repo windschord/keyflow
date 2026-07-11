@@ -127,6 +127,16 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
     ipcMain.handle('file:show-open-dialog', () => fixturePath);
   }, FIXTURE_PATH);
 
+  // TASK-086でfile:read系IPCにPathAllowlist検証が導入され、選択パスは
+  // ダイアログの本物のハンドラ（createShowOpenDialogHandler）内で
+  // allowMusicXmlへ登録される。上記のfile:show-open-dialogモックはこの副作用を
+  // 再現しないため、同じ登録処理を行う本物のfile:register-dropped-file IPC
+  // （拡張子検証を満たせばallowMusicXmlを呼ぶ）を経由して補う。
+  await window.evaluate(
+    (fixturePath) => window.electronAPI.file.registerDroppedFile(fixturePath),
+    FIXTURE_PATH
+  );
+
   // TASK-053のドロップ案内文にも「ファイルを開く」が含まれるため、ロールで特定する
   await window.getByRole('button', { name: 'ファイルを開く' }).click();
 

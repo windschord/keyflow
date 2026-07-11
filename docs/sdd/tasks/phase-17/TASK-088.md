@@ -15,7 +15,9 @@
 
 ### 問題の概要
 
-2026-07-11のセキュリティ調査で、E2Eテスト用の計装 `window.__e2eStore__`（`src/renderer/src/App.tsx:156-159`）と `window.__e2eMidiHooks__`（`src/renderer/src/hooks/usePractice.ts:284-297`）が環境分岐なしの `useEffect` で登録されており、本番ビルドでも `window` 上に公開されることが判明した。単独での悪用は困難だが、攻撃対象領域を無用に広げている。
+2026-07-11のセキュリティ調査で、E2Eテスト用の計装が本番ビルドでも `window` 上に公開されることが判明した。
+対象は `window.__e2eStore__`（`src/renderer/src/App.tsx:156-159`）と `window.__e2eMidiHooks__`（`src/renderer/src/hooks/usePractice.ts:284-297`）である。
+いずれも環境分岐なしの `useEffect` で登録されている。単独での悪用は困難だが、攻撃対象領域を無用に広げている。
 
 ### 制約（重要）
 
@@ -74,7 +76,7 @@ Playwright起動時: 環境変数 KEYFLOW_E2E=1
 
 ## テスト項目
 
-- [x] isE2E=false時に `__e2eMidiHooks__` / `__e2eStore__` が window に登録されない
+- [x] isE2E=false時は `__e2eMidiHooks__` / `__e2eStore__` が window へ登録されない
 - [x] isE2E=true時に登録され、既存のE2Eシナリオが動作する
 - [x] preloadの `isE2E` が `--keyflow-e2e` 引数の有無に追随する
 - [x] E2Eスイート全件通過
@@ -97,7 +99,9 @@ Playwright起動時: 環境変数 KEYFLOW_E2E=1
 
 - ユニットテスト: `usePractice.test.ts` / `App.test.tsx` に「isE2E未設定時は非公開」「isE2E=true時は公開」の各テストケースを追加（TDD: 先に失敗するテストを追加してコミットし、実装後に通過を確認）
 - E2E結線: `tests/e2e/app.spec.ts` のElectron起動に `env: { ...process.env, KEYFLOW_E2E: '1' }` を追加。既存4テストが引き続き通過することで、フラグが実際にmain→preload→rendererへ伝搬していることを検証した
-- E2E非公開検証: 新規 `tests/e2e/e2e-instrumentation-guard.spec.ts` を追加し、環境変数を渡さない起動（本番ビルド相当）で `window.__e2eStore__` / `window.__e2eMidiHooks__` がともに `undefined` であることを自動テストで検証した（タスクファイルが「望ましい」としていた追加ケースを実装。手動確認は不要になった）
+- E2E非公開検証: 新規 `tests/e2e/e2e-instrumentation-guard.spec.ts` を追加した。
+  環境変数を渡さない起動（本番ビルド相当）で `window.__e2eStore__` / `window.__e2eMidiHooks__` がともに `undefined` であることを自動テストで検証した。
+  タスクファイルが「望ましい」としていた追加ケースを実装し、手動確認は不要になった
 - `npm run test`（777件）/ `npm run typecheck` / `npm run lint` / `npm run test:e2e`（5件）すべて通過を確認済み
 
 ### 変更ファイル

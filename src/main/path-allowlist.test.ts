@@ -60,9 +60,9 @@ describe('PathAllowlist.assertAllowedReadPath', () => {
     expect(() => allowlist.assertAllowedReadPath('/scores/other.musicxml')).toThrow(
       /Refused to read from disallowed path/
     );
-    expect(() =>
-      allowlist.assertAllowedReadPath('/scores/other.musicxml.annotation.json')
-    ).toThrow(/Refused to read from disallowed path/);
+    expect(() => allowlist.assertAllowedReadPath('/scores/other.musicxml.annotation.json')).toThrow(
+      /Refused to read from disallowed path/
+    );
   });
 
   it('judges the path after resolving traversal segments (../)', () => {
@@ -70,9 +70,9 @@ describe('PathAllowlist.assertAllowedReadPath', () => {
     allowlist.allowMusicXml('/scores/sub/example.musicxml');
 
     // '/scores/sub/../sub/example.musicxml' resolves to the registered path
-    expect(
-      allowlist.assertAllowedReadPath('/scores/sub/../sub/example.musicxml')
-    ).toBe(resolve('/scores/sub/example.musicxml'));
+    expect(allowlist.assertAllowedReadPath('/scores/sub/../sub/example.musicxml')).toBe(
+      resolve('/scores/sub/example.musicxml')
+    );
 
     // '/scores/sub/../secret.musicxml' resolves outside the registered path
     expect(() => allowlist.assertAllowedReadPath('/scores/sub/../secret.musicxml')).toThrow(

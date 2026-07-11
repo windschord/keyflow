@@ -95,11 +95,11 @@
   `.annotation.json` のいずれかと一致する場合のみ許可し、それ以外は
   `Refused to read from disallowed path: ...` を投げる
 - `src/main/file-handlers.ts`: `file:read` / `file:read-if-exists` / `file:read-binary` を
-  ハンドラファクトリ（`createReadFileHandler` / `createReadFileIfExistsHandler` /
-  `createReadBinaryFileHandler`）へ切り出し、fsモジュール（`readFile`）を注入可能にした。
-  既存の `createShowOpenDialogHandler` / `createRegisterDroppedFileHandler` と同じパターンで、
-  `assertAllowedReadPath` の許可判定を通過して初めて実際の `fs.promises.readFile` に到達する
-  ことをモックで検証できるようにした（モック境界の結線テスト原則）
+  ハンドラファクトリへ切り出した。
+  ファクトリは `createReadFileHandler` / `createReadFileIfExistsHandler` / `createReadBinaryFileHandler` の3つ。
+  fsモジュールを注入可能にし、既存の `createShowOpenDialogHandler` と同じパターンに揃えた。
+  これにより `assertAllowedReadPath` の許可判定を通過して初めて `fs.promises.readFile` に到達することを、
+  モックで検証できる（モック境界の結線テスト原則）。
 - `src/main/index.ts`: 上記3ハンドラの登録をファクトリ呼び出しへ置き換え（`fs.promises` を注入）
 - `file:read-binary` のバイナリ変換は `Buffer.buffer.slice(...)` から
   `new ArrayBuffer` + `Uint8Array.set` によるコピーへ変更（`Buffer.buffer` の型が
@@ -112,10 +112,10 @@
   `window.electronAPI.settings.getRecentFiles()` の結果を表示するだけの一覧であり、
   各項目に `onClick` 等の「クリックして開く」導線は実装されていない（コード上に存在しない）
 - したがって、`file:read` 系をallowlist登録なしに直接呼び出す経路は現状存在しない。
-  ダイアログ経由（`handleOpenFile` → `file:show-open-dialog` が `allowMusicXml()` 登録）・
-  ドロップ経由（`handleDrop` → `file:register-dropped-file` が `allowMusicXml()` 登録）は
-  いずれも登録後に `openMusicXmlFile()` が `file.read` / `file.readBinary` を呼ぶ既存の結線
-  のままで、allowlist化によるリグレッションはない
+  ダイアログ経由は `handleOpenFile` から `file:show-open-dialog` が `allowMusicXml()` を登録する。
+  ドロップ経由は `handleDrop` から `file:register-dropped-file` が `allowMusicXml()` を登録する。
+  いずれも登録後に `openMusicXmlFile()` が `file.read` / `file.readBinary` を呼ぶ既存の結線のままで、
+  allowlist化によるリグレッションはない。
 - 注釈サイドカー読み込み（`AnnotationStoreService.load` → `file.readIfExists`）も
   `openMusicXmlFile()` 内でのみ呼ばれ、対象パスは常に上記いずれかの経路で登録済みの
   MusicXMLパス由来である

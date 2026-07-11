@@ -33,7 +33,8 @@
 
 - ファイル: `src/main/navigation-policy.ts`（新規）
   - `isAllowedExternalUrl(url: string): boolean` — `new URL(url).protocol` が `http:` / `https:` の場合のみ true。パース失敗時は false
-  - `isAllowedNavigationUrl(url: string, devServerUrl: string | undefined): boolean` — 開発時のHMR URL（`ELECTRON_RENDERER_URL` 配下）および本番の `file:` プロトコル（自身のindex.html）のみ true
+  - `isAllowedNavigationUrl(url: string, devServerUrl: string | undefined): boolean` を用意する。
+    開発時のHMR URL（`ELECTRON_RENDERER_URL` 配下）と本番の `file:` プロトコルのみ true とする
   - 純関数として実装し、Electron APIに依存させない（ユニットテスト容易性のため。`window-options.ts` と同じ既存パターン）
 - ファイル: `src/main/navigation-policy.test.ts`（新規）
 - ファイル: `src/main/index.ts`
@@ -66,7 +67,8 @@
 
 ## テスト項目
 
-- [x] `isAllowedExternalUrl`: `https://example.com` → true、`http://example.com` → true、`file:///etc/passwd` → false、`smb://host/share` → false、`javascript:alert(1)` → false、空文字/不正URL → false
+- [x] `isAllowedExternalUrl` の許可: `https://example.com` → true、`http://example.com` → true
+- [x] `isAllowedExternalUrl` の拒否: `file:///etc/passwd`・`smb://host/share`・`javascript:alert(1)`・空文字/不正URL → いずれも false
 - [x] `isAllowedNavigationUrl`: devサーバーURL配下 → true、`file:` → true、外部 `https://` → false
 - [x] E2E: 既存スイート全件通過（ナビゲーション制御追加によるリグレッションなし）
 
@@ -92,11 +94,12 @@
 
 ### 派生して発見・修正した既存不具合（TASK-086由来、本タスクのスコープ外だが完了条件のため対応）
 
-E2E検証中、`tests/e2e/app.spec.ts`のメインシナリオ（ファイルオープン→楽譜表示）がsandbox設定に
-関わらず失敗することを発見した。原因はTASK-086で`file:read`系IPCにPathAllowlist検証が導入された際、
-このE2Eテストが使う`file:show-open-dialog`モック（固定パスを返すだけの簡易実装）が、本物の
-`createShowOpenDialogHandler`が行う`pathAllowlist.allowMusicXml`登録を再現しておらず、以後の
-`file:read`が拒否されていたこと（本番のダイアログ経由フローには影響なし、E2Eモックの結線漏れ）。
+E2E検証中、`tests/e2e/app.spec.ts`のメインシナリオがsandbox設定に関わらず失敗することを発見した。
+失敗したのはファイルオープンから楽譜表示までの流れである。
+原因はTASK-086で`file:read`系IPCにPathAllowlist検証が導入された点にある。
+このE2Eが使う`file:show-open-dialog`モックは固定パスを返すだけの簡易実装で、
+本物の`createShowOpenDialogHandler`が行う`pathAllowlist.allowMusicXml`登録を再現していなかった。
+そのため以後の`file:read`が拒否されていた（本番のダイアログ経由フローには影響なし、E2Eモックの結線漏れ）。
 本物の`file:register-dropped-file` IPC経由でallowlist登録を補う形で`tests/e2e/app.spec.ts`を修正し解消した。
 
 ### 完了条件の確認

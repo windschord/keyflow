@@ -1701,8 +1701,8 @@ describe('App - Aboutモーダル結線（TASK-082, US-015）', () => {
 });
 
 // TASK-088: window.__e2eStore__ は実起動E2E専用の計装であり、本番ビルドでは
-// 攻撃対象領域を無用に広げるため公開してはならない。electronAPI.isE2E（preload経由で
-// --keyflow-e2e引数から判定される）が true の場合のみ公開する。
+// 攻撃対象領域を無用に広げるため公開してはならない。
+// electronAPI.isE2E が true の場合のみ公開する（preload経由で --keyflow-e2e 引数から判定される）。
 describe('App - __e2eStore__ instrumentation guard (TASK-088)', () => {
   afterEach(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

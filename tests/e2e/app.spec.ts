@@ -74,7 +74,14 @@ let electronApp: ElectronApplication;
 let window: Page;
 
 test.beforeEach(async () => {
-  electronApp = await electron.launch({ args: [MAIN_ENTRY] });
+  // TASK-088: __e2eStore__/__e2eMidiHooks__（本テストが依存する実起動E2E計装）は
+  // 本番ビルドで攻撃対象領域を広げないようisE2Eフラグでガードされている。
+  // KEYFLOW_E2E=1を渡すことでmain→preload→rendererへフラグを伝搬させ、
+  // 計装を有効化する（既存の環境変数は引き継ぐ）。
+  electronApp = await electron.launch({
+    args: [MAIN_ENTRY],
+    env: { ...process.env, KEYFLOW_E2E: '1' },
+  });
   window = await electronApp.firstWindow();
   await window.waitForLoadState('domcontentloaded');
 });

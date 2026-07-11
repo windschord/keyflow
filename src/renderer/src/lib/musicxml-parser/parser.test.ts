@@ -233,12 +233,11 @@ describe('MusicXML Parser - 入力堅牢化（TASK-091）', () => {
   });
 
   it('外部DTD参照のみのDOCTYPE宣言は許可する（実在のMusicXMLとの互換性維持、非回帰）', () => {
-    // 標準的なnotationソフトウェア（MuseScore/Finale/Sibelius等）が出力する
-    // MusicXMLは、tests/e2e/fixtures/sample-two-hands.musicxmlと同様に外部DTD参照
-    // のみのDOCTYPEを持つのが実務上ほぼ必須である。これを一律拒否すると実在する
-    // 正常なMusicXMLファイルを一切開けなくなる。外部DTD自体は両パーサとも
-    // 取得しないこと（XXE不成立）を確認済みのため、内部サブセットを伴わない
-    // DOCTYPEにセキュリティ上のリスクはなく、拒否対象から除外する。
+    // 主要な採譜ソフト（MuseScore・Finale・Sibelius）が出力するMusicXMLは、
+    // E2Eフィクスチャと同様に外部DTD参照のみのDOCTYPEを持つのが通例である。
+    // これを一律拒否すると実在する正常なMusicXMLを開けなくなる。
+    // 外部DTDは両パーサとも取得しない（XXE不成立）ため、内部サブセットを
+    // 伴わないDOCTYPEにリスクはなく、拒否対象から除外する。
     const withDoctype = `<?xml version="1.0"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
 <score-partwise>
@@ -259,12 +258,10 @@ describe('MusicXML Parser - 入力堅牢化（TASK-091）', () => {
     expect(() => parse(bomb)).toThrow(MusicXMLParseError);
   });
 
-  it('processEntities:falseにより予約実体参照が展開されない（&amp;等がそのまま扱われる）', () => {
-    // TASK-091の受入基準「両XMLParserにprocessEntities: falseが明示されている」の
-    // 確認。予約実体参照（&amp;等）も含めてエンティティ処理そのものを無効化する
-    // ため、内部サブセットDOCTYPEが万一パースに到達した場合の実体展開DoSに対する
-    // 多層防御になる。副作用として、曲名等に含まれる&amp;はデコードされず
-    // 文字列としてそのまま扱われる。
+  it('予約実体参照（&amp; 等）は従来どおり復号する（processEntities維持の回帰確認）', () => {
+    // processEntitiesを既定（true）で維持するため、曲名・歌詞の予約実体参照は
+    // 正しく復号される。実体展開DoSは内部サブセット付きDOCTYPE拒否で防いでおり、
+    // processEntitiesを無効化しないことで表示の正しさを保つ。
     const xml = `<?xml version="1.0"?>
 <score-partwise>
   <work><work-title>Rock &amp; Roll &lt;live&gt;</work-title></work>
@@ -272,15 +269,14 @@ describe('MusicXML Parser - 入力堅牢化（TASK-091）', () => {
   <part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part>
 </score-partwise>`;
     const score = parse(xml);
-    expect(score.title).toBe('Rock &amp; Roll &lt;live&gt;');
+    expect(score.title).toBe('Rock & Roll <live>');
   });
 
   it('展開後サイズが上限を超える.mxlを拒否する（zip爆弾対策）', () => {
     // 高圧縮率のダミーエントリ（ゼロ埋め51MB）を含むzipを合成する。
-    // fflateのunzipSyncはZIPセントラルディレクトリに記録された宣言サイズ
-    // （originalSize）をfilterコールバックで実際の展開（inflateSync）前に検査
-    // できるため、この巨大な宣言サイズの時点で展開バッファを確保する前に拒否される
-    // （合計サイズがMAX_UNZIPPED_BYTES=50MBを超える）。
+    // fflateのunzipSyncはfilterコールバックで宣言サイズ（originalSize）を
+    // 実際の展開前に検査する。合計がMAX_UNZIPPED_BYTES（50MB）を超えるため、
+    // 展開バッファを確保する前に拒否される。
     const bomb = new Uint8Array(51 * 1024 * 1024);
     const zipped = zipSync({
       'META-INF/container.xml': new TextEncoder().encode(CONTAINER_XML),

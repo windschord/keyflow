@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-085 |
 | タイプ | chore |
-| ステータス | REVIEW |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 40分 |
 | 依存タスク | TASK-035（macOSパッケージング基盤） |
@@ -59,7 +59,7 @@
 
 - [x] `release.yml` がYAMLとして構文妥当である（ローカルでパース確認）
 - [x] `npm run build:mac` がローカルmacOS環境で成功し、`dist-electron/` にdmg/zip（x64・arm64）が生成される（CIジョブと同一コマンドの事前検証）
-- [ ] タグ（`v*`）push時にワークフローが起動し、3ジョブすべてが成功してReleaseに .exe/.dmg/.zip が添付される（次回リリースタグ発行時に確認する運用検証）
+- [x] タグ（`v*`）push時にワークフローが起動し、3ジョブすべてが成功してReleaseに .exe/.dmg/.zip が添付される。2026-07-11に検証用タグ `v0.1.0-rc.1` の通し実行で確認した（run: 29148800775、添付5ファイル、Releaseはプレリリース化済み）
 
 ## 完了サマリー
 
@@ -70,10 +70,12 @@
 3. `release` ジョブは `actions/download-artifact`（v4.3.0、SHAピン留め、`merge-multiple: true`）で成果物を集約し、`gh release create --generate-notes` で単一Releaseに全ファイルを添付する。
 4. ローカルmacOS環境で `npm run build:mac` を実行し、dmg/zip（x64・arm64）の生成を確認した。
 
+5. PR #29のマージ後、検証用タグ `v0.1.0-rc.1` をpushしてワークフローの通し実行を検証した。3ジョブ（Windows Installer Build / macOS Package Build / Create GitHub Release）すべてが成功し、Releaseに5ファイル（keyflow.Setup.0.1.0.exe、dmg×2、zip×2）が添付されることを確認した。検証用Releaseはプレリリースとしてマークした。
+
 ### 未確認・残課題
 
-- 実際のタグpushによるワークフロー全体の通し実行は、次回リリースタグ発行時に確認する。
 - コード署名・公証は引き続きスコープ外。将来対応する場合は別タスクで `hardenedRuntime` とあわせて見直す。
+- 検証用の `v0.1.0-rc.1` タグ・Releaseは、正式な `v0.1.0` リリース後に削除してよい。
 
 ## 情報の明確性
 
@@ -86,4 +88,4 @@
 
 ### 不明/要確認の情報
 
-- タグpushによる通し実行の成否は次回リリース時まで確認できない（テスト項目に運用検証として明記）
+- 特になし（v0.1.0-rc.1タグのpushによる通し実行で検証済み。62行目・73行目参照）

@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-094 |
 | タイプ | chore（サプライチェーン・脆弱性管理） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Low |
 | 見積もり | 30分 |
 | 依存タスク | なし |
@@ -57,17 +57,17 @@
 
 ## 受入基準
 
-- [ ] `.github/dependabot.yml` が npm と github-actions の2エコシステムを weekly で設定している
-- [ ] electron が `^42.6.1`（同メジャー最新パッチ）へ更新されている
-- [ ] `npm run typecheck` / `npm run test` / `npm run build` が通過する
-- [ ] `npm audit` に新規の脆弱性が増えていない
-- [ ] dependabot.yml がYAMLとして妥当である
+- [x] `.github/dependabot.yml` が npm と github-actions の2エコシステムを weekly で設定している
+- [x] electron が `^42.6.1`（同メジャー最新パッチ）へ更新されている
+- [x] `npm run typecheck` / `npm run test` / `npm run build` が通過する
+- [x] `npm audit` に新規の脆弱性が増えていない
+- [x] dependabot.yml がYAMLとして妥当である
 
 ## テスト項目
 
-- [ ] dependabot.yml のYAML構文・schema妥当性
-- [ ] electron 42.6.1 でビルド・型・既存テストが通過
-- [ ] （可能なら）E2E起動回帰が通過
+- [x] dependabot.yml のYAML構文・schema妥当性
+- [x] electron 42.6.1 でビルド・型・既存テストが通過
+- [ ] （可能なら）E2E起動回帰が通過 → TASK-095の統合検証でまとめて実施する
 
 ## 情報の明確性
 
@@ -79,3 +79,28 @@
 ### 不明/要確認の情報
 
 - 特になし（パッチ更新のため互換性リスクは小。回帰確認で担保する）
+
+## 完了サマリー（2026-07-11）
+
+### 実装内容
+
+- `.github/dependabot.yml` を新設。`npm`（ルート）と `github-actions` の2エコシステムを
+  weekly で更新する。`open-pull-requests-limit: 5`。npmのdevDependenciesはminor/patchを
+  グループ化してPRノイズを抑える
+- `package.json` / `package-lock.json`: electron を `^42.4.1` → `^42.6.1` へ更新
+  （インストール版も 42.6.1）。メジャー更新（43.x）はスコープ外
+
+### 検証結果
+
+- `dependabot.yml`: js-yamlでパースし version 2・2エコシステムを確認
+- `npm run typecheck`: 通過
+- `npm run test`: 759件全通過
+- `npm run build`（electron-vite build）: 成功
+- `npm audit`: 本番依存（`--omit=dev`）0件。全体では既存のtextlint系5件のみで、
+  electron更新による新規の脆弱性増加はなし（textlint系はPhase 17 / TASK-089で解消予定）
+
+### 残件
+
+- E2E起動回帰（`npm run test:e2e`）はTASK-095の統合検証でまとめて確認する
+- Phase 18ブランチはmain基点のため、textlint系5件の脆弱性はこのブランチには残る
+  （Phase 17 PRのマージで解消。本タスクのスコープ外）

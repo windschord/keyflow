@@ -44,7 +44,7 @@
 | Phase 14: メトロノーム修正・アクセント（2026-07-07） | 7 | 0 | 0 | 0 | [詳細](phase-14/) @phase-14/ |
 | Phase 15: UI/UX改善（2026-07-07） | 11 | 4 | 0 | 0 | [詳細](phase-15/) @phase-15/ |
 | Phase 16: リリース自動化（2026-07-09） | 1 | 0 | 0 | 0 | [詳細](phase-16/) @phase-16/ |
-| Phase 18: サプライチェーン・入力堅牢性強化（2026-07-11） | 3 | 0 | 2 | 0 | [詳細](phase-18/) @phase-18/ |
+| Phase 18: サプライチェーン・入力堅牢性強化（2026-07-11） | 4 | 0 | 1 | 0 | [詳細](phase-18/) @phase-18/ |
 
 **合計**: 88タスク / 推定合計: 約3970分（AIエージェント作業時間）
 
@@ -367,7 +367,7 @@
 | TASK-091 | MusicXML/MXLパースの入力堅牢化（zip爆弾・XMLサイズ/DOCTYPE） | DONE | - | 60min | [詳細](phase-18/TASK-091.md) @phase-18/TASK-091.md |
 | TASK-092 | アノテーションJSONのスキーマ・値域検証 | DONE | - | 40min | [詳細](phase-18/TASK-092.md) @phase-18/TASK-092.md |
 | TASK-093 | リリース成果物の完全性（SHA256 + attestation） | DONE | - | 50min | [詳細](phase-18/TASK-093.md) @phase-18/TASK-093.md |
-| TASK-094 | 依存自動更新体制（Dependabot）とElectronパッチ更新 | TODO | - | 30min | [詳細](phase-18/TASK-094.md) @phase-18/TASK-094.md |
+| TASK-094 | 依存自動更新体制（Dependabot）とElectronパッチ更新 | DONE | - | 30min | [詳細](phase-18/TASK-094.md) @phase-18/TASK-094.md |
 | TASK-095 | Phase 18統合検証・ドキュメント同期 | TODO | TASK-091〜094 | 30min | [詳細](phase-18/TASK-095.md) @phase-18/TASK-095.md |
 
 #### 並列実行グループL: Phase 18（着手時に並列実行可能）

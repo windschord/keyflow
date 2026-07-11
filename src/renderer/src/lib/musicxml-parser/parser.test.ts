@@ -232,17 +232,24 @@ describe('MusicXML Parser - 入力堅牢化（TASK-091）', () => {
     expect(() => parse(huge)).toThrow(MusicXMLParseError);
   });
 
-  it('DOCTYPE宣言を含むXMLを拒否する', () => {
+  it('外部DTD参照のみのDOCTYPE宣言は許可する（実在のMusicXMLとの互換性維持、非回帰）', () => {
+    // 標準的なnotationソフトウェア（MuseScore/Finale/Sibelius等）が出力する
+    // MusicXMLは、tests/e2e/fixtures/sample-two-hands.musicxmlと同様に外部DTD参照
+    // のみのDOCTYPEを持つのが実務上ほぼ必須である。これを一律拒否すると実在する
+    // 正常なMusicXMLファイルを一切開けなくなる。外部DTD自体は両パーサとも
+    // 取得しないこと（XXE不成立）を確認済みのため、内部サブセットを伴わない
+    // DOCTYPEにセキュリティ上のリスクはなく、拒否対象から除外する。
     const withDoctype = `<?xml version="1.0"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
 <score-partwise>
   <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
   <part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part>
 </score-partwise>`;
-    expect(() => parse(withDoctype)).toThrow(MusicXMLParseError);
+    const score = parse(withDoctype);
+    expect(score.parts[0].id).toBe('P1');
   });
 
-  it('内部エンティティ展開（billion laughs）をDOCTYPE拒否で遮断する', () => {
+  it('内部エンティティ展開（billion laughs）を内部サブセット付きDOCTYPE拒否で遮断する', () => {
     const bomb = `<?xml version="1.0"?>
 <!DOCTYPE lolz [
   <!ENTITY lol "lol">
@@ -252,7 +259,12 @@ describe('MusicXML Parser - 入力堅牢化（TASK-091）', () => {
     expect(() => parse(bomb)).toThrow(MusicXMLParseError);
   });
 
-  it('予約実体参照（&amp; 等）は従来どおり復号する（processEntities維持の回帰確認）', () => {
+  it('processEntities:falseにより予約実体参照が展開されない（&amp;等がそのまま扱われる）', () => {
+    // TASK-091の受入基準「両XMLParserにprocessEntities: falseが明示されている」の
+    // 確認。予約実体参照（&amp;等）も含めてエンティティ処理そのものを無効化する
+    // ため、内部サブセットDOCTYPEが万一パースに到達した場合の実体展開DoSに対する
+    // 多層防御になる。副作用として、曲名等に含まれる&amp;はデコードされず
+    // 文字列としてそのまま扱われる。
     const xml = `<?xml version="1.0"?>
 <score-partwise>
   <work><work-title>Rock &amp; Roll &lt;live&gt;</work-title></work>
@@ -260,18 +272,35 @@ describe('MusicXML Parser - 入力堅牢化（TASK-091）', () => {
   <part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part>
 </score-partwise>`;
     const score = parse(xml);
-    expect(score.title).toBe('Rock & Roll <live>');
+    expect(score.title).toBe('Rock &amp; Roll &lt;live&gt;');
   });
 
   it('展開後サイズが上限を超える.mxlを拒否する（zip爆弾対策）', () => {
     // 高圧縮率のダミーエントリ（ゼロ埋め51MB）を含むzipを合成する。
-    // unzipSync展開後の合計サイズがMAX_UNZIPPED_BYTES（50MB）を超えるため拒否される。
+    // fflateのunzipSyncはZIPセントラルディレクトリに記録された宣言サイズ
+    // （originalSize）をfilterコールバックで実際の展開（inflateSync）前に検査
+    // できるため、この巨大な宣言サイズの時点で展開バッファを確保する前に拒否される
+    // （合計サイズがMAX_UNZIPPED_BYTES=50MBを超える）。
     const bomb = new Uint8Array(51 * 1024 * 1024);
     const zipped = zipSync({
       'META-INF/container.xml': new TextEncoder().encode(CONTAINER_XML),
       'score.xml': new TextEncoder().encode(VALID_XML),
       'bomb.bin': bomb,
     });
+    expect(() => parseMxl(zipped.buffer)).toThrow(MusicXMLParseError);
+  });
+
+  it('エントリ数が上限（1000件）を超える.mxlを拒否する', () => {
+    // 極小エントリを大量に積んだZIPによるセントラルディレクトリ走査コスト増大を
+    // 防ぐ、MAX_ZIP_ENTRIES上限のテスト。
+    const files: Record<string, Uint8Array> = {
+      'META-INF/container.xml': new TextEncoder().encode(CONTAINER_XML),
+      'score.xml': new TextEncoder().encode(VALID_XML),
+    };
+    for (let i = 0; i < 1001; i++) {
+      files[`junk/${i}.txt`] = new TextEncoder().encode('x');
+    }
+    const zipped = zipSync(files);
     expect(() => parseMxl(zipped.buffer)).toThrow(MusicXMLParseError);
   });
 

@@ -212,6 +212,79 @@ describe('MusicXML Parser', () => {
   });
 });
 
+describe('MusicXML Parser - 入力堅牢化（TASK-091）', () => {
+  const CONTAINER_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<container>
+  <rootfiles>
+    <rootfile full-path="score.xml" media-type="application/vnd.recordare.musicxml+xml"/>
+  </rootfiles>
+</container>`;
+
+  const VALID_XML = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part>
+</score-partwise>`;
+
+  it('上限文字数を超えるXMLを拒否する', () => {
+    // MAX_XML_LENGTH（30,000,000文字）を超える入力はメモリ枯渇DoS対策で拒否する。
+    const huge = '<score-partwise>' + 'a'.repeat(30_000_001) + '</score-partwise>';
+    expect(() => parse(huge)).toThrow(MusicXMLParseError);
+  });
+
+  it('DOCTYPE宣言を含むXMLを拒否する', () => {
+    const withDoctype = `<?xml version="1.0"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part>
+</score-partwise>`;
+    expect(() => parse(withDoctype)).toThrow(MusicXMLParseError);
+  });
+
+  it('内部エンティティ展開（billion laughs）をDOCTYPE拒否で遮断する', () => {
+    const bomb = `<?xml version="1.0"?>
+<!DOCTYPE lolz [
+  <!ENTITY lol "lol">
+  <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;">
+]>
+<score-partwise>&lol2;</score-partwise>`;
+    expect(() => parse(bomb)).toThrow(MusicXMLParseError);
+  });
+
+  it('予約実体参照（&amp; 等）は従来どおり復号する（processEntities維持の回帰確認）', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <work><work-title>Rock &amp; Roll &lt;live&gt;</work-title></work>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part>
+</score-partwise>`;
+    const score = parse(xml);
+    expect(score.title).toBe('Rock & Roll <live>');
+  });
+
+  it('展開後サイズが上限を超える.mxlを拒否する（zip爆弾対策）', () => {
+    // 高圧縮率のダミーエントリ（ゼロ埋め51MB）を含むzipを合成する。
+    // unzipSync展開後の合計サイズがMAX_UNZIPPED_BYTES（50MB）を超えるため拒否される。
+    const bomb = new Uint8Array(51 * 1024 * 1024);
+    const zipped = zipSync({
+      'META-INF/container.xml': new TextEncoder().encode(CONTAINER_XML),
+      'score.xml': new TextEncoder().encode(VALID_XML),
+      'bomb.bin': bomb,
+    });
+    expect(() => parseMxl(zipped.buffer)).toThrow(MusicXMLParseError);
+  });
+
+  it('上限内の正常な.mxlは従来どおりパースできる', () => {
+    const zipped = zipSync({
+      'META-INF/container.xml': new TextEncoder().encode(CONTAINER_XML),
+      'score.xml': new TextEncoder().encode(VALID_XML),
+    });
+    const score = parseMxl(zipped.buffer);
+    expect(score.parts[0].id).toBe('P1');
+  });
+});
+
 describe('MusicXML Parser - v2 tick/time model (TASK-031)', () => {
   it('Scoreにticksperquarter=480とtempoMapが付与される', () => {
     const xml = `<?xml version="1.0"?>

@@ -16,6 +16,7 @@ import {
 import { createWindowOptions, APP_TITLE } from './window-options';
 import { applyDockIcon } from './dock-icon';
 import { createApplicationMenuTemplate } from './menu';
+import { isAllowedExternalUrl, isAllowedNavigationUrl } from './navigation-policy';
 
 function createWindow(): void {
   // Create the browser window.
@@ -33,9 +34,21 @@ function createWindow(): void {
     mainWindow.show();
   });
 
+  // TASK-087: shell.openExternal に渡すURLをhttp/httpsのみへ制限する
+  // （file:や任意のカスタムスキームがOSへ渡ることを防ぐ）。
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
+    if (isAllowedExternalUrl(details.url)) {
+      shell.openExternal(details.url);
+    }
     return { action: 'deny' };
+  });
+
+  // TASK-087: メインウィンドウ自体のトップレベルナビゲーション（location.href書き換え等）を
+  // 開発時のHMR URLと本番のindex.html自己遷移のみへ制限する多層防御。
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isAllowedNavigationUrl(url, process.env['ELECTRON_RENDERER_URL'])) {
+      event.preventDefault();
+    }
   });
 
   // HMR for renderer base on electron-vite cli.

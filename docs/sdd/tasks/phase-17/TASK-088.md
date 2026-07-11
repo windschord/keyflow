@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-088 |
 | タイプ | fix（セキュリティ強化） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 50分 |
 | 依存タスク | TASK-087（`src/main/index.ts` を共有するため順次実行） |
@@ -66,18 +66,55 @@ Playwright起動時: 環境変数 KEYFLOW_E2E=1
 
 ## 受入基準
 
-- [ ] 環境変数なしの起動で `window.__e2eStore__` / `window.__e2eMidiHooks__` が公開されない（ユニットテストで検証）
-- [ ] `KEYFLOW_E2E=1` 起動で従来どおり計装が公開される
-- [ ] `npm run test:e2e` が全件通過する（本番ビルド＋フラグの結線検証）
-- [ ] 計装の実体（本番コードパスを呼び出す方針）は変更していない
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` がすべて通過する
+- [x] 環境変数なしの起動で `window.__e2eStore__` / `window.__e2eMidiHooks__` が公開されない（ユニットテストで検証。加えてE2E `e2e-instrumentation-guard.spec.ts` でも本番ビルド相当の起動で検証済み）
+- [x] `KEYFLOW_E2E=1` 起動で従来どおり計装が公開される
+- [x] `npm run test:e2e` が全件通過する（本番ビルド＋フラグの結線検証）
+- [x] 計装の実体（本番コードパスを呼び出す方針）は変更していない
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` がすべて通過する
 
 ## テスト項目
 
-- [ ] isE2E=false時に `__e2eMidiHooks__` / `__e2eStore__` が window に登録されない
-- [ ] isE2E=true時に登録され、既存のE2Eシナリオが動作する
-- [ ] preloadの `isE2E` が `--keyflow-e2e` 引数の有無に追随する
-- [ ] E2Eスイート全件通過
+- [x] isE2E=false時に `__e2eMidiHooks__` / `__e2eStore__` が window に登録されない
+- [x] isE2E=true時に登録され、既存のE2Eシナリオが動作する
+- [x] preloadの `isE2E` が `--keyflow-e2e` 引数の有無に追随する
+- [x] E2Eスイート全件通過
+
+## 完了サマリー（2026-07-11）
+
+### 実装したフラグ伝搬経路
+
+設計どおり `KEYFLOW_E2E環境変数 → additionalArguments('--keyflow-e2e') → preloadのprocess.argv判定 → electronAPI.isE2E → rendererガード` の経路で実装した。
+
+- `src/main/index.ts`: `createWindow()` 冒頭で `process.env['KEYFLOW_E2E'] === '1'` を判定し、trueの場合のみ `webPreferences.additionalArguments: ['--keyflow-e2e']` を追加
+- `src/preload/index.ts`: `process.argv.includes('--keyflow-e2e')` を `isE2E` として算出し、contextIsolated/非isolated両分岐の `electronAPI` に `isE2E: boolean` として公開
+- `src/renderer/src/types/electron-api.d.ts`: `ElectronAPI` インターフェースへ `isE2E: boolean` を追加
+- `src/renderer/src/App.tsx`: `__e2eStore__` 登録の `useEffect` 冒頭に `if (!window.electronAPI?.isE2E) return;` を追加
+- `src/renderer/src/hooks/usePractice.ts`: `__e2eMidiHooks__` 登録の `useEffect` 冒頭に同様のガードを追加（既存のcleanup=`delete`はそのまま維持）
+
+計装の実体（本番のMIDI処理経路・実際のZustandストアをそのまま公開する方針）は変更せず、公開の有無のみをフラグで制御した。
+
+### テスト
+
+- ユニットテスト: `usePractice.test.ts` / `App.test.tsx` に「isE2E未設定時は非公開」「isE2E=true時は公開」の各テストケースを追加（TDD: 先に失敗するテストを追加してコミットし、実装後に通過を確認）
+- E2E結線: `tests/e2e/app.spec.ts` のElectron起動に `env: { ...process.env, KEYFLOW_E2E: '1' }` を追加。既存4テストが引き続き通過することで、フラグが実際にmain→preload→rendererへ伝搬していることを検証した
+- E2E非公開検証: 新規 `tests/e2e/e2e-instrumentation-guard.spec.ts` を追加し、環境変数を渡さない起動（本番ビルド相当）で `window.__e2eStore__` / `window.__e2eMidiHooks__` がともに `undefined` であることを自動テストで検証した（タスクファイルが「望ましい」としていた追加ケースを実装。手動確認は不要になった）
+- `npm run test`（777件）/ `npm run typecheck` / `npm run lint` / `npm run test:e2e`（5件）すべて通過を確認済み
+
+### 変更ファイル
+
+- `src/main/index.ts`
+- `src/preload/index.ts`
+- `src/renderer/src/types/electron-api.d.ts`
+- `src/renderer/src/App.tsx`
+- `src/renderer/src/hooks/usePractice.ts`
+- `src/renderer/src/App.test.tsx`
+- `src/renderer/src/hooks/usePractice.test.ts`
+- `tests/e2e/app.spec.ts`
+- `tests/e2e/e2e-instrumentation-guard.spec.ts`（新規）
+
+### 残件
+
+なし。TASK-090（Phase 17統合検証・ドキュメント同期）で本タスクを含む横断確認を行う想定。
 
 ## 情報の明確性
 

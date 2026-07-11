@@ -108,6 +108,18 @@
 | REQ-015-004 | ○ | generate-licenses.test（dependencies全件収集・devDependencies除外・LICENSE本文取得・SPDXフォールバック）+ 実行確認（licenses.json未生成状態からのnpm run dev/buildでpredev/prebuildフックが再生成することを確認）。TASK-076で対応済み |
 | REQ-015-005 | ○ | AboutPanel.test（ライブラリ行クリックでlicenseTextが展開・再クリックで折りたたみ）。TASK-076で対応済み |
 
+## Phase 18: サプライチェーン・入力堅牢性強化（2026-07-11）の検証状況
+
+新規REQは追加していない（DoS耐性・入力堅牢性・サプライチェーン完全性の非機能改善）。各タスクの検証状況は以下。
+
+| タスク | 内容 | 検証 |
+|--------|------|------|
+| TASK-091 | MusicXML/MXLパースの入力堅牢化 | parser.test（XMLサイズ上限・内部サブセット付きDOCTYPE拒否・外部DTD許可・zip展開前サイズ検査・予約実体参照の復号維持・正常mxl非回帰、計46件）+ E2E（外部DTD DOCTYPEを持つsample-two-hands.musicxmlが正常に開くこと） |
+| TASK-092 | アノテーションJSONのスキーマ・値域検証 | annotation-store.test（fingerNumber値域外/非整数・noteId空/非文字列・comment非文字列の除外、フェイルソフト、annotations非配列時の空状態継続、__proto__非汚染、計17件） |
+| TASK-093 | リリース成果物の完全性（SHA256 + attestation） | release.ymlのYAML妥当性・permissions最小化をローカル確認。タグpushによる通し実行（attestation生成・SHA256添付・`gh attestation verify`）はユーザー操作待ちの残件 |
+| TASK-094 | Dependabot導入・Electron 42.6.1更新 | dependabot.ymlのYAML妥当性、electron更新後のtypecheck/test（759件）/build通過、npm audit本番依存0件・新規増加なし |
+| TASK-095 | 統合検証・ドキュメント同期 | unit 759件 / typecheck / lint / lint:jp / format / E2E 4件 / build 全通過。npm audit本番依存0件。CLAUDE.md・README・本ファイル同期 |
+
 ## 運用ルール
 
 1. タスク完了時、対応するREQの行を更新する（△→○ 等）

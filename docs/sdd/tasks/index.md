@@ -43,8 +43,13 @@
 | Phase 13: UI改善要望（2026-07-06） | 6 | 0 | 0 | 0 | [詳細](phase-13/) @phase-13/ |
 | Phase 14: メトロノーム修正・アクセント（2026-07-07） | 7 | 0 | 0 | 0 | [詳細](phase-14/) @phase-14/ |
 | Phase 15: UI/UX改善（2026-07-07） | 11 | 4 | 0 | 0 | [詳細](phase-15/) @phase-15/ |
+| Phase 16: リリース自動化（2026-07-09） | 1 | 0 | 0 | 0 | [詳細](phase-16/) @phase-16/ |
+| Phase 18: サプライチェーン・入力堅牢性強化（2026-07-11） | 0 | 0 | 5 | 0 | [詳細](phase-18/) @phase-18/ |
 
-**合計**: 82タスク / 推定合計: 約3760分（AIエージェント作業時間）
+**合計**: 88タスク / 推定合計: 約3970分（AIエージェント作業時間）
+
+> Phase 17（セキュリティ強化、TASK-086〜090）は別ブランチ `fix/security-hardening`（PR #31）で進行中のため、
+> 本ファイル（Phase 18ブランチ）の一覧には未反映。両PRのマージ時にindex.mdを統合する。
 
 > 進行中カウントの基準: `REVIEW`はユーザー実機確認待ちであり完了扱いにしないため、
 > 本表の「進行中」列に計上する（TASK-078/080/081/082が該当、2026-07-08是正）。
@@ -350,6 +355,31 @@
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
 | TASK-085 | リリースワークフローへのmacOSビルドジョブ追加 | DONE | TASK-035 | 40min | [詳細](phase-16/TASK-085.md) @phase-16/TASK-085.md |
+
+### Phase 18: サプライチェーン・入力堅牢性強化（2026-07-11）
+*推定期間: 210min（091/092/093/094は並列可。095は最後に単独実行）*
+
+> 2026-07-11 のサプライチェーン・脆弱性調査（重大な脆弱性なし・改善推奨6件）に基づくタスク群。
+> コード署名はスコープ外（ユーザー承認済み、attestation + SHA256で代替）。作業ブランチ: `feature/phase-18-supply-chain-hardening`
+
+| タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
+|----------|---------|-----------|------|------|-----------|
+| TASK-091 | MusicXML/MXLパースの入力堅牢化（zip爆弾・XMLサイズ/DOCTYPE） | TODO | - | 60min | [詳細](phase-18/TASK-091.md) @phase-18/TASK-091.md |
+| TASK-092 | アノテーションJSONのスキーマ・値域検証 | TODO | - | 40min | [詳細](phase-18/TASK-092.md) @phase-18/TASK-092.md |
+| TASK-093 | リリース成果物の完全性（SHA256 + attestation） | TODO | - | 50min | [詳細](phase-18/TASK-093.md) @phase-18/TASK-093.md |
+| TASK-094 | 依存自動更新体制（Dependabot）とElectronパッチ更新 | TODO | - | 30min | [詳細](phase-18/TASK-094.md) @phase-18/TASK-094.md |
+| TASK-095 | Phase 18統合検証・ドキュメント同期 | TODO | TASK-091〜094 | 30min | [詳細](phase-18/TASK-095.md) @phase-18/TASK-095.md |
+
+#### 並列実行グループL: Phase 18（着手時に並列実行可能）
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-091 | src/renderer/src/lib/musicxml-parser/** | - |
+| TASK-092 | src/renderer/src/lib/annotation-store/** | - |
+| TASK-093 | .github/workflows/release.yml, README | - |
+| TASK-094 | .github/dependabot.yml, package.json | - |
+
+> TASK-093とTASK-094はいずれもリポジトリ設定系だが対象ファイルが重ならないため並列可。
+> 最後に TASK-095（統合検証・ドキュメント同期）を単独実行する。
 
 ---
 

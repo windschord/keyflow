@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-086 |
 | タイプ | fix（セキュリティ強化） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 40分 |
 | 依存タスク | なし |
@@ -58,19 +58,19 @@
 
 ## 受入基準
 
-- [ ] `assertAllowedReadPath` が実装され、ユニットテストが5ケース以上ある
-- [ ] `file:read` / `file:read-if-exists` / `file:read-binary` の3ハンドラすべてに検証が適用されている
-- [ ] 未登録パスの読み取りが拒否される（テストで検証）
-- [ ] ダイアログ経由・ドロップ経由・最近使ったファイル経由のすべてで楽譜が開ける（リグレッションなし）
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` がすべて通過する
+- [x] `assertAllowedReadPath` が実装され、ユニットテストが5ケース以上ある
+- [x] `file:read` / `file:read-if-exists` / `file:read-binary` の3ハンドラすべてに検証が適用されている
+- [x] 未登録パスの読み取りが拒否される（テストで検証）
+- [x] ダイアログ経由・ドロップ経由・最近使ったファイル経由のすべてで楽譜が開ける（リグレッションなし）
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` がすべて通過する
 
 ## テスト項目
 
-- [ ] 登録済みMusicXMLパス本体の読み取りが許可される
-- [ ] 登録済みMusicXMLの `.annotation.json` の読み取りが許可される
-- [ ] 未登録の任意パス（例: `/etc/hosts`、`C:\Windows\system.ini` 相当）が拒否される
-- [ ] `../` を含むパスが `resolve` 後の実パスで判定される
-- [ ] 最近使ったファイルから開くフローの結線テスト（モック境界の結線テスト原則）
+- [x] 登録済みMusicXMLパス本体の読み取りが許可される
+- [x] 登録済みMusicXMLの `.annotation.json` の読み取りが許可される
+- [x] 未登録の任意パス（例: `/etc/hosts`、`C:\Windows\system.ini` 相当）が拒否される
+- [x] `../` を含むパスが `resolve` 後の実パスで判定される
+- [x] 最近使ったファイルから開くフローの結線テスト（モック境界の結線テスト原則）
 
 ## 情報の明確性
 
@@ -83,3 +83,63 @@
 ### 不明/要確認の情報
 
 - 「最近使ったファイル」から開く経路がallowlist登録を経由しているか（事前調査で確認すること）
+  → 完了サマリー参照。SettingsModalの「最近使ったファイル」一覧は表示専用でクリックして
+  開く導線自体が存在しないため、この経路によるリグレッションは発生しない。
+
+## 完了サマリー（2026-07-11）
+
+### 実装内容
+
+- `src/main/path-allowlist.ts`: `PathAllowlist.assertAllowedReadPath(requestedPath)` を追加。
+  `resolve()` 後のパスが (1) 登録済みMusicXMLパス本体、または (2) 登録済みMusicXMLパス +
+  `.annotation.json` のいずれかと一致する場合のみ許可し、それ以外は
+  `Refused to read from disallowed path: ...` を投げる
+- `src/main/file-handlers.ts`: `file:read` / `file:read-if-exists` / `file:read-binary` を
+  ハンドラファクトリ（`createReadFileHandler` / `createReadFileIfExistsHandler` /
+  `createReadBinaryFileHandler`）へ切り出し、fsモジュール（`readFile`）を注入可能にした。
+  既存の `createShowOpenDialogHandler` / `createRegisterDroppedFileHandler` と同じパターンで、
+  `assertAllowedReadPath` の許可判定を通過して初めて実際の `fs.promises.readFile` に到達する
+  ことをモックで検証できるようにした（モック境界の結線テスト原則）
+- `src/main/index.ts`: 上記3ハンドラの登録をファクトリ呼び出しへ置き換え（`fs.promises` を注入）
+- `file:read-binary` のバイナリ変換は `Buffer.buffer.slice(...)` から
+  `new ArrayBuffer` + `Uint8Array.set` によるコピーへ変更（`Buffer.buffer` の型が
+  `ArrayBuffer | SharedArrayBuffer` になり `Promise<ArrayBuffer>` の戻り値型と
+  適合しなかったため。挙動は従来通りコピーを返す点で変わらない）
+
+### 事前調査で判明した事実（最近使ったファイル経路の扱い）
+
+- `src/renderer/src/components/SettingsModal/index.tsx` の「最近使ったファイル」セクションは
+  `window.electronAPI.settings.getRecentFiles()` の結果を表示するだけの一覧であり、
+  各項目に `onClick` 等の「クリックして開く」導線は実装されていない（コード上に存在しない）
+- したがって、`file:read` 系をallowlist登録なしに直接呼び出す経路は現状存在しない。
+  ダイアログ経由（`handleOpenFile` → `file:show-open-dialog` が `allowMusicXml()` 登録）・
+  ドロップ経由（`handleDrop` → `file:register-dropped-file` が `allowMusicXml()` 登録）は
+  いずれも登録後に `openMusicXmlFile()` が `file.read` / `file.readBinary` を呼ぶ既存の結線
+  のままで、allowlist化によるリグレッションはない
+- 注釈サイドカー読み込み（`AnnotationStoreService.load` → `file.readIfExists`）も
+  `openMusicXmlFile()` 内でのみ呼ばれ、対象パスは常に上記いずれかの経路で登録済みの
+  MusicXMLパス由来である
+
+### 変更ファイル
+
+- `src/main/path-allowlist.ts`
+- `src/main/path-allowlist.test.ts`
+- `src/main/file-handlers.ts`
+- `src/main/file-handlers.test.ts`
+- `src/main/index.ts`
+- `docs/sdd/tasks/phase-17/TASK-086.md`（本ファイル）
+- `docs/sdd/tasks/index.md`
+
+### テスト結果
+
+- `npm run test`: 758件全通過
+- `npm run typecheck`: エラーなし
+- `npm run lint`: エラーなし
+
+### 残件
+
+- `npm run test:e2e` は本タスクでは未実行（team-leadの指示によりTASK-090で統合検証する）。
+  上記の事前調査（コードリーディング）でダイアログ経由・ドロップ経由の結線に変更がないことを
+  確認済みだが、実起動での最終確認はTASK-090側で行うこと
+- 本タスクではレンダラー側コード（`App.tsx`・`SettingsModal`）の変更は行っていない
+  （変更不要と判断したため）

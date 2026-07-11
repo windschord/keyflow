@@ -5,14 +5,20 @@ on:
     tags:
       - 'v*'
 
+# 既定は最小権限（読み取りのみ）とし、必要なジョブでのみ昇格する。
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-windows:
     name: Windows Installer Build
     runs-on: windows-latest
     timeout-minutes: 60
+    # 成果物の来歴証明（build provenance attestation）生成に必要な最小権限。
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -22,11 +28,21 @@ jobs:
         with:
           node-version: '20'
 
+      # ビルドジョブでは素の `npm ci` を用いる（`--ignore-scripts` にしない）。
+      # electron（`postinstall` でバイナリ取得）・esbuild・electron-winstaller は
+      # ビルド成立にinstallスクリプトの実行を要するため。本ジョブは信頼できる
+      # タグpushのみで起動し、依存はlockfileに固定・アクションはSHAピン留めのため
+      # 信頼境界は限定される。来歴証明（attestation）で成果物の出所も検証可能にする。
       - name: Install dependencies
         run: npm ci
 
       - name: Build Windows installer
         run: npm run build:win
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: 'dist-electron/*.exe'
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -39,6 +55,10 @@ jobs:
     name: macOS Package Build
     runs-on: macos-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -48,11 +68,19 @@ jobs:
         with:
           node-version: '20'
 
+      # build-windows と同じ理由で素の `npm ci` を用いる（上記コメント参照）。
       - name: Install dependencies
         run: npm ci
 
       - name: Build macOS packages
         run: npm run build:mac
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: |
+            dist-electron/*.dmg
+            dist-electron/*.zip
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -68,6 +96,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-windows, build-macos]
     timeout-minutes: 15
+    # Release作成に必要な書き込み権限。
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -79,6 +110,11 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      # 入手者がファイル完全性を検証できるよう、全成果物のSHA256チェックサムを生成する。
+      - name: Generate SHA256 checksums
+        working-directory: artifacts
+        run: sha256sum *.exe *.dmg *.zip > SHA256SUMS.txt
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -86,4 +122,4 @@ jobs:
         run: |
           gh release create "$TAG_NAME" \
             --generate-notes \
-            artifacts/*.exe artifacts/*.dmg artifacts/*.zip
+            artifacts/*.exe artifacts/*.dmg artifacts/*.zip artifacts/SHA256SUMS.txt

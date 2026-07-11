@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-087 |
 | タイプ | fix（セキュリティ強化） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 30分 |
 | 依存タスク | TASK-086（`src/main/index.ts` を共有するため順次実行） |
@@ -58,17 +58,53 @@
 
 ## 受入基準
 
-- [ ] `shell.openExternal` に渡るURLが http/https のみに制限されている（テストで検証）
-- [ ] `will-navigate` で許可外ナビゲーションが `preventDefault` される
-- [ ] 開発モード（HMR）と本番（loadFile）の両方でアプリが正常動作する
-- [ ] sandbox: true の採否が検証結果に基づいて決定され、完了サマリーに記録されている
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` / `npm run test:e2e` がすべて通過する
+- [x] `shell.openExternal` に渡るURLが http/https のみに制限されている（テストで検証）
+- [x] `will-navigate` で許可外ナビゲーションが `preventDefault` される
+- [x] 開発モード（HMR）と本番（loadFile）の両方でアプリが正常動作する
+- [x] sandbox: true の採否が検証結果に基づいて決定され、完了サマリーに記録されている
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` / `npm run test:e2e` がすべて通過する
 
 ## テスト項目
 
-- [ ] `isAllowedExternalUrl`: `https://example.com` → true、`http://example.com` → true、`file:///etc/passwd` → false、`smb://host/share` → false、`javascript:alert(1)` → false、空文字/不正URL → false
-- [ ] `isAllowedNavigationUrl`: devサーバーURL配下 → true、`file:` → true、外部 `https://` → false
-- [ ] E2E: 既存スイート全件通過（ナビゲーション制御追加によるリグレッションなし）
+- [x] `isAllowedExternalUrl`: `https://example.com` → true、`http://example.com` → true、`file:///etc/passwd` → false、`smb://host/share` → false、`javascript:alert(1)` → false、空文字/不正URL → false
+- [x] `isAllowedNavigationUrl`: devサーバーURL配下 → true、`file:` → true、外部 `https://` → false
+- [x] E2E: 既存スイート全件通過（ナビゲーション制御追加によるリグレッションなし）
+
+## 完了サマリー（2026-07-11）
+
+### 実装内容
+
+- `src/main/navigation-policy.ts`（新規）: `isAllowedExternalUrl`（http/httpsのみ許可）、
+  `isAllowedNavigationUrl`（開発時HMR URLと同一オリジン、またはfile:プロトコルのみ許可）を
+  Electron API非依存の純粋関数として実装。テスト14件（`navigation-policy.test.ts`）
+- `src/main/index.ts`: `setWindowOpenHandler`に`isAllowedExternalUrl`を適用し、
+  `will-navigate`ハンドラを新設して`isAllowedNavigationUrl`を満たさないナビゲーションを
+  `event.preventDefault()`で拒否
+
+### sandbox: true の採否 — 採用
+
+以下の検証結果に基づき `sandbox: true` を採用した（是正前は `sandbox: false`）。
+
+1. `npm run dev`: `--enable-sandbox`フラグ付きでレンダラープロセスが正常起動し、クラッシュなし
+2. `npm run test:e2e`: sandbox: true状態で全4件通過。`file:read`・`file:register-dropped-file`・
+   `settings:get`等、preload（`@electron-toolkit/preload`・`webUtils`・`contextBridge`）経由の
+   IPC呼び出しがすべて正常動作することを実証した
+
+### 派生して発見・修正した既存不具合（TASK-086由来、本タスクのスコープ外だが完了条件のため対応）
+
+E2E検証中、`tests/e2e/app.spec.ts`のメインシナリオ（ファイルオープン→楽譜表示）がsandbox設定に
+関わらず失敗することを発見した。原因はTASK-086で`file:read`系IPCにPathAllowlist検証が導入された際、
+このE2Eテストが使う`file:show-open-dialog`モック（固定パスを返すだけの簡易実装）が、本物の
+`createShowOpenDialogHandler`が行う`pathAllowlist.allowMusicXml`登録を再現しておらず、以後の
+`file:read`が拒否されていたこと（本番のダイアログ経由フローには影響なし、E2Eモックの結線漏れ）。
+本物の`file:register-dropped-file` IPC経由でallowlist登録を補う形で`tests/e2e/app.spec.ts`を修正し解消した。
+
+### 完了条件の確認
+
+- `npm run test`: 772件全通過
+- `npm run typecheck`: 通過
+- `npm run lint`: 通過
+- `npm run test:e2e`: 4件全通過（sandbox: true状態）
 
 ## 情報の明確性
 

@@ -44,7 +44,7 @@
 | Phase 14: メトロノーム修正・アクセント（2026-07-07） | 7 | 0 | 0 | 0 | [詳細](phase-14/) @phase-14/ |
 | Phase 15: UI/UX改善（2026-07-07） | 11 | 4 | 0 | 0 | [詳細](phase-15/) @phase-15/ |
 | Phase 16: リリース自動化（2026-07-09） | 1 | 0 | 0 | 0 | [詳細](phase-16/) @phase-16/ |
-| Phase 17: セキュリティ強化（2026-07-11） | 0 | 0 | 5 | 0 | [詳細](phase-17/) @phase-17/ |
+| Phase 17: セキュリティ強化（2026-07-11） | 2 | 0 | 3 | 0 | [詳細](phase-17/) @phase-17/ |
 
 **合計**: 87タスク / 推定合計: 約3940分（AIエージェント作業時間）
 
@@ -371,7 +371,7 @@
 | タスクID | タイトル | ステータス | 依存 | 見積 | 詳細リンク |
 |----------|---------|-----------|------|------|-----------|
 | TASK-086 | file:read系IPCの読み取りallowlist化 | DONE | - | 40min | [詳細](phase-17/TASK-086.md) @phase-17/TASK-086.md |
-| TASK-087 | ウィンドウナビゲーション強化（openExternal検証・will-navigate・sandbox試行） | TODO | TASK-086 | 30min | [詳細](phase-17/TASK-087.md) @phase-17/TASK-087.md |
+| TASK-087 | ウィンドウナビゲーション強化（openExternal検証・will-navigate・sandbox試行） | DONE | TASK-086 | 30min | [詳細](phase-17/TASK-087.md) @phase-17/TASK-087.md |
 | TASK-088 | E2E計装の本番ビルド無効化（KEYFLOW_E2Eフラグ経路） | TODO | TASK-087 | 50min | [詳細](phase-17/TASK-088.md) @phase-17/TASK-088.md |
 | TASK-089 | 開発依存の既知脆弱性解消（textlint 15系ほか） | TODO | - | 30min | [詳細](phase-17/TASK-089.md) @phase-17/TASK-089.md |
 | TASK-090 | Phase 17統合検証・ドキュメント同期 | TODO | TASK-086〜089 | 30min | [詳細](phase-17/TASK-090.md) @phase-17/TASK-090.md |

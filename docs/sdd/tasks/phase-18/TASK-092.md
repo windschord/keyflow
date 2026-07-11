@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-092 |
 | タイプ | fix（セキュリティ強化・入力堅牢性） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 40分 |
 | 依存タスク | なし |
@@ -64,18 +64,18 @@
 
 ## 受入基準
 
-- [ ] `load()` がスキーマ・値域を検証し、不正要素を除外する
-- [ ] 検証項目が `types.ts` の型定義と一致している（存在しないフィールドを検証していない）
-- [ ] 不正な要素が混在しても正常な要素は採用される（フェイルソフト）
-- [ ] 既存の正常なアノテーションファイルの読み込みが変わらない
-- [ ] `npm run test` / `npm run typecheck` / `npm run lint` がすべて通過する
+- [x] `load()` がスキーマ・値域を検証し、不正要素を除外する
+- [x] 検証項目が `types.ts` の型定義と一致している（存在しないフィールドを検証していない）
+- [x] 不正な要素が混在しても正常な要素は採用される（フェイルソフト）
+- [x] 既存の正常なアノテーションファイルの読み込みが変わらない
+- [x] `npm run test` / `npm run typecheck` / `npm run lint` がすべて通過する
 
 ## テスト項目
 
-- [ ] `fingerNumber` が値域外・非整数のアノテーションが除外される
-- [ ] `noteId` が空/非文字列のアノテーションが除外される
-- [ ] 正常な要素と不正な要素が混在する場合、正常な要素のみ採用される
-- [ ] `annotations` が非配列のファイルで空状態継続（既存挙動維持）
+- [x] `fingerNumber` が値域外・非整数のアノテーションが除外される
+- [x] `noteId` が空/非文字列のアノテーションが除外される
+- [x] 正常な要素と不正な要素が混在する場合、正常な要素のみ採用される
+- [x] `annotations` が非配列のファイルで空状態継続（既存挙動維持）
 
 ## 情報の明確性
 
@@ -84,6 +84,35 @@
 - 検証欠如の該当箇所（`annotation-store/index.ts:36`、調査で確認済み）
 - プロトタイプ汚染・XSSには至らない（対策の主眼は入力堅牢性）
 - フェイルソフト方針（正当な要素を全損させない）
+
+## 完了サマリー（2026-07-11）
+
+### 実装内容
+
+- `src/renderer/src/lib/annotation-store/index.ts`:
+  - `normalizeAnnotation(value): Annotation | null` を追加。`JSON.parse` 結果を型定義
+    （`types/annotation.ts`）に照らして検証し、不正な要素は `null` を返す
+  - `load()` で `annotations` が配列でない場合は空配列として扱い、各要素を
+    `normalizeAnnotation` に通して不正要素を除外する（フェイルソフト）
+- `src/renderer/src/lib/annotation-store/annotation-store.test.ts`: 検証ケース7件を追加
+
+### 検証項目（型定義に厳密準拠）
+
+- `noteId`: 非空文字列（それ以外は要素ごと除外）
+- `fingerNumber`: 省略可。存在時は整数かつ 1〜5。値域外・非整数は要素ごと除外
+- `comment`: 省略可。存在時は文字列
+- `isAISuggested` / `isApproved`: boolean。欠落・非booleanは `false` へ正規化
+
+### 確認事項
+
+- プロトタイプ汚染: `noteId` を `Map` のキーに使うため `__proto__` を含んでも汚染しない
+  （テストで `Object.prototype` 非汚染を確認）
+- XSS: 値はReactが自動エスケープするため不成立。本タスクの主眼は入力堅牢性
+
+### テスト結果
+
+- `npm run test`（annotation-store.test.ts）: 17件全通過
+- `npm run typecheck` / `npm run lint` / `npm run lint:jp:ts`: いずれも通過
 
 ### 不明/要確認の情報
 

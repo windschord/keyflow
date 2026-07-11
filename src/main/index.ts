@@ -19,6 +19,12 @@ import { createApplicationMenuTemplate } from './menu';
 import { isAllowedExternalUrl, isAllowedNavigationUrl } from './navigation-policy';
 
 function createWindow(): void {
+  // TASK-088: 実起動E2E（Playwright for Electron）実行時のみ環境変数KEYFLOW_E2E=1が
+  // 渡される。preloadへ'--keyflow-e2e'引数を渡すことでE2E専用計装
+  // （__e2eStore__/__e2eMidiHooks__）の公開可否を伝搬する（本番ビルドでは引数なし
+  // ＝計装非公開）。sandboxを有効化した状態のpreloadでもprocess.argvは参照可能。
+  const isE2E = process.env['KEYFLOW_E2E'] === '1';
+
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     ...createWindowOptions({ platform: process.platform, iconPath: icon }),
@@ -27,6 +33,7 @@ function createWindow(): void {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      ...(isE2E ? { additionalArguments: ['--keyflow-e2e'] } : {}),
     },
   });
 

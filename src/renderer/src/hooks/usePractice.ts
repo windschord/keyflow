@@ -281,7 +281,11 @@ export function usePractice() {
   // 進行の結線を検証できるよう、実際のMIDI受信時に呼ばれるのと同じコールバック
   // （handleMidiNoteOn/handleMidiNoteOff）をwindowに公開する。テスト専用の分岐
   // ロジックは持たず、本番のMIDI処理経路をそのまま呼び出す点に注意。
+  // TASK-088: 本番ビルドで攻撃対象領域を無用に広げないよう、electronAPI.isE2E
+  // （main側KEYFLOW_E2E=1起動時のみpreloadが公開するフラグ）がtrueの場合のみ公開する。
   useEffect(() => {
+    if (!window.electronAPI?.isE2E) return;
+
     (
       window as unknown as {
         __e2eMidiHooks__?: {

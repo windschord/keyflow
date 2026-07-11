@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-093 |
 | タイプ | chore（サプライチェーン完全性） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | Medium |
 | 見積もり | 50分 |
 | 依存タスク | なし |
@@ -57,18 +57,18 @@
 
 ## 受入基準
 
-- [ ] `release` ジョブが `SHA256SUMS.txt`（または各 `.sha256`）を生成しReleaseに添付する
-- [ ] 各ビルドジョブに `actions/attest-build-provenance`（SHAピン留め・最小permissions）が追加されている
-- [ ] リリースジョブの `--ignore-scripts` 化の可否が検証され、実装または理由記録されている
-- [ ] 追加アクションがコミットSHAでピン留めされている
-- [ ] READMEに成果物の完全性検証手順が追記されている
-- [ ] `release.yml` がYAMLとして妥当である
+- [x] `release` ジョブが `SHA256SUMS.txt` を生成しReleaseに添付する
+- [x] 各ビルドジョブに `actions/attest-build-provenance`（SHAピン留め・最小permissions）が追加されている
+- [x] リリースジョブの `--ignore-scripts` 化の可否が検証され、理由が記録されている（不採用）
+- [x] 追加アクションがコミットSHAでピン留めされている
+- [x] READMEに成果物の完全性検証手順が追記されている
+- [x] `release.yml` がYAMLとして妥当である
 
 ## テスト項目
 
-- [ ] `release.yml` のYAML構文が妥当（ローカルでパース確認）
-- [ ] permissions が各ジョブで最小限（build側は id-token/attestations、release側は contents:write）
-- [ ] SHA256生成コマンドが release ジョブ（ubuntu）で有効
+- [x] `release.yml` のYAML構文が妥当（js-yamlでパース確認）
+- [x] permissions が各ジョブで最小限（build側は id-token/attestations、release側は contents:write）
+- [x] SHA256生成コマンドが release ジョブ（ubuntu）で有効
 
 ## 情報の明確性
 
@@ -80,5 +80,40 @@
 
 ### 不明/要確認の情報
 
-- リリースジョブの `--ignore-scripts` 化がelectronバイナリ取得と両立するか（実装時に検証。不可なら現状維持）
-- タグpushによる通し実行の最終確認はユーザー操作が必要（残件として明記する）
+- リリースジョブの `--ignore-scripts` 化がelectronバイナリ取得と両立するか
+  → 完了サマリー参照。両立しないため不採用とし、理由をworkflowコメントへ明記した。
+- タグpushによる通し実行の最終確認はユーザー操作が必要（残件。下記参照）
+
+## 完了サマリー（2026-07-11）
+
+### 実装内容
+
+- `.github/workflows/release.yml`:
+  - `permissions` を最小権限化した。既定は `contents: read`、`build-windows`/`build-macos` は
+    `id-token: write` + `attestations: write`、`release` は `contents: write`
+  - 両ビルドジョブに `actions/attest-build-provenance@e8998f94...`（v2、SHAピン留め）を追加し、
+    ビルド直後の成果物へ来歴証明を付与
+  - `release` ジョブに `sha256sum *.exe *.dmg *.zip > SHA256SUMS.txt` ステップを追加し、
+    `gh release create` の添付対象へ `SHA256SUMS.txt` を含めた
+- `README.md`: 「リリース成果物の完全性検証」節を追加し、`sha256sum -c` と
+  `gh attestation verify` の手順を記載
+
+### リリースジョブの `--ignore-scripts` 化の判断（不採用）
+
+`build-windows`/`build-macos` の `npm ci` を `--ignore-scripts` にすると、electron の
+`postinstall`（バイナリ取得）・esbuild・electron-winstaller のinstallスクリプトが走らない。
+その結果ビルドが成立しない。electron のみ明示実行する回避策もあるが、他ツールのスクリプト依存も
+あり確実性に欠ける。本ジョブは信頼できるタグpushのみで起動する。依存のlockfile固定と
+アクションのSHAピン留めにより信頼境界も限定される。来歴証明で出所も検証可能になるため、
+素の `npm ci` を維持する判断とし、理由をworkflowコメントに明記した。
+
+### 検証結果
+
+- `release.yml` をjs-yamlでパースし、3ジョブ構成・各ジョブのpermissionsが期待どおりであることを確認
+- `npx prettier --check` 通過（release.yml / README.md）
+
+### 残件（ユーザー操作が必要）
+
+- タグ（`v*`）pushによる通し実行の最終確認。attestation生成とSHA256SUMS添付、
+  `gh attestation verify` の成功は、実際のReleaseワークフロー実行でのみ確認できる。
+  次回リリースタグ（または検証用プレリリースタグ）で確認すること。

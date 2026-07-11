@@ -1,6 +1,45 @@
 import { Annotation, Finger, FingerAssignment } from '../../types';
 import { AnnotationFile } from './types';
 
+/**
+ * `JSON.parse` の結果を `Annotation` として検証・正規化する（TASK-092）。
+ * 悪意ある・破損したサイドカーファイルの不正値を採用しないための実行時検証。
+ * 検証に通らない要素は `null` を返し、呼び出し側で除外する（フェイルソフト）。
+ *
+ * 検証項目は `src/renderer/src/types/annotation.ts` の型定義に厳密に合わせる:
+ * - `noteId`: 非空文字列
+ * - `fingerNumber`: 省略可。存在する場合は整数かつ 1〜5（`Finger`）
+ * - `comment`: 省略可。存在する場合は文字列
+ * - `isAISuggested` / `isApproved`: boolean（欠落・非booleanは false へ正規化）
+ */
+function normalizeAnnotation(value: unknown): Annotation | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const v = value as Record<string, unknown>;
+
+  if (typeof v.noteId !== 'string' || v.noteId.length === 0) return null;
+
+  const result: Annotation = {
+    noteId: v.noteId,
+    isAISuggested: typeof v.isAISuggested === 'boolean' ? v.isAISuggested : false,
+    isApproved: typeof v.isApproved === 'boolean' ? v.isApproved : false,
+  };
+
+  if (v.fingerNumber !== undefined) {
+    const fn = v.fingerNumber;
+    if (typeof fn !== 'number' || !Number.isInteger(fn) || fn < 1 || fn > 5) {
+      return null;
+    }
+    result.fingerNumber = fn as Finger;
+  }
+
+  if (v.comment !== undefined) {
+    if (typeof v.comment !== 'string') return null;
+    result.comment = v.comment;
+  }
+
+  return result;
+}
+
 export class AnnotationStoreService {
   private annotations: Map<string, Annotation> = new Map();
   private originalContent = '';
@@ -33,12 +72,17 @@ export class AnnotationStoreService {
         return skipped;
       }
       this.originalContent = content;
-      const data: AnnotationFile = JSON.parse(content);
+      const data = JSON.parse(content) as Partial<AnnotationFile>;
 
       const validSet = validNoteIds ? new Set(validNoteIds) : null;
 
       this.annotations.clear();
-      for (const ann of data.annotations) {
+      // 入力堅牢化（TASK-092）: annotationsが配列でないファイルは空状態で継続する。
+      const rawAnnotations = Array.isArray(data.annotations) ? data.annotations : [];
+      for (const raw of rawAnnotations) {
+        // 入力堅牢化（TASK-092）: スキーマ・値域検証に通らない要素は採用しない。
+        const ann = normalizeAnnotation(raw);
+        if (ann === null) continue;
         if (validSet && !validSet.has(ann.noteId)) {
           skipped.push(ann.noteId);
           console.warn(

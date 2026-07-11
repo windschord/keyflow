@@ -15,6 +15,30 @@ export class MusicXMLParseError extends Error {
 const TICKS_PER_QUARTER = 480;
 const DEFAULT_TEMPO = 120;
 
+/**
+ * パース対象XMLの最大文字数（3千万文字）。悪意ある巨大ファイルによるメモリ枯渇DoSを
+ * 防ぐ上限（TASK-091）。実在の譜面は数KB〜数百KB規模であり、十分な余裕を持たせている。
+ */
+const MAX_XML_LENGTH = 30_000_000;
+
+/**
+ * .mxl展開後の全エントリ合計サイズの上限（50MB）。高圧縮率のzip爆弾による
+ * メモリ枯渇を抑えるため、unzipSync後に合計サイズを検査する（TASK-091）。
+ */
+const MAX_UNZIPPED_BYTES = 50 * 1024 * 1024;
+
+/** .mxl内のエントリ数上限。zip爆弾のエントリ数増幅対策（TASK-091）。 */
+const MAX_ZIP_ENTRIES = 1000;
+
+/**
+ * XMLのDOCTYPE宣言を検出する。内部エンティティ展開（billion laughs）や
+ * 外部DTD参照を予防的に遮断するため、パース前に検査する（TASK-091）。
+ * MusicXMLは実務上DOCTYPEを必要としない。
+ */
+function containsDoctype(xmlContent: string): boolean {
+  return /<!DOCTYPE/i.test(xmlContent);
+}
+
 interface MeasureBuilder {
   number: number;
   startTick: number;
@@ -97,6 +121,21 @@ function mergePedalSpans(spans: PedalSpan[]): PedalSpan[] {
 export function parse(xmlContent: string): Score {
   if (!xmlContent || xmlContent.trim().length === 0) {
     throw new MusicXMLParseError('Empty XML content');
+  }
+
+  // 入力堅牢化（TASK-091）: 巨大ファイルによるメモリ枯渇DoSを防ぐ上限チェック。
+  if (xmlContent.length > MAX_XML_LENGTH) {
+    throw new MusicXMLParseError(
+      `XML content exceeds the maximum allowed length (${MAX_XML_LENGTH} characters)`
+    );
+  }
+
+  // 入力堅牢化（TASK-091）: DOCTYPEを拒否し、内部エンティティ展開（billion laughs）と
+  // 外部DTD参照を予防的に遮断する。この遮断により実体展開DoSは成立しないため、
+  // `processEntities` は既定（true）のまま維持する。false にすると `&amp;` 等の
+  // 予約実体参照まで復号されず、曲名・歌詞の表示を壊す副作用があるため採用しない。
+  if (containsDoctype(xmlContent)) {
+    throw new MusicXMLParseError('DOCTYPE declarations are not allowed in MusicXML input');
   }
 
   const parser = new XMLParser({
@@ -484,6 +523,24 @@ export function parse(xmlContent: string): Score {
 
 export function extractXmlFromMxl(buffer: ArrayBuffer): string {
   const files = unzipSync(new Uint8Array(buffer));
+
+  // 入力堅牢化（TASK-091）: zip爆弾対策。展開後のエントリ数と合計サイズを検査し、
+  // 高圧縮率の細工.mxlによる後続処理（TextDecode・XMLパース）のメモリ枯渇を防ぐ。
+  const entryNames = Object.keys(files);
+  if (entryNames.length > MAX_ZIP_ENTRIES) {
+    throw new MusicXMLParseError(
+      `MXL archive contains too many entries (limit: ${MAX_ZIP_ENTRIES})`
+    );
+  }
+  let totalBytes = 0;
+  for (const name of entryNames) {
+    totalBytes += files[name].byteLength;
+    if (totalBytes > MAX_UNZIPPED_BYTES) {
+      throw new MusicXMLParseError(
+        `MXL archive uncompressed size exceeds the limit (${MAX_UNZIPPED_BYTES} bytes)`
+      );
+    }
+  }
 
   // Find the root file from META-INF/container.xml
   let rootFilePath = '';

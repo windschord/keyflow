@@ -134,6 +134,28 @@
 | TASK-094 | Dependabot導入・Electron 42.6.1更新 | dependabot.ymlのYAML妥当性、electron更新後のtypecheck/test（759件）/build通過、npm audit本番依存0件・新規増加なし |
 | TASK-095 | 統合検証・ドキュメント同期 | unit 759件 / typecheck / lint / lint:jp / format / E2E 4件 / build 全通過。npm audit本番依存0件。CLAUDE.md・README・本ファイル同期 |
 
+## Phase 19: UI多言語対応（2026-07-12）の検証状況
+
+US-016（REQ-016-001〜007）を新設したため、上表と同形式で行を追加する。
+
+| REQ | 検証 | 検証箇所 / 備考 |
+|---|---|---|
+| REQ-016-001 | ○ | i18n/index.test（getMessagesが'ja'/'en'双方でMessages型に適合するオブジェクトを返す）+ ja.ts/en.tsの型チェック（enがMessages型へ適合しないとコンパイルエラー） |
+| REQ-016-002 | ○ | resolve-language.test（Renderer）+ locale.test（Main）。保存値未定義/'auto'/不正値でOSロケールの`ja`前方一致判定にフォールバックすることを両プロセスで検証 |
+| REQ-016-003 | ○ | SettingsModal.test（言語セレクタ変更でui-slice.languageが即時反映され、settings:setで永続化。保存失敗時はロールバック）+ E2E（設定モーダルで言語をEnglishへ切り替え→ヘッダー文言が英語化→日本語へ戻す実UI操作、TASK-100で追加） |
+| REQ-016-004 | ○ | settings-handlers.test（ui.language変化時のみonLanguageChangedを呼ぶ）+ menu.test（language: 'en'でカスタムラベルが英語化、role指定の標準項目は不変）。Main側の実結線（Menu.setApplicationMenu再構築）はsrc/main/index.tsのcreateSettingsSetHandler呼び出しで実装 |
+| REQ-016-005 | ○ | App.test（起動時にsettings:get('ui').languageとresolveLanguageの結果をui-slice.languageへ反映）+ locale.test（Main起動時のメニュー言語解決）。永続化値が再起動後も復元されることの実機確認はユーザー実機確認待ち（TASK-100） |
+| REQ-016-006 | ○ | i18n/index.test（mergeMessagesがoverride側の欠落キーをbase＝英語の値へフォールバックすることをキー単位・セクション単位の両方で検証） |
+| REQ-016-007 | ○ | Header.test/SettingsModal.test/AboutModal.test/AboutPanel.test/App.test（エラー文言・ドロップヒント）/FingeringToggle.test/PlaybackControls.test/VolumeControl.test/practice-flow.test（ja/en双方の文言表示を各コンポーネント単位で検証）+ menu.test（メニューバー）。全UI領域を横断する単一E2Eでの網羅は行っていないが、代表操作（ヘッダー文言）のE2E往復をTASK-100で追加済み |
+
+| タスク | 内容 | 検証 |
+|--------|------|------|
+| TASK-096 | i18n基盤（Language型・Messages型・ja/enリソース・useTranslation・resolveLanguage） | resolve-language.test/index.test/format.test（各純関数）+ ui-slice.test（language/setLanguage） |
+| TASK-097 | Header・Toolbar系操作UIの翻訳externalization | Header.test/PlaybackControls.test/VolumeControl.test/FingeringToggle.test等、各コンポーネントのja/en表示切り替え |
+| TASK-098 | SettingsModal・AboutPanel・App.tsxエラー文言の翻訳externalization、言語セレクタ追加 | SettingsModal.test（言語セレクタ・即時反映・永続化・ロールバック）+ AboutModal.test/AboutPanel.test+App.test（エラー文言・ドロップヒントのja/en） |
+| TASK-099 | Main側メニュー多言語化・言語変更時の再構築 | menu.test（language: 'en'ラベル、role項目不変）+ settings-handlers.test（onLanguageChanged呼び出し条件） |
+| TASK-100 | Phase 19統合検証・E2E言語切り替え・ドキュメント同期 | unit 838件/typecheck/lint/lint:jp/format:check/build/test:e2e（6件）全通過。E2Eは隔離userDataディレクトリへ`ui.language: 'ja'`をシードして決定的化（`tests/e2e/e2e-user-data.ts`）。新規E2Eで設定モーダル経由の言語切り替え（ja→en→ja）をヘッダーのアクセシブルネームの実変化で検証。`npm run dev`実起動での目視確認3項目（初回起動のOSロケール判定・切り替えの即時反映・再起動後の復元）は未実施のためユーザー実機確認待ち |
+
 ## 運用ルール
 
 1. タスク完了時、対応するREQの行を更新する（△→○ 等）

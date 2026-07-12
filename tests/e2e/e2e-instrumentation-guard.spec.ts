@@ -2,6 +2,11 @@ import { test, expect, _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from 'playwright-core';
 import path from 'node:path';
 import fs from 'node:fs';
+import {
+  createIsolatedUserDataDir,
+  removeIsolatedUserDataDir,
+  userDataDirArg,
+} from './e2e-user-data';
 
 /**
  * TASK-088: E2E計装（__e2eStore__/__e2eMidiHooks__）の本番ビルド無効化の検証。
@@ -37,16 +42,25 @@ test.beforeAll(() => {
 
 let electronApp: ElectronApplication;
 let window: Page;
+let userDataDir: string;
 
 test.afterEach(async () => {
   await electronApp?.close();
+  removeIsolatedUserDataDir(userDataDir);
 });
 
 test('KEYFLOW_E2Eなしの起動（本番ビルド相当）ではE2E計装がwindowに一切公開されない', async () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { KEYFLOW_E2E: _omitted, ...envWithoutFlag } = process.env;
 
-  electronApp = await electron.launch({ args: [MAIN_ENTRY], env: envWithoutFlag });
+  // TASK-100: 開発者の実環境のuserDataを変更しないよう隔離ディレクトリで起動する
+  // （本テストは言語表示に依存しないが、他のE2Eと同様の隔離方針を適用する）。
+  userDataDir = createIsolatedUserDataDir('ja');
+
+  electronApp = await electron.launch({
+    args: [MAIN_ENTRY, userDataDirArg(userDataDir)],
+    env: envWithoutFlag,
+  });
   window = await electronApp.firstWindow();
   await window.waitForLoadState('domcontentloaded');
 

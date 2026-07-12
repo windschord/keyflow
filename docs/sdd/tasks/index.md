@@ -46,7 +46,7 @@
 | Phase 16: リリース自動化（2026-07-09） | 1 | 0 | 0 | 0 | [詳細](phase-16/) @phase-16/ |
 | Phase 17: セキュリティ強化（2026-07-11） | 5 | 0 | 0 | 0 | [詳細](phase-17/) @phase-17/ |
 | Phase 18: サプライチェーン・入力堅牢性強化（2026-07-11） | 5 | 0 | 0 | 0 | [詳細](phase-18/) @phase-18/ |
-| Phase 19: UI多言語対応（2026-07-12） | 0 | 0 | 5 | 0 | [詳細](phase-19/) @phase-19/ |
+| Phase 19: UI多言語対応（2026-07-12） | 4 | 1 | 0 | 0 | [詳細](phase-19/) @phase-19/ |
 
 **合計**: 98タスク / 推定合計: 約4510分（AIエージェント作業時間）
 
@@ -413,11 +413,11 @@
 
 | タスクID | タスク名 | ステータス | 依存 | 見積 | 詳細 |
 |---------|---------|-----------|------|------|------|
-| TASK-096 | i18n基盤（リソース・型・言語解決・useTranslation・ui-slice） | TODO | - | 60min | [詳細](phase-19/TASK-096.md) @phase-19/TASK-096.md |
-| TASK-097 | 操作系UIの文言外部化（Header・Toolbar・Stats・Fingering・NoteContextMenu） | TODO | TASK-096 | 90min | [詳細](phase-19/TASK-097.md) @phase-19/TASK-097.md |
-| TASK-098 | 設定・About・エラー表示の文言外部化と言語セレクタUI | TODO | TASK-096 | 90min | [詳細](phase-19/TASK-098.md) @phase-19/TASK-098.md |
-| TASK-099 | メニューバーの多言語化と言語変更時の再構築（Main側） | TODO | TASK-096 | 60min | [詳細](phase-19/TASK-099.md) @phase-19/TASK-099.md |
-| TASK-100 | Phase 19統合検証・E2E言語切り替え・ドキュメント同期 | TODO | TASK-096〜099 | 60min | [詳細](phase-19/TASK-100.md) @phase-19/TASK-100.md |
+| TASK-096 | i18n基盤（リソース・型・言語解決・useTranslation・ui-slice） | DONE | - | 60min | [詳細](phase-19/TASK-096.md) @phase-19/TASK-096.md |
+| TASK-097 | 操作系UIの文言外部化（Header・Toolbar・Stats・Fingering・NoteContextMenu） | DONE | TASK-096 | 90min | [詳細](phase-19/TASK-097.md) @phase-19/TASK-097.md |
+| TASK-098 | 設定・About・エラー表示の文言外部化と言語セレクタUI | DONE | TASK-096 | 90min | [詳細](phase-19/TASK-098.md) @phase-19/TASK-098.md |
+| TASK-099 | メニューバーの多言語化と言語変更時の再構築（Main側） | DONE | TASK-096 | 60min | [詳細](phase-19/TASK-099.md) @phase-19/TASK-099.md |
+| TASK-100 | Phase 19統合検証・E2E言語切り替え・ドキュメント同期 | REVIEW | TASK-096〜099 | 60min | [詳細](phase-19/TASK-100.md) @phase-19/TASK-100.md |
 
 #### 並列実行グループM: Phase 19（TASK-096完了後に並列実行可能）
 

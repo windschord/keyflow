@@ -68,6 +68,13 @@ src/
 │   │                       #   （isAllowedNavigationUrl: 開発時HMR URLと同一オリジン、または本番file:のみ許可）の
 │   │                       #   URL判定。Electron API非依存の純粋関数（TASK-087）
 │   ├── settings.ts        # electron-store ラッパー（アプリ設定・最近使ったファイル）
+│   ├── settings-handlers.ts # settings:set IPCハンドラのファクトリ。ui.languageの変更を検知した
+│   │                       #   場合のみonLanguageChangedコールバックを呼ぶ（TASK-099、REQ-016-004）
+│   ├── locale.ts          # resolveLanguage(stored, osLocale)のMain側実装。Renderer側
+│   │                       #   （lib/i18n/resolve-language.ts）と同一規則の独立した純関数（TASK-099）
+│   ├── menu.ts            # createApplicationMenuTemplate。language引数でカスタムラベル
+│   │                       #   （About/Edit/View/Window/Help等）をja/enに切り替える。role指定の
+│   │                       #   標準メニュー項目（undo/redo/cut/copy/paste等）は言語に関わらず不変（TASK-099）
 │   ├── window-options.ts  # BrowserWindowのtitle/iconオプション生成（プラットフォーム分岐、REQ-011）
 │   └── path-allowlist.ts  # ファイル読み書き許可パスの検証（assertAllowedAnnotationPath: file:write用、
 │                            #   assertAllowedReadPath: file:read系3ハンドラ用、TASK-086）
@@ -86,7 +93,12 @@ src/
         │   │                       #   metronome-voices.ts: メトロノーム音色定義（4種）、pedal-extension.ts: ペダル区間による
         │   │                       #   リリース延長の純関数、metronome.ts: メトロノーム本体）
         │   ├── midi/              # Web MIDI API直接利用（web-midi.ts）。navigator.requestMIDIAccess()をRendererで呼び出す
-        │   └── fingering-engine/  # FingeringEngineService（Workerクライアント）
+        │   ├── fingering-engine/  # FingeringEngineService（Workerクライアント）
+        │   └── i18n/              # UI多言語対応（US-016、TASK-096）。types.ts（Language型・Messages型）、
+        │                          #   ja.ts（構造のソースオブトゥルース）・en.ts（Messages型適合を型チェックで強制）、
+        │                          #   format.ts（プレースホルダ置換）、resolve-language.ts（言語解決の純関数）、
+        │                          #   index.ts（getMessages、欠落キーを英語へフォールバックするmergeMessages含む）、
+        │                          #   useTranslation.ts（ui-slice.languageを購読するフック）
         ├── workers/
         │   └── fingering/
         │       ├── types.ts
@@ -195,9 +207,25 @@ npm run build:mac
 | `file:read-if-exists` | Renderer→Main | 存在しないのが正常なファイル（注釈サイドカー等）の読み込み。ENOENTはnullを返す。読み取りallowlist検証あり（TASK-086） |
 | `file:read-binary` | Renderer→Main | バイナリファイル読み込み（.mxl）。読み取りallowlist検証あり（TASK-086） |
 | `file:write` | Renderer→Main | アノテーションJSON書き込み。`PathAllowlist.assertAllowedAnnotationPath`で許可パスのみ書き込み可 |
-| `settings:get` / `settings:set` | Renderer→Main | アプリ設定の取得・保存（electron-store） |
+| `settings:get` / `settings:set` | Renderer→Main | アプリ設定の取得・保存（electron-store）。`settings:set`は`key: 'ui'`かつ`ui.language`が変化した場合、副作用としてアプリケーションメニューを再構築する（下記「UI多言語対応」参照、TASK-099） |
 | `settings:get-recent-files` | Renderer→Main | 最近使ったファイル一覧の取得 |
 | `menu:open-about` | Main→Renderer | アプリケーションメニューのAbout項目クリック通知（`src/main/menu.ts`、TASK-082） |
+
+### UI多言語対応（i18n、US-016）
+- 表示言語は`AppSettings.ui.language: 'auto' | 'ja' | 'en'`（既定値`'auto'`）。`'auto'`はOSロケールに
+  よる自動判定を意味し、Rendererは`resolve-language.ts`、Mainは`locale.ts`が同一規則
+  （保存値が`'ja'`/`'en'`ならそのまま採用、それ以外はOSロケールが`ja`前方一致なら`'ja'`、
+  それ以外は`'en'`）で解決する。既存設定ファイルに保存済みの`'ja'`はそのまま日本語として扱われる
+- Rendererの翻訳リソースは`src/renderer/src/lib/i18n/`（`ja.ts`/`en.ts`）。コンポーネントからは
+  `useTranslation()`で取得した`t`を`t.header.play`のように参照する。キー欠落は`en`への型適合強制
+  （`en: Messages`）でコンパイル時に検出され、実行時フォールバック（`getMessages`のマージ）は
+  防御的に用意されている
+- 言語切り替えはSettingsModalの言語セレクタから行う。`ui-slice.setLanguage`でRendererのUIが即時
+  再描画され、`settings:set`で永続化される。新規IPCチャンネルは追加していない
+- Mainのアプリケーションメニュー（`src/main/menu.ts`のラベル）は起動時（`app.getLocale()`と保存値から
+  解決）と、言語変更時（`settings:set`ハンドラが`settings-handlers.ts`経由で検知し
+  `Menu.setApplicationMenu`を再構築）の双方で言語に応じて構築される。role指定の標準メニュー項目
+  （undo/redo/cut/copy/paste等）は言語に関わらず不変
 
 ### Web Worker（運指エンジン）
 - `fingering.worker.ts` は Vite の `?worker` インポートで読み込む
@@ -207,7 +235,7 @@ npm run build:mac
 ### データ永続化
 - アノテーション: `{MusicXMLのパス}.annotation.json`（同フォルダに保存）
 - `noteId` フォーマット: `{partId}-M{measureNumber}-N{noteIndex}` 例: `P1-M3-N0`
-- 設定スキーマ（electron-store、`AppSettings`）: `ui` / `practice` / `midi` に加え `audio: { playbackVoice, metronomeVoice }`（既定値 `'grand-piano'` / `'click'`、TASK-073）。キー欠落時はDEFAULT_SETTINGSとの浅いマージで後方互換を維持する
+- 設定スキーマ（electron-store、`AppSettings`）: `ui` / `practice` / `midi` に加え `audio: { playbackVoice, metronomeVoice }`（既定値 `'grand-piano'` / `'click'`、TASK-073）。キー欠落時はDEFAULT_SETTINGSとの浅いマージで後方互換を維持する。`ui.language: 'auto' | 'ja' | 'en'`（既定値`'auto'`、TASK-096）はUI表示言語（詳細は「UI多言語対応」節）
 - アノテーション読み込み（`annotation-store/index.ts` の `load()`）はスキーマ・値域検証つき（TASK-092）。`normalizeAnnotation` で不正な要素（`noteId` 非文字列/空、`fingerNumber` 値域外/非整数、`comment` 非文字列）を除外するフェイルソフト方式。`annotations` が非配列のファイルは空状態で継続する
 
 ### 入力ファイルの堅牢化（MusicXML/MXLパース、TASK-091）

@@ -468,6 +468,38 @@ describe('createUiSlice language/setLanguage (TASK-096)', () => {
   });
 });
 
+// TASK-102: 現在表示中の画面（US-017）。初期値'library'で、楽譜未読み込みでも
+// ライブラリ画面から開始できる。
+describe('createUiSlice activeView/setActiveView (TASK-102)', () => {
+  it('initializes activeView to "library"', () => {
+    const set = vi.fn();
+    const get = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    expect(slice.activeView).toBe('library');
+  });
+
+  it('updates activeView when setActiveView is called', () => {
+    let state: { activeView: 'score' | 'library' } = { activeView: 'library' };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setActiveView('score');
+    expect(state.activeView).toBe('score');
+
+    slice.setActiveView('library');
+    expect(state.activeView).toBe('library');
+  });
+});
+
 describe('createUiSlice setMidiDeviceId', () => {
   it('updates midiDeviceId when called with a device id', () => {
     let state: { midiDeviceId: string | null } = { midiDeviceId: null };

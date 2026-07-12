@@ -371,6 +371,7 @@
 | TASK-095 | Phase 18統合検証・ドキュメント同期 | DONE | TASK-091〜094 | 30min | [詳細](phase-18/TASK-095.md) @phase-18/TASK-095.md |
 
 #### 並列実行グループL: Phase 18（着手時に並列実行可能）
+
 | タスク | 対象ファイル | 依存 |
 |--------|-------------|------|
 | TASK-091 | src/renderer/src/lib/musicxml-parser/** | - |

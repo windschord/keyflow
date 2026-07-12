@@ -102,6 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onOpenFile}
           aria-label={t.header.openFileAriaLabel}
           title={t.header.openFileTitle}
+          data-testid="header-open-file-button"
           style={ICON_BUTTON_STYLE}
         >
           <svg

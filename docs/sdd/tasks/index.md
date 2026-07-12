@@ -47,7 +47,7 @@
 | Phase 17: セキュリティ強化（2026-07-11） | 5 | 0 | 0 | 0 | [詳細](phase-17/) @phase-17/ |
 | Phase 18: サプライチェーン・入力堅牢性強化（2026-07-11） | 5 | 0 | 0 | 0 | [詳細](phase-18/) @phase-18/ |
 | Phase 19: UI多言語対応（2026-07-12） | 4 | 1 | 0 | 0 | [詳細](phase-19/) @phase-19/ |
-| Phase 20: 楽譜ライブラリ（2026-07-12） | 0 | 0 | 4 | 0 | [詳細](phase-20/) @phase-20/ |
+| Phase 20: 楽譜ライブラリ（2026-07-12） | 3 | 1 | 0 | 0 | [詳細](phase-20/) @phase-20/ |
 
 **合計**: 102タスク / 推定合計: 約4840分（AIエージェント作業時間）
 
@@ -441,10 +441,10 @@
 
 | タスクID | タスク名 | ステータス | 依存 | 見積 | 詳細 |
 |---------|---------|-----------|------|------|------|
-| TASK-101 | LibraryServiceとlibrary:* IPC（Main側・preload公開） | TODO | - | 90min | [詳細](phase-20/TASK-101.md) @phase-20/TASK-101.md |
-| TASK-102 | LibraryView（一覧・検索・並べ替え・削除・空状態・i18n） | TODO | TASK-101 | 90min | [詳細](phase-20/TASK-102.md) @phase-20/TASK-102.md |
-| TASK-103 | ライブラリ統合（自動登録・開くフロー・画面切り替え・欠損処理） | TODO | TASK-101, TASK-102 | 90min | [詳細](phase-20/TASK-103.md) @phase-20/TASK-103.md |
-| TASK-104 | Phase 20統合検証・ライブラリE2E・ドキュメント同期 | TODO | TASK-101〜103 | 60min | [詳細](phase-20/TASK-104.md) @phase-20/TASK-104.md |
+| TASK-101 | LibraryServiceとlibrary:* IPC（Main側・preload公開） | DONE | - | 90min | [詳細](phase-20/TASK-101.md) @phase-20/TASK-101.md |
+| TASK-102 | LibraryView（一覧・検索・並べ替え・削除・空状態・i18n） | DONE | TASK-101 | 90min | [詳細](phase-20/TASK-102.md) @phase-20/TASK-102.md |
+| TASK-103 | ライブラリ統合（自動登録・開くフロー・画面切り替え・欠損処理） | DONE | TASK-101, TASK-102 | 90min | [詳細](phase-20/TASK-103.md) @phase-20/TASK-103.md |
+| TASK-104 | Phase 20統合検証・ライブラリE2E・ドキュメント同期 | REVIEW | TASK-101〜103 | 60min | [詳細](phase-20/TASK-104.md) @phase-20/TASK-104.md |
 
 > TASK-101→102→103→104の順次実行とする（102はUI、103が結線のため実質直列）。
 

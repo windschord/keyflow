@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-101 |
 | タイプ | feat（US-017） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 90分 |
 | 依存タスク | なし |
@@ -55,18 +55,36 @@ US-017（楽譜ライブラリ）のMain側基盤。設計は
 
 ## 受入基準
 
-- [ ] LibraryServiceがupsert/remove/getAllを提供し再起動相当（再インスタンス化）で復元する（REQ-017-009）
-- [ ] upsertが重複pathで登録せず更新する（REQ-017-002）
-- [ ] getAllのフェイルソフト検証（不正要素除外・正規化）が機能する
-- [ ] library:openが拡張子検証・存在確認・allowlist登録・recent追加を実施し、失敗理由を構造化して返す（REQ-017-007/008の前段）
-- [ ] preloadからlibrary APIが公開されている
-- [ ] 全チェック通過
+- [x] LibraryServiceがupsert/remove/getAllを提供し再起動相当（再インスタンス化）で復元する（REQ-017-009）
+- [x] upsertが重複pathで登録せず更新する（REQ-017-002）
+- [x] getAllのフェイルソフト検証（不正要素除外・正規化）が機能する
+- [x] library:openが拡張子検証・存在確認・allowlist登録・recent追加を実施し、失敗理由を構造化して返す（REQ-017-007/008の前段）
+- [x] preloadからlibrary APIが公開されている
+- [x] 全チェック通過
 
 ## テスト項目
 
-- [ ] upsert: 新規追加でaddedAt/lastOpenedAtが記録される
-- [ ] upsert: 既存pathでtitle/composer/lastOpenedAt更新・addedAt維持・件数不変
-- [ ] remove: 対象のみ削除される
-- [ ] getAll: 不正要素（path欠落等）の除外、entries非配列で空
-- [ ] library:open: 正常系でallowlist登録+recent追加が呼ばれる（結線）
-- [ ] library:open: 存在しないファイルでnot-found、不正拡張子でinvalid-extension
+- [x] upsert: 新規追加でaddedAt/lastOpenedAtが記録される
+- [x] upsert: 既存pathでtitle/composer/lastOpenedAt更新・addedAt維持・件数不変
+- [x] remove: 対象のみ削除される
+- [x] getAll: 不正要素（path欠落等）の除外、entries非配列で空
+- [x] library:open: 正常系でallowlist登録+recent追加が呼ばれる（結線）
+- [x] library:open: 存在しないファイルでnot-found、不正拡張子でinvalid-extension
+
+## 完了サマリー
+
+- 新規: `src/main/library.ts`（LibraryService）、`src/main/library-handlers.ts`
+  （library:* IPCハンドラのファクトリ）、`src/renderer/src/types/library.ts`
+  （renderer側独立型）、対応するテスト2ファイル
+- 変更: `src/main/index.ts`（ハンドラ登録）、`src/preload/index.ts`
+  （contextIsolated/非isolated両分岐にelectronAPI.library追加）、
+  `src/renderer/src/types/{index,electron-api.d}.ts`（型公開）
+- IPCチャンネル: `library:get-all`（成功: LibraryEntry[]）、`library:upsert`
+  （成功: void。既存pathはtitle/composer/lastOpenedAt更新・新規はaddedAt記録）、
+  `library:remove`（成功: void）、`library:open`（成功: `{ok:true}`。失敗:
+  `{ok:false,reason:'not-found'|'invalid-extension'}`、例外は投げない）
+- テスト: library.test.ts 8件、library-handlers.test.ts 8件（新規16件）、
+  全体854件（62ファイル）すべて成功
+- チェック結果: test/typecheck/lint/lint:jp/format:check すべて成功
+- コミット: テスト先行 `13fcfbc`、実装 `acebba1`
+- 未解決事項: なし（TASK-102のLibraryView実装はスコープ外のため本タスクでは着手していない）

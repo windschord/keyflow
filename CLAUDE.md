@@ -222,7 +222,7 @@ npm run build:mac
 | `library:get-all` | Renderer→Main | 楽譜ライブラリ（US-017）の全エントリ取得（TASK-101） |
 | `library:upsert` | Renderer→Main | `{path, title, composer}`の登録。既存pathは更新、新規は`addedAt`も記録（REQ-017-001/002） |
 | `library:remove` | Renderer→Main | pathで削除。ファイル本体・アノテーションは触らない（REQ-017-006） |
-| `library:open` | Renderer→Main | ライブラリから開く前処理。拡張子検証・存在確認・allowlist登録・recentFiles追加を行い、存在しなければ`{ok: false, reason: 'not-found'}`を返す（REQ-017-007/008） |
+| `library:open` | Renderer→Main | ライブラリから開く前処理。拡張子検証・存在確認・allowlist登録・recentFiles追加を行い、存在しなければ`{ok: false, reason: 'not-found'}`を、対応拡張子（.xml/.musicxml/.mxl）以外なら`{ok: false, reason: 'invalid-extension'}`を返す（REQ-017-007/008） |
 
 ### UI多言語対応（i18n、US-016）
 - 表示言語は`AppSettings.ui.language: 'auto' | 'ja' | 'en'`（既定値`'auto'`）。`'auto'`はOSロケールに
@@ -250,8 +250,10 @@ npm run build:mac
   3経路が通る唯一の成功点）で`electronAPI.library.upsert`を呼ぶ。タイトルは`score.title`、
   パーサー既定値`'Untitled'`のときはファイル名（拡張子除く）へフォールバックする
 - ライブラリから開く（REQ-017-007/008）: `library:open`が`ok: true`なら既存の読み込みフロー
-  （file:read等→パース→表示）を再利用して開く。`not-found`ならエラー通知＋欠損マーク＋
-  アプリ内確認ダイアログでの削除/維持を行う（`window.confirm`は不使用）
+  （file:read等→パース→表示）を再利用して開く。`ok: false`の理由は`reason: 'not-found'`
+  （ファイル未存在）と`reason: 'invalid-extension'`（対応拡張子.xml/.musicxml/.mxl以外）の2種類がある。
+  App.tsx側はこの理由を区別せず、同じ非okフローでエラー通知＋欠損マーク＋アプリ内確認ダイアログ
+  での削除/維持を行う（`window.confirm`は不使用）
 - Headerに「ライブラリ」ボタン（アイコン）を常設し、楽譜表示⇔ライブラリをいつでも往復できる。
   隣接する「ファイルを開く」ボタンにはE2Eでの一意特定用に`data-testid="header-open-file-button"`を
   付与している（LibraryView空状態のボタンも同じ文言のため、TASK-104）

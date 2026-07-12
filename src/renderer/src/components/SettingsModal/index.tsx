@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { AppSettings, ErrorMode } from '../../types';
 import { usePracticeStore } from '../../store';
 import type { WebMidiService } from '../../lib/midi/web-midi';
-import { PLAYBACK_VOICES } from '../../lib/audio-engine/voices';
-import { METRONOME_VOICES } from '../../lib/audio-engine/metronome-voices';
+import { PLAYBACK_VOICES, type PlaybackVoiceId } from '../../lib/audio-engine/voices';
+import { METRONOME_VOICES, type MetronomeVoiceId } from '../../lib/audio-engine/metronome-voices';
+import { useTranslation } from '../../lib/i18n/useTranslation';
+import type { Language, Messages } from '../../lib/i18n/types';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -37,15 +39,32 @@ const DEFAULT_SETTINGS: SettingsModalState = {
 // 鍵盤数プリセットの選択肢（TASK-056）。key-layout.tsのKEYBOARD_PRESETSと
 // 一致させる（プリセット範囲は一般的な電子キーボード製品を参考に採用した値であり、
 // ユーザーの実機に合わせた調整が必要な場合はKEYBOARD_PRESETS側を調整する）。
-const KEYBOARD_SIZE_OPTIONS: ReadonlyArray<{
-  value: AppSettings['ui']['keyboardSize'];
-  label: string;
-}> = [
-  { value: 88, label: '88鍵（フルサイズピアノ）' },
-  { value: 76, label: '76鍵' },
-  { value: 61, label: '61鍵' },
-  { value: 49, label: '49鍵' },
-];
+// TASK-098: ラベルは文言外部化のため、翻訳リソースから都度組み立てる関数へ変更した。
+function buildKeyboardSizeOptions(
+  t: Messages
+): ReadonlyArray<{ value: AppSettings['ui']['keyboardSize']; label: string }> {
+  return [
+    { value: 88, label: t.settings.keyboardSizeOption88 },
+    { value: 76, label: t.settings.keyboardSizeOption76 },
+    { value: 61, label: t.settings.keyboardSizeOption61 },
+    { value: 49, label: t.settings.keyboardSizeOption49 },
+  ];
+}
+
+// 音色ID（voices.ts/metronome-voices.ts側のドメイン定義）から表示層の翻訳キーへの
+// マッピング（TASK-098）。ドメインのIDは変更せず、表示名のみ翻訳リソースの参照へ切り替える。
+const PLAYBACK_VOICE_NAME_KEYS: Record<PlaybackVoiceId, keyof Messages['voiceNames']> = {
+  'grand-piano': 'grandPiano',
+  'electric-piano': 'electricPiano',
+  organ: 'organ',
+  synth: 'synth',
+};
+const METRONOME_VOICE_NAME_KEYS: Record<MetronomeVoiceId, keyof Messages['voiceNames']> = {
+  click: 'click',
+  woodblock: 'woodblock',
+  beep: 'beep',
+  cowbell: 'cowbell',
+};
 
 // 鍵盤の高さ（px）の妥当な範囲。ui-slice.setPianoHeightのクランプと一致させる
 // （注意事項: 範囲を外れるとPianoKeyboardのレイアウトが崩れるため）。
@@ -61,10 +80,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   webMidiService,
 }) => {
+  const t = useTranslation();
   const [settings, setSettings] = useState<SettingsModalState>(DEFAULT_SETTINGS);
   const [recentFiles, setRecentFiles] = useState<Array<{ path: string; openedAt: string }>>([]);
   const [midiDevices, setMidiDevices] = useState<Array<{ id: string; name: string }>>([]);
   const requestIdRef = React.useRef<number>(0);
+  const keyboardSizeOptions = buildKeyboardSizeOptions(t);
+  // TASK-098, REQ-016-003: 保存値が'auto'の間はセレクタに現在の解決結果（ja/en）を
+  // 表示するが、ユーザーが明示選択するまでsettings.ui.language自体（'auto'）は
+  // 上書きしない。表示専用の値であり、保存はupdateUiSetting呼び出し時のみ行う。
+  const currentLanguage = usePracticeStore((s) => s.language);
+  const languageSelectValue: Language =
+    settings.ui.language === 'ja' || settings.ui.language === 'en'
+      ? settings.ui.language
+      : currentLanguage;
 
   useEffect(() => {
     if (isOpen) {
@@ -93,7 +122,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         } catch {
           setSettings(DEFAULT_SETTINGS);
           setRecentFiles([]);
-          showSettingsError('設定の読み込みに失敗しました。既定値で表示します。');
+          showSettingsError(t.settings.loadError);
         }
       };
       loadSettings();
@@ -102,7 +131,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       // 「すべてのデバイス」のみを表示する（クラッシュしない）。
       setMidiDevices(webMidiService?.getDevices() ?? []);
     }
-  }, [isOpen, webMidiService]);
+  }, [isOpen, webMidiService, t]);
 
   if (!isOpen) return null;
 
@@ -116,6 +145,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const previousValue = settings.ui[key];
     const previousPianoHeight = usePracticeStore.getState().pianoHeight;
     const previousKeyboardSize = usePracticeStore.getState().keyboardSize;
+    const previousLanguage = usePracticeStore.getState().language;
 
     const updatedUi = { ...settings.ui, [key]: value };
     setSettings({ ...settings, ui: updatedUi });
@@ -134,6 +164,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       usePracticeStore.getState().setKeyboardSize(value as AppSettings['ui']['keyboardSize']);
     }
 
+    // 「言語」の変更は、単一の真実源である ui-slice の language へ即座に反映する
+    // （TASK-098、REQ-016-003。pianoHeight/keyboardSizeと同一パターン）。
+    // セレクタの選択肢は'ja'/'en'のみのため、渡される値は常にLanguageに収まる。
+    if (key === 'language') {
+      usePracticeStore.getState().setLanguage(value as Language);
+    }
+
     try {
       await window.electronAPI.settings.set('ui', updatedUi);
     } catch {
@@ -149,7 +186,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         if (key === 'keyboardSize') {
           usePracticeStore.getState().setKeyboardSize(previousKeyboardSize);
         }
-        showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+        if (key === 'language') {
+          usePracticeStore.getState().setLanguage(previousLanguage);
+        }
+        showSettingsError(t.settings.saveError);
       }
     }
   };
@@ -207,7 +247,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         if (key === 'defaultErrorMode') {
           usePracticeStore.getState().setErrorMode(previousErrorMode);
         }
-        showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+        showSettingsError(t.settings.saveError);
       }
     }
   };
@@ -234,7 +274,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           midi: { ...currentSettings.midi, selectedDeviceId: previousDeviceId },
         }));
         usePracticeStore.getState().setMidiDeviceId(previousStoreDeviceId);
-        showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+        showSettingsError(t.settings.saveError);
       }
     }
   };
@@ -280,7 +320,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         if (key === 'metronomeVoice') {
           usePracticeStore.getState().setMetronomeVoice(previousMetronomeVoice);
         }
-        showSettingsError('設定の保存に失敗しました。変更を元に戻しました。');
+        showSettingsError(t.settings.saveError);
       }
     }
   };
@@ -327,10 +367,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             alignItems: 'center',
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>設定</h2>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{t.settings.title}</h2>
           <button
             onClick={onClose}
-            aria-label="閉じる"
+            aria-label={t.settings.closeButtonAriaLabel}
             style={{
               background: 'transparent',
               border: 'none',
@@ -363,7 +403,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 marginBottom: '12px',
               }}
             >
-              練習
+              {t.settings.practiceSectionTitle}
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -372,7 +412,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   htmlFor="errorMode"
                   style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
                 >
-                  既定のエラーモード
+                  {t.settings.errorModeLabel}
                 </label>
                 <select
                   id="errorMode"
@@ -390,8 +430,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     border: '1px solid #d1d5db',
                   }}
                 >
-                  <option value="wait">正しい音を待つ</option>
-                  <option value="pass">誤りがあっても先へ進む</option>
+                  <option value="wait">{t.settings.errorModeWait}</option>
+                  <option value="pass">{t.settings.errorModePass}</option>
                 </select>
               </div>
 
@@ -407,7 +447,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   htmlFor="metronomeEnabled"
                   style={{ marginLeft: '8px', fontSize: '0.875rem' }}
                 >
-                  既定でメトロノームを有効にする
+                  {t.settings.metronomeEnabledLabel}
                 </label>
               </div>
 
@@ -425,7 +465,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   htmlFor="metronomeAccentEnabled"
                   style={{ marginLeft: '8px', fontSize: '0.875rem' }}
                 >
-                  既定で1拍目を強調する
+                  {t.settings.metronomeAccentEnabledLabel}
                 </label>
               </div>
             </div>
@@ -442,7 +482,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 marginBottom: '12px',
               }}
             >
-              表示
+              {t.settings.displaySectionTitle}
             </h3>
 
             <div>
@@ -450,7 +490,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 htmlFor="pianoHeight"
                 style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
               >
-                鍵盤の高さ
+                {t.settings.pianoHeightLabel}
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input
@@ -460,7 +500,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   max={PIANO_HEIGHT_MAX}
                   value={settings.ui.pianoHeight}
                   onChange={(e) => updateUiSetting('pianoHeight', Number(e.target.value))}
-                  title="ピアノ鍵盤の表示の高さを変更します（80〜300px）"
+                  title={t.settings.pianoHeightTitle}
                   style={{ flex: 1, cursor: 'pointer' }}
                 />
                 <span style={{ fontSize: '0.875rem', color: '#6b7280', minWidth: '48px' }}>
@@ -474,7 +514,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 htmlFor="keyboardSize"
                 style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
               >
-                鍵盤数
+                {t.settings.keyboardSizeLabel}
               </label>
               <select
                 id="keyboardSize"
@@ -485,7 +525,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Number(e.target.value) as AppSettings['ui']['keyboardSize']
                   )
                 }
-                title="画面下部の鍵盤の表示範囲（鍵盤数）を手元の機種に合わせて変更します"
+                title={t.settings.keyboardSizeTitle}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -493,13 +533,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   border: '1px solid #d1d5db',
                 }}
               >
-                {KEYBOARD_SIZE_OPTIONS.map((option) => (
+                {keyboardSizeOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </select>
             </div>
+          </section>
+
+          {/* Language Setting (TASK-098, REQ-016-003) */}
+          <section style={{ marginBottom: '24px' }}>
+            <h3
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                marginBottom: '12px',
+              }}
+            >
+              {t.settings.language}
+            </h3>
+
+            <select
+              id="language"
+              aria-label={t.settings.language}
+              value={languageSelectValue}
+              onChange={(e) =>
+                updateUiSetting('language', e.target.value as AppSettings['ui']['language'])
+              }
+              title={t.settings.languageTitle}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: '1px solid #d1d5db',
+              }}
+            >
+              <option value="ja">{t.settings.languageOptionJapanese}</option>
+              <option value="en">{t.settings.languageOptionEnglish}</option>
+            </select>
           </section>
 
           {/* MIDI Settings (TASK-045, REQ-004-008) */}
@@ -513,7 +587,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 marginBottom: '12px',
               }}
             >
-              MIDI
+              {t.settings.midiSectionTitle}
             </h3>
 
             <div>
@@ -521,13 +595,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 htmlFor="midiDevice"
                 style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
               >
-                MIDI入力デバイス
+                {t.settings.midiDeviceLabel}
               </label>
               <select
                 id="midiDevice"
                 value={settings.midi.selectedDeviceId ?? ''}
                 onChange={(e) => updateMidiDevice(e.target.value === '' ? null : e.target.value)}
-                title="使用するMIDI入力デバイスを選択します（複数接続時）"
+                title={t.settings.midiDeviceTitle}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -535,7 +609,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   border: '1px solid #d1d5db',
                 }}
               >
-                <option value="">すべてのデバイス</option>
+                <option value="">{t.settings.midiAllDevices}</option>
                 {midiDevices.map((device) => (
                   <option key={device.id} value={device.id}>
                     {device.name}
@@ -556,7 +630,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 marginBottom: '12px',
               }}
             >
-              音色
+              {t.settings.voiceSectionTitle}
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -565,7 +639,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   htmlFor="playbackVoice"
                   style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
                 >
-                  再生音色
+                  {t.settings.playbackVoiceLabel}
                 </label>
                 <select
                   id="playbackVoice"
@@ -576,7 +650,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       e.target.value as AppSettings['audio']['playbackVoice']
                     )
                   }
-                  title="曲の再生・手動プレビューで使う音色を選択します"
+                  title={t.settings.playbackVoiceTitle}
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -586,7 +660,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   {Object.values(PLAYBACK_VOICES).map((voice) => (
                     <option key={voice.id} value={voice.id}>
-                      {voice.label}
+                      {t.voiceNames[PLAYBACK_VOICE_NAME_KEYS[voice.id]]}
                     </option>
                   ))}
                 </select>
@@ -597,7 +671,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   htmlFor="metronomeVoice"
                   style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
                 >
-                  メトロノーム音色
+                  {t.settings.metronomeVoiceLabel}
                 </label>
                 <select
                   id="metronomeVoice"
@@ -608,7 +682,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       e.target.value as AppSettings['audio']['metronomeVoice']
                     )
                   }
-                  title="メトロノームのクリック音を選択します"
+                  title={t.settings.metronomeVoiceTitle}
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -618,7 +692,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   {Object.values(METRONOME_VOICES).map((voice) => (
                     <option key={voice.id} value={voice.id}>
-                      {voice.label}
+                      {t.voiceNames[METRONOME_VOICE_NAME_KEYS[voice.id]]}
                     </option>
                   ))}
                 </select>
@@ -637,11 +711,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 marginBottom: '12px',
               }}
             >
-              最近使ったファイル
+              {t.settings.recentFilesSectionTitle}
             </h3>
             {recentFiles.length === 0 ? (
               <p style={{ fontSize: '0.875rem', color: '#6b7280', fontStyle: 'italic' }}>
-                最近使ったファイルはありません
+                {t.settings.recentFilesEmpty}
               </p>
             ) : (
               <ul
@@ -732,7 +806,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               fontWeight: 500,
             }}
           >
-            完了
+            {t.settings.doneButton}
           </button>
         </div>
       </div>

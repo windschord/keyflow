@@ -1,15 +1,76 @@
 /**
- * 日本語リソース（TASK-096/097）。UI多言語対応（US-016）の構造のソースオブトゥルースであり、
+ * 日本語リソース（TASK-096/097/098）。UI多言語対応（US-016）の構造のソースオブトゥルースであり、
  * `Messages`型（types.ts）はこのオブジェクトの構造から導出する。
  *
  * TASK-097でHeader・Toolbar・StatsDisplay・FingeringPanel・NoteContextMenu・
  * ScoreRendererの操作系文言をコンポーネント別の名前空間で追加した。
- * SettingsModal・AboutPanel・App.tsxのエラー文言はTASK-098で追加する。
+ * TASK-098でSettingsModal・AboutPanel・App.tsxのエラー文言・音色表示名を追加した。
  */
 export const ja = {
   settings: {
     title: '設定',
+    closeButtonAriaLabel: '閉じる',
+    doneButton: '完了',
+    loadError: '設定の読み込みに失敗しました。既定値で表示します。',
+    saveError: '設定の保存に失敗しました。変更を元に戻しました。',
+    practiceSectionTitle: '練習',
+    errorModeLabel: '既定のエラーモード',
+    errorModeWait: '正しい音を待つ',
+    errorModePass: '誤りがあっても先へ進む',
+    metronomeEnabledLabel: '既定でメトロノームを有効にする',
+    metronomeAccentEnabledLabel: '既定で1拍目を強調する',
+    displaySectionTitle: '表示',
+    pianoHeightLabel: '鍵盤の高さ',
+    pianoHeightTitle: 'ピアノ鍵盤の表示の高さを変更します（80〜300px）',
+    keyboardSizeLabel: '鍵盤数',
+    keyboardSizeTitle: '画面下部の鍵盤の表示範囲（鍵盤数）を手元の機種に合わせて変更します',
+    keyboardSizeOption88: '88鍵（フルサイズピアノ）',
+    keyboardSizeOption76: '76鍵',
+    keyboardSizeOption61: '61鍵',
+    keyboardSizeOption49: '49鍵',
     language: '言語',
+    languageTitle: '表示言語を切り替えます（即時反映・再起動不要）',
+    languageOptionJapanese: '日本語',
+    languageOptionEnglish: 'English',
+    midiSectionTitle: 'MIDI',
+    midiDeviceLabel: 'MIDI入力デバイス',
+    midiDeviceTitle: '使用するMIDI入力デバイスを選択します（複数接続時）',
+    midiAllDevices: 'すべてのデバイス',
+    voiceSectionTitle: '音色',
+    playbackVoiceLabel: '再生音色',
+    playbackVoiceTitle: '曲の再生・手動プレビューで使う音色を選択します',
+    metronomeVoiceLabel: 'メトロノーム音色',
+    metronomeVoiceTitle: 'メトロノームのクリック音を選択します',
+    recentFilesSectionTitle: '最近使ったファイル',
+    recentFilesEmpty: '最近使ったファイルはありません',
+  },
+  about: {
+    dialogAriaLabel: 'このアプリについて',
+    closeButtonAriaLabel: '閉じる',
+    librariesHeading: '使用ライブラリ',
+    noLibraries: 'ライブラリ情報がありません',
+  },
+  app: {
+    dropHint: 'ここにMusicXMLファイルをドロップ（またはファイルを開く）',
+    unsupportedDropFormat:
+      '対応していないファイル形式です。.xml / .musicxml / .mxl ファイルをドロップしてください。',
+    electronApiUnavailable:
+      'Electron API が利用できません。Electron アプリとして起動してください。',
+    parseError: 'MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。',
+    openDialogError: 'ファイル選択ダイアログを開けませんでした。',
+    droppedFilePathError: 'ドロップされたファイルのパスを取得できませんでした。',
+    fingeringSaveError: '運指アノテーションの保存に失敗しました。',
+    annotationSaveError: '運指メモの保存に失敗しました。',
+  },
+  voiceNames: {
+    grandPiano: 'グランドピアノ',
+    electricPiano: 'エレクトリックピアノ',
+    organ: 'オルガン',
+    synth: 'シンセ',
+    click: 'クリック',
+    woodblock: 'ウッドブロック',
+    beep: 'ビープ',
+    cowbell: 'カウベル',
   },
   header: {
     openFileAriaLabel: 'ファイルを開く',

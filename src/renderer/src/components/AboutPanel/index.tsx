@@ -3,6 +3,7 @@ import { APP_NAME, APP_LICENSE_NAME, APP_LICENSE_URL, SALAMANDER_CREDIT } from '
 // ビルド時生成物（scripts/generate-licenses.mjs、gitignore対象）。
 // predev/prebuild/prelint/pretest/pretest:coverageの各npmフックで自動生成される（DEC-008）。
 import licenses from '../../generated/licenses.json';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 interface LicenseEntry {
   name: string;
@@ -14,6 +15,7 @@ interface LicenseEntry {
 const licenseEntries = licenses as LicenseEntry[];
 
 export const AboutPanel: React.FC = () => {
+  const t = useTranslation();
   const [expandedName, setExpandedName] = useState<string | null>(null);
 
   const toggleExpanded = (name: string): void => {
@@ -48,11 +50,11 @@ export const AboutPanel: React.FC = () => {
             marginBottom: '8px',
           }}
         >
-          使用ライブラリ
+          {t.about.librariesHeading}
         </h4>
         {licenseEntries.length === 0 ? (
           <p style={{ fontSize: '0.875rem', color: '#6b7280', fontStyle: 'italic' }}>
-            ライブラリ情報がありません
+            {t.about.noLibraries}
           </p>
         ) : (
           <ul

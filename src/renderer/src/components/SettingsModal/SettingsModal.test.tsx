@@ -52,6 +52,9 @@ describe('SettingsModal', () => {
       keyboardSize: 88,
       playbackVoice: 'grand-piano',
       metronomeVoice: 'click',
+      // TASK-098: 言語セレクタのテストによる変更値の残留を防ぐため、
+      // 他のフィールドと同じくbeforeEachでリセットする。
+      language: 'ja',
     });
   });
 
@@ -678,5 +681,109 @@ describe('SettingsModal', () => {
 
     await waitFor(() => expect(screen.getByText('最近使ったファイル')).toBeInTheDocument());
     expect(screen.queryByText('このアプリについて')).not.toBeInTheDocument();
+  });
+
+  // TASK-098, REQ-016-003: 言語セレクタ（US-016）。
+  describe('Language selector (TASK-098, REQ-016-003)', () => {
+    const mockGetWithUi = (ui: Partial<typeof defaultUi>) =>
+      vi.fn().mockImplementation((key: string) => {
+        if (key === 'ui') return Promise.resolve({ ...defaultUi, ...ui });
+        if (key === 'practice') return Promise.resolve(defaultPractice);
+        if (key === 'midi') return Promise.resolve(defaultMidi);
+        if (key === 'audio') return Promise.resolve(defaultAudio);
+        return Promise.resolve(undefined);
+      });
+
+    it('shows self-representation fixed options ("日本語"/"English") regardless of the current display language', async () => {
+      usePracticeStore.setState({ language: 'en' });
+      settingsApi.get.mockImplementation(mockGetWithUi({ language: 'ja' }));
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('Language')) as HTMLSelectElement;
+      expect(select).toBeInTheDocument();
+      expect(screen.getByText('日本語')).toBeInTheDocument();
+      expect(screen.getByText('English')).toBeInTheDocument();
+    });
+
+    it('changing the language selector updates the ui-slice language immediately and persists ui.language via settings:set', async () => {
+      settingsApi.get.mockImplementation(mockGetWithUi({ language: 'ja' }));
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+      settingsApi.set.mockResolvedValue(undefined);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('言語')) as HTMLSelectElement;
+      await waitFor(() => expect(select.value).toBe('ja'));
+
+      fireEvent.change(select, { target: { value: 'en' } });
+
+      await waitFor(() => expect(usePracticeStore.getState().language).toBe('en'));
+      expect(settingsApi.set).toHaveBeenCalledWith(
+        'ui',
+        expect.objectContaining({ language: 'en' })
+      );
+    });
+
+    it('rolls back the ui-slice language when saving the selection fails', async () => {
+      settingsApi.get.mockImplementation(mockGetWithUi({ language: 'ja' }));
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+      settingsApi.set.mockRejectedValue(new Error('save failed'));
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('言語')) as HTMLSelectElement;
+      await waitFor(() => expect(select.value).toBe('ja'));
+
+      fireEvent.change(select, { target: { value: 'en' } });
+
+      await waitFor(() =>
+        expect(window.alert).toHaveBeenCalledWith(
+          '設定の保存に失敗しました。変更を元に戻しました。'
+        )
+      );
+      expect(usePracticeStore.getState().language).toBe('ja');
+    });
+
+    // REQ-016-003: 保存値が'auto'の場合、セレクタは現在の解決結果（ja/en）を表示するが、
+    // ユーザーが明示選択するまで'auto'自体を上書きしない（起動時resolveLanguageの結果を尊重する）。
+    it('shows the resolved display language when the persisted value is "auto", without overwriting it until an explicit selection', async () => {
+      usePracticeStore.setState({ language: 'en' });
+      settingsApi.get.mockImplementation(mockGetWithUi({ language: 'auto' }));
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const select = (await screen.findByLabelText('Language')) as HTMLSelectElement;
+      await waitFor(() => expect(select.value).toBe('en'));
+      expect(settingsApi.set).not.toHaveBeenCalledWith(
+        'ui',
+        expect.objectContaining({ language: expect.anything() })
+      );
+    });
+  });
+
+  // TASK-098: SettingsModal自体の文言外部化（US-016）。
+  it('shows English section headings when the store language is "en"', async () => {
+    usePracticeStore.setState({ language: 'en' });
+    settingsApi.get.mockImplementation((key: string) => {
+      if (key === 'ui') return Promise.resolve(defaultUi);
+      if (key === 'practice') return Promise.resolve(defaultPractice);
+      if (key === 'midi') return Promise.resolve(defaultMidi);
+      if (key === 'audio') return Promise.resolve(defaultAudio);
+      return Promise.resolve(undefined);
+    });
+    settingsApi.getRecentFiles.mockResolvedValue([]);
+
+    render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+    expect(await screen.findByText('Settings')).toBeInTheDocument();
+    expect(screen.getByText('Practice')).toBeInTheDocument();
+    expect(screen.getByText('Display')).toBeInTheDocument();
+    expect(screen.getByText('MIDI')).toBeInTheDocument();
+    expect(screen.getByText('Voice')).toBeInTheDocument();
+    expect(screen.getByText('Recent files')).toBeInTheDocument();
+    expect(screen.getByText('No recent files')).toBeInTheDocument();
   });
 });

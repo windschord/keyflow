@@ -1,13 +1,72 @@
 import type { Messages } from './types';
 
 /**
- * 英語リソース（TASK-096/097）。`Messages`型（`ja`の構造から導出）への適合を
+ * 英語リソース（TASK-096/097/098）。`Messages`型（`ja`の構造から導出）への適合を
  * 型チェックで強制する。キーの欠落・タイポはコンパイルエラーになる（DEC-009）。
  */
 export const en: Messages = {
   settings: {
     title: 'Settings',
+    closeButtonAriaLabel: 'Close',
+    doneButton: 'Done',
+    loadError: 'Failed to load settings. Showing defaults.',
+    saveError: 'Failed to save settings. Reverted the change.',
+    practiceSectionTitle: 'Practice',
+    errorModeLabel: 'Default error mode',
+    errorModeWait: 'Wait for the correct note',
+    errorModePass: 'Move on even if there are mistakes',
+    metronomeEnabledLabel: 'Enable metronome by default',
+    metronomeAccentEnabledLabel: 'Accent the first beat by default',
+    displaySectionTitle: 'Display',
+    pianoHeightLabel: 'Keyboard height',
+    pianoHeightTitle: 'Change the display height of the piano keyboard (80-300px)',
+    keyboardSizeLabel: 'Number of keys',
+    keyboardSizeTitle: "Change the keyboard's displayed key range to match your device",
+    keyboardSizeOption88: '88 keys (full-size piano)',
+    keyboardSizeOption76: '76 keys',
+    keyboardSizeOption61: '61 keys',
+    keyboardSizeOption49: '49 keys',
     language: 'Language',
+    languageTitle: 'Switch the display language (applies immediately, no restart needed)',
+    languageOptionJapanese: '日本語',
+    languageOptionEnglish: 'English',
+    midiSectionTitle: 'MIDI',
+    midiDeviceLabel: 'MIDI input device',
+    midiDeviceTitle: 'Select the MIDI input device to use (when multiple are connected)',
+    midiAllDevices: 'All devices',
+    voiceSectionTitle: 'Voice',
+    playbackVoiceLabel: 'Playback voice',
+    playbackVoiceTitle: 'Select the voice used for song playback and manual preview',
+    metronomeVoiceLabel: 'Metronome voice',
+    metronomeVoiceTitle: 'Select the metronome click sound',
+    recentFilesSectionTitle: 'Recent files',
+    recentFilesEmpty: 'No recent files',
+  },
+  about: {
+    dialogAriaLabel: 'About',
+    closeButtonAriaLabel: 'Close',
+    librariesHeading: 'Libraries used',
+    noLibraries: 'No library information available',
+  },
+  app: {
+    dropHint: 'Drop a MusicXML file here (or open a file)',
+    unsupportedDropFormat: 'Unsupported file format. Please drop a .xml / .musicxml / .mxl file.',
+    electronApiUnavailable: 'Electron API is unavailable. Please run this as an Electron app.',
+    parseError: 'Failed to parse the MusicXML file. Please check the file format.',
+    openDialogError: 'Failed to open the file selection dialog.',
+    droppedFilePathError: 'Failed to resolve the path of the dropped file.',
+    fingeringSaveError: 'Failed to save the fingering annotations.',
+    annotationSaveError: 'Failed to save the fingering note.',
+  },
+  voiceNames: {
+    grandPiano: 'Grand Piano',
+    electricPiano: 'Electric Piano',
+    organ: 'Organ',
+    synth: 'Synth',
+    click: 'Click',
+    woodblock: 'Woodblock',
+    beep: 'Beep',
+    cowbell: 'Cowbell',
   },
   header: {
     openFileAriaLabel: 'Open file',

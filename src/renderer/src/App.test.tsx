@@ -162,6 +162,9 @@ describe('App', () => {
       playbackState: 'stopped',
       currentMeasure: 1,
       currentNoteIndex: 0,
+      // TASK-098: 言語切り替えテスト（"App - 言語切り替え"）による変更値の
+      // 後続テストへの残留を防ぐためリセットする（keyboardSize等の既存パターン踏襲）。
+      language: 'ja',
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).electronAPI;
@@ -1727,5 +1730,49 @@ describe('App - __e2eStore__ instrumentation guard (TASK-088)', () => {
     render(<App />);
 
     expect(e2eWindow.__e2eStore__).toBe(usePracticeStore);
+  });
+});
+
+// TASK-098, US-016: App.tsxのエラーダイアログ・トースト・ドロップヒントは
+// t.app.*（lib/i18n）経由で表示される。ここではハードコードされた日本語文字列に
+// 依存していないことの確認として、store言語が"en"の場合に英語表記へ切り替わることを検証する。
+describe('App - 言語切り替え (TASK-098, US-016)', () => {
+  it('shows the English parse-error alert text when the store language is "en"', async () => {
+    usePracticeStore.setState({ language: 'en' });
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockResolvedValue('<xml/>'); // invalid xml
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: showOpenDialogMock,
+        read: readMock,
+      },
+    };
+
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(<App />);
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
+
+    await waitFor(() => {
+      expect(alertMock).toHaveBeenCalledWith(
+        'Failed to parse the MusicXML file. Please check the file format.'
+      );
+    });
+
+    alertMock.mockRestore();
+    consoleErrorMock.mockRestore();
+  });
+
+  it('shows the English drop hint when the store language is "en"', () => {
+    usePracticeStore.setState({ language: 'en', score: null });
+
+    render(<App />);
+
+    expect(screen.getByText('Drop a MusicXML file here (or open a file)')).toBeInTheDocument();
   });
 });

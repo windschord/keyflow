@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryEntry } from '../../types/library';
 import { useTranslation } from '../../lib/i18n/useTranslation';
 import { formatMessage } from '../../lib/i18n/format';
@@ -20,6 +20,12 @@ interface LibraryViewProps {
    * 検出処理自体はTASK-103のスコープであり、本コンポーネントは表示のみを担う。
    */
   missingPaths?: ReadonlySet<string>;
+  /**
+   * CodeRabbit #46指摘4対応: App.tsx側で欠損エントリの削除が成功した場合など、
+   * 本コンポーネントの外側で一覧に影響する変更が起きた際にこの値をインクリメントすると
+   * `getAll()`を再実行して一覧を再取得する。値そのものに意味はなく変化のみを見る。
+   */
+  reloadSignal?: number;
 }
 
 const SORT_KEYS: readonly LibrarySortKey[] = ['title', 'addedAt', 'lastOpenedAt'];
@@ -28,14 +34,23 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   onOpenEntry,
   onOpenFileDialog,
   missingPaths,
+  reloadSignal,
 }) => {
   const t = useTranslation();
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // CodeRabbit #46 Major指摘5: getAll()失敗を「0件の空状態」と区別して表示するためのフラグ。
+  const [loadError, setLoadError] = useState(false);
+  // 再読み込みボタン押下時にuseEffectを再実行させるためのトークン（値自体に意味はない）。
+  const [retryToken, setRetryToken] = useState(0);
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<LibrarySortKey>('lastOpenedAt');
   const [sortOrder, setSortOrder] = useState<LibrarySortOrder>('desc');
   const [confirmTarget, setConfirmTarget] = useState<LibraryEntry | null>(null);
+  // CodeRabbit #46 Major指摘6: 削除確認ダイアログのアクセシビリティ
+  // （AboutModal.tsxと同パターン: 初期フォーカス移動・閉じた際のフォーカス復帰）。
+  const confirmDialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,9 +58,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     const load = async (): Promise<void> => {
       try {
         const result = await window.electronAPI.library.getAll();
-        if (!cancelled) setEntries(result);
+        if (!cancelled) {
+          setEntries(result);
+          setLoadError(false);
+        }
       } catch {
-        if (!cancelled) setEntries([]);
+        if (!cancelled) {
+          setEntries([]);
+          setLoadError(true);
+        }
       } finally {
         if (!cancelled) setLoaded(true);
       }
@@ -55,7 +76,24 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [retryToken, reloadSignal]);
+
+  useEffect(() => {
+    if (!confirmTarget) return undefined;
+
+    previouslyFocusedElementRef.current = document.activeElement as HTMLElement | null;
+    confirmDialogRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setConfirmTarget(null);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocusedElementRef.current?.focus();
+    };
+  }, [confirmTarget]);
 
   const visibleEntries = useMemo(
     () => sortLibraryEntries(filterLibraryEntries(entries, query), sortKey, sortOrder),
@@ -80,9 +118,28 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
       await window.electronAPI.library.remove(target.path);
       setEntries((current) => current.filter((entry) => entry.path !== target.path));
     } catch {
-      // 削除失敗時は一覧をそのまま維持し、次回の一覧再取得での整合性に委ねる。
+      // CodeRabbit #46 Major指摘5: 削除失敗時も一覧は維持しつつユーザーへ通知する。
+      alert(formatMessage(t.library.deleteErrorMessage, { title: target.title }));
     }
   };
+
+  const handleRetryLoad = (): void => {
+    setRetryToken((current) => current + 1);
+  };
+
+  if (loaded && loadError) {
+    return (
+      <div role="region" aria-label={t.library.title} style={styles.container}>
+        <div style={styles.emptyState}>
+          <p style={styles.emptyTitle}>{t.library.loadErrorTitle}</p>
+          <p style={styles.emptyDescription}>{t.library.loadErrorDescription}</p>
+          <button style={styles.primaryButton} onClick={handleRetryLoad}>
+            {t.library.retryButton}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loaded && entries.length === 0) {
     return (
@@ -189,7 +246,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
       {confirmTarget && (
         <div style={styles.overlay}>
-          <div role="dialog" aria-label={t.library.confirmDeleteTitle} style={styles.dialog}>
+          <div
+            ref={confirmDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t.library.confirmDeleteTitle}
+            tabIndex={-1}
+            style={styles.dialog}
+          >
             <p style={styles.dialogMessage}>
               {formatMessage(t.library.confirmDeleteMessage, { title: confirmTarget.title })}
             </p>

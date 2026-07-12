@@ -177,4 +177,134 @@ describe('LibraryView', () => {
     expect(await screen.findByText('Your library is empty')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open file' })).toBeInTheDocument();
   });
+
+  // CodeRabbit #46 Major指摘5: getAll()失敗時に空状態と混同されない専用のエラー表示を出す。
+  describe('load failure (CodeRabbit #46指摘5)', () => {
+    it('shows a distinguishable error state instead of the empty state when getAll() fails', async () => {
+      libraryApi.getAll.mockRejectedValue(new Error('boom'));
+
+      render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
+
+      expect(await screen.findByText('ライブラリの読み込みに失敗しました')).toBeInTheDocument();
+      expect(screen.queryByText('ライブラリに楽譜がありません')).not.toBeInTheDocument();
+    });
+
+    it('retries loading when the retry button is clicked after a load failure', async () => {
+      // renderWithStrictMode配下ではeffectがマウント→クリーンアップ→再マウントと
+      // 二重実行されるため、mockRejectedValueOnce/mockResolvedValueOnceの呼び出し回数に
+      // 依存する組み立てだと初回マウント中に両方消費されてしまう。呼び出し回数に
+      // 依存しない外部フラグで切り替える。
+      let shouldFail = true;
+      libraryApi.getAll.mockImplementation(() =>
+        shouldFail
+          ? Promise.reject(new Error('boom'))
+          : Promise.resolve([makeEntry({ path: '/a', title: 'Recovered' })])
+      );
+
+      render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
+      await screen.findByText('ライブラリの読み込みに失敗しました');
+
+      shouldFail = false;
+      fireEvent.click(screen.getByRole('button', { name: '再読み込み' }));
+
+      expect(await screen.findByText('Recovered')).toBeInTheDocument();
+    });
+
+    it('re-fetches the entries when the reloadSignal prop changes (App.tsx-driven external reload)', async () => {
+      // 上記と同じ理由でmockResolvedValueOnceの連続呼び出しに依存せず、
+      // 外部変数の書き換えで返り値を切り替える。
+      let currentEntries = [makeEntry({ path: '/a', title: 'First' })];
+      libraryApi.getAll.mockImplementation(() => Promise.resolve(currentEntries));
+
+      const { rerender } = render(
+        <LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} reloadSignal={0} />
+      );
+      await screen.findByText('First');
+
+      currentEntries = [makeEntry({ path: '/b', title: 'Second' })];
+      rerender(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} reloadSignal={1} />);
+
+      expect(await screen.findByText('Second')).toBeInTheDocument();
+    });
+  });
+
+  // CodeRabbit #46 Major指摘5: 削除失敗時もユーザーへ通知する。
+  it('shows an alert and keeps the entry in the list when deletion fails', async () => {
+    libraryApi.getAll.mockResolvedValue([
+      makeEntry({ path: '/scores/a.musicxml', title: 'Moonlight Sonata' }),
+    ]);
+    libraryApi.remove.mockRejectedValue(new Error('boom'));
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
+    await screen.findByText('Moonlight Sonata');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Moonlight Sonata をライブラリから削除' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: '削除する' }));
+
+    await waitFor(() =>
+      expect(alertMock).toHaveBeenCalledWith('「Moonlight Sonata」の削除に失敗しました。')
+    );
+    expect(screen.getByText('Moonlight Sonata')).toBeInTheDocument();
+
+    alertMock.mockRestore();
+  });
+
+  // CodeRabbit #46 Major指摘6: 削除確認ダイアログのアクセシビリティ
+  // （AboutModal.tsxと同パターン: aria-modal・初期フォーカス・Escapeクローズ・フォーカス復帰）。
+  describe('delete confirmation dialog accessibility (CodeRabbit #46指摘6)', () => {
+    beforeEach(() => {
+      libraryApi.getAll.mockResolvedValue([
+        makeEntry({ path: '/scores/a.musicxml', title: 'Moonlight Sonata' }),
+      ]);
+    });
+
+    it('has aria-modal="true"', async () => {
+      render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
+      await screen.findByText('Moonlight Sonata');
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Moonlight Sonata をライブラリから削除' })
+      );
+
+      expect(await screen.findByRole('dialog')).toHaveAttribute('aria-modal', 'true');
+    });
+
+    it('moves focus into the dialog when opened', async () => {
+      render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
+      await screen.findByText('Moonlight Sonata');
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Moonlight Sonata をライブラリから削除' })
+      );
+
+      expect(await screen.findByRole('dialog')).toHaveFocus();
+    });
+
+    it('closes the dialog on Escape key press', async () => {
+      render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
+      await screen.findByText('Moonlight Sonata');
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Moonlight Sonata をライブラリから削除' })
+      );
+      await screen.findByRole('dialog');
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('restores focus to the previously focused element after closing', async () => {
+      render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
+      const deleteButton = await screen.findByRole('button', {
+        name: 'Moonlight Sonata をライブラリから削除',
+      });
+      deleteButton.focus();
+      fireEvent.click(deleteButton);
+      await screen.findByRole('dialog');
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      await waitFor(() => expect(deleteButton).toHaveFocus());
+    });
+  });
 });

@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-099 |
 | タイプ | feat（US-016） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 60分 |
 | 依存タスク | TASK-096 |
@@ -53,15 +53,36 @@ Mainプロセスは既存の「main/rendererで定義を独立して持つ」パ
 
 ## 受入基準
 
-- [ ] `language: 'en'` でメニューのカスタムラベルが英語になる
-- [ ] 起動時に保存済み言語（またはOSロケール解決）がメニューへ適用される（REQ-016-005）
-- [ ] 言語切り替え時にメニューが再構築される（REQ-016-004、結線テストあり）
-- [ ] menu.tsが純関数のまま維持されている
-- [ ] 全チェック通過
+- [x] `language: 'en'` でメニューのカスタムラベルが英語になる
+- [x] 起動時に保存済み言語（またはOSロケール解決）がメニューへ適用される（REQ-016-005）
+- [x] 言語切り替え時にメニューが再構築される（REQ-016-004、結線テストあり）
+- [x] menu.tsが純関数のまま維持されている
+- [x] 全チェック通過
 
 ## テスト項目
 
-- [ ] createApplicationMenuTemplate: ja/en両方のラベル生成
-- [ ] resolveLanguage（Main側）: Renderer側と同一規則
-- [ ] settings:setハンドラの言語変更検知→再構築コールバック呼び出し（結線）
-- [ ] 言語変更以外のsettings:setでは再構築されない
+- [x] createApplicationMenuTemplate: ja/en両方のラベル生成
+- [x] resolveLanguage（Main側）: Renderer側と同一規則
+- [x] settings:setハンドラの言語変更検知→再構築コールバック呼び出し（結線）
+- [x] 言語変更以外のsettings:setでは再構築されない
+
+## 完了サマリー
+
+Main側にresolveLanguage（`src/main/locale.ts`）を独立実装し、Renderer側と
+同一の解決規則を適用した。`menu.ts`は`CreateApplicationMenuTemplateParams`へ
+`language`を追加し、About/Edit/View/Window/Helpのカスタムラベルをja/en辞書で
+切り替える純関数のまま維持した。
+
+`settings:set`ハンドラは`settings-handlers.ts`のファクトリ関数
+`createSettingsSetHandler`へ切り出し、`ui.language`が変化した場合にのみ
+再構築コールバックを呼ぶ結線とした。それ以外のキー変更や`ui`内の他フィールド
+変更では呼ばれないことをテストで固定した。
+
+`src/main/index.ts`は起動時に`settingsService.get('ui').language`と
+`app.getLocale()`を`resolveLanguage`へ通してメニューを構築した。
+`settings:set`ハンドラ経由の言語変更時は`Menu.setApplicationMenu`で
+再構築するよう結線した。
+
+テスト: locale.test.ts 7件、settings-handlers.test.ts 3件（結線テスト）、
+menu.test.ts 既存7件（language必須化に追随）＋新規2件。全体は60ファイル
+838件が通過。typecheck/lint/lint:jp/format:checkもすべて通過した。

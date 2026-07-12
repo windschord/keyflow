@@ -443,7 +443,7 @@ describe('createUiSlice language/setLanguage (TASK-096)', () => {
     const set = vi.fn();
     const get = vi.fn();
     // apiはcreateUiSliceの実装で未使用のため、シグネチャ上の型へキャストしたダミーを渡す
-    const api = {} as unknown as Parameters<typeof createUiSlice>[2];
+    const api = {} as Parameters<typeof createUiSlice>[2];
     const slice = createUiSlice(set, get, api);
 
     expect(slice.language).toBe('ja');
@@ -457,7 +457,7 @@ describe('createUiSlice language/setLanguage (TASK-096)', () => {
     });
     const get = vi.fn(() => state);
     // apiはcreateUiSliceの実装で未使用のため、シグネチャ上の型へキャストしたダミーを渡す
-    const api = {} as unknown as Parameters<typeof createUiSlice>[2];
+    const api = {} as Parameters<typeof createUiSlice>[2];
     const slice = createUiSlice(set, get, api);
 
     slice.setLanguage('en');

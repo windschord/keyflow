@@ -6,6 +6,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
 import { PathAllowlist } from './path-allowlist';
+import { LibraryService } from './library';
 import {
   createReadBinaryFileHandler,
   createReadFileHandler,
@@ -13,6 +14,12 @@ import {
   createRegisterDroppedFileHandler,
   createShowOpenDialogHandler,
 } from './file-handlers';
+import {
+  createLibraryGetAllHandler,
+  createLibraryOpenHandler,
+  createLibraryRemoveHandler,
+  createLibraryUpsertHandler,
+} from './library-handlers';
 import { createWindowOptions, APP_TITLE } from './window-options';
 import { applyDockIcon } from './dock-icon';
 import { createApplicationMenuTemplate } from './menu';
@@ -96,6 +103,8 @@ app.whenReady().then(() => {
   // settings系IPCハンドラ（settings:get 等）と同一インスタンスを共有するため、
   // file:show-open-dialog ハンドラ登録より前に生成する（TASK-039）。
   const settingsService = new SettingsService();
+  // 楽譜ライブラリ（US-017、TASK-101）。設定とは別のelectron-storeインスタンス（DEC-010）。
+  const libraryService = new LibraryService();
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
@@ -223,6 +232,16 @@ app.whenReady().then(() => {
     })
   );
   ipcMain.handle('settings:get-recent-files', () => settingsService.getRecentFiles());
+
+  // 楽譜ライブラリ（US-017、TASK-101）。library:openはfile:register-dropped-fileと
+  // 同様の拡張子検証に加え、存在確認・allowlist登録・recent追加をfsモジュール経由で行う。
+  ipcMain.handle('library:get-all', createLibraryGetAllHandler(libraryService));
+  ipcMain.handle('library:upsert', createLibraryUpsertHandler(libraryService));
+  ipcMain.handle('library:remove', createLibraryRemoveHandler(libraryService));
+  ipcMain.handle(
+    'library:open',
+    createLibraryOpenHandler(pathAllowlist, settingsService, fs.promises)
+  );
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

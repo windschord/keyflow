@@ -65,7 +65,7 @@ describe('createLibraryRemoveHandler', () => {
   });
 });
 
-// TASK-101: library:open は file:register-dropped-file と同様に拡張子検証を行うが、
+// TASK-101: library:open は file:register-dropped-file と同様に拡張子検証するが、
 // 加えてファイル存在確認を行い、例外を投げず構造化された失敗理由を返す（REQ-017-007/008）。
 describe('createLibraryOpenHandler', () => {
   it('registers the allowlist and recent files on success (ok: true)', async () => {

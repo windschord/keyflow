@@ -42,6 +42,16 @@ if (process.contextIsolated) {
         getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
           ipcRenderer.invoke('settings:get-recent-files'),
       },
+      // TASK-101: 楽譜ライブラリ（US-017）関連のAPI。
+      library: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        getAll: (): Promise<any> => ipcRenderer.invoke('library:get-all'),
+        upsert: (input: { path: string; title: string; composer: string }): Promise<void> =>
+          ipcRenderer.invoke('library:upsert', input),
+        remove: (path: string): Promise<void> => ipcRenderer.invoke('library:remove', path),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        open: (path: string): Promise<any> => ipcRenderer.invoke('library:open', path),
+      },
       // TASK-082: アプリケーションメニューの「About」項目クリック（Main→Renderer）を購読するAPI。
       // renderer→mainへの送信機能は持たない受信専用の購読APIである。
       menu: {
@@ -84,6 +94,16 @@ if (process.contextIsolated) {
         ipcRenderer.invoke('settings:set', key, value),
       getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
         ipcRenderer.invoke('settings:get-recent-files'),
+    },
+    // TASK-101: 楽譜ライブラリ（US-017）関連のAPI。
+    library: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      getAll: (): Promise<any> => ipcRenderer.invoke('library:get-all'),
+      upsert: (input: { path: string; title: string; composer: string }): Promise<void> =>
+        ipcRenderer.invoke('library:upsert', input),
+      remove: (path: string): Promise<void> => ipcRenderer.invoke('library:remove', path),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      open: (path: string): Promise<any> => ipcRenderer.invoke('library:open', path),
     },
     // renderer→mainへの送信機能は持たない受信専用の購読API（TASK-082）。
     menu: {

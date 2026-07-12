@@ -36,6 +36,7 @@ describe('createApplicationMenuTemplate (REQ-015, TASK-082)', () => {
     const template = createApplicationMenuTemplate({
       platform: 'darwin',
       appTitle: APP_TITLE,
+      language: 'ja',
       onOpenAbout,
     });
 
@@ -52,6 +53,7 @@ describe('createApplicationMenuTemplate (REQ-015, TASK-082)', () => {
       const template = createApplicationMenuTemplate({
         platform,
         appTitle: APP_TITLE,
+        language: 'ja',
         onOpenAbout,
       });
 
@@ -67,6 +69,7 @@ describe('createApplicationMenuTemplate (REQ-015, TASK-082)', () => {
     const darwinTemplate = createApplicationMenuTemplate({
       platform: 'darwin',
       appTitle: APP_TITLE,
+      language: 'ja',
       onOpenAbout: vi.fn(),
     });
     expect(darwinTemplate[0]?.label).toBe(APP_TITLE);
@@ -74,6 +77,7 @@ describe('createApplicationMenuTemplate (REQ-015, TASK-082)', () => {
     const win32Template = createApplicationMenuTemplate({
       platform: 'win32',
       appTitle: APP_TITLE,
+      language: 'ja',
       onOpenAbout: vi.fn(),
     });
     expect(win32Template.some((item) => item.label === APP_TITLE)).toBe(false);
@@ -84,6 +88,7 @@ describe('createApplicationMenuTemplate (REQ-015, TASK-082)', () => {
       const template = createApplicationMenuTemplate({
         platform,
         appTitle: APP_TITLE,
+        language: 'ja',
         onOpenAbout: vi.fn(),
       });
 
@@ -102,11 +107,51 @@ describe('createApplicationMenuTemplate (REQ-015, TASK-082)', () => {
       const template = createApplicationMenuTemplate({
         platform,
         appTitle: APP_TITLE,
+        language: 'ja',
         onOpenAbout: vi.fn(),
       });
 
       expect(template.some((item) => item.label === '表示')).toBe(true);
       expect(template.some((item) => item.label === 'ウィンドウ')).toBe(true);
     }
+  });
+});
+
+describe('createApplicationMenuTemplate language switching (REQ-016-004, TASK-099)', () => {
+  it('language: "en"の場合、カスタムラベル（About/Edit/View/Window/Help）が英語になる', () => {
+    for (const platform of ['darwin', 'win32', 'linux'] as const) {
+      const template = createApplicationMenuTemplate({
+        platform,
+        appTitle: APP_TITLE,
+        language: 'en',
+        onOpenAbout: vi.fn(),
+      });
+
+      const aboutItem = findMenuItem(template, (item) => item.id === 'open-about');
+      expect(aboutItem?.label).toBe(`About ${APP_TITLE}`);
+      expect(template.some((item) => item.label === 'Edit')).toBe(true);
+      expect(template.some((item) => item.label === 'View')).toBe(true);
+      expect(template.some((item) => item.label === 'Window')).toBe(true);
+      if (platform !== 'darwin') {
+        expect(template.some((item) => item.label === 'Help')).toBe(true);
+      }
+    }
+  });
+
+  it('language: "en"でもrole指定の標準メニュー項目（undo/redo/cut/copy/paste等）はそのまま維持される', () => {
+    const template = createApplicationMenuTemplate({
+      platform: 'win32',
+      appTitle: APP_TITLE,
+      language: 'en',
+      onOpenAbout: vi.fn(),
+    });
+
+    const editMenu = template.find((item) => item.label === 'Edit');
+    const roles = (editMenu?.submenu as MenuItemConstructorOptions[] | undefined)?.map(
+      (item) => item.role
+    );
+    expect(roles).toEqual(
+      expect.arrayContaining(['undo', 'redo', 'cut', 'copy', 'paste', 'selectAll'])
+    );
   });
 });

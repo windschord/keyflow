@@ -7,6 +7,7 @@ import { FingeringToggle } from '../Toolbar/FingeringToggle';
 import { FingeringPanel } from '../FingeringPanel';
 import { StatsDisplay } from '../StatsDisplay';
 import { MetronomeAccentToggle } from './MetronomeToggle';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 export interface QuickPanelProps {
   /** 運指提案（FingeringPanel）の対象となる楽譜。未読み込み時はnull。 */
@@ -52,19 +53,21 @@ export const QuickPanel: React.FC<QuickPanelProps> = ({
   onFingeringSuggested,
   fingeringDisabled,
 }) => {
+  const t = useTranslation();
+
   return (
     <div
       data-testid="quick-panel"
       style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: '240px' }}
     >
       <div style={SECTION_STYLE}>
-        <span style={SECTION_LABEL_STYLE}>表示</span>
+        <span style={SECTION_LABEL_STYLE}>{t.quickPanel.displaySection}</span>
         <VolumeControl />
         <ZoomControl />
       </div>
 
       <div style={SECTION_STYLE}>
-        <span style={SECTION_LABEL_STYLE}>運指</span>
+        <span style={SECTION_LABEL_STYLE}>{t.quickPanel.fingeringSection}</span>
         <FingeringToggle />
         <FingeringPanel
           score={score}
@@ -74,12 +77,12 @@ export const QuickPanel: React.FC<QuickPanelProps> = ({
       </div>
 
       <div style={SECTION_STYLE}>
-        <span style={SECTION_LABEL_STYLE}>成績</span>
+        <span style={SECTION_LABEL_STYLE}>{t.quickPanel.statsSection}</span>
         <StatsDisplay />
       </div>
 
       <div style={SECTION_STYLE}>
-        <span style={SECTION_LABEL_STYLE}>メトロノーム詳細</span>
+        <span style={SECTION_LABEL_STYLE}>{t.quickPanel.metronomeDetailSection}</span>
         <MetronomeAccentToggle />
       </div>
     </div>

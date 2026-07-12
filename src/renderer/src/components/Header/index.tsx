@@ -6,6 +6,7 @@ import { PlaybackControls, PlaybackAudioEngine } from '../Toolbar/PlaybackContro
 import { Popover } from './Popover';
 import { QuickPanel } from './QuickPanel';
 import { MetronomeToggle } from './MetronomeToggle';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 import type { Score } from '../../types/score';
 import type { FingerAssignment } from '../../types/annotation';
 
@@ -71,6 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
   onFingeringSuggested,
   fingeringDisabled,
 }) => {
+  const t = useTranslation();
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
   const quickPanelAnchorRef = useRef<HTMLButtonElement>(null);
 
@@ -95,8 +97,8 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onOpenFile}
-          aria-label="ファイルを開く"
-          title="MusicXMLファイルを開きます"
+          aria-label={t.header.openFileAriaLabel}
+          title={t.header.openFileTitle}
           style={ICON_BUTTON_STYLE}
         >
           <svg
@@ -138,9 +140,9 @@ export const Header: React.FC<HeaderProps> = ({
             ref={quickPanelAnchorRef}
             type="button"
             onClick={() => setIsQuickPanelOpen((open) => !open)}
-            aria-label="表示・補助"
+            aria-label={t.header.quickPanelAriaLabel}
             aria-expanded={isQuickPanelOpen}
-            title="表示・補助（音量・表示倍率・運指・成績）"
+            title={t.header.quickPanelTitle}
             data-testid="quick-panel-toggle"
             style={ICON_BUTTON_STYLE}
           >
@@ -170,8 +172,8 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenSettings}
-            title="設定"
-            aria-label="設定"
+            title={t.header.settingsTitle}
+            aria-label={t.header.settingsAriaLabel}
             style={ICON_BUTTON_STYLE}
           >
             <svg

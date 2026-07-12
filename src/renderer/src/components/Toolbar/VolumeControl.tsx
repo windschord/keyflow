@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { usePracticeStore } from '../../store';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 /**
  * persistVolume の書き込みを直列化するための内部状態（CodeRabbit PR#25指摘#1）。
@@ -52,6 +53,7 @@ function persistVolume(writeState: VolumeWriteState, value: number): void {
  */
 export const VolumeControl: React.FC = () => {
   const { volume, setVolume } = usePracticeStore();
+  const t = useTranslation();
 
   const writeStateRef = useRef<VolumeWriteState>({ chain: Promise.resolve(), latestValue: null });
 
@@ -67,7 +69,7 @@ export const VolumeControl: React.FC = () => {
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
       <label htmlFor="volume-slider" style={{ fontSize: '14px', color: '#374151' }}>
-        音量:
+        {t.volumeControl.label}
       </label>
       <input
         id="volume-slider"
@@ -77,7 +79,7 @@ export const VolumeControl: React.FC = () => {
         max={100}
         value={volume}
         onChange={handleChange}
-        title="音量を調整します（0でミュート、再生・メトロノーム・効果音すべてに反映されます）"
+        title={t.volumeControl.title}
         style={{ height: '44px', cursor: 'pointer' }}
       />
       <span style={{ fontSize: '14px', color: '#374151', minWidth: '28px' }}>{volume}</span>

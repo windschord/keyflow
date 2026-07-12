@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePracticeStore } from '../../store';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 const ICON_BUTTON_STYLE: React.CSSProperties = {
   display: 'flex',
@@ -36,14 +37,15 @@ const ICON_BUTTON_ACTIVE_STYLE: React.CSSProperties = {
  */
 export const MetronomeToggle: React.FC = () => {
   const { metronomeEnabled, setMetronomeEnabled } = usePracticeStore();
+  const t = useTranslation();
 
   return (
     <button
       type="button"
       onClick={() => setMetronomeEnabled(!metronomeEnabled)}
       aria-pressed={metronomeEnabled}
-      aria-label="メトロノーム"
-      title="メトロノーム"
+      aria-label={t.metronome.toggleLabel}
+      title={t.metronome.toggleLabel}
       data-testid="metronome-toggle"
       style={metronomeEnabled ? ICON_BUTTON_ACTIVE_STYLE : ICON_BUTTON_STYLE}
     >
@@ -77,10 +79,11 @@ export const MetronomeToggle: React.FC = () => {
  */
 export const MetronomeAccentToggle: React.FC = () => {
   const { metronomeAccentEnabled, setMetronomeAccentEnabled } = usePracticeStore();
+  const t = useTranslation();
 
   return (
     <label
-      title="メトロノームの一拍目のクリック音を他拍より強く鳴らします"
+      title={t.metronome.accentTitle}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -98,7 +101,7 @@ export const MetronomeAccentToggle: React.FC = () => {
         style={{ width: '18px', height: '18px', cursor: 'pointer' }}
         data-testid="metronome-accent-checkbox"
       />
-      1拍目強調
+      {t.metronome.accentLabel}
     </label>
   );
 };

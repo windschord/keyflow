@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePracticeStore } from '../../store';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 const INPUT_STYLE: React.CSSProperties = {
   height: '36px',
@@ -21,6 +22,7 @@ const INPUT_STYLE: React.CSSProperties = {
  */
 export const LoopControl: React.FC = () => {
   const { loopStart, loopEnd, setLoopRange, loopEnabled, toggleLoop } = usePracticeStore();
+  const t = useTranslation();
   const [startInput, setStartInput] = useState(loopStart.toString());
   const [endInput, setEndInput] = useState(loopEnd.toString());
   const [error, setError] = useState<string | null>(null);
@@ -35,12 +37,12 @@ export const LoopControl: React.FC = () => {
     const end = parseInt(endInput, 10);
 
     if (isNaN(start) || isNaN(end) || start < 1 || end < 1) {
-      setError('無効な値');
+      setError(t.loopControl.errorInvalidValue);
       return;
     }
 
     if (start >= end) {
-      setError('開始 < 終了');
+      setError(t.loopControl.errorStartAfterEnd);
       return;
     }
 
@@ -51,8 +53,8 @@ export const LoopControl: React.FC = () => {
   return (
     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
       <label
-        title="ループ再生（指定した小節範囲の繰り返し）の有効/無効を切り替えます"
-        aria-label="ループ"
+        title={t.loopControl.toggleTitle}
+        aria-label={t.loopControl.toggleAriaLabel}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -77,7 +79,7 @@ export const LoopControl: React.FC = () => {
         value={startInput}
         onChange={(e) => setStartInput(e.target.value)}
         onBlur={handleBlur}
-        title="ループの開始小節番号"
+        title={t.loopControl.startTitle}
         style={INPUT_STYLE}
         data-testid="loop-start"
       />
@@ -88,7 +90,7 @@ export const LoopControl: React.FC = () => {
         value={endInput}
         onChange={(e) => setEndInput(e.target.value)}
         onBlur={handleBlur}
-        title="ループの終了小節番号"
+        title={t.loopControl.endTitle}
         style={INPUT_STYLE}
         data-testid="loop-end"
       />

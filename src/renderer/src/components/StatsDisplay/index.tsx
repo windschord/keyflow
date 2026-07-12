@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePracticeStore } from '../../store';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 /**
  * 正解率・連続正解数の可視化（US-004、NFR-U-002: 日本語ラベル）。
@@ -9,6 +10,7 @@ import { usePracticeStore } from '../../store';
  */
 export const StatsDisplay: React.FC = () => {
   const stats = usePracticeStore((s) => s.stats);
+  const t = useTranslation();
   const accuracyPercent = Math.round(stats.accuracy * 100);
 
   return (
@@ -17,13 +19,13 @@ export const StatsDisplay: React.FC = () => {
       style={{ display: 'flex', gap: '16px', alignItems: 'center', fontSize: '14px' }}
     >
       <span data-testid="stats-accuracy" style={{ color: '#374151', whiteSpace: 'nowrap' }}>
-        正解率: <strong>{accuracyPercent}%</strong>
+        {t.statsDisplay.accuracyLabel} <strong>{accuracyPercent}%</strong>
       </span>
       <span
         data-testid="stats-consecutive-correct"
         style={{ color: '#374151', whiteSpace: 'nowrap' }}
       >
-        連続正解数: <strong>{stats.consecutiveCorrect}</strong>
+        {t.statsDisplay.consecutiveLabel} <strong>{stats.consecutiveCorrect}</strong>
       </span>
     </div>
   );

@@ -108,6 +108,20 @@
 | REQ-015-004 | ○ | generate-licenses.test（dependencies全件収集・devDependencies除外・LICENSE本文取得・SPDXフォールバック）+ 実行確認（licenses.json未生成状態からのnpm run dev/buildでpredev/prebuildフックが再生成することを確認）。TASK-076で対応済み |
 | REQ-015-005 | ○ | AboutPanel.test（ライブラリ行クリックでlicenseTextが展開・再クリックで折りたたみ）。TASK-076で対応済み |
 
+## Phase 17: セキュリティ強化（2026-07-11）の検証状況
+
+2026-07-11のセキュリティ調査（重大な脆弱性なし・多層防御の改善推奨5件）に基づく修正フェーズ。
+新規ユーザーストーリー・REQは追加していない（既存の非機能的なセキュリティ強化のため）ため、
+上表への行追加ではなくフェーズ横断の検証状況としてここに記録する。
+
+| タスク | 内容 | 検証 |
+|---|---|---|
+| TASK-086 | file:read系IPCの読み取りallowlist化 | ○ — `path-allowlist.test.ts`（`assertAllowedReadPath`の許可/拒否8ケース）+ `file-handlers.test.ts`（3ハンドラがモックfsへ到達する前にallowlist判定を通過することを検証、モック境界の結線テスト） |
+| TASK-087 | openExternalスキーム検証・will-navigate・sandbox: true採用 | ○ — `navigation-policy.test.ts`（14ケース）+ TASK-090での`npm run test:e2e`全件通過（sandbox: true状態での実起動確認） |
+| TASK-088 | E2E計装（`__e2eStore__`/`__e2eMidiHooks__`）の本番ビルド無効化 | ○ — `usePractice.test.ts`/`App.test.tsx`（isE2Eフラグでのガード）+ `tests/e2e/e2e-instrumentation-guard.spec.ts`（環境変数なし起動でundefinedであることを実起動検証）+ `tests/e2e/app.spec.ts`（KEYFLOW_E2E=1起動での結線検証） |
+| TASK-089 | 開発依存の既知脆弱性解消（textlint 15系） | ○ — TASK-090での`npm audit`が0 vulnerabilitiesであることを再確認済み |
+| TASK-090 | Phase 17統合検証・ドキュメント同期 | ○ — 本タスクで`npm run test`（777件）/`typecheck`/`lint`/`npm run test:e2e`（5件）/`npm audit`（0件）の全件通過を統合状態で確認 |
+
 ## Phase 18: サプライチェーン・入力堅牢性強化（2026-07-11）の検証状況
 
 新規REQは追加していない（DoS耐性・入力堅牢性・サプライチェーン完全性の非機能改善）。各タスクの検証状況は以下。

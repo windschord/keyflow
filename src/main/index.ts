@@ -6,20 +6,34 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
 import { PathAllowlist } from './path-allowlist';
-import { createRegisterDroppedFileHandler, createShowOpenDialogHandler } from './file-handlers';
+import {
+  createReadBinaryFileHandler,
+  createReadFileHandler,
+  createReadFileIfExistsHandler,
+  createRegisterDroppedFileHandler,
+  createShowOpenDialogHandler,
+} from './file-handlers';
 import { createWindowOptions, APP_TITLE } from './window-options';
 import { applyDockIcon } from './dock-icon';
 import { createApplicationMenuTemplate } from './menu';
+import { isAllowedExternalUrl, isAllowedNavigationUrl } from './navigation-policy';
 
 function createWindow(): void {
+  // TASK-088: 実起動E2E（Playwright for Electron）実行時のみ環境変数KEYFLOW_E2E=1が
+  // 渡される。preloadへ'--keyflow-e2e'引数を渡すことでE2E専用計装
+  // （__e2eStore__/__e2eMidiHooks__）の公開可否を伝搬する（本番ビルドでは引数なし
+  // ＝計装非公開）。sandboxを有効化した状態のpreloadでもprocess.argvは参照可能。
+  const isE2E = process.env['KEYFLOW_E2E'] === '1';
+
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     ...createWindowOptions({ platform: process.platform, iconPath: icon }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      ...(isE2E ? { additionalArguments: ['--keyflow-e2e'] } : {}),
     },
   });
 
@@ -27,9 +41,21 @@ function createWindow(): void {
     mainWindow.show();
   });
 
+  // TASK-087: shell.openExternal に渡すURLをhttp/httpsのみへ制限する
+  // （file:や任意のカスタムスキームがOSへ渡ることを防ぐ）。
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
+    if (isAllowedExternalUrl(details.url)) {
+      shell.openExternal(details.url);
+    }
     return { action: 'deny' };
+  });
+
+  // TASK-087: メインウィンドウ自体のトップレベルナビゲーション（location.href書き換え等）を
+  // 開発時のHMR URLと本番のindex.html自己遷移のみへ制限する多層防御。
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isAllowedNavigationUrl(url, process.env['ELECTRON_RENDERER_URL'])) {
+      event.preventDefault();
+    }
   });
 
   // HMR for renderer base on electron-vite cli.
@@ -73,28 +99,17 @@ app.whenReady().then(() => {
     createRegisterDroppedFileHandler(pathAllowlist, settingsService)
   );
 
-  ipcMain.handle('file:read', async (_, path: string) => {
-    const content = await fs.promises.readFile(path, 'utf-8');
-    return content;
-  });
+  // TASK-086: 読み取り3ハンドラはすべて PathAllowlist.assertAllowedReadPath を経由し、
+  // ユーザーが開いたMusicXML本体・その注釈サイドカー以外の読み取りを拒否する
+  // （書き込み側 file:write の allowlist と同様の非対称解消）。
+  ipcMain.handle('file:read', createReadFileHandler(pathAllowlist, fs.promises));
 
   // アノテーションのサイドカーファイル（*.annotation.json）のように「存在しないのが
   // 正常」なファイル用。ENOENTはエラーではなくnullを返す（file:readをそのまま使うと
   // 初回オープンのたびにメインプロセスへ未処理エラーがログされるため。2026-07-05）。
-  ipcMain.handle('file:read-if-exists', async (_, path: string) => {
-    try {
-      return await fs.promises.readFile(path, 'utf-8');
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
-      throw err;
-    }
-  });
+  ipcMain.handle('file:read-if-exists', createReadFileIfExistsHandler(pathAllowlist, fs.promises));
 
-  ipcMain.handle('file:read-binary', async (_, path: string) => {
-    const content = await fs.promises.readFile(path);
-    // IPC経由でArrayBufferとして送るためにBufferをArrayBufferに変換
-    return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
-  });
+  ipcMain.handle('file:read-binary', createReadBinaryFileHandler(pathAllowlist, fs.promises));
 
   ipcMain.handle('file:write', async (_, path: string, content: string) => {
     const allowedPath = pathAllowlist.assertAllowedAnnotationPath(path);

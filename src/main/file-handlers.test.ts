@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createRegisterDroppedFileHandler, createShowOpenDialogHandler } from './file-handlers';
+import {
+  createReadBinaryFileHandler,
+  createReadFileHandler,
+  createReadFileIfExistsHandler,
+  createRegisterDroppedFileHandler,
+  createShowOpenDialogHandler,
+} from './file-handlers';
 import { PathAllowlist } from './path-allowlist';
 import type { SettingsService } from './settings';
 
@@ -96,5 +102,101 @@ describe('createRegisterDroppedFileHandler', () => {
     expect(result).toBe(false);
     expect(allowMusicXmlSpy).not.toHaveBeenCalled();
     expect(settingsService.addRecentFile).not.toHaveBeenCalled();
+  });
+});
+
+// TASK-086: file:read系ハンドラがPathAllowlist.assertAllowedReadPathという
+// モック境界を実際に経由していることを検証する結線テスト。
+describe('createReadFileHandler', () => {
+  it('reads a registered MusicXML path via the injected fs module', async () => {
+    const pathAllowlist = new PathAllowlist();
+    pathAllowlist.allowMusicXml('/scores/example.musicxml');
+    const fsModule = { readFile: vi.fn().mockResolvedValue('<score/>') };
+
+    const handler = createReadFileHandler(pathAllowlist, fsModule);
+    const result = await handler({} as never, '/scores/example.musicxml');
+
+    expect(result).toBe('<score/>');
+    expect(fsModule.readFile).toHaveBeenCalledWith('/scores/example.musicxml', 'utf-8');
+  });
+
+  it('rejects an unregistered path without touching the fs module', async () => {
+    const pathAllowlist = new PathAllowlist();
+    const fsModule = { readFile: vi.fn().mockResolvedValue('<score/>') };
+
+    const handler = createReadFileHandler(pathAllowlist, fsModule);
+
+    await expect(handler({} as never, '/etc/hosts')).rejects.toThrow(
+      /Refused to read from disallowed path/
+    );
+    expect(fsModule.readFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('createReadFileIfExistsHandler', () => {
+  it('reads a registered annotation sidecar path via the injected fs module', async () => {
+    const pathAllowlist = new PathAllowlist();
+    pathAllowlist.allowMusicXml('/scores/example.musicxml');
+    const fsModule = { readFile: vi.fn().mockResolvedValue('{}') };
+
+    const handler = createReadFileIfExistsHandler(pathAllowlist, fsModule);
+    const result = await handler({} as never, '/scores/example.musicxml.annotation.json');
+
+    expect(result).toBe('{}');
+    expect(fsModule.readFile).toHaveBeenCalledWith(
+      '/scores/example.musicxml.annotation.json',
+      'utf-8'
+    );
+  });
+
+  it('returns null when the allowed path does not exist yet (ENOENT)', async () => {
+    const pathAllowlist = new PathAllowlist();
+    pathAllowlist.allowMusicXml('/scores/example.musicxml');
+    const enoent = Object.assign(new Error('not found'), { code: 'ENOENT' });
+    const fsModule = { readFile: vi.fn().mockRejectedValue(enoent) };
+
+    const handler = createReadFileIfExistsHandler(pathAllowlist, fsModule);
+    const result = await handler({} as never, '/scores/example.musicxml.annotation.json');
+
+    expect(result).toBeNull();
+  });
+
+  it('rejects an unregistered path without touching the fs module', async () => {
+    const pathAllowlist = new PathAllowlist();
+    const fsModule = { readFile: vi.fn().mockResolvedValue('{}') };
+
+    const handler = createReadFileIfExistsHandler(pathAllowlist, fsModule);
+
+    await expect(handler({} as never, '/etc/hosts.annotation.json')).rejects.toThrow(
+      /Refused to read from disallowed path/
+    );
+    expect(fsModule.readFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('createReadBinaryFileHandler', () => {
+  it('reads a registered .mxl path via the injected fs module and returns an ArrayBuffer', async () => {
+    const pathAllowlist = new PathAllowlist();
+    pathAllowlist.allowMusicXml('/scores/example.mxl');
+    const buffer = Buffer.from([1, 2, 3, 4]);
+    const fsModule = { readFile: vi.fn().mockResolvedValue(buffer) };
+
+    const handler = createReadBinaryFileHandler(pathAllowlist, fsModule);
+    const result = await handler({} as never, '/scores/example.mxl');
+
+    expect(new Uint8Array(result)).toEqual(new Uint8Array([1, 2, 3, 4]));
+    expect(fsModule.readFile).toHaveBeenCalledWith('/scores/example.mxl');
+  });
+
+  it('rejects an unregistered path without touching the fs module', async () => {
+    const pathAllowlist = new PathAllowlist();
+    const fsModule = { readFile: vi.fn().mockResolvedValue(Buffer.from([])) };
+
+    const handler = createReadBinaryFileHandler(pathAllowlist, fsModule);
+
+    await expect(handler({} as never, '/etc/hosts')).rejects.toThrow(
+      /Refused to read from disallowed path/
+    );
+    expect(fsModule.readFile).not.toHaveBeenCalled();
   });
 });

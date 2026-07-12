@@ -74,7 +74,14 @@ let electronApp: ElectronApplication;
 let window: Page;
 
 test.beforeEach(async () => {
-  electronApp = await electron.launch({ args: [MAIN_ENTRY] });
+  // TASK-088: __e2eStore__/__e2eMidiHooks__（本テストが依存する実起動E2E計装）は
+  // 本番ビルドで攻撃対象領域を広げないようisE2Eフラグでガードされている。
+  // KEYFLOW_E2E=1を渡すことでmain→preload→rendererへフラグを伝搬させ、
+  // 計装を有効化する（既存の環境変数は引き継ぐ）。
+  electronApp = await electron.launch({
+    args: [MAIN_ENTRY],
+    env: { ...process.env, KEYFLOW_E2E: '1' },
+  });
   window = await electronApp.firstWindow();
   await window.waitForLoadState('domcontentloaded');
 });
@@ -126,6 +133,16 @@ test('アプリ起動→サンプルMusicXML読み込み→再生→手動スク
     ipcMain.removeHandler('file:show-open-dialog');
     ipcMain.handle('file:show-open-dialog', () => fixturePath);
   }, FIXTURE_PATH);
+
+  // TASK-086でfile:read系IPCにPathAllowlist検証が導入され、選択パスは
+  // ダイアログの本物のハンドラ（createShowOpenDialogHandler）内で
+  // allowMusicXmlへ登録される。上記のfile:show-open-dialogモックはこの副作用を
+  // 再現しないため、同じ登録処理を行う本物のfile:register-dropped-file IPC
+  // （拡張子検証を満たせばallowMusicXmlを呼ぶ）を経由して補う。
+  await window.evaluate(
+    (fixturePath) => window.electronAPI.file.registerDroppedFile(fixturePath),
+    FIXTURE_PATH
+  );
 
   // TASK-053のドロップ案内文にも「ファイルを開く」が含まれるため、ロールで特定する
   await window.getByRole('button', { name: 'ファイルを開く' }).click();

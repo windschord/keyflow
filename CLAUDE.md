@@ -57,15 +57,25 @@ docs/sdd/
 ```
 src/
 ├── main/                  # Electron Main Process
-│   ├── index.ts           # エントリーポイント（ファイルダイアログ・file:read/write・settings系IPCハンドラを実装。
-│   │                       #   ウィンドウ生成はcreateWindow()に一本化。MIDI許可ハンドラは起動時に1回設定）
+│   ├── index.ts           # エントリーポイント（createWindow()でBrowserWindow生成・IPCハンドラ登録・
+│   │                       #   navigation-policyの結線を行う。ファイル読み書き・ダイアログ系ハンドラの
+│   │                       #   実処理はfile-handlers.tsへ切り出し済み、TASK-086。MIDI許可ハンドラは起動時に1回設定）
+│   ├── file-handlers.ts   # file:show-open-dialog / file:register-dropped-file / file:read /
+│   │                       #   file:read-if-exists / file:read-binary の各IPCハンドラファクトリ。
+│   │                       #   読み取り3ハンドラはPathAllowlist.assertAllowedReadPathを経由してから
+│   │                       #   fs.promises.readFileへ到達する（TASK-086）
+│   ├── navigation-policy.ts # openExternal（isAllowedExternalUrl: http/httpsのみ許可）とwill-navigate
+│   │                       #   （isAllowedNavigationUrl: 開発時HMR URLと同一オリジン、または本番file:のみ許可）の
+│   │                       #   URL判定。Electron API非依存の純粋関数（TASK-087）
 │   ├── settings.ts        # electron-store ラッパー（アプリ設定・最近使ったファイル）
 │   ├── window-options.ts  # BrowserWindowのtitle/iconオプション生成（プラットフォーム分岐、REQ-011）
-│   └── path-allowlist.ts  # ファイル書き込み許可パスの検証
+│   └── path-allowlist.ts  # ファイル読み書き許可パスの検証（assertAllowedAnnotationPath: file:write用、
+│                            #   assertAllowedReadPath: file:read系3ハンドラ用、TASK-086）
 ├── preload/
 │   └── index.ts           # contextBridge 定義（file/settings/menu系APIを公開。menuはMain→Rendererの
 │                                #   受信専用購読のみでrenderer→mainの送信機能を持たない、TASK-082。
-│                                #   MIDI関連IPCは公開していない）
+│                                #   MIDI関連IPCは公開していない。electronAPI.isE2Eで実起動E2E専用計装
+│                                #   （__e2eStore__等）の公開可否をrendererへ伝搬する、TASK-088）
 └── renderer/
     └── src/
         ├── lib/
@@ -153,10 +163,23 @@ npm run build:mac
 ## アーキテクチャ上の重要事項
 
 ### Electronセキュリティ設定
-- `contextIsolation: true` / `nodeIntegration: false` を必ず維持すること
+- `contextIsolation: true` / `nodeIntegration: false` / `sandbox: true` を必ず維持すること
+  （`sandbox: true` はTASK-087で検証のうえ採用。sandbox下でもpreloadの`@electron-toolkit/preload`・
+  `webUtils`・`process.argv`参照が正常動作することを`npm run dev`実起動と`npm run test:e2e`で確認済み）
 - Main↔Renderer通信はすべて `src/preload/index.ts` の `contextBridge` 経由のみ
-- IPCチャンネル名は各ハンドラ実装箇所（`src/main/index.ts`）に文字列リテラルで直接記述している。
-  型付き定数ファイル（`src/main/ipc-channels.ts`）は存在しない
+- IPCチャンネル名は各ハンドラ実装箇所（`src/main/index.ts`・`src/main/file-handlers.ts`）に文字列リテラルで
+  直接記述している。型付き定数ファイル（`src/main/ipc-channels.ts`）は存在しない
+- ファイル読み取り（`file:read`/`file:read-if-exists`/`file:read-binary`）は
+  `PathAllowlist.assertAllowedReadPath` により、ユーザーがダイアログ/ドロップで開いたMusicXML本体と
+  その `.annotation.json` サイドカー以外の読み取りを拒否する（TASK-086。書き込み`file:write`側の
+  `assertAllowedAnnotationPath` と対になる読み取り版）
+- 外部ナビゲーション制御は `src/main/navigation-policy.ts` が担う。`shell.openExternal` へ渡すURLは
+  `isAllowedExternalUrl` でhttp/https以外（`file:`・カスタムスキーム等）を拒否し、メインウィンドウの
+  トップレベルナビゲーション（`will-navigate`）は `isAllowedNavigationUrl` で開発時HMR URLと同一オリジン、
+  または本番の`file:`（自身のindex.html）以外を`event.preventDefault()`で拒否する（TASK-087）
+- 実起動E2E専用計装（`window.__e2eStore__`/`window.__e2eMidiHooks__`）は環境変数 `KEYFLOW_E2E=1` を
+  渡した起動時のみ有効化される。本番ビルド（環境変数なし）では `window.electronAPI.isE2E` が `false` となり
+  計装は一切公開されない（詳細は「実起動E2Eテスト」節、TASK-088）
 
 ### IPCチャンネル一覧
 > MIDI入力はRendererのWeb MIDI API（`src/renderer/src/lib/midi/web-midi.ts`）で直接処理しており、
@@ -166,10 +189,12 @@ npm run build:mac
 
 | チャンネル | 方向 | 用途 |
 |-----------|------|------|
-| `file:show-open-dialog` | Renderer→Main | ファイル選択ダイアログ |
-| `file:read` | Renderer→Main | テキストファイル読み込み（.xml/.musicxml） |
-| `file:read-binary` | Renderer→Main | バイナリファイル読み込み（.mxl） |
-| `file:write` | Renderer→Main | アノテーションJSON書き込み |
+| `file:show-open-dialog` | Renderer→Main | ファイル選択ダイアログ。選択パスを`PathAllowlist.allowMusicXml`へ登録し、最近使ったファイル履歴へ追加 |
+| `file:register-dropped-file` | Renderer→Main | ドラッグ＆ドロップで開いたファイルの登録（拡張子検証つき、TASK-053）。allowlist登録・履歴追加は上と同様 |
+| `file:read` | Renderer→Main | テキストファイル読み込み（.xml/.musicxml）。`PathAllowlist.assertAllowedReadPath`で許可パスのみ読み取り可（TASK-086） |
+| `file:read-if-exists` | Renderer→Main | 存在しないのが正常なファイル（注釈サイドカー等）の読み込み。ENOENTはnullを返す。読み取りallowlist検証あり（TASK-086） |
+| `file:read-binary` | Renderer→Main | バイナリファイル読み込み（.mxl）。読み取りallowlist検証あり（TASK-086） |
+| `file:write` | Renderer→Main | アノテーションJSON書き込み。`PathAllowlist.assertAllowedAnnotationPath`で許可パスのみ書き込み可 |
 | `settings:get` / `settings:set` | Renderer→Main | アプリ設定の取得・保存（electron-store） |
 | `settings:get-recent-files` | Renderer→Main | 最近使ったファイル一覧の取得 |
 | `menu:open-about` | Main→Renderer | アプリケーションメニューのAbout項目クリック通知（`src/main/menu.ts`、TASK-082） |
@@ -198,6 +223,13 @@ npm run build:mac
 - ファイル選択ダイアログはOS依存で自動化できないため、`electronApp.evaluate()` でmainプロセスの `file:show-open-dialog` IPCハンドラのみを固定パスに差し替える（`file:read`等の他IPC・パース・レンダリングは実処理を使用）
 - MIDI入力は実ハードウェアなしで検証するため、`usePractice.ts` が公開する `window.__e2eMidiHooks__`（実際のMIDI受信コールバックそのもの）を呼び出す。状態検証には `App.tsx` が公開する `window.__e2eStore__`（実際のZustandストア参照）を使う
 - これらの `window.__e2e*__` はE2Eテスト専用の計装であり、テスト用に分岐したロジックではなく本番コードパスをそのまま呼び出す・読み取るためのフックである
+- これらの計装は本番ビルド（環境変数なし起動）では一切公開されない（TASK-088）。フラグ伝搬経路は
+  `Playwright起動時の環境変数 KEYFLOW_E2E=1` → `main: createWindow()がwebPreferences.additionalArgumentsに
+  '--keyflow-e2e' を追加` → `preload: process.argv.includes('--keyflow-e2e') を electronAPI.isE2E として公開` →
+  `renderer: isE2Eがtrueのときのみ __e2eStore__/__e2eMidiHooks__ 登録のuseEffectを実行`。
+  `tests/e2e/app.spec.ts` はElectron起動に `env: { ...process.env, KEYFLOW_E2E: '1' }` を渡すことでこの経路の
+  結線を検証し、`tests/e2e/e2e-instrumentation-guard.spec.ts` は環境変数なし起動で
+  `window.__e2eStore__`/`window.__e2eMidiHooks__` がともに `undefined` であることを検証する
 - アプリ設定: electron-store（OS標準アプリデータフォルダ）
 - 練習履歴の永続化は未実装（将来拡張。実装・要件とも現時点では存在しない）
 

@@ -695,4 +695,48 @@ describe('usePractice', () => {
     expect(result.current.webMidiService).toBeDefined();
     expect(result.current.webMidiService.setSelectedDevice).toBe(setSelectedDeviceMock);
   });
+
+  // TASK-088: window.__e2eMidiHooks__ は実起動E2E専用の計装であり、本番ビルドでは
+  // 攻撃対象領域を無用に広げるため公開してはならない。
+  // electronAPI.isE2E が true の場合のみ公開する（preload経由で --keyflow-e2e 引数から判定される）。
+  describe('__e2eMidiHooks__ instrumentation guard (TASK-088)', () => {
+    // 本体（usePractice.ts）と同じく `as unknown as { ... }` で計装プロパティへアクセスする（any不使用）。
+    const e2eWindow = window as unknown as {
+      electronAPI?: { isE2E?: boolean };
+      __e2eMidiHooks__?: { noteOn: unknown; noteOff: unknown };
+    };
+
+    afterEach(() => {
+      delete e2eWindow.electronAPI;
+      delete e2eWindow.__e2eMidiHooks__;
+    });
+
+    it('does not expose __e2eMidiHooks__ on window when electronAPI.isE2E is not true', () => {
+      renderHook(() => usePractice());
+
+      expect(e2eWindow.__e2eMidiHooks__).toBeUndefined();
+    });
+
+    it('exposes __e2eMidiHooks__ on window when electronAPI.isE2E is true', () => {
+      e2eWindow.electronAPI = { isE2E: true };
+
+      renderHook(() => usePractice());
+
+      const hooks = e2eWindow.__e2eMidiHooks__;
+      expect(hooks).toBeDefined();
+      expect(hooks?.noteOn).toBeInstanceOf(Function);
+      expect(hooks?.noteOff).toBeInstanceOf(Function);
+    });
+
+    it('removes __e2eMidiHooks__ from window on unmount when it was exposed', () => {
+      e2eWindow.electronAPI = { isE2E: true };
+
+      const { unmount } = renderHook(() => usePractice());
+      expect(e2eWindow.__e2eMidiHooks__).toBeDefined();
+
+      unmount();
+
+      expect(e2eWindow.__e2eMidiHooks__).toBeUndefined();
+    });
+  });
 });

@@ -6,7 +6,7 @@
 | ----- | ------ |
 | ID | TASK-096 |
 | タイプ | feat（US-016） |
-| ステータス | TODO |
+| ステータス | DONE |
 | 優先度 | High |
 | 見積もり | 60分 |
 | 依存タスク | なし |
@@ -62,16 +62,65 @@ US-016（UIの多言語対応）の基盤。設計は
 
 ## 受入基準
 
-- [ ] `resolveLanguage` がREQ-016-002の規則（ja系→ja、他→en、保存値優先）を満たす
-- [ ] `formatMessage` が `{name}` 置換・未知プレースホルダ残置・params省略を扱える
-- [ ] `getMessages` が `en` 基底のフォールバックを行う（REQ-016-006）
-- [ ] `ui.language` の型が `'auto' | 'ja' | 'en'`、既定値 `'auto'`（main/renderer両方）
-- [ ] App.tsx起動時に言語がui-sliceへ反映される（REQ-016-005のRenderer側）
-- [ ] 全チェック（test/typecheck/lint/lint:jp:ts）通過
+- [x] `resolveLanguage` がREQ-016-002の規則（ja系→ja、他→en、保存値優先）を満たす
+- [x] `formatMessage` が `{name}` 置換・未知プレースホルダ残置・params省略を扱える
+- [x] `getMessages` が `en` 基底のフォールバックを行う（REQ-016-006）
+- [x] `ui.language` の型が `'auto' | 'ja' | 'en'`、既定値 `'auto'`（main/renderer両方）
+- [x] App.tsx起動時に言語がui-sliceへ反映される（REQ-016-005のRenderer側）
+- [x] 全チェック（test/typecheck/lint/lint:jp:ts）通過
 
 ## テスト項目
 
-- [ ] resolveLanguage: 保存値'ja'/'en'優先、'auto'でja-JP→ja、en-US→en、不正値→ロケール判定
-- [ ] formatMessage: 置換・複数置換・params省略・未知プレースホルダ残置
-- [ ] getMessages: enに存在しjaで未定義のキーが（人工的な部分リソースで）enへフォールバック
-- [ ] ui-slice: setLanguageで状態が変わる
+- [x] resolveLanguage: 保存値'ja'/'en'優先、'auto'でja-JP→ja、en-US→en、不正値→ロケール判定
+- [x] formatMessage: 置換・複数置換・params省略・未知プレースホルダ残置
+- [x] getMessages: enに存在しjaで未定義のキーが（人工的な部分リソースで）enへフォールバック
+- [x] ui-slice: setLanguageで状態が変わる
+
+## 完了サマリー（2026-07-12）
+
+### 実装内容
+
+- `src/renderer/src/lib/i18n/`（新規）:
+  - `types.ts`: `Language`（`'ja' | 'en'`）、`DeepStringify<T>`（値を`string`へ広げる
+    ユーティリティ型）、`Messages`（`typeof ja`から導出）
+  - `ja.ts`: 日本語リソース。基盤検証用に`settings.title`/`settings.language`の
+    最小セットを定義（構造のソースオブトゥルース、`as const satisfies`で型を固定）
+  - `en.ts`: `Messages`型への適合を型チェックで強制する英語リソース
+  - `format.ts`: `formatMessage(template, params?)`。`{name}`プレースホルダを
+    置換する純関数。未知プレースホルダは残置、params省略時は原文を返す
+  - `resolve-language.ts`: `resolveLanguage(stored, osLocale)`。保存値
+    `'ja'`/`'en'`を優先し、それ以外（`'auto'`・不正値・未定義）はosLocaleが
+    `ja`始まりなら`'ja'`、それ以外は`'en'`
+  - `index.ts`: `getMessages(language)`。内部の`mergeMessages(base, override)`
+    （再帰的な深いマージの純関数、DeepPartial型でoverrideの部分欠落を許容）で
+    `en`を基底に選択言語のリソースを上書きし、言語ごとにメモ化して返す
+  - `useTranslation.ts`: ui-sliceの`language`を購読し`getMessages`の結果を返すフック
+- `src/renderer/src/store/slices/ui-slice.ts`: `language: Language`（初期値`'ja'`）と
+  `setLanguage`を追加
+- `src/renderer/src/App.tsx`: 起動時の設定読み込みuseEffect内で
+  `resolveLanguage(uiSettings.language, navigator.language)`を実行し
+  `setLanguage`へ反映（`setLanguage`をdeps配列にも追加）
+- `src/renderer/src/types/settings.ts` / `src/main/settings.ts`: `ui.language`の型を
+  `string`から`'auto' | 'ja' | 'en'`へ、既定値を`'ja'`から`'auto'`へ変更
+- `src/renderer/src/components/SettingsModal/index.tsx`: ローカル既定値
+  `DEFAULT_SETTINGS.ui.language`を`'auto'`へ追随（言語セレクタUI自体はTASK-098で追加）
+
+### テスト結果
+
+- 新規: `format.test.ts`（7件）・`resolve-language.test.ts`（8件）・`index.test.ts`
+  （`mergeMessages`のフォールバック検証3件＋`getMessages`のメモ化検証含む3件）・
+  `ui-slice.test.ts`への`language`/`setLanguage`ケース追加（2件）
+- `npm run test`: 全58ファイル・814件通過（既存テストの破壊・弱体化なし）
+
+### 各チェックコマンドの結果
+
+- `npm run test`: 通過（814件）
+- `npm run typecheck`: 通過（node/web両方）
+- `npm run lint`: 通過
+- `npm run lint:jp:ts`: 通過
+- `npx prettier --check src`: 通過
+
+### 未解決事項
+
+- なし。言語セレクタUI（SettingsModalへの選択肢追加）・実際のUI文言の外部化は
+  TASK-097/098のスコープであり、本タスクでは未着手（設計どおり）

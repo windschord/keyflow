@@ -22,7 +22,7 @@ type SettingsModalState = Pick<AppSettings, 'ui' | 'practice' | 'midi' | 'audio'
 const DEFAULT_SETTINGS: SettingsModalState = {
   ui: {
     theme: 'light',
-    language: 'ja',
+    language: 'auto',
     zoom: 1.0,
     pianoHeight: 120,
     volume: 80,

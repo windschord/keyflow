@@ -13,6 +13,7 @@ import { AnnotationStoreService } from './lib/annotation-store';
 import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
 import { PLAYBACK_VOICES } from './lib/audio-engine/voices';
 import { METRONOME_VOICES } from './lib/audio-engine/metronome-voices';
+import { resolveLanguage } from './lib/i18n/resolve-language';
 import type { Annotation, Finger, FingerAssignment, Note, Score } from './types';
 
 // TASK-053: ドラッグ＆ドロップで受け付けるMusicXMLの拡張子（大文字小文字を区別しない）。
@@ -86,6 +87,7 @@ function App(): React.JSX.Element {
     setKeyboardSize,
     setPlaybackVoice,
     setMetronomeVoice,
+    setLanguage,
     currentMeasure,
     currentNoteIndex,
     loopEnabled,
@@ -118,6 +120,7 @@ function App(): React.JSX.Element {
       setKeyboardSize: s.setKeyboardSize,
       setPlaybackVoice: s.setPlaybackVoice,
       setMetronomeVoice: s.setMetronomeVoice,
+      setLanguage: s.setLanguage,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
       loopEnabled: s.loopEnabled,
@@ -191,6 +194,9 @@ function App(): React.JSX.Element {
   // - audio.playbackVoice / audio.metronomeVoice → ui-slice.playbackVoice / metronomeVoice
   //   （TASK-073, US-013）。
   //   usePractice.ts側のuseEffectがaudioEngine.setPlaybackVoice / setMetronomeVoiceへ反映する。
+  // - ui.language → resolveLanguage(ui.language, navigator.language) → ui-slice.language
+  //   （TASK-096, US-016, REQ-016-002/005）。'auto'・不正値・未定義はOSロケール判定に
+  //   フォールバックする。useTranslation()がこの値を購読して表示文言を切り替える。
   React.useEffect(() => {
     if (!window.electronAPI?.settings) return;
 
@@ -227,6 +233,7 @@ function App(): React.JSX.Element {
           if (typeof uiSettings.keyboardSize === 'number') {
             setKeyboardSize(uiSettings.keyboardSize);
           }
+          setLanguage(resolveLanguage(uiSettings.language, navigator.language));
         }
         if (midiSettings) {
           setMidiDeviceId(midiSettings.selectedDeviceId);
@@ -270,6 +277,7 @@ function App(): React.JSX.Element {
     setKeyboardSize,
     setPlaybackVoice,
     setMetronomeVoice,
+    setLanguage,
   ]);
 
   // ダイアログ経由（handleOpenFile）・ドラッグ＆ドロップ経由（handleDrop）の両方から

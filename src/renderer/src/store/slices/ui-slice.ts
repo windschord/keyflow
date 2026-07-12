@@ -2,6 +2,7 @@ import { StateCreator } from 'zustand';
 import { KEYBOARD_SIZES, KeyboardSize } from '../../types';
 import type { PlaybackVoiceId } from '../../lib/audio-engine/voices';
 import type { MetronomeVoiceId } from '../../lib/audio-engine/metronome-voices';
+import type { Language } from '../../lib/i18n/types';
 
 export interface UiSlice {
   bpm: number;
@@ -65,6 +66,12 @@ export interface UiSlice {
    * 再生ボタン（PlaybackControls）のロード中表示・無効化に使う。
    */
   voiceLoading: boolean;
+  /**
+   * UI表示言語（US-016、TASK-096）。初期値'ja'はApp.tsx起動時の
+   * resolveLanguage(ui.language, navigator.language)の結果で直ちに上書きされる想定
+   * （設計: docs/sdd/design/components/i18n.md）。useTranslation()が購読する。
+   */
+  language: Language;
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
   /** メトロノームの一拍目アクセントの有効/無効を切り替える（TASK-063）。 */
@@ -100,6 +107,8 @@ export interface UiSlice {
    * 同時に楽譜のテンポへ揃える（スコア読み込み直後に呼ばれる想定）。
    */
   setOriginalBpm: (bpm: number) => void;
+  /** UI表示言語を設定する（TASK-096）。 */
+  setLanguage: (language: Language) => void;
 }
 
 export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
@@ -128,6 +137,7 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   playbackVoice: 'grand-piano',
   metronomeVoice: 'click',
   voiceLoading: false,
+  language: 'ja',
   // REQ-006-003: 元のテンポ（originalBpm）の20%〜200%の範囲でクランプする。
   // originalBpmが未設定（0以下）の場合は初期値120を基準にする。
   // originalBpm自体のクランプ（絶対値20〜400）はsetOriginalBpm側の責務であり、
@@ -154,4 +164,5 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
     const clamped = Math.max(20, Math.min(400, bpm));
     set({ originalBpm: clamped, bpm: clamped });
   },
+  setLanguage: (language) => set({ language }),
 });

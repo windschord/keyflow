@@ -25,7 +25,12 @@ interface AppSettings {
     theme: 'light' | 'dark';
     zoom: number;
     pianoHeight: number;
-    language: string;
+    /**
+     * UI表示言語（US-016、TASK-096）。'auto'はOSロケールによる自動判定を意味する
+     * （renderer側lib/i18n/resolve-language.tsが解決する）。既存設定ファイルに
+     * 保存済みの'ja'はそのまま日本語として尊重される（DEC-009）。
+     */
+    language: 'auto' | 'ja' | 'en';
     /** マスターボリューム（0〜100のUI線形値、TASK-052）。 */
     volume: number;
     /** 楽譜上・鍵盤上の指番号を一括で表示するかどうか（TASK-055）。 */
@@ -54,7 +59,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     theme: 'light',
     zoom: 1.0,
     pianoHeight: 120,
-    language: 'ja',
+    language: 'auto',
     volume: 80,
     showFingerings: true,
     keyboardSize: 88,

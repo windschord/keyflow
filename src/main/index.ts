@@ -17,6 +17,8 @@ import { createWindowOptions, APP_TITLE } from './window-options';
 import { applyDockIcon } from './dock-icon';
 import { createApplicationMenuTemplate } from './menu';
 import { isAllowedExternalUrl, isAllowedNavigationUrl } from './navigation-policy';
+import { resolveLanguage, type Language } from './locale';
+import { createSettingsSetHandler } from './settings-handlers';
 
 function createWindow(): void {
   // TASK-088: 実起動E2E（Playwright for Electron）実行時のみ環境変数KEYFLOW_E2E=1が
@@ -65,6 +67,25 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
+}
+
+/**
+ * アプリケーションメニューを指定言語で構築し設定する（TASK-099、REQ-016-004/005）。
+ * 起動時と言語切り替え時（settings:setハンドラ経由）の双方から呼び出す。
+ */
+function buildAndSetApplicationMenu(language: Language): void {
+  const applicationMenu = Menu.buildFromTemplate(
+    createApplicationMenuTemplate({
+      platform: process.platform,
+      appTitle: APP_TITLE,
+      language,
+      onOpenAbout: () => {
+        const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+        targetWindow?.webContents.send('menu:open-about');
+      },
+    })
+  );
+  Menu.setApplicationMenu(applicationMenu);
 }
 
 // This method will be called when Electron has finished
@@ -194,8 +215,13 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('settings:get', (_, key) => settingsService.get(key));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ipcMain.handle('settings:set', (_, key, value) => settingsService.set(key, value as any));
+  // TASK-099: ui.languageの変更を検知したらメニューを再構築する（REQ-016-004）。
+  ipcMain.handle(
+    'settings:set',
+    createSettingsSetHandler(settingsService, (newLanguageSetting) => {
+      buildAndSetApplicationMenu(resolveLanguage(newLanguageSetting, app.getLocale()));
+    })
+  );
   ipcMain.handle('settings:get-recent-files', () => settingsService.getRecentFiles());
 
   app.on('activate', function () {
@@ -216,17 +242,8 @@ app.whenReady().then(() => {
   // TASK-082: アプリケーションメニューを設定する。カスタムメニューはElectronの
   // 既定メニュー（コピー/ペースト等の標準ロールを含む）を丸ごと置き換えるため、
   // createApplicationMenuTemplate内で標準ロールを再現している。
-  const applicationMenu = Menu.buildFromTemplate(
-    createApplicationMenuTemplate({
-      platform: process.platform,
-      appTitle: APP_TITLE,
-      onOpenAbout: () => {
-        const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-        targetWindow?.webContents.send('menu:open-about');
-      },
-    })
-  );
-  Menu.setApplicationMenu(applicationMenu);
+  // TASK-099: 起動時は保存済み言語設定（またはOSロケール解決）でメニューを構築する（REQ-016-005）。
+  buildAndSetApplicationMenu(resolveLanguage(settingsService.get('ui').language, app.getLocale()));
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

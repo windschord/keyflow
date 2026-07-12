@@ -17,7 +17,7 @@ type KeyboardSize = 88 | 76 | 61 | 49;
 type PlaybackVoiceId = 'grand-piano' | 'electric-piano' | 'organ' | 'synth';
 type MetronomeVoiceId = 'click' | 'woodblock' | 'beep' | 'cowbell';
 
-interface AppSettings {
+export interface AppSettings {
   recentFiles: Array<{ path: string; openedAt: string }>;
   midi: { selectedDeviceId: string | null; selectedDeviceIndex: number };
   handSettings: { maxSpanSemitones: number; leftHandScaleFactor: number };

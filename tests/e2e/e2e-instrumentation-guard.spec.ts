@@ -42,7 +42,9 @@ test.beforeAll(() => {
 
 let electronApp: ElectronApplication;
 let window: Page;
-let userDataDir: string;
+// テスト本体の途中失敗時はundefinedのままafterEachへ到達し得る
+// （removeIsolatedUserDataDirがundefinedを許容する）。
+let userDataDir: string | undefined;
 
 test.afterEach(async () => {
   await electronApp?.close();

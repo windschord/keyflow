@@ -73,16 +73,22 @@ US-017（楽譜ライブラリ）のMain側基盤。設計は
 
 ## 完了サマリー
 
-- 新規: `src/main/library.ts`（LibraryService）、`src/main/library-handlers.ts`
-  （library:* IPCハンドラのファクトリ）、`src/renderer/src/types/library.ts`
-  （renderer側独立型）、対応するテスト2ファイル
-- 変更: `src/main/index.ts`（ハンドラ登録）、`src/preload/index.ts`
-  （contextIsolated/非isolated両分岐にelectronAPI.library追加）、
-  `src/renderer/src/types/{index,electron-api.d}.ts`（型公開）
-- IPCチャンネル: `library:get-all`（成功: LibraryEntry[]）、`library:upsert`
-  （成功: void。既存pathはtitle/composer/lastOpenedAt更新・新規はaddedAt記録）、
-  `library:remove`（成功: void）、`library:open`（成功: `{ok:true}`。失敗:
-  `{ok:false,reason:'not-found'|'invalid-extension'}`、例外は投げない）
+- 新規ファイル
+  - `src/main/library.ts`（LibraryService）
+  - `src/main/library-handlers.ts`（library:* IPCハンドラのファクトリ）
+  - `src/renderer/src/types/library.ts`（renderer側独立型）
+  - 対応するテスト2ファイル
+- 変更ファイル
+  - `src/main/index.ts`（ハンドラ登録）
+  - `src/preload/index.ts`（contextIsolated/非isolated両分岐にelectronAPI.library追加）
+  - `src/renderer/src/types/{index,electron-api.d}.ts`（型公開）
+- IPCチャンネルの仕様
+  - `library:get-all`: 成功時にLibraryEntry[]を返す
+  - `library:upsert`: 成功時void。既存pathならtitle/composer/lastOpenedAtを更新し、
+    新規ならaddedAtも記録する
+  - `library:remove`: 成功時void
+  - `library:open`: 成功時`{ok:true}`。失敗時は
+    `{ok:false,reason:'not-found'|'invalid-extension'}` を返し、例外は投げない
 - テスト: library.test.ts 8件、library-handlers.test.ts 8件（新規16件）、
   全体854件（62ファイル）すべて成功
 - チェック結果: test/typecheck/lint/lint:jp/format:check すべて成功

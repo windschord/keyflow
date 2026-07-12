@@ -59,6 +59,7 @@ export const ja = {
     parseError: 'MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。',
     openDialogError: 'ファイル選択ダイアログを開けませんでした。',
     droppedFilePathError: 'ドロップされたファイルのパスを取得できませんでした。',
+    libraryOpenError: 'ライブラリのエントリを開けませんでした。',
     fingeringSaveError: '運指アノテーションの保存に失敗しました。',
     annotationSaveError: '運指メモの保存に失敗しました。',
   },
@@ -192,6 +193,10 @@ export const ja = {
     emptyTitle: 'ライブラリに楽譜がありません',
     emptyDescription: 'MusicXMLファイルを開くと自動的にライブラリへ登録されます。',
     emptyOpenFileButton: 'ファイルを開く',
+    loadErrorTitle: 'ライブラリの読み込みに失敗しました',
+    loadErrorDescription: 'もう一度お試しください。',
+    retryButton: '再読み込み',
+    deleteErrorMessage: '「{title}」の削除に失敗しました。',
     missingLabel: '見つかりません',
     missingTitle: 'ファイルが見つかりません（移動または削除された可能性があります）',
     missingEntryErrorMessage:

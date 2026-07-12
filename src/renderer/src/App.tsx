@@ -69,6 +69,9 @@ function App(): React.JSX.Element {
   // pathの集合（LibraryViewの欠損マーク表示に渡す）と、削除確認ダイアログの対象path。
   const [missingLibraryPaths, setMissingLibraryPaths] = React.useState<Set<string>>(new Set());
   const [missingEntryPath, setMissingEntryPath] = React.useState<string | null>(null);
+  // CodeRabbit #46指摘4: 欠損エントリの削除成功後にLibraryViewへ一覧の再取得を促すための
+  // signal。値自体に意味はなくインクリメントによる変化のみをLibraryView側が見る。
+  const [libraryReloadSignal, setLibraryReloadSignal] = React.useState(0);
 
   const {
     practiceEngine,
@@ -481,6 +484,7 @@ function App(): React.JSX.Element {
         setMissingEntryPath(filePath);
       } catch (error) {
         console.error('Failed to open the library entry:', error);
+        alert(t.app.libraryOpenError);
       }
     },
     [openMusicXmlFile, t]
@@ -492,6 +496,14 @@ function App(): React.JSX.Element {
     setMissingEntryPath(null);
     try {
       await window.electronAPI?.library?.remove(targetPath);
+      // CodeRabbit #46指摘4: 削除成功時のみ、欠損マークを外しLibraryViewへ一覧の
+      // 再取得を促す（失敗時はビュー状態を変えず、既存のエラーハンドリングに委ねる）。
+      setMissingLibraryPaths((prev) => {
+        const next = new Set(prev);
+        next.delete(targetPath);
+        return next;
+      });
+      setLibraryReloadSignal((count) => count + 1);
     } catch (error) {
       console.error('Failed to remove the missing library entry:', error);
     }
@@ -726,6 +738,7 @@ function App(): React.JSX.Element {
             onOpenEntry={handleOpenLibraryEntry}
             onOpenFileDialog={handleOpenFile}
             missingPaths={missingLibraryPaths}
+            reloadSignal={libraryReloadSignal}
           />
         </div>
       )}

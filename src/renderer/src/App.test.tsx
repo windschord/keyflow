@@ -2076,6 +2076,94 @@ describe('App - ライブラリ統合（TASK-103, US-017）', () => {
     alertMock.mockRestore();
   });
 
+  it('shows an alert when electronAPI.library.open itself throws (CodeRabbit #46指摘3)', async () => {
+    const libraryApi = makeLibraryApi({
+      open: vi.fn().mockRejectedValue(new Error('ipc failure')),
+    });
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    await waitFor(() => expect(latestLibraryViewProps?.onOpenEntry).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestLibraryViewProps.onOpenEntry('/scores/broken.xml');
+    });
+
+    expect(alertMock).toHaveBeenCalledWith('ライブラリのエントリを開けませんでした。');
+
+    alertMock.mockRestore();
+  });
+
+  it('clears the missing mark and triggers a library reload after confirming removal of a missing entry (CodeRabbit #46指摘4)', async () => {
+    const libraryApi = makeLibraryApi({
+      open: vi.fn().mockResolvedValue({ ok: false, reason: 'not-found' }),
+    });
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    await waitFor(() => expect(latestLibraryViewProps?.onOpenEntry).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestLibraryViewProps.onOpenEntry('/scores/missing.xml');
+    });
+    const signalBeforeRemoval = latestLibraryViewProps.reloadSignal;
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '削除する' }));
+    });
+
+    await waitFor(() =>
+      expect(latestLibraryViewProps.missingPaths?.has('/scores/missing.xml')).toBe(false)
+    );
+    await waitFor(() => expect(latestLibraryViewProps.reloadSignal).not.toBe(signalBeforeRemoval));
+
+    alertMock.mockRestore();
+  });
+
+  it('does not clear the missing mark or trigger a reload when removing a missing entry fails (CodeRabbit #46指摘4)', async () => {
+    const libraryApi = makeLibraryApi({
+      open: vi.fn().mockResolvedValue({ ok: false, reason: 'not-found' }),
+      remove: vi.fn().mockRejectedValue(new Error('boom')),
+    });
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    await waitFor(() => expect(latestLibraryViewProps?.onOpenEntry).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestLibraryViewProps.onOpenEntry('/scores/missing.xml');
+    });
+    const signalBeforeRemoval = latestLibraryViewProps.reloadSignal;
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '削除する' }));
+    });
+
+    await waitFor(() => expect(libraryApi.remove).toHaveBeenCalled());
+    expect(latestLibraryViewProps.missingPaths?.has('/scores/missing.xml')).toBe(true);
+    expect(latestLibraryViewProps.reloadSignal).toBe(signalBeforeRemoval);
+
+    alertMock.mockRestore();
+  });
+
   it('keeps the library entry when the user cancels the missing-file removal confirmation (REQ-017-008)', async () => {
     const libraryApi = makeLibraryApi({
       open: vi.fn().mockResolvedValue({ ok: false, reason: 'not-found' }),

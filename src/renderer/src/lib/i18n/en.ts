@@ -55,6 +55,7 @@ export const en: Messages = {
     parseError: 'Failed to parse the MusicXML file. Please check the file format.',
     openDialogError: 'Failed to open the file selection dialog.',
     droppedFilePathError: 'Failed to resolve the path of the dropped file.',
+    libraryOpenError: 'Failed to open the library entry.',
     fingeringSaveError: 'Failed to save the fingering annotations.',
     annotationSaveError: 'Failed to save the fingering note.',
   },
@@ -191,6 +192,10 @@ export const en: Messages = {
     emptyTitle: 'Your library is empty',
     emptyDescription: 'Scores are added to the library automatically when you open them.',
     emptyOpenFileButton: 'Open file',
+    loadErrorTitle: 'Failed to load the library',
+    loadErrorDescription: 'Please try again.',
+    retryButton: 'Retry',
+    deleteErrorMessage: 'Failed to remove "{title}".',
     missingLabel: 'Missing',
     missingTitle: 'File not found (it may have been moved or deleted)',
     missingEntryErrorMessage:

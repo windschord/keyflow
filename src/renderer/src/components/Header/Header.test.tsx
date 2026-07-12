@@ -55,15 +55,17 @@ describe('Header', () => {
     const onOpenFile = vi.fn();
     const onOpenSettings = vi.fn();
     const onFingeringSuggested = vi.fn();
+    const onOpenLibrary = vi.fn();
     const props: React.ComponentProps<typeof Header> = {
       onOpenFile,
       onOpenSettings,
       onFingeringSuggested,
+      onOpenLibrary,
       score: null,
       ...overrides,
     };
     const utils = render(<Header {...props} />);
-    return { ...utils, onOpenFile, onOpenSettings, onFingeringSuggested };
+    return { ...utils, onOpenFile, onOpenSettings, onFingeringSuggested, onOpenLibrary };
   };
 
   it('renders as a single-row header no taller than 56px (REQ-012-001/005)', () => {
@@ -107,6 +109,20 @@ describe('Header', () => {
     renderHeader();
     const settingsButton = screen.getByLabelText('設定');
     expect(settingsButton.getAttribute('title')).toBe('設定');
+  });
+
+  describe('ライブラリボタン (TASK-103, US-017)', () => {
+    it('renders a library button with a Japanese aria-label/tooltip', () => {
+      renderHeader();
+      const libraryButton = screen.getByRole('button', { name: 'ライブラリ' });
+      expect(libraryButton.getAttribute('title')).toBe('ライブラリ画面を表示します');
+    });
+
+    it('calls onOpenLibrary when the library button is clicked', () => {
+      const { onOpenLibrary } = renderHeader();
+      fireEvent.click(screen.getByRole('button', { name: 'ライブラリ' }));
+      expect(onOpenLibrary).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('メトロノーム (header toggle, TASK-079)', () => {
@@ -346,6 +362,7 @@ describe('Header', () => {
         'View & tools (volume, zoom, fingering, stats)'
       );
       expect(screen.getByRole('button', { name: 'Reset tempo' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Library' })).toBeInTheDocument();
     });
   });
 });

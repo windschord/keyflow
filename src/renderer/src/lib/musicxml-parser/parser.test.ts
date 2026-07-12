@@ -78,6 +78,52 @@ describe('MusicXML Parser', () => {
     expect(score.title).toBe('Test Sonata');
   });
 
+  it('parses <identification><creator type="composer"> as score composer (TASK-103)', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <work><work-title>Test Sonata</work-title></work>
+  <identification>
+    <creator type="composer">Ludwig van Beethoven</creator>
+    <creator type="lyricist">Someone Else</creator>
+  </identification>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part>
+</score-partwise>`;
+    const score = parse(xml);
+    expect(score.composer).toBe('Ludwig van Beethoven');
+  });
+
+  it('returns an empty composer when <identification> has no composer creator (TASK-103)', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <identification>
+    <creator type="lyricist">Someone Else</creator>
+  </identification>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part>
+</score-partwise>`;
+    const score = parse(xml);
+    expect(score.composer).toBe('');
+  });
+
+  it('returns an empty composer when <identification> is entirely absent (TASK-103)', () => {
+    const score = parse(SIMPLE_XML);
+    expect(score.composer).toBe('');
+  });
+
+  it('parses a single <creator type="composer"> without wrapping it in an array (TASK-103)', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise>
+  <identification>
+    <creator type="composer">Frederic Chopin</creator>
+  </identification>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part>
+</score-partwise>`;
+    const score = parse(xml);
+    expect(score.composer).toBe('Frederic Chopin');
+  });
+
   it('parses time signature and key from attributes', () => {
     const xml = `<?xml version="1.0"?>
 <score-partwise>

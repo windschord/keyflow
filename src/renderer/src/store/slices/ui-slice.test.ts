@@ -442,8 +442,8 @@ describe('createUiSlice language/setLanguage (TASK-096)', () => {
   it('initializes language to "ja" (immediately overwritten by resolveLanguage at App.tsx startup)', () => {
     const set = vi.fn();
     const get = vi.fn();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const api = {} as any;
+    // apiはcreateUiSliceの実装で未使用のため、シグネチャ上の型へキャストしたダミーを渡す
+    const api = {} as unknown as Parameters<typeof createUiSlice>[2];
     const slice = createUiSlice(set, get, api);
 
     expect(slice.language).toBe('ja');
@@ -456,8 +456,8 @@ describe('createUiSlice language/setLanguage (TASK-096)', () => {
       state = { ...state, ...partial };
     });
     const get = vi.fn(() => state);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const api = {} as any;
+    // apiはcreateUiSliceの実装で未使用のため、シグネチャ上の型へキャストしたダミーを渡す
+    const api = {} as unknown as Parameters<typeof createUiSlice>[2];
     const slice = createUiSlice(set, get, api);
 
     slice.setLanguage('en');

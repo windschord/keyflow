@@ -58,8 +58,15 @@ export function createIsolatedUserDataDir(language: 'ja' | 'en' = 'ja'): string 
   return dir;
 }
 
-/** テスト終了時に隔離userDataディレクトリを削除する。 */
-export function removeIsolatedUserDataDir(dir: string): void {
+/**
+ * テスト終了時に隔離userDataディレクトリを削除する。
+ * テストがディレクトリ作成前に失敗したケース（dir未代入）でもafterEachが
+ * TypeErrorで本来の失敗理由をマスクしないよう、undefinedは何もせず許容する。
+ */
+export function removeIsolatedUserDataDir(dir: string | undefined): void {
+  if (!dir) {
+    return;
+  }
   fs.rmSync(dir, { recursive: true, force: true });
 }
 

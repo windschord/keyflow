@@ -77,6 +77,8 @@ export const ja = {
     openFileTitle: 'MusicXMLファイルを開きます',
     quickPanelAriaLabel: '表示・補助',
     quickPanelTitle: '表示・補助（音量・表示倍率・運指・成績）',
+    libraryButtonAriaLabel: 'ライブラリ',
+    libraryButtonTitle: 'ライブラリ画面を表示します',
     settingsAriaLabel: '設定',
     settingsTitle: '設定',
   },
@@ -192,5 +194,10 @@ export const ja = {
     emptyOpenFileButton: 'ファイルを開く',
     missingLabel: '見つかりません',
     missingTitle: 'ファイルが見つかりません（移動または削除された可能性があります）',
+    missingEntryErrorMessage:
+      '選択した楽譜ファイルが見つかりませんでした。移動または削除された可能性があります。',
+    missingEntryConfirmTitle: 'ライブラリから削除しますか',
+    missingEntryConfirmMessage:
+      'このファイルをライブラリから削除しますか。元のファイルの場所は変更されません。',
   },
 } as const satisfies Record<string, Record<string, string>>;

@@ -77,6 +77,28 @@ function tickToSeconds(tick: number, tempoMap: TempoEvent[]): number {
   return seconds;
 }
 
+/**
+ * `<identification><creator type="composer">`から作曲者名を抽出する（TASK-103）。
+ * `<creator>`が1件のみの場合はオブジェクト、複数の場合は配列で返るため両方に対応する。
+ * 対応する要素が見つからない場合は空文字を返す。
+ */
+function extractComposer(scorePartwise: Record<string, unknown> | undefined): string {
+  const identification = scorePartwise?.['identification'] as Record<string, unknown> | undefined;
+  const rawCreators = identification?.['creator'];
+  if (rawCreators === undefined) return '';
+
+  const creators = Array.isArray(rawCreators) ? rawCreators : [rawCreators];
+  for (const raw of creators) {
+    if (!raw || typeof raw !== 'object') continue;
+    const creator = raw as Record<string, unknown>;
+    if (creator['@_type'] === 'composer') {
+      const text = creator['#text'];
+      return typeof text === 'string' ? text.trim() : '';
+    }
+  }
+  return '';
+}
+
 function getDirectChildByTag(el: Element, tag: string): Element | null {
   for (const child of Array.from(el.children)) {
     if (child.tagName === tag) return child;
@@ -193,6 +215,8 @@ export function parse(xmlContent: string): Score {
     ((scorePartwise?.['work'] as Record<string, unknown>)?.['work-title'] as string | undefined) ||
     (scorePartwise?.['movement-title'] as string | undefined) ||
     'Untitled';
+
+  const composer = extractComposer(scorePartwise);
 
   const partsList = (scorePartwise?.['part-list'] as Record<string, unknown>)?.['score-part'] || [];
   const parts: Part[] = [];
@@ -530,6 +554,7 @@ export function parse(xmlContent: string): Score {
 
   return {
     title,
+    composer,
     parts,
     measures,
     tempo,

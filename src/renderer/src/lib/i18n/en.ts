@@ -73,6 +73,8 @@ export const en: Messages = {
     openFileTitle: 'Open a MusicXML file',
     quickPanelAriaLabel: 'View & tools',
     quickPanelTitle: 'View & tools (volume, zoom, fingering, stats)',
+    libraryButtonAriaLabel: 'Library',
+    libraryButtonTitle: 'Show the library screen',
     settingsAriaLabel: 'Settings',
     settingsTitle: 'Settings',
   },
@@ -191,5 +193,10 @@ export const en: Messages = {
     emptyOpenFileButton: 'Open file',
     missingLabel: 'Missing',
     missingTitle: 'File not found (it may have been moved or deleted)',
+    missingEntryErrorMessage:
+      'The selected score file was not found. It may have been moved or deleted.',
+    missingEntryConfirmTitle: 'Remove from library',
+    missingEntryConfirmMessage:
+      'Remove this file from the library? The original file location is not changed.',
   },
 };

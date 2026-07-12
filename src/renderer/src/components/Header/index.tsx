@@ -23,6 +23,8 @@ export interface HeaderProps {
   onFingeringSuggested: (assignments: FingerAssignment[]) => void;
   /** アノテーション読み込み中など、運指提案ボタンを無効化したい場合にtrue。 */
   fingeringDisabled?: boolean;
+  /** ライブラリボタンクリック時に呼び出される（US-017、TASK-103）。 */
+  onOpenLibrary: () => void;
 }
 
 const ICON_BUTTON_STYLE: React.CSSProperties = {
@@ -71,6 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
   score,
   onFingeringSuggested,
   fingeringDisabled,
+  onOpenLibrary,
 }) => {
   const t = useTranslation();
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
@@ -136,6 +139,29 @@ export const Header: React.FC<HeaderProps> = ({
             flexShrink: 0,
           }}
         >
+          <button
+            type="button"
+            onClick={onOpenLibrary}
+            aria-label={t.header.libraryButtonAriaLabel}
+            title={t.header.libraryButtonTitle}
+            style={ICON_BUTTON_STYLE}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </button>
+
           <button
             ref={quickPanelAnchorRef}
             type="button"

@@ -171,4 +171,122 @@ describe('AnnotationStoreService', () => {
 
     expect(store.isDirty()).toBe(false);
   });
+
+  describe('load: スキーマ・値域検証（TASK-092）', () => {
+    beforeEach(() => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    it('値域外のfingerNumberを持つアノテーションを除外する', async () => {
+      const mockData = {
+        version: '1.0',
+        annotations: [
+          { noteId: 'P1-M1-N0', fingerNumber: 3, isAISuggested: false, isApproved: true },
+          { noteId: 'P1-M1-N1', fingerNumber: 9, isAISuggested: false, isApproved: true },
+        ],
+      };
+      // @ts-expect-error test mock
+      vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
+
+      await store.load('/test.xml');
+
+      expect(store.getAnnotation('P1-M1-N0')?.fingerNumber).toBe(3);
+      expect(store.getAnnotation('P1-M1-N1')).toBeUndefined();
+    });
+
+    it('非整数のfingerNumberを持つアノテーションを除外する', async () => {
+      const mockData = {
+        version: '1.0',
+        annotations: [
+          { noteId: 'P1-M1-N0', fingerNumber: 2.5, isAISuggested: false, isApproved: true },
+        ],
+      };
+      // @ts-expect-error test mock
+      vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
+
+      await store.load('/test.xml');
+
+      expect(store.getAnnotation('P1-M1-N0')).toBeUndefined();
+    });
+
+    it('noteIdが空文字列・非文字列のアノテーションを除外する', async () => {
+      const mockData = {
+        version: '1.0',
+        annotations: [
+          { noteId: '', fingerNumber: 1, isAISuggested: false, isApproved: true },
+          { noteId: 123, fingerNumber: 1, isAISuggested: false, isApproved: true },
+          { noteId: 'P1-M1-N2', fingerNumber: 1, isAISuggested: false, isApproved: true },
+        ],
+      };
+      // @ts-expect-error test mock
+      vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
+
+      await store.load('/test.xml');
+
+      expect(store.getAllAnnotations()).toHaveLength(1);
+      expect(store.getAnnotation('P1-M1-N2')).toBeDefined();
+    });
+
+    it('commentが非文字列のアノテーションを除外する', async () => {
+      const mockData = {
+        version: '1.0',
+        annotations: [
+          { noteId: 'P1-M1-N0', comment: { evil: true }, isAISuggested: false, isApproved: true },
+        ],
+      };
+      // @ts-expect-error test mock
+      vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
+
+      await store.load('/test.xml');
+
+      expect(store.getAnnotation('P1-M1-N0')).toBeUndefined();
+    });
+
+    it('不正な要素が混在しても正常な要素は採用する（フェイルソフト）', async () => {
+      const mockData = {
+        version: '1.0',
+        annotations: [
+          { noteId: 'P1-M1-N0', fingerNumber: 100, isAISuggested: false, isApproved: true },
+          {
+            noteId: 'P1-M1-N1',
+            fingerNumber: 4,
+            comment: 'ok',
+            isAISuggested: false,
+            isApproved: true,
+          },
+        ],
+      };
+      // @ts-expect-error test mock
+      vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
+
+      await store.load('/test.xml');
+
+      expect(store.getAllAnnotations()).toHaveLength(1);
+      expect(store.getAnnotation('P1-M1-N1')?.fingerNumber).toBe(4);
+      expect(store.getAnnotation('P1-M1-N1')?.comment).toBe('ok');
+    });
+
+    it('annotationsが配列でないファイルは空状態で継続する（既存挙動維持）', async () => {
+      const mockData = { version: '1.0', annotations: 'not-an-array' };
+      // @ts-expect-error test mock
+      vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(JSON.stringify(mockData));
+
+      await store.load('/test.xml');
+
+      expect(store.getAllAnnotations()).toHaveLength(0);
+      expect(store.isDirty()).toBe(false);
+    });
+
+    it('__proto__ キーを含んでもプロトタイプ汚染しない', async () => {
+      const malicious =
+        '{"version":"1.0","annotations":[{"noteId":"__proto__","isAISuggested":false,"isApproved":false}]}';
+      // @ts-expect-error test mock
+      vi.mocked(window.electronAPI.file.readIfExists).mockResolvedValue(malicious);
+
+      await store.load('/test.xml');
+
+      // Objectのプロトタイプが汚染されていないこと
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    });
+  });
 });

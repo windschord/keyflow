@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
-import { unzipSync } from 'fflate';
+import { unzipSync, type Unzipped, type UnzipFileInfo } from 'fflate';
 import { Score, Part, Measure, Note, TempoEvent, Hand, PedalSpan } from '../../types';
 import { toMidiNumber } from './midi-utils';
 import { detectHand } from './hand-detector';
@@ -14,6 +14,45 @@ export class MusicXMLParseError extends Error {
 /** 正規化PPQ（Pulses Per Quarter note）。DEC-005で定数480に決定。 */
 const TICKS_PER_QUARTER = 480;
 const DEFAULT_TEMPO = 120;
+
+/**
+ * パース対象XMLの最大文字数（3千万文字）。悪意ある巨大ファイルによるメモリ枯渇DoSを
+ * 防ぐ上限（TASK-091）。実在の譜面は数KB〜数百KB規模であり、十分な余裕を持たせている。
+ */
+const MAX_XML_LENGTH = 30_000_000;
+
+/**
+ * .mxl展開後の全エントリ合計サイズの上限（50MB、TASK-091）。
+ * 実際の展開（inflateSync）の前に、fflateの`unzipSync`の`filter`コールバックで
+ * ZIPヘッダの宣言サイズ（`UnzipFileInfo.originalSize`）を検査する。
+ * これにより、高圧縮率のzip爆弾でも展開バッファを確保する前に遮断できる。
+ */
+const MAX_UNZIPPED_BYTES = 50 * 1024 * 1024;
+
+/** .mxl内のエントリ数上限。zip爆弾のエントリ数増幅対策（TASK-091）。 */
+const MAX_ZIP_ENTRIES = 1000;
+
+/**
+ * DOCTYPE宣言のうち、内部サブセット（角括弧で囲む部分）を伴うものだけを危険として検出する（TASK-091）。
+ *
+ * 内部サブセットはカスタムエンティティを宣言できる箇所であり、実体参照の入れ子展開
+ * （billion laughs型DoS）の攻撃面となる。一方、主要な採譜ソフト（MuseScore・Finale・
+ * Sibelius）の出力や本プロジェクトのE2Eフィクスチャは、外部DTD参照のみのDOCTYPEを持つ。
+ * これを一律拒否すると実在する正常なMusicXMLを開けなくなり、リグレッションになる。
+ * 外部DTD自体は両パーサとも取得しない（XXE不成立）ため、外部参照のみのDOCTYPEにリスクはない。
+ * そのため、内部サブセットを伴うDOCTYPEのみを拒否対象とする。
+ */
+function hasDoctypeWithInternalSubset(xmlContent: string): boolean {
+  const doctypeIndex = xmlContent.search(/<!DOCTYPE/i);
+  if (doctypeIndex === -1) return false;
+  const rest = xmlContent.slice(doctypeIndex);
+  const bracketIndex = rest.indexOf('[');
+  if (bracketIndex === -1) return false; // 内部サブセットなし（外部DTD参照のみ）
+  const closeIndex = rest.indexOf('>');
+  // 閉じ`>`が見つからない（壊れたXML）場合は安全側で拒否する。
+  if (closeIndex === -1) return true;
+  return bracketIndex < closeIndex;
+}
 
 interface MeasureBuilder {
   number: number;
@@ -99,6 +138,26 @@ export function parse(xmlContent: string): Score {
     throw new MusicXMLParseError('Empty XML content');
   }
 
+  // 入力堅牢化（TASK-091）: 巨大ファイルによるメモリ枯渇DoSを防ぐ上限チェック。
+  if (xmlContent.length > MAX_XML_LENGTH) {
+    throw new MusicXMLParseError(
+      `XML content exceeds the maximum allowed length (${MAX_XML_LENGTH} characters)`
+    );
+  }
+
+  // 入力堅牢化（TASK-091）: 内部サブセットを伴うDOCTYPEを拒否し、内部エンティティ
+  // 展開（billion laughs）を遮断する。外部DTD参照のみのDOCTYPEは許可する
+  // （`hasDoctypeWithInternalSubset`のコメント参照）。
+  if (hasDoctypeWithInternalSubset(xmlContent)) {
+    throw new MusicXMLParseError(
+      'DOCTYPE declarations with an internal subset are not allowed in MusicXML input'
+    );
+  }
+
+  // 入力堅牢化（TASK-091）: `processEntities` は既定（true）のまま維持する。
+  // 実体展開DoS（billion laughs）は内部サブセット付きDOCTYPEを上記で拒否済みのため
+  // 成立しない。ここで false にすると `&amp;` / `&lt;` 等の予約実体参照まで復号されず、
+  // 曲名・パート名・歌詞に `&` を含む譜面の表示を壊す副作用があるため採用しない。
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
@@ -483,14 +542,52 @@ export function parse(xmlContent: string): Score {
 }
 
 export function extractXmlFromMxl(buffer: ArrayBuffer): string {
-  const files = unzipSync(new Uint8Array(buffer));
+  // 入力堅牢化（TASK-091）: zip爆弾対策。fflateの`unzipSync`は各エントリの展開直前に
+  // `filter`コールバックを呼ぶ。ここでエントリ数と宣言サイズ`originalSize`を検査して
+  // 例外を投げれば、実際の展開バッファを確保する前に遮断できる。
+  // 全エントリを展開してから合計を検査する方式は、展開自体で巨大バッファを確保するため採らない。
+  let entryCount = 0;
+  let totalDeclaredBytes = 0;
+  const filter = (file: UnzipFileInfo): boolean => {
+    entryCount++;
+    if (entryCount > MAX_ZIP_ENTRIES) {
+      throw new MusicXMLParseError(
+        `MXL archive contains too many entries (limit: ${MAX_ZIP_ENTRIES})`
+      );
+    }
+    totalDeclaredBytes += file.originalSize;
+    if (file.originalSize > MAX_UNZIPPED_BYTES || totalDeclaredBytes > MAX_UNZIPPED_BYTES) {
+      throw new MusicXMLParseError(
+        `MXL archive uncompressed size exceeds the limit (${MAX_UNZIPPED_BYTES} bytes)`
+      );
+    }
+    return true;
+  };
+
+  let files: Unzipped;
+  try {
+    files = unzipSync(new Uint8Array(buffer), { filter });
+  } catch (err: unknown) {
+    if (err instanceof MusicXMLParseError) throw err;
+    throw new MusicXMLParseError(
+      'Invalid MXL format: ' + (err instanceof Error ? err.message : String(err))
+    );
+  }
 
   // Find the root file from META-INF/container.xml
   let rootFilePath = '';
   const containerXml = files['META-INF/container.xml'];
   if (containerXml) {
     const containerText = new TextDecoder().decode(containerXml);
-    const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
+    // 入力堅牢化（TASK-091）: container.xmlはparse()と違いDOCTYPE検査を通していない。
+    // このパーサでは `processEntities: false` にして実体展開DoSを遮断する。
+    // container.xmlはパス属性のみを持ち予約実体参照を含む正当な理由がないため、
+    // 無効化による副作用の懸念もない。
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: '@_',
+      processEntities: false,
+    });
     const parsedContainer = parser.parse(containerText);
     const rootfiles = parsedContainer['container']?.['rootfiles']?.['rootfile'];
 
@@ -519,7 +616,18 @@ export function extractXmlFromMxl(buffer: ArrayBuffer): string {
     throw new MusicXMLParseError('Invalid MXL format: Could not find root MusicXML file');
   }
 
-  return new TextDecoder().decode(files[rootFilePath]);
+  // 展開後サイズの二重防御（TASK-091）: filterコールバックはZIPヘッダの宣言値
+  // （originalSize）を実際の展開前に検査しているが、宣言値と実データが一致しない
+  // 不正なZIPに備え、実際に得られたUint8Arrayの長さもTextDecoderへ渡す直前に
+  // 再検査する。
+  const rootFileBytes = files[rootFilePath];
+  if (rootFileBytes.length > MAX_UNZIPPED_BYTES) {
+    throw new MusicXMLParseError(
+      `MXL archive uncompressed size exceeds the limit (${MAX_UNZIPPED_BYTES} bytes)`
+    );
+  }
+
+  return new TextDecoder().decode(rootFileBytes);
 }
 
 export function parseMxl(buffer: ArrayBuffer): Score {

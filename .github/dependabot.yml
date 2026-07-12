@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # npm依存の脆弱性・バージョン追随。devDependenciesはまとめてノイズを抑える。
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actionsのバージョン追随。SHAピン留めのままバージョンコメントごと更新される。
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

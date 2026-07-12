@@ -122,6 +122,12 @@ src/
 - `generate-licenses.mjs`: `dependencies` を起点に `node_modules/*/package.json` とLICENSE本文を走査し `src/renderer/src/generated/licenses.json` を出力。`predev`/`prebuild`/`prelint`/`pretest`/`pretest:coverage` の各npmフックから自動生成される（DEC-008、TASK-076）
 - `lint-jp-ts-comments.mjs`: TypeScriptコメントの日本語チェック
 
+## CI・リリース・依存管理
+
+- `.github/workflows/release.yml`: タグ（`v*`）push時にWindows/macOS成果物を単一Releaseへ添付（TASK-085）。成果物には `SHA256SUMS.txt` とGitHub Actionsの来歴証明（`actions/attest-build-provenance`）を付与し、入手者が完全性を検証できる（TASK-093、検証手順はREADME）。permissionsは最小権限（既定read、buildジョブは`id-token`/`attestations`、releaseジョブは`contents: write`）。コード署名・公証は未対応（`identity: null`）
+- `.github/dependabot.yml`: npm・github-actionsの依存を weekly で自動更新（TASK-094）。devDependenciesはグループ化
+- リリースの`build-windows`/`build-macos`ジョブは素の`npm ci`（electron/esbuild/electron-winstallerのinstallスクリプトがビルドに必須のため`--ignore-scripts`不可）。CI（`ci.yml`）側は全ジョブ`npm ci --ignore-scripts`
+
 ## よく使うコマンド
 
 ```bash
@@ -202,6 +208,14 @@ npm run build:mac
 - アノテーション: `{MusicXMLのパス}.annotation.json`（同フォルダに保存）
 - `noteId` フォーマット: `{partId}-M{measureNumber}-N{noteIndex}` 例: `P1-M3-N0`
 - 設定スキーマ（electron-store、`AppSettings`）: `ui` / `practice` / `midi` に加え `audio: { playbackVoice, metronomeVoice }`（既定値 `'grand-piano'` / `'click'`、TASK-073）。キー欠落時はDEFAULT_SETTINGSとの浅いマージで後方互換を維持する
+- アノテーション読み込み（`annotation-store/index.ts` の `load()`）はスキーマ・値域検証つき（TASK-092）。`normalizeAnnotation` で不正な要素（`noteId` 非文字列/空、`fingerNumber` 値域外/非整数、`comment` 非文字列）を除外するフェイルソフト方式。`annotations` が非配列のファイルは空状態で継続する
+
+### 入力ファイルの堅牢化（MusicXML/MXLパース、TASK-091）
+- `musicxml-parser/parser.ts` はDoS耐性のため以下を検査する。XXEは両パーサとも外部エンティティを解決しないため対象外
+  - XMLサイズ上限 `MAX_XML_LENGTH`（3千万文字）超過を拒否
+  - **内部サブセット付きDOCTYPEのみ**拒否（`hasDoctypeWithInternalSubset`）。billion laughs型の実体展開DoSを遮断する一方、実在の標準MusicXMLが持つ外部DTD参照のみのDOCTYPE（例: `sample-two-hands.musicxml`）は許可する
+  - メインパーサの `processEntities` は既定（true）維持（`&amp;` 等の予約実体参照を正しく復号するため）。`container.xml` 用パーサはDOCTYPE非検査のため `processEntities: false`
+  - `.mxl` 展開は `unzipSync` の `filter` コールバックで展開前に宣言サイズ（`originalSize`）・エントリ数を検査し、zip爆弾を展開バッファ確保前に遮断（`MAX_UNZIPPED_BYTES` = 50MB、`MAX_ZIP_ENTRIES` = 1000）
 
 ### 実起動E2Eテスト（Playwright for Electron、TASK-034）
 - `tests/e2e/`: `npm run build` で生成した `out/main/index.js` を実際に起動し、実UI操作のみで検証するE2Eスイート（`playwright.config.ts`）

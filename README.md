@@ -128,6 +128,38 @@ npm run typecheck     # TypeScript型チェック
 macOS向けリリース前は`npm run build:mac`でパッケージビルドした後、実バイナリの
 起動スモークテスト`npm run test:packaged`を実行し、メインウィンドウが表示されることを確認する。
 
+### リリース手順（メンテナ向け）
+
+リリースはタグのpushで自動化されている（`.github/workflows/release.yml`）。手順は以下のとおり。
+
+1. **事前確認**: mainが緑（CI通過）で、`npm run build:mac` → `npm run test:packaged` のスモークが通ること（上記「リリース前チェック」）。
+2. **タグを打ってpush**（`v` プレフィックス必須。これがワークフローのトリガー）:
+
+   ```bash
+   git checkout main && git pull
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+3. **ワークフローの通し確認**: `build-windows` / `build-macos` / `release` の3ジョブが実行される。ビルド2ジョブは成果物へビルド来歴証明（attestation）を付与し、`release` ジョブが全成果物と `SHA256SUMS.txt` を単一のGitHub Releaseへ添付する。
+
+   ```bash
+   gh run watch                        # 実行中ジョブの進捗を追う
+   gh run list --workflow=release.yml  # 3ジョブの成否を一覧確認
+   ```
+
+4. **成果物の検証**: 添付物が揃っていること（Windows .exe、macOS .dmg×2 / .zip×2、`SHA256SUMS.txt`）を確認し、来歴証明とチェックサムを検証する。
+
+   ```bash
+   gh release download v0.1.0 -D ./verify   # 成果物とSHA256SUMS.txtをまとめて取得
+   cd verify
+   gh attestation verify keyflow.Setup.0.1.0.exe --repo windschord/keyflow
+   shasum -a 256 -c SHA256SUMS.txt          # Linuxは sha256sum -c
+   ```
+
+コード署名・公証は未対応（`electron-builder.yml` の `identity: null`）。初回起動時のOS警告は既知の制約。
+検証用のプレリリースを試す場合は `v0.1.0-rc.1` のようなタグを使い、Releaseをプレリリースとしてマークする。
+
 ---
 
 ## ドキュメント

@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 
+// TASK-088: main側がKEYFLOW_E2E=1のときのみ webPreferences.additionalArguments に
+// '--keyflow-e2e' を追加する（src/main/index.ts参照）。sandboxを有効化した状態の
+// preloadでも process.argv は参照可能なため、この引数の有無でE2E実行時のみを判定する。
+const isE2E = process.argv.includes('--keyflow-e2e');
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -46,6 +51,9 @@ if (process.contextIsolated) {
           return () => ipcRenderer.removeListener('menu:open-about', handler);
         },
       },
+      // TASK-088: 実起動E2E専用計装（__e2eStore__/__e2eMidiHooks__）の公開可否を
+      // rendererが判定するためのフラグ。
+      isE2E,
     });
   } catch (error) {
     console.error('[preload] Failed to expose electronAPI:', error);
@@ -85,5 +93,8 @@ if (process.contextIsolated) {
         return () => ipcRenderer.removeListener('menu:open-about', handler);
       },
     },
+    // TASK-088: 実起動E2E専用計装（__e2eStore__/__e2eMidiHooks__）の公開可否を
+    // rendererが判定するためのフラグ。
+    isE2E,
   };
 }

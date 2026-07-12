@@ -73,3 +73,76 @@ export function createRegisterDroppedFileHandler(
     return true;
   };
 }
+
+/**
+ * ipcMain.handle に渡す fs.promises 依存の最小インターフェース。
+ * テストでは実ファイルシステムに触れず readFile のみ差し替えられるようにする。
+ */
+export interface TextFileReader {
+  readFile(path: string, encoding: 'utf-8'): Promise<string>;
+}
+
+export interface BinaryFileReader {
+  readFile(path: string): Promise<Buffer>;
+}
+
+/**
+ * `file:read` IPCハンドラのファクトリ（TASK-086）。
+ *
+ * PathAllowlist.assertAllowedReadPath で「ユーザーが開いたMusicXML本体、または
+ * その注釈サイドカー」のみに読み取り対象を制限してから fs.promises.readFile を呼ぶ。
+ * 許可されないパスは読み取り前に例外を投げ、fs モジュールには触れない。
+ */
+export function createReadFileHandler(
+  pathAllowlist: PathAllowlist,
+  fsModule: TextFileReader
+): (event: unknown, path: string) => Promise<string> {
+  return async (_event: unknown, path: string): Promise<string> => {
+    const allowedPath = pathAllowlist.assertAllowedReadPath(path);
+    return fsModule.readFile(allowedPath, 'utf-8');
+  };
+}
+
+/**
+ * `file:read-if-exists` IPCハンドラのファクトリ（TASK-086）。
+ *
+ * 注釈サイドカーファイルのように「存在しないのが正常」な読み取り対象向け。
+ * assertAllowedReadPath の許可判定は createReadFileHandler と同一で、
+ * ENOENT のみ null を返し他のエラーはそのまま呼び出し元へ伝播する。
+ */
+export function createReadFileIfExistsHandler(
+  pathAllowlist: PathAllowlist,
+  fsModule: TextFileReader
+): (event: unknown, path: string) => Promise<string | null> {
+  return async (_event: unknown, path: string): Promise<string | null> => {
+    const allowedPath = pathAllowlist.assertAllowedReadPath(path);
+    try {
+      return await fsModule.readFile(allowedPath, 'utf-8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw err;
+    }
+  };
+}
+
+/**
+ * `file:read-binary` IPCハンドラのファクトリ（TASK-086）。
+ *
+ * .mxl（圧縮MusicXML）読み取り用。assertAllowedReadPath の許可判定は
+ * createReadFileHandler と同一で、IPC経由でArrayBufferとして送るために
+ * Buffer を ArrayBuffer へ変換して返す。
+ */
+export function createReadBinaryFileHandler(
+  pathAllowlist: PathAllowlist,
+  fsModule: BinaryFileReader
+): (event: unknown, path: string) => Promise<ArrayBuffer> {
+  return async (_event: unknown, path: string): Promise<ArrayBuffer> => {
+    const allowedPath = pathAllowlist.assertAllowedReadPath(path);
+    const content = await fsModule.readFile(allowedPath);
+    // Buffer.buffer は SharedArrayBuffer の可能性を含む ArrayBufferLike 型のため、
+    // 新規 ArrayBuffer へコピーして型を確定させる（IPC経由で送るには元々コピーが必要）。
+    const arrayBuffer = new ArrayBuffer(content.byteLength);
+    new Uint8Array(arrayBuffer).set(content);
+    return arrayBuffer;
+  };
+}

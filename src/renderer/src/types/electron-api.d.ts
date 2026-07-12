@@ -40,6 +40,14 @@ export interface ElectronAPI {
      */
     onOpenAbout(callback: () => void): () => void;
   };
+  /**
+   * TASK-088: 実起動E2E（Playwright for Electron）実行時のみtrueになるフラグ。
+   * main側で環境変数 `KEYFLOW_E2E=1` のときだけ `webPreferences.additionalArguments`
+   * に `--keyflow-e2e` が渡され、preloadが `process.argv` からこれを判定して公開する。
+   * `window.__e2eStore__` / `window.__e2eMidiHooks__`（E2E専用計装）の公開有無を
+   * このフラグで制御し、本番ビルド（フラグなし起動）では計装を公開しない。
+   */
+  isE2E: boolean;
 }
 
 declare global {

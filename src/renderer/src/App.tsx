@@ -153,7 +153,10 @@ function App(): React.JSX.Element {
   // テスト専用の代替実装ではない。E2Eテストはここに公開された参照から
   // getState() で状態（currentMeasure/currentNoteIndex/statsなど）を読み取り、
   // MIDI入力に対する正誤判定・カーソル進行の結果を検証する（読み取り専用の計装）。
+  // TASK-088: 本番ビルドで攻撃対象領域を無用に広げないよう、electronAPI.isE2E
+  // （main側KEYFLOW_E2E=1起動時のみpreloadが公開するフラグ）がtrueの場合のみ公開する。
   React.useEffect(() => {
+    if (!window.electronAPI?.isE2E) return;
     (window as unknown as { __e2eStore__?: typeof usePracticeStore }).__e2eStore__ =
       usePracticeStore;
   }, []);

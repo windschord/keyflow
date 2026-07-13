@@ -11,7 +11,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { readdirSync, statSync } from 'node:fs';
 
-const JAPANESE_PATTERN = /[　-鿿＀-￯゠-ヿ぀-ゟ]/;
+// 日本語判定: U+3000〜U+9FFF（CJK記号・かな・漢字ブロック一帯）と
+// U+FF00〜U+FFEF（全角英数・半角カナ等）を対象とする
+const JAPANESE_PATTERN = /[　-鿿＀-￯]/;
 
 /**
  * ディレクトリを再帰的に走査して指定した拡張子のファイル一覧を返す

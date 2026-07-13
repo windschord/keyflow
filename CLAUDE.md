@@ -258,6 +258,22 @@ npm run build:mac
   隣接する「ファイルを開く」ボタンにはE2Eでの一意特定用に`data-testid="header-open-file-button"`を
   付与している（LibraryView空状態のボタンも同じ文言のため、TASK-104）
 
+### UI多言語対応（i18n、US-016）
+- 表示言語は`AppSettings.ui.language: 'auto' | 'ja' | 'en'`（既定値`'auto'`）。`'auto'`はOSロケールに
+  よる自動判定を意味し、Rendererは`resolve-language.ts`、Mainは`locale.ts`が同一規則
+  （保存値が`'ja'`/`'en'`ならそのまま採用、それ以外はOSロケールが`ja`前方一致なら`'ja'`、
+  それ以外は`'en'`）で解決する。既存設定ファイルに保存済みの`'ja'`はそのまま日本語として扱われる
+- Rendererの翻訳リソースは`src/renderer/src/lib/i18n/`（`ja.ts`/`en.ts`）。コンポーネントからは
+  `useTranslation()`で取得した`t`を`t.header.play`のように参照する。キー欠落は`en`への型適合強制
+  （`en: Messages`）でコンパイル時に検出され、実行時フォールバック（`getMessages`のマージ）は
+  防御的に用意されている
+- 言語切り替えはSettingsModalの言語セレクタから行う。`ui-slice.setLanguage`でRendererのUIが即時
+  再描画され、`settings:set`で永続化される。新規IPCチャンネルは追加していない
+- Mainのアプリケーションメニュー（`src/main/menu.ts`のラベル）は起動時（`app.getLocale()`と保存値から
+  解決）と、言語変更時（`settings:set`ハンドラが`settings-handlers.ts`経由で検知し
+  `Menu.setApplicationMenu`を再構築）の双方で言語に応じて構築される。role指定の標準メニュー項目
+  （undo/redo/cut/copy/paste等）は言語に関わらず不変
+
 ### Web Worker（運指エンジン）
 - `fingering.worker.ts` は Vite の `?worker` インポートで読み込む
 - メッセージ型: `FingeringRequest` / `FingeringResponse`（`src/workers/fingering/types.ts`）

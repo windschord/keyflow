@@ -19,7 +19,7 @@
 |------|-----------|----------|
 | Electronバージョン | v29を想定 | [x] 設計判断として決定 |
 | OSMDバージョン | 最新安定版（0.9.x系） | [x] 設計判断として決定 |
-| Zustand バージョン | v4 | [x] 設計判断として決定 |
+| Zustand バージョン | v5（2026-07-13にDependabotでv4から更新） | [x] 設計判断として決定 |
 | node-midi | v2.x | [x] 設計判断として決定 |
 
 ---
@@ -46,8 +46,8 @@
 | Phase 16: リリース自動化（2026-07-09） | 1 | 0 | 0 | 0 | [詳細](phase-16/) @phase-16/ |
 | Phase 17: セキュリティ強化（2026-07-11） | 5 | 0 | 0 | 0 | [詳細](phase-17/) @phase-17/ |
 | Phase 18: サプライチェーン・入力堅牢性強化（2026-07-11） | 5 | 0 | 0 | 0 | [詳細](phase-18/) @phase-18/ |
-| Phase 19: UI多言語対応（2026-07-12） | 4 | 1 | 0 | 0 | [詳細](phase-19/) @phase-19/ |
-| Phase 20: 楽譜ライブラリ（2026-07-12） | 5 | 1 | 0 | 0 | [詳細](phase-20/) @phase-20/ |
+| Phase 19: UI多言語対応（2026-07-12） | 5 | 0 | 0 | 0 | [詳細](phase-19/) @phase-19/ |
+| Phase 20: 楽譜ライブラリ（2026-07-12） | 6 | 0 | 0 | 0 | [詳細](phase-20/) @phase-20/ |
 
 **合計**: 104タスク / 推定合計: 約4930分（AIエージェント作業時間）
 
@@ -418,7 +418,7 @@
 | TASK-097 | 操作系UIの文言外部化（Header・Toolbar・Stats・Fingering・NoteContextMenu） | DONE | TASK-096 | 90min | [詳細](phase-19/TASK-097.md) @phase-19/TASK-097.md |
 | TASK-098 | 設定・About・エラー表示の文言外部化と言語セレクタUI | DONE | TASK-096 | 90min | [詳細](phase-19/TASK-098.md) @phase-19/TASK-098.md |
 | TASK-099 | メニューバーの多言語化と言語変更時の再構築（Main側） | DONE | TASK-096 | 60min | [詳細](phase-19/TASK-099.md) @phase-19/TASK-099.md |
-| TASK-100 | Phase 19統合検証・E2E言語切り替え・ドキュメント同期 | REVIEW | TASK-096〜099 | 60min | [詳細](phase-19/TASK-100.md) @phase-19/TASK-100.md |
+| TASK-100 | Phase 19統合検証・E2E言語切り替え・ドキュメント同期 | DONE | TASK-096〜099 | 60min | [詳細](phase-19/TASK-100.md) @phase-19/TASK-100.md |
 
 #### 並列実行グループM: Phase 19（TASK-096完了後に並列実行可能）
 
@@ -444,7 +444,7 @@
 | TASK-101 | LibraryServiceとlibrary:* IPC（Main側・preload公開） | DONE | - | 90min | [詳細](phase-20/TASK-101.md) @phase-20/TASK-101.md |
 | TASK-102 | LibraryView（一覧・検索・並べ替え・削除・空状態・i18n） | DONE | TASK-101 | 90min | [詳細](phase-20/TASK-102.md) @phase-20/TASK-102.md |
 | TASK-103 | ライブラリ統合（自動登録・開くフロー・画面切り替え・欠損処理） | DONE | TASK-101, TASK-102 | 90min | [詳細](phase-20/TASK-103.md) @phase-20/TASK-103.md |
-| TASK-104 | Phase 20統合検証・ライブラリE2E・ドキュメント同期 | REVIEW | TASK-101〜103 | 60min | [詳細](phase-20/TASK-104.md) @phase-20/TASK-104.md |
+| TASK-104 | Phase 20統合検証・ライブラリE2E・ドキュメント同期 | DONE | TASK-101〜103 | 60min | [詳細](phase-20/TASK-104.md) @phase-20/TASK-104.md |
 | TASK-105 | ライブラリ画面から元の楽譜表示へ戻る導線（REQ-017-012） | DONE | TASK-103 | 45min | [詳細](phase-20/TASK-105.md) @phase-20/TASK-105.md |
 | TASK-106 | [BugFix] ライブラリ往復時のOSMD再レンダリング抑止（即時復帰） | DONE | TASK-105 | 45min | [詳細](phase-20/TASK-106.md) @phase-20/TASK-106.md |
 

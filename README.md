@@ -79,7 +79,7 @@ Vite (electron-vite)   Build tooling
 OpenSheetMusicDisplay  MusicXML → staff notation rendering
 Web MIDI API           MIDI input, handled directly in the renderer process
 Tone.js                Audio synthesis (playback voices / metronome)
-Zustand v4             Global state management
+Zustand v5             Global state management
 Web Worker             Fingering DP computation (no UI blocking)
 electron-builder       Windows NSIS installer / macOS dmg+zip packaging
 Vitest                 Unit and integration tests

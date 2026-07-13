@@ -79,7 +79,7 @@ Vite (electron-vite)   ビルドツール
 OpenSheetMusicDisplay  MusicXML → 五線譜レンダリング
 Web MIDI API           MIDI入力（Rendererプロセスで直接処理）
 Tone.js                音声合成（再生音色・メトロノーム）
-Zustand v4             グローバル状態管理
+Zustand v5             グローバル状態管理
 Web Worker             運指DP計算（UIブロックなし）
 electron-builder       Windows NSISインストーラー / macOS dmg+zip 生成
 Vitest                 ユニット・統合テスト

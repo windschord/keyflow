@@ -2008,6 +2008,80 @@ describe('App - ライブラリ統合（TASK-103, US-017）', () => {
     expect(screen.getByTestId('mock-library-view')).toBeInTheDocument();
   });
 
+  describe('楽譜へ戻る導線 (TASK-105, REQ-017-012)', () => {
+    it('passes isReturnToScoreMode=false to Header and does not switch away from library when no score is loaded', () => {
+      render(<App />);
+
+      expect(latestHeaderProps.isReturnToScoreMode).toBe(false);
+
+      act(() => {
+        latestHeaderProps.onOpenLibrary();
+      });
+
+      expect(usePracticeStore.getState().activeView).toBe('library');
+    });
+
+    it('passes isReturnToScoreMode=true to Header once a score is loaded and the library is shown, and toggles back to score on click', async () => {
+      const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+      const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).electronAPI = {
+        file: { showOpenDialog: showOpenDialogMock, read: readMock },
+      };
+
+      render(<App />);
+      act(() => {
+        void latestHeaderProps.onOpenFile();
+      });
+      await waitFor(() => expect(usePracticeStore.getState().activeView).toBe('score'));
+
+      act(() => {
+        latestHeaderProps.onOpenLibrary();
+      });
+      expect(usePracticeStore.getState().activeView).toBe('library');
+      expect(latestHeaderProps.isReturnToScoreMode).toBe(true);
+
+      const readCallCountBeforeReturn = readMock.mock.calls.length;
+
+      act(() => {
+        latestHeaderProps.onOpenLibrary();
+      });
+
+      expect(usePracticeStore.getState().activeView).toBe('score');
+      // 再パースが発生しないこと（REQ-017-012の注意事項）。setActiveView('score')のみを呼ぶ。
+      expect(readMock.mock.calls.length).toBe(readCallCountBeforeReturn);
+    });
+
+    it('passes onReturnToScore to LibraryView only when a score is loaded', async () => {
+      const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+      const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).electronAPI = {
+        file: { showOpenDialog: showOpenDialogMock, read: readMock },
+      };
+
+      render(<App />);
+      expect(latestLibraryViewProps.onReturnToScore).toBeUndefined();
+
+      act(() => {
+        void latestHeaderProps.onOpenFile();
+      });
+      await waitFor(() => expect(usePracticeStore.getState().activeView).toBe('score'));
+
+      act(() => {
+        latestHeaderProps.onOpenLibrary();
+      });
+      expect(latestLibraryViewProps.onReturnToScore).toBeInstanceOf(Function);
+
+      act(() => {
+        latestLibraryViewProps.onReturnToScore();
+      });
+      expect(usePracticeStore.getState().activeView).toBe('score');
+    });
+  });
+
   it('opens a score selected from the library via electronAPI.library.open then the standard read/parse pipeline (REQ-017-007)', async () => {
     const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
     const libraryApi = makeLibraryApi({ open: vi.fn().mockResolvedValue({ ok: true }) });

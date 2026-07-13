@@ -125,6 +125,34 @@ describe('Header', () => {
     });
   });
 
+  describe('楽譜へ戻る導線 (TASK-105, REQ-017-012)', () => {
+    it('shows the library label/tooltip when isReturnToScoreMode is false (default)', () => {
+      renderHeader();
+      const button = screen.getByRole('button', { name: 'ライブラリ' });
+      expect(button.getAttribute('title')).toBe('ライブラリ画面を表示します');
+    });
+
+    it('switches to the return-to-score label/tooltip when isReturnToScoreMode is true', () => {
+      renderHeader({ isReturnToScoreMode: true });
+      const button = screen.getByRole('button', { name: '楽譜へ戻る' });
+      expect(button.getAttribute('title')).toBe('楽譜表示へ戻ります');
+      expect(screen.queryByRole('button', { name: 'ライブラリ' })).not.toBeInTheDocument();
+    });
+
+    it('still calls onOpenLibrary when the button is clicked in return-to-score mode', () => {
+      const { onOpenLibrary } = renderHeader({ isReturnToScoreMode: true });
+      fireEvent.click(screen.getByRole('button', { name: '楽譜へ戻る' }));
+      expect(onOpenLibrary).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the English return-to-score label/tooltip when the store language is "en"', () => {
+      usePracticeStore.setState({ language: 'en' });
+      renderHeader({ isReturnToScoreMode: true });
+      const button = screen.getByRole('button', { name: 'Back to score' });
+      expect(button.getAttribute('title')).toBe('Return to the score view');
+    });
+  });
+
   describe('メトロノーム (header toggle, TASK-079)', () => {
     it('renders a metronome toggle button in the header with aria-pressed reflecting metronomeEnabled', () => {
       renderHeader();

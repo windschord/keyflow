@@ -178,6 +178,45 @@ describe('LibraryView', () => {
     expect(screen.getByRole('button', { name: 'Open file' })).toBeInTheDocument();
   });
 
+  describe('楽譜へ戻るボタン (TASK-105, REQ-017-012)', () => {
+    it('does not render a return-to-score button when onReturnToScore is not provided', async () => {
+      libraryApi.getAll.mockResolvedValue([makeEntry({ path: '/a', title: 'Moonlight Sonata' })]);
+
+      render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
+
+      await screen.findByText('Moonlight Sonata');
+      expect(screen.queryByRole('button', { name: '楽譜へ戻る' })).not.toBeInTheDocument();
+    });
+
+    it('renders a return-to-score button and calls the callback when clicked', async () => {
+      libraryApi.getAll.mockResolvedValue([makeEntry({ path: '/a', title: 'Moonlight Sonata' })]);
+      const onReturnToScore = vi.fn();
+
+      render(
+        <LibraryView
+          onOpenEntry={vi.fn()}
+          onOpenFileDialog={vi.fn()}
+          onReturnToScore={onReturnToScore}
+        />
+      );
+
+      await screen.findByText('Moonlight Sonata');
+      fireEvent.click(screen.getByRole('button', { name: '楽譜へ戻る' }));
+      expect(onReturnToScore).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders the return-to-score button on the empty state as well', async () => {
+      libraryApi.getAll.mockResolvedValue([]);
+
+      render(
+        <LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} onReturnToScore={vi.fn()} />
+      );
+
+      expect(await screen.findByText('ライブラリに楽譜がありません')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '楽譜へ戻る' })).toBeInTheDocument();
+    });
+  });
+
   // CodeRabbit #46 Major指摘5: getAll()失敗時に空状態と混同されない専用のエラー表示を出す。
   describe('load failure (CodeRabbit #46指摘5)', () => {
     it('shows a distinguishable error state instead of the empty state when getAll() fails', async () => {

@@ -52,87 +52,101 @@ vi.mock('tone', () => {
     getTransport: vi.fn(() => mockTransport),
     getDraw: vi.fn(() => mockDraw),
     getDestination: vi.fn(() => mockDestination),
-    Synth: vi.fn().mockImplementation(() => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
+    Synth: vi.fn().mockImplementation(function () {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
     // TASK-072: メトロノーム音色（woodblock/cowbell）用のモック。clickSynth/beep用の
     // Tone.Synthモックと同じ形状にしておき、voice切替後もtriggerAttackRelease/dispose
     // の呼び出しを検証できるようにする。
-    MembraneSynth: vi.fn().mockImplementation(() => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
-    MetalSynth: vi.fn().mockImplementation(() => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
-    PolySynth: vi.fn().mockImplementation((voice: unknown) => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-      // TASK-070: 停止/一時停止/ループ折り返し時の延長ノーツ解放（REQ-014-005）を
-      // 検証するためのモック。
-      releaseAll: vi.fn(),
-      __voice: voice,
-    })),
+    MembraneSynth: vi.fn().mockImplementation(function () {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
+    MetalSynth: vi.fn().mockImplementation(function () {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
+    PolySynth: vi.fn().mockImplementation(function (voice: unknown) {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+        // TASK-070: 停止/一時停止/ループ折り返し時の延長ノーツ解放（REQ-014-005）を
+        // 検証するためのモック。
+        releaseAll: vi.fn(),
+        __voice: voice,
+      };
+    }),
     // TASK-071: 再生音色（グランドピアノ）用のSamplerモック。onload/onerrorは
     // コンストラクタに渡されたオプションから取り出せるようにし、テスト側から
     // 「ロード完了/失敗を手動発火する」ことで AudioEngineService.ensurePlaybackVoiceLoaded()
     // のPromise化ロジックを検証できるようにする。
-    Sampler: vi
-      .fn()
-      .mockImplementation(
-        (options: {
-          urls?: Record<string, string>;
-          onload?: () => void;
-          onerror?: (error: Error) => void;
-        }) => ({
-          toDestination: vi.fn().mockReturnThis(),
-          triggerAttackRelease: vi.fn(),
-          dispose: vi.fn(),
-          // TASK-070: 停止/一時停止/ループ折り返し時の延長ノーツ解放（REQ-014-005）を
-          // 検証するためのモック。
-          releaseAll: vi.fn(),
-          onload: options?.onload,
-          onerror: options?.onerror,
-        })
-      ),
+    Sampler: vi.fn().mockImplementation(function (options: {
+      urls?: Record<string, string>;
+      onload?: () => void;
+      onerror?: (error: Error) => void;
+    }) {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+        // TASK-070: 停止/一時停止/ループ折り返し時の延長ノーツ解放（REQ-014-005）を
+        // 検証するためのモック。
+        releaseAll: vi.fn(),
+        onload: options?.onload,
+        onerror: options?.onerror,
+      };
+    }),
     // TASK-071: electric-pianoはTone.PolySynth(Tone.FMSynth, ...)で生成される。
     // FMSynth自体は直接インスタンス化されない（PolySynthへ voice constructor として
     // 渡されるだけ）ため、コンストラクタの同一性検証にのみ使う。
     FMSynth: vi.fn(),
-    Sequence: vi
-      .fn()
-      .mockImplementation((callback: (time: number, value: unknown) => void, events: unknown[]) => {
-        // TASK-064: Sequenceの生成順を記録し、PPQ設定との前後関係を検証できるようにする。
-        callOrder.push('newSequence');
-        return {
-          callback,
-          events,
-          start: vi.fn(),
-          stop: vi.fn(),
-          dispose: vi.fn(),
-        };
-      }),
-    Part: vi.fn().mockImplementation((_callback, events) => ({
-      events,
-      start: vi.fn().mockReturnThis(),
-      dispose: vi.fn(),
-    })),
+    Sequence: vi.fn().mockImplementation(function (
+      callback: (time: number, value: unknown) => void,
+      events: unknown[]
+    ) {
+      // TASK-064: Sequenceの生成順を記録し、PPQ設定との前後関係を検証できるようにする。
+      callOrder.push('newSequence');
+      return {
+        callback,
+        events,
+        start: vi.fn(),
+        stop: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
+    Part: vi.fn().mockImplementation(function (_callback, events) {
+      return {
+        events,
+        start: vi.fn().mockReturnThis(),
+        dispose: vi.fn(),
+      };
+    }),
     // TASK-066: メトロノーム単独再生（Transport非依存の独立クロック）用モック。
     // frequencyはbpm/60（Hz）を保持するミュータブルなオブジェクトとし、
     // Metronome.setBpmによる周波数更新を検証できるようにする。
-    Clock: vi.fn().mockImplementation((callback: (time: number) => void, frequency: number) => ({
-      callback,
-      frequency: { value: frequency },
-      start: vi.fn(),
-      stop: vi.fn(),
-      dispose: vi.fn(),
-    })),
+    Clock: vi.fn().mockImplementation(function (
+      callback: (time: number) => void,
+      frequency: number
+    ) {
+      return {
+        callback,
+        frequency: { value: frequency },
+        start: vi.fn(),
+        stop: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
     Frequency: vi.fn((midiNumber) => ({
       toNote: () => {
         if (midiNumber === 60) return 'C4';

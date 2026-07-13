@@ -21,10 +21,12 @@ import type { Note, Score } from '../../types';
 const mockComputeFingering = vi.fn();
 
 vi.mock('../../lib/fingering-engine', () => ({
-  FingeringEngineService: vi.fn().mockImplementation(() => ({
-    computeFingering: mockComputeFingering,
-    dispose: vi.fn(),
-  })),
+  FingeringEngineService: vi.fn().mockImplementation(function () {
+    return {
+      computeFingering: mockComputeFingering,
+      dispose: vi.fn(),
+    };
+  }),
   DEFAULT_HAND_SETTINGS: { maxSpanSemitones: 14, scaleFactorLeft: 1.0 },
 }));
 

@@ -10,7 +10,7 @@ const mockWorker = {
 
 vi.stubGlobal(
   'Worker',
-  vi.fn().mockImplementation(() => {
+  vi.fn().mockImplementation(function () {
     return new Proxy(mockWorker, {
       set(target, prop, value) {
         (target as Record<string, unknown>)[prop] = value;

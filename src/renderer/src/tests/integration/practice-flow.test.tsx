@@ -34,38 +34,49 @@ vi.mock('tone', () => {
     getTransport: vi.fn(() => mockTransport),
     getDraw: vi.fn(() => mockDraw),
     getDestination: vi.fn(() => mockDestination),
-    Synth: vi.fn().mockImplementation(() => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
-    PolySynth: vi.fn().mockImplementation(() => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
+    Synth: vi.fn().mockImplementation(function () {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
+    PolySynth: vi.fn().mockImplementation(function () {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
     // TASK-071: 既定の再生音色（grand-piano）がTone.Samplerを生成するため、
     // AudioEngineServiceの初期化そのものを検証しない本ファイルの他のテストが
     // 壊れないよう、onload/onerrorを受け取れる最小限のモックを用意する。
-    Sampler: vi
-      .fn()
-      .mockImplementation((options: { onload?: () => void; onerror?: (error: Error) => void }) => ({
+    Sampler: vi.fn().mockImplementation(function (options: {
+      onload?: () => void;
+      onerror?: (error: Error) => void;
+    }) {
+      return {
         toDestination: vi.fn().mockReturnThis(),
         triggerAttackRelease: vi.fn(),
         dispose: vi.fn(),
         onload: options?.onload,
         onerror: options?.onerror,
-      })),
+      };
+    }),
     FMSynth: vi.fn(),
-    Sequence: vi.fn().mockImplementation(() => ({
-      start: vi.fn(),
-      stop: vi.fn(),
-      dispose: vi.fn(),
-    })),
-    Part: vi.fn().mockImplementation(() => ({
-      start: vi.fn().mockReturnThis(),
-      dispose: vi.fn(),
-    })),
+    Sequence: vi.fn().mockImplementation(function () {
+      return {
+        start: vi.fn(),
+        stop: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
+    Part: vi.fn().mockImplementation(function () {
+      return {
+        start: vi.fn().mockReturnThis(),
+        dispose: vi.fn(),
+      };
+    }),
     Frequency: vi.fn(() => ({
       toNote: () => 'A4',
     })),

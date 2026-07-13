@@ -31,46 +31,52 @@ const onNoteOffMock = vi.fn();
 const initializeMock = vi.fn();
 
 vi.mock('../lib/practice-engine', () => ({
-  PracticeEngineService: vi.fn().mockImplementation(() => ({
-    handleNoteOn: handleNoteOnMock,
-    handleNoteOff: handleNoteOffMock,
-    resetToMeasure: resetToMeasureMock,
-    advanceToPlaybackPosition: advanceToPlaybackPositionMock,
-  })),
+  PracticeEngineService: vi.fn().mockImplementation(function () {
+    return {
+      handleNoteOn: handleNoteOnMock,
+      handleNoteOff: handleNoteOffMock,
+      resetToMeasure: resetToMeasureMock,
+      advanceToPlaybackPosition: advanceToPlaybackPositionMock,
+    };
+  }),
 }));
 
 vi.mock('../lib/audio-engine', () => ({
-  AudioEngineService: vi.fn().mockImplementation(() => ({
-    setBpm: setBpmMock,
-    setMetronomeEnabled: setMetronomeEnabledMock,
-    setMetronomeAccentEnabled: setMetronomeAccentEnabledMock,
-    setMasterVolume: setMasterVolumeMock,
-    setPlaybackVoice: setPlaybackVoiceMock,
-    setMetronomeVoice: setMetronomeVoiceMock,
-    ensurePlaybackVoiceLoaded: ensurePlaybackVoiceLoadedMock,
-    setVoiceLoadingCallback: setVoiceLoadingCallbackMock,
-    playCorrectSound: playCorrectSoundMock,
-    playIncorrectSound: playIncorrectSoundMock,
-    playNote: playNoteMock,
-    dispose: disposeMock,
-    setLoopPoints: setLoopPointsMock,
-    setPositionCallback: setPositionCallbackMock,
-    setOnStop: setOnStopMock,
-    setSoundingNotesCallback: setSoundingNotesCallbackMock,
-    loadScore: loadScoreMock,
-    stopAccompaniment: stopAccompanimentMock,
-  })),
+  AudioEngineService: vi.fn().mockImplementation(function () {
+    return {
+      setBpm: setBpmMock,
+      setMetronomeEnabled: setMetronomeEnabledMock,
+      setMetronomeAccentEnabled: setMetronomeAccentEnabledMock,
+      setMasterVolume: setMasterVolumeMock,
+      setPlaybackVoice: setPlaybackVoiceMock,
+      setMetronomeVoice: setMetronomeVoiceMock,
+      ensurePlaybackVoiceLoaded: ensurePlaybackVoiceLoadedMock,
+      setVoiceLoadingCallback: setVoiceLoadingCallbackMock,
+      playCorrectSound: playCorrectSoundMock,
+      playIncorrectSound: playIncorrectSoundMock,
+      playNote: playNoteMock,
+      dispose: disposeMock,
+      setLoopPoints: setLoopPointsMock,
+      setPositionCallback: setPositionCallbackMock,
+      setOnStop: setOnStopMock,
+      setSoundingNotesCallback: setSoundingNotesCallbackMock,
+      loadScore: loadScoreMock,
+      stopAccompaniment: stopAccompanimentMock,
+    };
+  }),
 }));
 
 const setSelectedDeviceMock = vi.fn();
 
 vi.mock('../lib/midi/web-midi', () => ({
-  WebMidiService: vi.fn().mockImplementation(() => ({
-    initialize: initializeMock,
-    onNoteOn: onNoteOnMock,
-    onNoteOff: onNoteOffMock,
-    setSelectedDevice: setSelectedDeviceMock,
-  })),
+  WebMidiService: vi.fn().mockImplementation(function () {
+    return {
+      initialize: initializeMock,
+      onNoteOn: onNoteOnMock,
+      onNoteOff: onNoteOffMock,
+      setSelectedDevice: setSelectedDeviceMock,
+    };
+  }),
 }));
 
 describe('usePractice', () => {

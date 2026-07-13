@@ -22,25 +22,23 @@ function makeScore(measures: Array<{ number: number; noteIds: string[] }>): Scor
     measures: measures.map(({ number, noteIds }) => ({
       number,
       startTick: 0,
-      notes: noteIds.map(
-        (id, noteIndex): Note => ({
-          id,
-          partId: 'P1',
-          measureNumber: number,
-          noteIndex,
-          pitch: { step: 'C', octave: 4 },
-          midiNumber: 12,
-          duration: 1,
-          startTick: 0,
-          durationTicks: 480,
-          startSeconds: 0,
-          durationSeconds: 0,
-          voice: 1,
-          isChord: false,
-          isRest: false,
-          staff: 1,
-        })
-      ),
+      notes: noteIds.map((id, noteIndex): Note => ({
+        id,
+        partId: 'P1',
+        measureNumber: number,
+        noteIndex,
+        pitch: { step: 'C', octave: 4 },
+        midiNumber: 12,
+        duration: 1,
+        startTick: 0,
+        durationTicks: 480,
+        startSeconds: 0,
+        durationSeconds: 0,
+        voice: 1,
+        isChord: false,
+        isRest: false,
+        staff: 1,
+      })),
     })),
   };
 }

@@ -53,8 +53,7 @@ export interface FileAccessChecker {
 }
 
 export type LibraryOpenResult =
-  | { ok: true }
-  | { ok: false; reason: 'not-found' | 'invalid-extension' };
+  { ok: true } | { ok: false; reason: 'not-found' | 'invalid-extension' };
 
 /**
  * `library:open` IPCハンドラのファクトリ（TASK-101）。

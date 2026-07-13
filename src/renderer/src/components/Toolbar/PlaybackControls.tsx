@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import { usePracticeStore } from '../../store';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 import type { Score } from '../../types';
 
 // TASK-075: 1行ヘッダー統合に伴い、高さを44px→36pxへコンパクト化する。
@@ -47,12 +48,6 @@ interface PlaybackControlsProps {
   score?: Score | null;
 }
 
-const NO_SCORE_TOOLTIP = '楽譜を開くと再生できます';
-// REQ-013-003, TASK-073: 再生音色（grand-piano等）のサンプルロード中は再生ボタンを
-// 無効化し、読込中であることをラベル・ツールチップで示す。
-const VOICE_LOADING_TOOLTIP = '音色を読み込み中です';
-const VOICE_LOADING_LABEL = '読込中...';
-
 /**
  * 曲の再生・一時停止・停止を操作するツールバー部品（暫定実装）。
  *
@@ -62,6 +57,7 @@ const VOICE_LOADING_LABEL = '読込中...';
  */
 export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine, score }) => {
   const { playbackState, setPlaybackState, voiceLoading } = usePracticeStore();
+  const t = useTranslation();
   const toneStartedRef = useRef(false);
   // score === null のときだけ「未読込」として無効化する。undefined（未指定）は
   // 呼び出し側が楽譜有無を渡していないケースであり、後方互換のため無効化しない。
@@ -124,9 +120,13 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
       <button
         data-testid="playback-play"
         title={
-          noScoreLoaded ? NO_SCORE_TOOLTIP : voiceLoading ? VOICE_LOADING_TOOLTIP : '再生 (Space)'
+          noScoreLoaded
+            ? t.playbackControls.noScoreTooltip
+            : voiceLoading
+              ? t.playbackControls.voiceLoadingTooltip
+              : t.playbackControls.playTitle
         }
-        aria-label="再生"
+        aria-label={t.playbackControls.play}
         onClick={() => void handlePlay()}
         disabled={noScoreLoaded || playbackState === 'playing' || voiceLoading}
         style={
@@ -135,27 +135,27 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
             : BTN_STYLE
         }
       >
-        {voiceLoading ? VOICE_LOADING_LABEL : '再生'}
+        {voiceLoading ? t.playbackControls.voiceLoadingLabel : t.playbackControls.play}
       </button>
       <button
         data-testid="playback-pause"
-        title={noScoreLoaded ? NO_SCORE_TOOLTIP : '一時停止 (Space)'}
-        aria-label="一時停止"
+        title={noScoreLoaded ? t.playbackControls.noScoreTooltip : t.playbackControls.pauseTitle}
+        aria-label={t.playbackControls.pause}
         onClick={handlePause}
         disabled={noScoreLoaded || playbackState !== 'playing'}
         style={noScoreLoaded || playbackState !== 'playing' ? BTN_DISABLED_STYLE : BTN_STYLE}
       >
-        一時停止
+        {t.playbackControls.pause}
       </button>
       <button
         data-testid="playback-stop"
-        title={noScoreLoaded ? NO_SCORE_TOOLTIP : '停止'}
-        aria-label="停止"
+        title={noScoreLoaded ? t.playbackControls.noScoreTooltip : t.playbackControls.stopTitle}
+        aria-label={t.playbackControls.stop}
         onClick={handleStop}
         disabled={noScoreLoaded || playbackState === 'stopped'}
         style={noScoreLoaded || playbackState === 'stopped' ? BTN_DISABLED_STYLE : BTN_STYLE}
       >
-        停止
+        {t.playbackControls.stop}
       </button>
     </div>
   );

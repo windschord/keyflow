@@ -46,8 +46,10 @@
 | Phase 16: リリース自動化（2026-07-09） | 1 | 0 | 0 | 0 | [詳細](phase-16/) @phase-16/ |
 | Phase 17: セキュリティ強化（2026-07-11） | 5 | 0 | 0 | 0 | [詳細](phase-17/) @phase-17/ |
 | Phase 18: サプライチェーン・入力堅牢性強化（2026-07-11） | 5 | 0 | 0 | 0 | [詳細](phase-18/) @phase-18/ |
+| Phase 19: UI多言語対応（2026-07-12） | 4 | 1 | 0 | 0 | [詳細](phase-19/) @phase-19/ |
+| Phase 20: 楽譜ライブラリ（2026-07-12） | 5 | 1 | 0 | 0 | [詳細](phase-20/) @phase-20/ |
 
-**合計**: 93タスク / 推定合計: 約4150分（AIエージェント作業時間）
+**合計**: 104タスク / 推定合計: 約4930分（AIエージェント作業時間）
 
 > 進行中カウントの基準: `REVIEW`はユーザー実機確認待ちであり完了扱いにしないため、
 > 本表の「進行中」列に計上する（TASK-078/080/081/082が該当、2026-07-08是正）。
@@ -404,6 +406,52 @@
 > TASK-093とTASK-094はいずれもリポジトリ設定系だが対象ファイルが重ならないため並列可。
 > 最後に TASK-095（統合検証・ドキュメント同期）を単独実行する。
 
+### Phase 19: UI多言語対応（2026-07-12）
+
+> US-016（UIの日英切り替え、REQ-016-001〜007）の実装フェーズ。
+> 設計は [design/components/i18n.md](../design/components/i18n.md) と
+> [DEC-009](../design/decisions/DEC-009.md) を正とする。作業ブランチ: `feat/ui-i18n`
+
+| タスクID | タスク名 | ステータス | 依存 | 見積 | 詳細 |
+|---------|---------|-----------|------|------|------|
+| TASK-096 | i18n基盤（リソース・型・言語解決・useTranslation・ui-slice） | DONE | - | 60min | [詳細](phase-19/TASK-096.md) @phase-19/TASK-096.md |
+| TASK-097 | 操作系UIの文言外部化（Header・Toolbar・Stats・Fingering・NoteContextMenu） | DONE | TASK-096 | 90min | [詳細](phase-19/TASK-097.md) @phase-19/TASK-097.md |
+| TASK-098 | 設定・About・エラー表示の文言外部化と言語セレクタUI | DONE | TASK-096 | 90min | [詳細](phase-19/TASK-098.md) @phase-19/TASK-098.md |
+| TASK-099 | メニューバーの多言語化と言語変更時の再構築（Main側） | DONE | TASK-096 | 60min | [詳細](phase-19/TASK-099.md) @phase-19/TASK-099.md |
+| TASK-100 | Phase 19統合検証・E2E言語切り替え・ドキュメント同期 | REVIEW | TASK-096〜099 | 60min | [詳細](phase-19/TASK-100.md) @phase-19/TASK-100.md |
+
+#### 並列実行グループM: Phase 19（TASK-096完了後に並列実行可能）
+
+| タスク | 対象ファイル | 依存 |
+|--------|-------------|------|
+| TASK-097 | src/renderer/src/components/{Header,Toolbar,StatsDisplay,FingeringPanel,NoteContextMenu}/**, lib/i18n/ja.ts, lib/i18n/en.ts | TASK-096 |
+| TASK-098 | src/renderer/src/components/{SettingsModal,AboutPanel}/**, App.tsx, lib/i18n/ja.ts, lib/i18n/en.ts | TASK-096 |
+| TASK-099 | src/main/** | TASK-096 |
+
+> TASK-097とTASK-098はいずれも `lib/i18n/ja.ts`・`en.ts` へ文言を追加するため
+> コンフリクトしやすい。単一ワーキングツリーでは順次実行を推奨する。
+> TASK-099はMain側のみで独立。最後に TASK-100（統合検証）を単独実行する。
+
+### Phase 20: 楽譜ライブラリ（2026-07-12）
+
+> US-017（楽譜ライブラリ、REQ-017-001〜011）の実装フェーズ。
+> 設計は [design/components/score-library.md](../design/components/score-library.md) と
+> [DEC-010](../design/decisions/DEC-010.md) を正とする。作業ブランチ: `feat/score-library`
+> （feat/ui-i18n基点。ライブラリ画面の文言がi18n機構に依存するため）
+
+| タスクID | タスク名 | ステータス | 依存 | 見積 | 詳細 |
+|---------|---------|-----------|------|------|------|
+| TASK-101 | LibraryServiceとlibrary:* IPC（Main側・preload公開） | DONE | - | 90min | [詳細](phase-20/TASK-101.md) @phase-20/TASK-101.md |
+| TASK-102 | LibraryView（一覧・検索・並べ替え・削除・空状態・i18n） | DONE | TASK-101 | 90min | [詳細](phase-20/TASK-102.md) @phase-20/TASK-102.md |
+| TASK-103 | ライブラリ統合（自動登録・開くフロー・画面切り替え・欠損処理） | DONE | TASK-101, TASK-102 | 90min | [詳細](phase-20/TASK-103.md) @phase-20/TASK-103.md |
+| TASK-104 | Phase 20統合検証・ライブラリE2E・ドキュメント同期 | REVIEW | TASK-101〜103 | 60min | [詳細](phase-20/TASK-104.md) @phase-20/TASK-104.md |
+| TASK-105 | ライブラリ画面から元の楽譜表示へ戻る導線（REQ-017-012） | DONE | TASK-103 | 45min | [詳細](phase-20/TASK-105.md) @phase-20/TASK-105.md |
+| TASK-106 | [BugFix] ライブラリ往復時のOSMD再レンダリング抑止（即時復帰） | DONE | TASK-105 | 45min | [詳細](phase-20/TASK-106.md) @phase-20/TASK-106.md |
+
+> TASK-101→102→103→104の順次実行とする（102はUI、103が結線のため実質直列）。
+> TASK-105・TASK-106は2026-07-13の実機フィードバック起点の追加タスク
+> （106の分析: [troubleshooting/2026-07-13-library-return-blank/](../troubleshooting/2026-07-13-library-return-blank/analysis.md)）。
+
 ---
 
 ## リスクと軽減策
@@ -455,5 +503,8 @@ docs/sdd/tasks/
 ├── phase-14/         # TASK-061〜067: メトロノーム修正・一拍目アクセント（2026-07-07）
 ├── phase-15/         # TASK-068〜084: UI/UX改善（2026-07-07）
 ├── phase-16/         # TASK-085: リリース自動化（2026-07-09）
-└── phase-17/         # TASK-086〜090: セキュリティ強化（2026-07-11）
+├── phase-17/         # TASK-086〜090: セキュリティ強化（2026-07-11）
+├── phase-18/         # TASK-091〜095: サプライチェーン・入力堅牢性強化（2026-07-11）
+├── phase-19/         # TASK-096〜100: UI多言語対応（2026-07-12）
+└── phase-20/         # TASK-101〜104: 楽譜ライブラリ（2026-07-12）
 ```

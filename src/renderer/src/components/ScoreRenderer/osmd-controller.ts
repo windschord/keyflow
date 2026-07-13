@@ -126,6 +126,20 @@ export class OSMDController {
   private lastScore: Score | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private resizeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * 直近に実際へrenderを実行した時点のコンテナサイズ（TASK-106）。
+   * ライブラリ往復（隠す→同一サイズで戻す）の際、handleResizeで
+   * このサイズと比較して不要な再レンダリングをスキップするために使う。
+   * load完了前はnull（何とも比較せず常にサイズ変化ありと扱う）。
+   */
+  private lastRenderedWidth: number | null = null;
+  private lastRenderedHeight: number | null = null;
+  /**
+   * コンテナが不可視（サイズ0）の間にsetZoom等の描画要求が発生したことを示す
+   * フラグ（TASK-106）。不可視中は即時renderせず、可視復帰時のResizeObserver
+   * 発火（handleResize）で一度だけ再レンダリングを実行して消化する。
+   */
+  private pendingRenderWhileHidden = false;
   private lastFingeringAssignments: Array<{ noteId: string; finger: number; isApproved: boolean }> =
     [];
   /** ループ範囲の最後に指定された値。setZoom等の再描画後にオーバーレイを再適用するために保持する。 */
@@ -189,7 +203,14 @@ export class OSMDController {
     this.loaded = false;
     await this.osmd.load(xmlContent);
     this.osmd.render();
+    this.recordRenderedSize();
     this.loaded = true;
+  }
+
+  /** 直近にrenderした時点のコンテナサイズを記録する（TASK-106）。 */
+  private recordRenderedSize(): void {
+    this.lastRenderedWidth = this.container.clientWidth;
+    this.lastRenderedHeight = this.container.clientHeight;
   }
 
   /**
@@ -212,10 +233,32 @@ export class OSMDController {
    * リサイズデバウンス経過後の実処理: OSMDを再描画し、noteIdマップを再構築してから
    * 既存のオーバーレイ（運指・ループ・グレーアウト・ハイライト）を再適用する。
    * load()完了前（this.loaded=false）には何もしない。
+   *
+   * TASK-106: ライブラリ画面表示中は楽譜コンテナがdisplay:noneとなりサイズ0の
+   * ResizeObserver発火が起きる。ここで無条件にrenderするとSVGが破棄されてしまうため、
+   * 以下の2段階でガードする。
+   * 1. コンテナが不可視（幅または高さが0）の間は何もしない（SVGを破棄しない）
+   * 2. 直近の描画時サイズと比較し、サイズが変わっておらず不可視中の保留描画要求も
+   *    なければ再レンダリングをスキップする（隠す→同一サイズで戻す往復を無再描画にする）
    */
   private handleResize(): void {
     if (this.disposed || !this.loaded) return;
+
+    const { clientWidth, clientHeight } = this.container;
+    if (clientWidth === 0 || clientHeight === 0) return;
+
+    const sizeChanged =
+      clientWidth !== this.lastRenderedWidth || clientHeight !== this.lastRenderedHeight;
+    if (!sizeChanged && !this.pendingRenderWhileHidden) return;
+
+    this.pendingRenderWhileHidden = false;
+    this.performRender();
+  }
+
+  /** OSMDを再描画し、描画時サイズを記録してからnoteIdマップを再構築し、オーバーレイを再適用する（TASK-106）。 */
+  private performRender(): void {
     this.osmd.render();
+    this.recordRenderedSize();
     if (this.lastScore) {
       this.buildNoteIdMap(this.lastScore);
     }
@@ -455,18 +498,24 @@ export class OSMDController {
     svg.insertBefore(layer, svg.firstChild);
   }
 
+  /**
+   * ズーム倍率を変更してOSMDを再描画する。
+   *
+   * TASK-106: コンテナが不可視（display:noneでサイズ0）の間に呼ばれた場合は
+   * 即時renderせず保留フラグを立てるだけにする。可視復帰時のResizeObserver発火
+   * （handleResize）で一度だけ再レンダリングして消化する。
+   */
   setZoom(factor: number): void {
     this.osmd.zoom = factor;
-    if (this.loaded) {
-      this.osmd.render();
-      // OSMDのrender()はSVG上の座標を変えるため、オーバーレイ再適用の前に
-      // noteIdマップを再構築する（TASK-049: 座標のstale化防止）。
-      if (this.lastScore) {
-        this.buildNoteIdMap(this.lastScore);
-      }
-      // OSMDのrender()はSVG子要素を再構築するため、既存のオーバーレイをすべて再適用する。
-      this.reapplyOverlays();
+    if (!this.loaded) return;
+
+    const { clientWidth, clientHeight } = this.container;
+    if (clientWidth === 0 || clientHeight === 0) {
+      this.pendingRenderWhileHidden = true;
+      return;
     }
+
+    this.performRender();
   }
 
   /** setZoom等でOSMDが再描画した後、既存のオーバーレイ（運指・ループ・グレーアウト・ハイライト）を再適用する。 */

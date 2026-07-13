@@ -92,6 +92,14 @@ vi.mock('../../components/Header', () => ({
   ),
 }));
 
+// TASK-103: activeView初期値が'library'のため、モックしない場合は実際のLibraryView
+// （空状態の「ファイルを開く」ボタンを含む）が描画され、上記モックHeaderの
+// 同名ボタンとテキストが衝突する。本ファイルはライブラリ機能を検証対象と
+// していないため、無害な最小スタブへ差し替える。
+vi.mock('../../components/LibraryView', () => ({
+  LibraryView: () => null,
+}));
+
 const SAMPLE_MUSICXML_2PARTS = `<?xml version="1.0"?>
 <score-partwise>
   <part-list>

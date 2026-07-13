@@ -6,6 +6,20 @@ import { electronAPI } from '@electron-toolkit/preload';
 // preloadでも process.argv は参照可能なため、この引数の有無でE2E実行時のみを判定する。
 const isE2E = process.argv.includes('--keyflow-e2e');
 
+// TASK-101, CodeRabbit #46指摘対応: preloadはrenderer側の型定義（types/library.ts）を
+// importできない（別バンドルのため）ので、構造が一致するローカル型を独立して定義する。
+// main側（src/main/library.ts）・renderer側（src/renderer/src/types/library.ts）と
+// 同じ形を保つ（AppSettings等の既存パターン）。
+interface LibraryEntry {
+  path: string;
+  title: string;
+  composer: string;
+  addedAt: string;
+  lastOpenedAt: string;
+}
+
+type LibraryOpenResult = { ok: true } | { ok: false; reason: 'not-found' | 'invalid-extension' };
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -41,6 +55,15 @@ if (process.contextIsolated) {
           ipcRenderer.invoke('settings:set', key, value),
         getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
           ipcRenderer.invoke('settings:get-recent-files'),
+      },
+      // TASK-101: 楽譜ライブラリ（US-017）関連のAPI。
+      library: {
+        getAll: (): Promise<LibraryEntry[]> => ipcRenderer.invoke('library:get-all'),
+        upsert: (input: { path: string; title: string; composer: string }): Promise<void> =>
+          ipcRenderer.invoke('library:upsert', input),
+        remove: (path: string): Promise<void> => ipcRenderer.invoke('library:remove', path),
+        open: (path: string): Promise<LibraryOpenResult> =>
+          ipcRenderer.invoke('library:open', path),
       },
       // TASK-082: アプリケーションメニューの「About」項目クリック（Main→Renderer）を購読するAPI。
       // renderer→mainへの送信機能は持たない受信専用の購読APIである。
@@ -84,6 +107,14 @@ if (process.contextIsolated) {
         ipcRenderer.invoke('settings:set', key, value),
       getRecentFiles: (): Promise<Array<{ path: string; openedAt: string }>> =>
         ipcRenderer.invoke('settings:get-recent-files'),
+    },
+    // TASK-101: 楽譜ライブラリ（US-017）関連のAPI。
+    library: {
+      getAll: (): Promise<LibraryEntry[]> => ipcRenderer.invoke('library:get-all'),
+      upsert: (input: { path: string; title: string; composer: string }): Promise<void> =>
+        ipcRenderer.invoke('library:upsert', input),
+      remove: (path: string): Promise<void> => ipcRenderer.invoke('library:remove', path),
+      open: (path: string): Promise<LibraryOpenResult> => ipcRenderer.invoke('library:open', path),
     },
     // renderer→mainへの送信機能は持たない受信専用の購読API（TASK-082）。
     menu: {

@@ -134,6 +134,53 @@
 | TASK-094 | Dependabot導入・Electron 42.6.1更新 | dependabot.ymlのYAML妥当性、electron更新後のtypecheck/test（759件）/build通過、npm audit本番依存0件・新規増加なし |
 | TASK-095 | 統合検証・ドキュメント同期 | unit 759件 / typecheck / lint / lint:jp / format / E2E 4件 / build 全通過。npm audit本番依存0件。CLAUDE.md・README・本ファイル同期 |
 
+## Phase 19: UI多言語対応（2026-07-12）の検証状況
+
+US-016（REQ-016-001〜007）を新設したため、上表と同形式で行を追加する。
+
+| REQ | 検証 | 検証箇所 / 備考 |
+|---|---|---|
+| REQ-016-001 | ○ | i18n/index.test（getMessagesが'ja'/'en'双方でMessages型に適合するオブジェクトを返す）+ ja.ts/en.tsの型チェック（enがMessages型へ適合しないとコンパイルエラー） |
+| REQ-016-002 | ○ | resolve-language.test（Renderer）+ locale.test（Main）。保存値未定義/'auto'/不正値でOSロケールの`ja`前方一致判定にフォールバックすることを両プロセスで検証 |
+| REQ-016-003 | ○ | SettingsModal.test（言語セレクタ変更でui-slice.languageが即時反映され、settings:setで永続化。保存失敗時はロールバック）+ E2E（設定モーダルで言語をEnglishへ切り替え→ヘッダー文言が英語化→日本語へ戻す実UI操作、TASK-100で追加） |
+| REQ-016-004 | ○ | settings-handlers.test（ui.language変化時のみonLanguageChangedを呼ぶ）+ menu.test（language: 'en'でカスタムラベルが英語化、role指定の標準項目は不変）。Main側の実結線（Menu.setApplicationMenu再構築）はsrc/main/index.tsのcreateSettingsSetHandler呼び出しで実装 |
+| REQ-016-005 | ○ | App.test（起動時にsettings:get('ui').languageとresolveLanguageの結果をui-slice.languageへ反映）+ locale.test（Main起動時のメニュー言語解決）。永続化値が再起動後も復元されることの実機確認はユーザー実機確認待ち（TASK-100） |
+| REQ-016-006 | ○ | i18n/index.test（mergeMessagesがoverride側の欠落キーをbase＝英語の値へフォールバックすることをキー単位・セクション単位の両方で検証） |
+| REQ-016-007 | ○ | Header.test/SettingsModal.test/AboutModal.test/AboutPanel.test/App.test（エラー文言・ドロップヒント）/FingeringToggle.test/PlaybackControls.test/VolumeControl.test/practice-flow.test（ja/en双方の文言表示を各コンポーネント単位で検証）+ menu.test（メニューバー）。全UI領域を横断する単一E2Eでの網羅は行っていないが、代表操作（ヘッダー文言）のE2E往復をTASK-100で追加済み |
+
+| タスク | 内容 | 検証 |
+|--------|------|------|
+| TASK-096 | i18n基盤（Language型・Messages型・ja/enリソース・useTranslation・resolveLanguage） | resolve-language.test/index.test/format.test（各純関数）+ ui-slice.test（language/setLanguage） |
+| TASK-097 | Header・Toolbar系操作UIの翻訳externalization | Header.test/PlaybackControls.test/VolumeControl.test/FingeringToggle.test等、各コンポーネントのja/en表示切り替え |
+| TASK-098 | SettingsModal・AboutPanel・App.tsxエラー文言の翻訳externalization、言語セレクタ追加 | SettingsModal.test（言語セレクタ・即時反映・永続化・ロールバック）+ AboutModal.test/AboutPanel.test+App.test（エラー文言・ドロップヒントのja/en） |
+| TASK-099 | Main側メニュー多言語化・言語変更時の再構築 | menu.test（language: 'en'ラベル、role項目不変）+ settings-handlers.test（onLanguageChanged呼び出し条件） |
+| TASK-100 | Phase 19統合検証・E2E言語切り替え・ドキュメント同期 | unit 838件/typecheck/lint/lint:jp/format:check/build/test:e2e（6件）全通過。E2Eは隔離userDataディレクトリへ`ui.language: 'ja'`をシードして決定的化（`tests/e2e/e2e-user-data.ts`）。新規E2Eで設定モーダル経由の言語切り替え（ja→en→ja）をヘッダーのアクセシブルネームの実変化で検証。`npm run dev`実起動での目視確認3項目（初回起動のOSロケール判定・切り替えの即時反映・再起動後の復元）は未実施のためユーザー実機確認待ち |
+
+## Phase 20: 楽譜ライブラリ（2026-07-12）の検証状況
+
+US-017（REQ-017-001〜011）を新設したため、Phase 19と同形式で行を追加する。
+
+| REQ | 検証 | 検証箇所 / 備考 |
+|---|---|---|
+| REQ-017-001 | ○ | App.test（openFile成功→library.upsert呼び出し、title/composer/pathの結線を検証）+ E2E（サンプル楽譜を開くと自動登録され、ライブラリ画面の一覧に表示されることを実バイナリで検証、TASK-104） |
+| REQ-017-002 | ○ | library.test（LibraryService.upsertが既存pathを更新しaddedAtを維持、新規はaddedAtも記録することを検証） |
+| REQ-017-003 | ○ | LibraryView.test（タイトル・作曲者・最終利用日時の一覧表示）+ E2E（登録された楽譜のタイトルが一覧に表示されることを実バイナリで検証） |
+| REQ-017-004 | ○ | library-utils.test（filterLibraryEntriesの大文字小文字を区別しない部分一致）+ LibraryView.test（検索欄への入力で一覧が絞り込まれる） |
+| REQ-017-005 | ○ | library-utils.test（sortLibraryEntriesの各キー・昇降順）+ LibraryView.test（既定の最終利用日時降順、セレクタ変更での再ソート） |
+| REQ-017-006 | ○ | library.test（LibraryService.removeが対象pathのみ削除）+ LibraryView.test（確認UI経由の削除・キャンセル時は削除しない）+ E2E（削除→確認→一覧から消えることを実バイナリで検証、TASK-104） |
+| REQ-017-007 | ○ | App.test（onOpenEntry成功→openMusicXmlFile経由でactiveView='score'へ遷移）+ E2E（ライブラリの行クリックで楽譜が再度開くことを実バイナリで検証、TASK-104） |
+| REQ-017-008 | △ | App.test（onOpenEntry not-found→トースト表示+削除確認ダイアログの分岐）で結線を検証済み。ネイティブalertダイアログを伴う欠損ファイルオープン操作の実バイナリE2Eは未実施（TASK-104スコープ外、ユーザー実機確認待ち） |
+| REQ-017-009 | ○ | library.test（`LibraryService`を同一cwdで再インスタンス化し、再起動相当の永続化復元を検証） |
+| REQ-017-010 | ○ | ui-slice.test（activeView初期値'library'）+ App.test（起動時にLibraryView表示）+ E2E（起動直後にライブラリ画面（空状態）が表示されることを実バイナリで検証、TASK-104） |
+| REQ-017-011 | ○ | LibraryView.test（language: 'en'でのラベル英語化） |
+
+| タスク | 内容 | 検証 |
+|--------|------|------|
+| TASK-101 | LibraryServiceとlibrary:* IPC（Main側・preload公開） | library.test（upsert/remove/フェイルソフト検証・再起動相当の永続化）+ library-handlers.test（allowlist登録・recent追加・not-found分岐の結線） |
+| TASK-102 | LibraryView（一覧・検索・並べ替え・削除・空状態・i18n） | LibraryView.test（11ケース）+ library-utils.test（14ケース） |
+| TASK-103 | ライブラリ統合（自動登録・開くフロー・画面切り替え・欠損処理） | App.test/Header.test/parser.test/practice-flow.test（結線・初期画面・composer抽出） |
+| TASK-104 | Phase 20統合検証・ライブラリE2E・ドキュメント同期 | unit 897件/typecheck/lint/lint:jp/format:check/build/test:e2e（7件、新規ライブラリE2E1件含む）全通過。TASK-103による起動時画面変更に合わせ既存E2Eの前提（プレースホルダー表示・「ファイルを開く」ロール検索）を更新し、ライブラリ一連操作（空状態→開く→自動登録→再度開く→削除）のE2Eを新設 |
+
 ## 運用ルール
 
 1. タスク完了時、対応するREQの行を更新する（△→○ 等）

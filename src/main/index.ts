@@ -6,6 +6,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { SettingsService } from './settings';
 import { PathAllowlist } from './path-allowlist';
+import { LibraryService } from './library';
 import {
   createReadBinaryFileHandler,
   createReadFileHandler,
@@ -13,10 +14,18 @@ import {
   createRegisterDroppedFileHandler,
   createShowOpenDialogHandler,
 } from './file-handlers';
+import {
+  createLibraryGetAllHandler,
+  createLibraryOpenHandler,
+  createLibraryRemoveHandler,
+  createLibraryUpsertHandler,
+} from './library-handlers';
 import { createWindowOptions, APP_TITLE } from './window-options';
 import { applyDockIcon } from './dock-icon';
 import { createApplicationMenuTemplate } from './menu';
 import { isAllowedExternalUrl, isAllowedNavigationUrl } from './navigation-policy';
+import { resolveLanguage, type Language } from './locale';
+import { createSettingsSetHandler } from './settings-handlers';
 
 function createWindow(): void {
   // TASK-088: 実起動E2E（Playwright for Electron）実行時のみ環境変数KEYFLOW_E2E=1が
@@ -67,6 +76,25 @@ function createWindow(): void {
   }
 }
 
+/**
+ * アプリケーションメニューを指定言語で構築し設定する（TASK-099、REQ-016-004/005）。
+ * 起動時と言語切り替え時（settings:setハンドラ経由）の双方から呼び出す。
+ */
+function buildAndSetApplicationMenu(language: Language): void {
+  const applicationMenu = Menu.buildFromTemplate(
+    createApplicationMenuTemplate({
+      platform: process.platform,
+      appTitle: APP_TITLE,
+      language,
+      onOpenAbout: () => {
+        const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+        targetWindow?.webContents.send('menu:open-about');
+      },
+    })
+  );
+  Menu.setApplicationMenu(applicationMenu);
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -75,6 +103,8 @@ app.whenReady().then(() => {
   // settings系IPCハンドラ（settings:get 等）と同一インスタンスを共有するため、
   // file:show-open-dialog ハンドラ登録より前に生成する（TASK-039）。
   const settingsService = new SettingsService();
+  // 楽譜ライブラリ（US-017、TASK-101）。設定とは別のelectron-storeインスタンス（DEC-010）。
+  const libraryService = new LibraryService();
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
@@ -194,9 +224,24 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('settings:get', (_, key) => settingsService.get(key));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ipcMain.handle('settings:set', (_, key, value) => settingsService.set(key, value as any));
+  // TASK-099: ui.languageの変更を検知したらメニューを再構築する（REQ-016-004）。
+  ipcMain.handle(
+    'settings:set',
+    createSettingsSetHandler(settingsService, (newLanguageSetting) => {
+      buildAndSetApplicationMenu(resolveLanguage(newLanguageSetting, app.getLocale()));
+    })
+  );
   ipcMain.handle('settings:get-recent-files', () => settingsService.getRecentFiles());
+
+  // 楽譜ライブラリ（US-017、TASK-101）。library:openはfile:register-dropped-fileと
+  // 同様の拡張子検証に加え、存在確認・allowlist登録・recent追加をfsモジュール経由で行う。
+  ipcMain.handle('library:get-all', createLibraryGetAllHandler(libraryService));
+  ipcMain.handle('library:upsert', createLibraryUpsertHandler(libraryService));
+  ipcMain.handle('library:remove', createLibraryRemoveHandler(libraryService));
+  ipcMain.handle(
+    'library:open',
+    createLibraryOpenHandler(pathAllowlist, settingsService, fs.promises)
+  );
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
@@ -216,17 +261,8 @@ app.whenReady().then(() => {
   // TASK-082: アプリケーションメニューを設定する。カスタムメニューはElectronの
   // 既定メニュー（コピー/ペースト等の標準ロールを含む）を丸ごと置き換えるため、
   // createApplicationMenuTemplate内で標準ロールを再現している。
-  const applicationMenu = Menu.buildFromTemplate(
-    createApplicationMenuTemplate({
-      platform: process.platform,
-      appTitle: APP_TITLE,
-      onOpenAbout: () => {
-        const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-        targetWindow?.webContents.send('menu:open-about');
-      },
-    })
-  );
-  Menu.setApplicationMenu(applicationMenu);
+  // TASK-099: 起動時は保存済み言語設定（またはOSロケール解決）でメニューを構築する（REQ-016-005）。
+  buildAndSetApplicationMenu(resolveLanguage(settingsService.get('ui').language, app.getLocale()));
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

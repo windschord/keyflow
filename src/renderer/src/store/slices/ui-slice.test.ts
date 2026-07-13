@@ -436,6 +436,70 @@ describe('createUiSlice playbackVoice/metronomeVoice/voiceLoading (TASK-073)', (
   });
 });
 
+// TASK-096: UI表示言語（US-016）。初期値'ja'はApp.tsx起動時のresolveLanguageで
+// 直ちに上書きされる想定（設計: docs/sdd/design/components/i18n.md）。
+describe('createUiSlice language/setLanguage (TASK-096)', () => {
+  it('initializes language to "ja" (immediately overwritten by resolveLanguage at App.tsx startup)', () => {
+    const set = vi.fn();
+    const get = vi.fn();
+    // apiはcreateUiSliceの実装で未使用のため、シグネチャ上の型へキャストしたダミーを渡す
+    const api = {} as Parameters<typeof createUiSlice>[2];
+    const slice = createUiSlice(set, get, api);
+
+    expect(slice.language).toBe('ja');
+  });
+
+  it('updates language when setLanguage is called', () => {
+    let state = { language: 'ja' };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // apiはcreateUiSliceの実装で未使用のため、シグネチャ上の型へキャストしたダミーを渡す
+    const api = {} as Parameters<typeof createUiSlice>[2];
+    const slice = createUiSlice(set, get, api);
+
+    slice.setLanguage('en');
+    expect(state.language).toBe('en');
+
+    slice.setLanguage('ja');
+    expect(state.language).toBe('ja');
+  });
+});
+
+// TASK-102: 現在表示中の画面（US-017）。初期値'library'で、楽譜未読み込みでも
+// ライブラリ画面から開始できる。
+describe('createUiSlice activeView/setActiveView (TASK-102)', () => {
+  it('initializes activeView to "library"', () => {
+    const set = vi.fn();
+    const get = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    expect(slice.activeView).toBe('library');
+  });
+
+  it('updates activeView when setActiveView is called', () => {
+    let state: { activeView: 'score' | 'library' } = { activeView: 'library' };
+    const set = vi.fn((updater) => {
+      const partial = typeof updater === 'function' ? updater(state) : updater;
+      state = { ...state, ...partial };
+    });
+    const get = vi.fn(() => state);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = {} as any;
+    const slice = createUiSlice(set, get, api);
+
+    slice.setActiveView('score');
+    expect(state.activeView).toBe('score');
+
+    slice.setActiveView('library');
+    expect(state.activeView).toBe('library');
+  });
+});
+
 describe('createUiSlice setMidiDeviceId', () => {
   it('updates midiDeviceId when called with a device id', () => {
     let state: { midiDeviceId: string | null } = { midiDeviceId: null };

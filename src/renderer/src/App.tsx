@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { ScoreRenderer } from './components/ScoreRenderer';
 import { PianoKeyboard } from './components/PianoKeyboard';
 import { NoteContextMenu } from './components/NoteContextMenu';
+import { LibraryView } from './components/LibraryView';
 import { usePracticeStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { parse, extractXmlFromMxl } from './lib/musicxml-parser';
@@ -13,6 +14,8 @@ import { AnnotationStoreService } from './lib/annotation-store';
 import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
 import { PLAYBACK_VOICES } from './lib/audio-engine/voices';
 import { METRONOME_VOICES } from './lib/audio-engine/metronome-voices';
+import { resolveLanguage } from './lib/i18n/resolve-language';
+import { useTranslation } from './lib/i18n/useTranslation';
 import type { Annotation, Finger, FingerAssignment, Note, Score } from './types';
 
 // TASK-053: ドラッグ＆ドロップで受け付けるMusicXMLの拡張子（大文字小文字を区別しない）。
@@ -24,10 +27,23 @@ function hasAcceptedDropExtension(fileName: string): boolean {
   return ACCEPTED_DROP_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
-const UNSUPPORTED_DROP_MESSAGE =
-  '対応していないファイル形式です。.xml / .musicxml / .mxl ファイルをドロップしてください。';
+// TASK-103: パーサーが曲名を抽出できなかった場合のsentinel値（parser.ts参照）。
+// ライブラリ登録用のタイトルでは、この値をファイル名フォールバックの合図として扱う。
+const UNTITLED_SCORE_TITLE = 'Untitled';
+
+/**
+ * ライブラリ登録用のタイトルを決定する（TASK-103、REQ-017-001）。
+ * score.titleが取得できていればそれを使い、パーサーが既定値（'Untitled'）を
+ * 返した場合はファイル名（拡張子除く）にフォールバックする。
+ */
+function deriveLibraryTitle(score: Score, filePath: string): string {
+  if (score.title && score.title !== UNTITLED_SCORE_TITLE) return score.title;
+  const baseName = filePath.split(/[/\\]/).pop() ?? filePath;
+  return baseName.replace(/\.(xml|musicxml|mxl)$/i, '');
+}
 
 function App(): React.JSX.Element {
+  const t = useTranslation();
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   // TASK-082: Aboutをメニューバー経由で開く独立モーダルへ分離した（US-015）。
   const [isAboutOpen, setIsAboutOpen] = React.useState(false);
@@ -49,6 +65,13 @@ function App(): React.JSX.Element {
     x: number;
     y: number;
   } | null>(null);
+  // TASK-103: ライブラリ（US-017）から開こうとしたがファイルが見つからなかった
+  // pathの集合（LibraryViewの欠損マーク表示に渡す）と、削除確認ダイアログの対象path。
+  const [missingLibraryPaths, setMissingLibraryPaths] = React.useState<Set<string>>(new Set());
+  const [missingEntryPath, setMissingEntryPath] = React.useState<string | null>(null);
+  // CodeRabbit #46指摘4: 欠損エントリの削除成功後にLibraryViewへ一覧の再取得を促すための
+  // signal。値自体に意味はなくインクリメントによる変化のみをLibraryView側が見る。
+  const [libraryReloadSignal, setLibraryReloadSignal] = React.useState(0);
 
   const {
     practiceEngine,
@@ -86,12 +109,15 @@ function App(): React.JSX.Element {
     setKeyboardSize,
     setPlaybackVoice,
     setMetronomeVoice,
+    setLanguage,
     currentMeasure,
     currentNoteIndex,
     loopEnabled,
     loopStart,
     loopEnd,
     playbackState,
+    activeView,
+    setActiveView,
   } = usePracticeStore(
     useShallow((s) => ({
       score: s.score,
@@ -118,12 +144,15 @@ function App(): React.JSX.Element {
       setKeyboardSize: s.setKeyboardSize,
       setPlaybackVoice: s.setPlaybackVoice,
       setMetronomeVoice: s.setMetronomeVoice,
+      setLanguage: s.setLanguage,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
       loopEnabled: s.loopEnabled,
       loopStart: s.loopStart,
       loopEnd: s.loopEnd,
       playbackState: s.playbackState,
+      activeView: s.activeView,
+      setActiveView: s.setActiveView,
     }))
   );
 
@@ -191,6 +220,9 @@ function App(): React.JSX.Element {
   // - audio.playbackVoice / audio.metronomeVoice → ui-slice.playbackVoice / metronomeVoice
   //   （TASK-073, US-013）。
   //   usePractice.ts側のuseEffectがaudioEngine.setPlaybackVoice / setMetronomeVoiceへ反映する。
+  // - ui.language → resolveLanguage(ui.language, navigator.language) → ui-slice.language
+  //   （TASK-096, US-016, REQ-016-002/005）。'auto'・不正値・未定義はOSロケール判定に
+  //   フォールバックする。useTranslation()がこの値を購読して表示文言を切り替える。
   React.useEffect(() => {
     if (!window.electronAPI?.settings) return;
 
@@ -227,6 +259,7 @@ function App(): React.JSX.Element {
           if (typeof uiSettings.keyboardSize === 'number') {
             setKeyboardSize(uiSettings.keyboardSize);
           }
+          setLanguage(resolveLanguage(uiSettings.language, navigator.language));
         }
         if (midiSettings) {
           setMidiDeviceId(midiSettings.selectedDeviceId);
@@ -270,6 +303,7 @@ function App(): React.JSX.Element {
     setKeyboardSize,
     setPlaybackVoice,
     setMetronomeVoice,
+    setLanguage,
   ]);
 
   // ダイアログ経由（handleOpenFile）・ドラッグ＆ドロップ経由（handleDrop）の両方から
@@ -291,6 +325,22 @@ function App(): React.JSX.Element {
         }
         setScore(parsedScore, filePath, xmlContent);
         setOriginalBpm(parsedScore.tempo);
+        // TASK-103: ダイアログ・D&D・ライブラリのいずれの経路で開いた場合も、この
+        // 成功点を通ることで画面遷移とライブラリ自動登録が一律に行われる
+        // （REQ-017-001/002/010）。ライブラリ登録は補助機能のため、失敗しても
+        // 楽譜を開く操作自体は成立させる（catchで握りつぶしログのみ出す）。
+        setActiveView('score');
+        if (window.electronAPI?.library) {
+          try {
+            await window.electronAPI.library.upsert({
+              path: filePath,
+              title: deriveLibraryTitle(parsedScore, filePath),
+              composer: parsedScore.composer ?? '',
+            });
+          } catch (error) {
+            console.error('Failed to register the score to the library:', error);
+          }
+        }
         // setScore が反映された後にリセットする必要がある（resetToMeasure は
         // store.getState().score を参照するため、呼び出し順序を変更しないこと）。
         practiceEngine.resetToMeasure(1);
@@ -312,17 +362,17 @@ function App(): React.JSX.Element {
         setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
       } catch (error) {
         console.error('Failed to parse file:', error);
-        alert('MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。');
+        alert(t.app.parseError);
       } finally {
         setIsLoadingAnnotations(false);
       }
     },
-    [practiceEngine, setOriginalBpm, setScore]
+    [practiceEngine, setOriginalBpm, setScore, setActiveView, t]
   );
 
   const handleOpenFile = async () => {
     if (!window.electronAPI) {
-      alert('Electron API が利用できません。Electron アプリとして起動してください。');
+      alert(t.app.electronApiUnavailable);
       return;
     }
 
@@ -331,7 +381,7 @@ function App(): React.JSX.Element {
       filePath = await window.electronAPI.file.showOpenDialog();
     } catch (error) {
       console.error('Failed to open dialog:', error);
-      alert('ファイル選択ダイアログを開けませんでした。');
+      alert(t.app.openDialogError);
       return;
     }
 
@@ -371,7 +421,7 @@ function App(): React.JSX.Element {
       setIsDraggingOver(false);
 
       if (!window.electronAPI) {
-        alert('Electron API が利用できません。Electron アプリとして起動してください。');
+        alert(t.app.electronApiUnavailable);
         return;
       }
 
@@ -381,7 +431,7 @@ function App(): React.JSX.Element {
       if (!file) return;
 
       if (!hasAcceptedDropExtension(file.name)) {
-        alert(UNSUPPORTED_DROP_MESSAGE);
+        alert(t.app.unsupportedDropFormat);
         return;
       }
 
@@ -393,7 +443,7 @@ function App(): React.JSX.Element {
       }
 
       if (!filePath) {
-        alert('ドロップされたファイルのパスを取得できませんでした。');
+        alert(t.app.droppedFilePathError);
         return;
       }
 
@@ -402,14 +452,67 @@ function App(): React.JSX.Element {
       // （Main 側でも拡張子を検証する多層防御。TASK-053）。
       const registered = await window.electronAPI.file.registerDroppedFile(filePath);
       if (!registered) {
-        alert(UNSUPPORTED_DROP_MESSAGE);
+        alert(t.app.unsupportedDropFormat);
         return;
       }
 
       await openMusicXmlFile(filePath);
     },
-    [openMusicXmlFile]
+    [openMusicXmlFile, t]
   );
+
+  // TASK-103: ライブラリ画面（LibraryView）の行クリックで呼ばれる（REQ-017-007/008）。
+  // library:openはallowlist登録・拡張子検証・存在確認を行った上で、既存の読み込み
+  // フロー（openMusicXmlFile）を再利用できるようにする前処理である。
+  const handleOpenLibraryEntry = React.useCallback(
+    async (filePath: string): Promise<void> => {
+      if (!window.electronAPI?.library) {
+        alert(t.app.electronApiUnavailable);
+        return;
+      }
+
+      try {
+        const result = await window.electronAPI.library.open(filePath);
+        if (result.ok) {
+          await openMusicXmlFile(filePath);
+          return;
+        }
+        // REQ-017-008: 見つからなかった場合はエラー通知＋欠損マーク＋
+        // ライブラリから削除するかどうかの確認を出す（画面遷移は行わない）。
+        setMissingLibraryPaths((prev) => new Set(prev).add(filePath));
+        alert(t.library.missingEntryErrorMessage);
+        setMissingEntryPath(filePath);
+      } catch (error) {
+        console.error('Failed to open the library entry:', error);
+        alert(t.app.libraryOpenError);
+      }
+    },
+    [openMusicXmlFile, t]
+  );
+
+  const handleConfirmRemoveMissingEntry = React.useCallback(async () => {
+    if (!missingEntryPath) return;
+    const targetPath = missingEntryPath;
+    setMissingEntryPath(null);
+    try {
+      await window.electronAPI?.library?.remove(targetPath);
+      // CodeRabbit #46指摘4: 削除成功時のみ、欠損マークを外しLibraryViewへ一覧の
+      // 再取得を促す（失敗時はビュー状態を変えず、catch節でalert通知する）。
+      setMissingLibraryPaths((prev) => {
+        const next = new Set(prev);
+        next.delete(targetPath);
+        return next;
+      });
+      setLibraryReloadSignal((count) => count + 1);
+    } catch (error) {
+      console.error('Failed to remove the missing library entry:', error);
+      alert(t.library.missingEntryRemoveErrorMessage);
+    }
+  }, [missingEntryPath, t]);
+
+  const handleKeepMissingEntry = React.useCallback(() => {
+    setMissingEntryPath(null);
+  }, []);
 
   const handleFingering = React.useCallback(
     async (assignments: FingerAssignment[]) => {
@@ -428,10 +531,10 @@ function App(): React.JSX.Element {
         await annotationStore.current.save();
       } catch (error) {
         console.error('Failed to save fingering annotations:', error);
-        alert('運指アノテーションの保存に失敗しました。');
+        alert(t.app.fingeringSaveError);
       }
     },
-    [musicXmlPath, isLoadingAnnotations, showFingerings, setShowFingerings]
+    [musicXmlPath, isLoadingAnnotations, showFingerings, setShowFingerings, t]
   );
 
   // 運指メモの右クリックメニュー結線（REQ-008-001/003/006、REQ-009-005）。
@@ -454,9 +557,9 @@ function App(): React.JSX.Element {
       setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
     } catch (error) {
       console.error('Failed to save annotation:', error);
-      alert('運指メモの保存に失敗しました。');
+      alert(t.app.annotationSaveError);
     }
-  }, []);
+  }, [t]);
 
   const handleSelectFinger = React.useCallback(
     async (noteId: string, finger: Finger) => {
@@ -540,6 +643,12 @@ function App(): React.JSX.Element {
     [audioEngine, practiceEngine]
   );
 
+  // TASK-105: 楽譜表示への復帰導線（REQ-017-012）。楽譜読み込み済みかつ
+  // ライブラリ画面表示中の場合のみ、Headerのライブラリボタンを「楽譜へ戻る」表示にし、
+  // クリック時もscoreへ戻すトグルとして扱う。楽譜未読み込み時は従来通りライブラリを
+  // 開く導線のみとする（戻り先がないため）。
+  const isReturnToScoreMode = Boolean(score) && activeView === 'library';
+
   return (
     <div
       data-testid="app-container"
@@ -560,6 +669,8 @@ function App(): React.JSX.Element {
           score={score}
           onFingeringSuggested={handleFingering}
           fingeringDisabled={isLoadingAnnotations}
+          onOpenLibrary={() => setActiveView(isReturnToScoreMode ? 'score' : 'library')}
+          isReturnToScoreMode={isReturnToScoreMode}
         />
       </div>
 
@@ -580,11 +691,15 @@ function App(): React.JSX.Element {
         子である ScoreRenderer の flexGrow:1 が有効になり、
         利用可能な高さを正しく継承できるようにする。
       */}
+      {/* TASK-103: 楽譜画面はactiveView==='score'の間のみ表示する。ScoreRenderer/
+          PianoKeyboardはアンマウントせずdisplay:noneで隠す（既存の多数の結線テストが
+          両コンポーネントの常時マウントを前提としているため、CSS上の可視性のみを
+          切り替えることで挙動を変えずに画面切り替えを実現する）。 */}
       <div
         style={{
           flexGrow: 1,
           minHeight: 0,
-          display: 'flex',
+          display: activeView === 'score' ? 'flex' : 'none',
           flexDirection: 'column',
           position: 'relative',
         }}
@@ -618,10 +733,90 @@ function App(): React.JSX.Element {
               pointerEvents: 'none',
             }}
           >
-            ここにMusicXMLファイルをドロップ（またはファイルを開く）
+            {t.app.dropHint}
           </div>
         )}
       </div>
+
+      {/* TASK-103: ライブラリ画面（US-017）。起動時（activeView初期値'library'）は
+          楽譜未読み込みでもここが表示される（REQ-017-010）。 */}
+      {activeView === 'library' && (
+        <div style={{ flexGrow: 1, minHeight: 0, overflow: 'auto' }}>
+          <LibraryView
+            onOpenEntry={handleOpenLibraryEntry}
+            onOpenFileDialog={handleOpenFile}
+            missingPaths={missingLibraryPaths}
+            reloadSignal={libraryReloadSignal}
+            onReturnToScore={score ? () => setActiveView('score') : undefined}
+          />
+        </div>
+      )}
+
+      {/* TASK-103: ライブラリから開こうとしたファイルが見つからなかった場合の
+          確認ダイアログ（REQ-017-008）。window.confirmではなくアプリ内確認UIを使う
+          （プロジェクトの既存の確認パターンに合わせる、LibraryView内の削除確認と同様）。 */}
+      {missingEntryPath && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            role="dialog"
+            aria-label={t.library.missingEntryConfirmTitle}
+            style={{
+              backgroundColor: '#fff',
+              color: '#111827',
+              borderRadius: '8px',
+              minWidth: '320px',
+              maxWidth: '90vw',
+              padding: '20px 24px',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            }}
+          >
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.9375rem' }}>
+              {t.library.missingEntryConfirmMessage}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleKeepMissingEntry}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#f3f4f6',
+                  color: '#111827',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+              >
+                {t.library.confirmDeleteCancelButton}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRemoveMissingEntry}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                {t.library.confirmDeleteConfirmButton}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TASK-053: ドラッグオーバー中の視覚フィードバック。アプリ全体への
           ドロップを受け付けるため、ヘッダー/楽譜/鍵盤を横断してオーバーレイ表示する。 */}
@@ -653,8 +848,9 @@ function App(): React.JSX.Element {
         />
       )}
 
-      {/* 3. PianoKeyboard (Fixed Footer) */}
-      <div style={{ flexShrink: 0 }}>
+      {/* 3. PianoKeyboard (Fixed Footer)。TASK-103: 楽譜画面表示中のみ表示する
+          （常時マウントの理由はScoreRendererコンテナのコメントと同様）。 */}
+      <div style={{ flexShrink: 0, display: activeView === 'score' ? 'block' : 'none' }}>
         <PianoKeyboard
           expectedNotes={expectedNotes}
           pressedKeys={pressedKeys}

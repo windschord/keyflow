@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Annotation, Finger } from '../../types';
+import { useTranslation } from '../../lib/i18n/useTranslation';
+import { formatMessage } from '../../lib/i18n/format';
 
 const FINGER_OPTIONS: Finger[] = [1, 2, 3, 4, 5];
 
@@ -37,6 +39,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
   onApprove,
   onClose,
 }) => {
+  const t = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const [commentDraft, setCommentDraft] = useState(annotation?.comment ?? '');
 
@@ -87,11 +90,13 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
       }}
     >
       <div style={{ fontWeight: 600, marginBottom: '8px', wordBreak: 'break-all' }}>
-        運指メモ: {noteId}
+        {formatMessage(t.noteContextMenu.title, { noteId })}
       </div>
 
       <div style={{ marginBottom: '8px' }}>
-        <div style={{ marginBottom: '4px', color: '#374151' }}>指番号</div>
+        <div style={{ marginBottom: '4px', color: '#374151' }}>
+          {t.noteContextMenu.fingerNumberLabel}
+        </div>
         <div style={{ display: 'flex', gap: '4px' }}>
           {FINGER_OPTIONS.map((finger) => (
             <button
@@ -132,11 +137,13 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
           opacity: annotation?.fingerNumber === undefined ? 0.5 : 1,
         }}
       >
-        指番号を削除
+        {t.noteContextMenu.removeFingerButton}
       </button>
 
       <div style={{ marginBottom: '8px' }}>
-        <div style={{ marginBottom: '4px', color: '#374151' }}>コメント</div>
+        <div style={{ marginBottom: '4px', color: '#374151' }}>
+          {t.noteContextMenu.commentLabel}
+        </div>
         <textarea
           data-testid="comment-textarea"
           value={commentDraft}
@@ -158,7 +165,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
             cursor: 'pointer',
           }}
         >
-          コメントを保存
+          {t.noteContextMenu.saveCommentButton}
         </button>
       </div>
 
@@ -178,7 +185,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
             cursor: 'pointer',
           }}
         >
-          AI提案を承認
+          {t.noteContextMenu.approveButton}
         </button>
       )}
 
@@ -196,7 +203,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
           cursor: 'pointer',
         }}
       >
-        閉じる
+        {t.noteContextMenu.closeButton}
       </button>
     </div>
   );

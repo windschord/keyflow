@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePracticeStore } from '../../store';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 const INPUT_STYLE: React.CSSProperties = {
   height: '36px',
@@ -20,6 +21,7 @@ const INPUT_STYLE: React.CSSProperties = {
  */
 export const TempoControl: React.FC = () => {
   const { bpm, originalBpm, setBpm, playbackState } = usePracticeStore();
+  const t = useTranslation();
   const [inputValue, setInputValue] = useState(bpm.toString());
 
   // TASK-067: 再生中（playing）はテンポ設定UI（スライダー・数値入力・
@@ -61,7 +63,7 @@ export const TempoControl: React.FC = () => {
     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
       <span
         aria-hidden="true"
-        title="テンポ（BPM: 1分あたりの拍数）"
+        title={t.tempoControl.bpmIconTitle}
         style={{ fontSize: '15px', color: '#374151' }}
       >
         &#9834;=
@@ -75,7 +77,7 @@ export const TempoControl: React.FC = () => {
         onChange={handleInputChange}
         onBlur={handleInputBlur}
         disabled={isTempoLocked}
-        title="テンポをBPM（1分あたりの拍数）で直接指定します"
+        title={t.tempoControl.inputTitle}
         style={{ ...INPUT_STYLE, width: '56px' }}
         data-testid="tempo-input"
       />
@@ -87,7 +89,7 @@ export const TempoControl: React.FC = () => {
         value={currentRatio}
         onChange={handleSliderChange}
         disabled={isTempoLocked}
-        title="テンポ（原曲テンポに対する割合。20%〜200%）"
+        title={t.tempoControl.sliderTitle}
         style={{
           height: '36px',
           width: '100px',
@@ -99,8 +101,8 @@ export const TempoControl: React.FC = () => {
         type="button"
         onClick={() => setBpm(originalBpm)}
         disabled={isTempoLocked}
-        title="テンポを楽譜本来のテンポに戻します"
-        aria-label="テンポをリセット"
+        title={t.tempoControl.resetTitle}
+        aria-label={t.tempoControl.resetAriaLabel}
         style={{
           height: '36px',
           width: '36px',

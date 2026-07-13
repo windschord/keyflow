@@ -4,3 +4,4 @@ export * from './practice';
 export * from './midi';
 export * from './settings';
 export * from './keyboard';
+export * from './library';

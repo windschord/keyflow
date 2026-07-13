@@ -6,6 +6,7 @@ import { PlaybackControls, PlaybackAudioEngine } from '../Toolbar/PlaybackContro
 import { Popover } from './Popover';
 import { QuickPanel } from './QuickPanel';
 import { MetronomeToggle } from './MetronomeToggle';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 import type { Score } from '../../types/score';
 import type { FingerAssignment } from '../../types/annotation';
 
@@ -22,6 +23,14 @@ export interface HeaderProps {
   onFingeringSuggested: (assignments: FingerAssignment[]) => void;
   /** アノテーション読み込み中など、運指提案ボタンを無効化したい場合にtrue。 */
   fingeringDisabled?: boolean;
+  /** ライブラリボタンクリック時に呼び出される（US-017、TASK-103）。 */
+  onOpenLibrary: () => void;
+  /**
+   * ライブラリボタンを「楽譜へ戻る」表示へ切り替えるかどうか（US-017、TASK-105、
+   * REQ-017-012）。楽譜読み込み済みかつライブラリ画面表示中のときのみtrueを渡す想定。
+   * クリック時の挙動自体はApp.tsx側のonOpenLibraryが担い、本propsは表示切り替えのみ行う。
+   */
+  isReturnToScoreMode?: boolean;
 }
 
 const ICON_BUTTON_STYLE: React.CSSProperties = {
@@ -70,7 +79,10 @@ export const Header: React.FC<HeaderProps> = ({
   score,
   onFingeringSuggested,
   fingeringDisabled,
+  onOpenLibrary,
+  isReturnToScoreMode = false,
 }) => {
+  const t = useTranslation();
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
   const quickPanelAnchorRef = useRef<HTMLButtonElement>(null);
 
@@ -95,8 +107,9 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onOpenFile}
-          aria-label="ファイルを開く"
-          title="MusicXMLファイルを開きます"
+          aria-label={t.header.openFileAriaLabel}
+          title={t.header.openFileTitle}
+          data-testid="header-open-file-button"
           style={ICON_BUTTON_STYLE}
         >
           <svg
@@ -135,12 +148,40 @@ export const Header: React.FC<HeaderProps> = ({
           }}
         >
           <button
+            type="button"
+            onClick={onOpenLibrary}
+            aria-label={
+              isReturnToScoreMode
+                ? t.header.returnToScoreAriaLabel
+                : t.header.libraryButtonAriaLabel
+            }
+            title={isReturnToScoreMode ? t.header.returnToScoreTitle : t.header.libraryButtonTitle}
+            data-testid="header-library-button"
+            style={ICON_BUTTON_STYLE}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </button>
+
+          <button
             ref={quickPanelAnchorRef}
             type="button"
             onClick={() => setIsQuickPanelOpen((open) => !open)}
-            aria-label="表示・補助"
+            aria-label={t.header.quickPanelAriaLabel}
             aria-expanded={isQuickPanelOpen}
-            title="表示・補助（音量・表示倍率・運指・成績）"
+            title={t.header.quickPanelTitle}
             data-testid="quick-panel-toggle"
             style={ICON_BUTTON_STYLE}
           >
@@ -170,8 +211,8 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenSettings}
-            title="設定"
-            aria-label="設定"
+            title={t.header.settingsTitle}
+            aria-label={t.header.settingsAriaLabel}
             style={ICON_BUTTON_STYLE}
           >
             <svg

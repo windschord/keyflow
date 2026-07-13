@@ -2,6 +2,13 @@ export type Hand = 'right' | 'left' | 'unknown';
 
 export interface Score {
   title: string;
+  /**
+   * MusicXMLの`<identification><creator type="composer">`由来の作曲者名（TASK-103）。
+   * 見つからない場合は空文字。オプショナルなのは、本フィールド導入前に構築された
+   * 既存のテスト用Scoreリテラルとの後方互換性を保つため（実運用のパーサー出力では
+   * 常に設定される）。
+   */
+  composer?: string;
   parts: Part[];
   measures: Measure[];
   tempo: number;

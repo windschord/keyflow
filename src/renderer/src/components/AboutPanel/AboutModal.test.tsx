@@ -1,7 +1,8 @@
 import { fireEvent, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithStrictMode as render } from '../../tests/test-utils';
 import { AboutModal } from './AboutModal';
+import { usePracticeStore } from '../../store';
 
 // ライブラリ一覧はビルド時生成物（TASK-076と同じ理由でAboutPanel.test.tsxに倣いモックする）。
 // 本ファイルの関心事はAboutModal自体のオーバーレイ・閉じるボタン・Escape対応であり、
@@ -11,6 +12,11 @@ vi.mock('../../generated/licenses.json', () => ({
 }));
 
 describe('AboutModal (TASK-082, US-015)', () => {
+  afterEach(() => {
+    // TASK-098: 言語切り替えテストによる変更値の後続テストへの残留を防ぐためリセットする。
+    usePracticeStore.setState({ language: 'ja' });
+  });
+
   it('isOpenがfalseの場合は何もレンダリングしない', () => {
     render(<AboutModal isOpen={false} onClose={vi.fn()} />);
 
@@ -95,5 +101,16 @@ describe('AboutModal (TASK-082, US-015)', () => {
     );
 
     expect(trigger).toHaveFocus();
+  });
+
+  // TASK-098, US-016: 文言外部化の確認として、store言語が"en"の場合に英語表記へ
+  // 切り替わることを検証する。
+  it('shows English strings when the store language is "en" (TASK-098)', () => {
+    usePracticeStore.setState({ language: 'en' });
+
+    render(<AboutModal isOpen onClose={vi.fn()} />);
+
+    expect(screen.getByRole('dialog', { name: 'About' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
   });
 });

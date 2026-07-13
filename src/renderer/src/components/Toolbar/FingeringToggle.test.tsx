@@ -21,7 +21,7 @@ describe('FingeringToggle labels and behavior', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     delete testWindow.electronAPI;
-    usePracticeStore.setState({ showFingerings: true });
+    usePracticeStore.setState({ language: 'ja', showFingerings: true });
   });
 
   it('shows a Japanese "運指" label', () => {
@@ -118,5 +118,18 @@ describe('FingeringToggle labels and behavior', () => {
 
     expect(() => fireEvent.click(button)).not.toThrow();
     expect(usePracticeStore.getState().showFingerings).toBe(false);
+  });
+
+  describe('言語切り替え (TASK-097, US-016)', () => {
+    it('shows English label and status text when the store language is "en"', () => {
+      usePracticeStore.setState({ language: 'en', showFingerings: true });
+      render(<FingeringToggle />);
+
+      expect(screen.getByText('Fingering')).toBeInTheDocument();
+      expect(screen.getByText('Shown')).toBeInTheDocument();
+      expect(screen.getByTestId('fingering-toggle').getAttribute('title')).toBe(
+        'Hide fingering numbers on the score and keyboard'
+      );
+    });
   });
 });

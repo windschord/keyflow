@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { usePracticeStore } from '../../store';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 /**
  * persistShowFingerings の書き込みを直列化するための内部状態
@@ -55,6 +56,7 @@ function persistShowFingerings(writeState: FingeringVisibilityWriteState, value:
  */
 export const FingeringToggle: React.FC = () => {
   const { showFingerings, setShowFingerings } = usePracticeStore();
+  const t = useTranslation();
 
   const writeStateRef = useRef<FingeringVisibilityWriteState>({
     chain: Promise.resolve(),
@@ -73,11 +75,7 @@ export const FingeringToggle: React.FC = () => {
       onClick={handleClick}
       aria-pressed={showFingerings}
       data-testid="fingering-toggle"
-      title={
-        showFingerings
-          ? '運指を非表示にします（楽譜・鍵盤上の指番号を一括で隠します）'
-          : '運指を表示します（楽譜・鍵盤上の指番号を一括で表示します）'
-      }
+      title={showFingerings ? t.fingeringToggle.titleHide : t.fingeringToggle.titleShow}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -94,7 +92,7 @@ export const FingeringToggle: React.FC = () => {
         whiteSpace: 'nowrap',
       }}
     >
-      <span>運指</span>
+      <span>{t.fingeringToggle.label}</span>
       <span
         aria-hidden="true"
         style={{
@@ -121,7 +119,7 @@ export const FingeringToggle: React.FC = () => {
           }}
         />
       </span>
-      <span>{showFingerings ? '表示中' : '非表示'}</span>
+      <span>{showFingerings ? t.fingeringToggle.statusShown : t.fingeringToggle.statusHidden}</span>
     </button>
   );
 };

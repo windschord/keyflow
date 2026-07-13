@@ -21,7 +21,7 @@ MIDI入力の正誤判定・運指提案・A-Bループ練習を備え、Synthes
 | 楽譜レンダリング | OpenSheetMusicDisplay (OSMD) |
 | MIDI入力 | Web MIDI API（Renderer Process直接利用、`src/renderer/src/lib/midi/web-midi.ts`） |
 | 音声合成 | Tone.js |
-| 状態管理 | Zustand v4 |
+| 状態管理 | Zustand v5 |
 | 運指エンジン | 独自実装 TypeScript（Web Worker）Parncutt-Terzuolo DPモデル |
 | 永続化 | electron-store（設定）、JSONサイドカー（アノテーション） |
 | テスト | Vitest |

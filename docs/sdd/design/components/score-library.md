@@ -78,6 +78,12 @@ LibraryView 行クリック
 - `ui-slice.activeView: 'score' | 'library'`（初期値 `'library'`）
 - App.tsx: `activeView === 'library'` でLibraryViewを表示。楽譜を開くと `'score'` へ遷移
 - Headerに「ライブラリ」ボタンを追加していつでも戻れる（楽譜未読み込みでもクラッシュしない）
+- 楽譜表示への復帰導線（REQ-017-012）: 楽譜を開いた状態では次の2つの導線を提供する
+  - Headerのライブラリボタンをトグルとして機能させる。ライブラリ表示中はラベル・
+    aria-labelを「楽譜へ戻る」系へ切り替える
+  - LibraryView上部に「楽譜へ戻る」ボタンを表示する。propsは
+    `onReturnToScore?: () => void`（オプショナル）とし、未指定なら非表示
+  - いずれも `setActiveView('score')` を呼ぶだけで、楽譜の再読み込みは発生しない
 
 ## UI仕様
 

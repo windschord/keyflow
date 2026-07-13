@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 import { AudioEngineService } from './lib/audio-engine';
 import { WebMidiService } from './lib/midi/web-midi';
 import { usePracticeStore } from './store';
+import type { ElectronAPI } from './types/electron-api';
 
 // Mock Tone.js globally to avoid AudioContext errors during testing
 vi.mock('tone', () => {
@@ -2009,6 +2010,11 @@ describe('App - ライブラリ統合（TASK-103, US-017）', () => {
   });
 
   describe('楽譜へ戻る導線 (TASK-105, REQ-017-012)', () => {
+    // file APIのみを差し替える構造型キャスト（anyは使わない。TASK-088是正と同じパターン）。
+    function setFileOnlyElectronAPI(file: Pick<ElectronAPI['file'], 'showOpenDialog' | 'read'>) {
+      (window as unknown as { electronAPI: { file: typeof file } }).electronAPI = { file };
+    }
+
     it('passes isReturnToScoreMode=false to Header and does not switch away from library when no score is loaded', () => {
       render(<App />);
 
@@ -2025,10 +2031,7 @@ describe('App - ライブラリ統合（TASK-103, US-017）', () => {
       const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
       const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).electronAPI = {
-        file: { showOpenDialog: showOpenDialogMock, read: readMock },
-      };
+      setFileOnlyElectronAPI({ showOpenDialog: showOpenDialogMock, read: readMock });
 
       render(<App />);
       act(() => {
@@ -2057,10 +2060,7 @@ describe('App - ライブラリ統合（TASK-103, US-017）', () => {
       const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
       const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).electronAPI = {
-        file: { showOpenDialog: showOpenDialogMock, read: readMock },
-      };
+      setFileOnlyElectronAPI({ showOpenDialog: showOpenDialogMock, read: readMock });
 
       render(<App />);
       expect(latestLibraryViewProps.onReturnToScore).toBeUndefined();
@@ -2234,6 +2234,13 @@ describe('App - ライブラリ統合（TASK-103, US-017）', () => {
     await waitFor(() => expect(libraryApi.remove).toHaveBeenCalled());
     expect(latestLibraryViewProps.missingPaths?.has('/scores/missing.xml')).toBe(true);
     expect(latestLibraryViewProps.reloadSignal).toBe(signalBeforeRemoval);
+    // CodeRabbit #46第2ラウンド指摘2: 削除失敗がユーザーへ無通知のまま回帰しないことを検証する。
+    // openEntry時のmissingEntryErrorMessageと区別するため、削除失敗専用の文言で検証する。
+    await waitFor(() =>
+      expect(alertMock).toHaveBeenCalledWith(
+        'ライブラリからの削除に失敗しました。もう一度お試しください。'
+      )
+    );
 
     alertMock.mockRestore();
   });

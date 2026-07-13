@@ -87,7 +87,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   useEffect(() => {
     if (!confirmTarget) return undefined;
 
-    previouslyFocusedElementRef.current = document.activeElement as HTMLElement | null;
+    previouslyFocusedElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     confirmDialogRef.current?.focus();
 
     const handleKeyDown = (event: KeyboardEvent): void => {

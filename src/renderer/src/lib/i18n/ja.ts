@@ -206,6 +206,7 @@ export const ja = {
     missingEntryConfirmTitle: 'ライブラリから削除しますか',
     missingEntryConfirmMessage:
       'このファイルをライブラリから削除しますか。元のファイルの場所は変更されません。',
+    missingEntryRemoveErrorMessage: 'ライブラリからの削除に失敗しました。もう一度お試しください。',
     returnToScoreButton: '楽譜へ戻る',
   },
 } as const satisfies Record<string, Record<string, string>>;

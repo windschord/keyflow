@@ -205,6 +205,7 @@ export const en: Messages = {
     missingEntryConfirmTitle: 'Remove from library',
     missingEntryConfirmMessage:
       'Remove this file from the library? The original file location is not changed.',
+    missingEntryRemoveErrorMessage: 'Failed to remove from the library. Please try again.',
     returnToScoreButton: 'Back to score',
   },
 };

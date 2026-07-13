@@ -497,7 +497,7 @@ function App(): React.JSX.Element {
     try {
       await window.electronAPI?.library?.remove(targetPath);
       // CodeRabbit #46指摘4: 削除成功時のみ、欠損マークを外しLibraryViewへ一覧の
-      // 再取得を促す（失敗時はビュー状態を変えず、既存のエラーハンドリングに委ねる）。
+      // 再取得を促す（失敗時はビュー状態を変えず、catch節でalert通知する）。
       setMissingLibraryPaths((prev) => {
         const next = new Set(prev);
         next.delete(targetPath);
@@ -506,8 +506,9 @@ function App(): React.JSX.Element {
       setLibraryReloadSignal((count) => count + 1);
     } catch (error) {
       console.error('Failed to remove the missing library entry:', error);
+      alert(t.library.missingEntryRemoveErrorMessage);
     }
-  }, [missingEntryPath]);
+  }, [missingEntryPath, t]);
 
   const handleKeepMissingEntry = React.useCallback(() => {
     setMissingEntryPath(null);

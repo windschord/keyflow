@@ -264,6 +264,8 @@ describe('LibraryView', () => {
       rerender(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} reloadSignal={1} />);
 
       expect(await screen.findByText('Second')).toBeInTheDocument();
+      // CodeRabbit #46第2ラウンド指摘4: 再取得後は旧エントリが一覧から消えることも検証する。
+      expect(screen.queryByText('First')).not.toBeInTheDocument();
     });
   });
 

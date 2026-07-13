@@ -13,5 +13,4 @@ export interface LibraryEntry {
 
 /** `library:open` の結果（TASK-101）。失敗時は例外ではなく理由付きの構造化値で返る。 */
 export type LibraryOpenResult =
-  | { ok: true }
-  | { ok: false; reason: 'not-found' | 'invalid-extension' };
+  { ok: true } | { ok: false; reason: 'not-found' | 'invalid-extension' };

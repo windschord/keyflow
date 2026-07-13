@@ -172,8 +172,7 @@ export class OSMDController {
    * REQ-009-005）。App.tsx側で運指メモのコンテキストメニュー表示に結線する。
    */
   private onNoteContextMenuCallback:
-    | ((noteId: string, screenX: number, screenY: number) => void)
-    | null = null;
+    ((noteId: string, screenX: number, screenY: number) => void) | null = null;
 
   constructor(container: HTMLDivElement) {
     this.container = container;

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { AboutPanel } from './index';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 export interface AboutModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export interface AboutModalProps {
  * 復帰する。記憶した要素がDOMから消えている場合は何もしない。
  */
 export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
+  const t = useTranslation();
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
 
@@ -60,7 +62,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="このアプリについて"
+        aria-label={t.about.dialogAriaLabel}
         tabIndex={-1}
         style={{
           position: 'absolute',
@@ -89,10 +91,12 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
             alignItems: 'center',
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>このアプリについて</h2>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>
+            {t.about.dialogAriaLabel}
+          </h2>
           <button
             onClick={onClose}
-            aria-label="閉じる"
+            aria-label={t.about.closeButtonAriaLabel}
             style={{
               background: 'transparent',
               border: 'none',

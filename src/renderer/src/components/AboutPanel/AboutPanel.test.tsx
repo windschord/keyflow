@@ -1,7 +1,8 @@
 import { fireEvent, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithStrictMode as render } from '../../tests/test-utils';
 import { AboutPanel } from './index';
+import { usePracticeStore } from '../../store';
 
 // ライブラリ一覧はビルド時生成物（src/renderer/src/generated/licenses.json、gitignore対象）。
 // ユニットテストではnode_modulesの実データに依存させず、決定的なフィクスチャで検証する
@@ -19,6 +20,11 @@ vi.mock('../../generated/licenses.json', () => ({
 }));
 
 describe('AboutPanel', () => {
+  afterEach(() => {
+    // TASK-098: 言語切り替えテストによる変更値の後続テストへの残留を防ぐためリセットする。
+    usePracticeStore.setState({ language: 'ja' });
+  });
+
   it('アプリ名・バージョン・本体ライセンスが表示される（REQ-015-001、TASK-083: アプリ名は「keyflow」）', () => {
     render(<AboutPanel />);
 
@@ -49,5 +55,15 @@ describe('AboutPanel', () => {
     fireEvent.click(screen.getByText('tone'));
 
     expect(screen.queryByText(/Copyright \(c\) Tone\.js contributors/)).not.toBeInTheDocument();
+  });
+
+  // TASK-098, US-016: 文言外部化の確認として、store言語が"en"の場合に英語表記へ
+  // 切り替わることを検証する。固有名詞（Salamanderクレジット・ライブラリ名）は対象外。
+  it('shows English strings when the store language is "en" (TASK-098)', () => {
+    usePracticeStore.setState({ language: 'en' });
+
+    render(<AboutPanel />);
+
+    expect(screen.getByText('Libraries used')).toBeInTheDocument();
   });
 });

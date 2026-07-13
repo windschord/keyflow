@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { usePracticeStore } from '../../store';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 const BTN_STYLE: React.CSSProperties = {
   height: '36px',
@@ -28,6 +29,7 @@ const BTN_ACTIVE_STYLE: React.CSSProperties = {
  */
 export const PracticeModeSelector: React.FC = () => {
   const { practiceMode, setPracticeMode } = usePracticeStore();
+  const t = useTranslation();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -59,32 +61,32 @@ export const PracticeModeSelector: React.FC = () => {
   return (
     <div
       data-testid="practice-mode-group"
-      title="練習対象（左手/右手/両手）を切り替えます。運指対象の選択とは別です"
+      title={t.practiceModeSelector.groupTitle}
       style={{ display: 'flex', gap: '6px', alignItems: 'center' }}
     >
       <button
         data-testid="mode-left"
-        title="左手のみを練習対象にします（ショートカット: L）"
+        title={t.practiceModeSelector.leftTitle}
         style={practiceMode === 'left' ? BTN_ACTIVE_STYLE : BTN_STYLE}
         onClick={() => setPracticeMode('left')}
       >
-        左手 (L)
+        {t.practiceModeSelector.left}
       </button>
       <button
         data-testid="mode-right"
-        title="右手のみを練習対象にします（ショートカット: R）"
+        title={t.practiceModeSelector.rightTitle}
         style={practiceMode === 'right' ? BTN_ACTIVE_STYLE : BTN_STYLE}
         onClick={() => setPracticeMode('right')}
       >
-        右手 (R)
+        {t.practiceModeSelector.right}
       </button>
       <button
         data-testid="mode-both"
-        title="両手を練習対象にします（ショートカット: B）"
+        title={t.practiceModeSelector.bothTitle}
         style={practiceMode === 'both' ? BTN_ACTIVE_STYLE : BTN_STYLE}
         onClick={() => setPracticeMode('both')}
       >
-        両手 (B)
+        {t.practiceModeSelector.both}
       </button>
     </div>
   );

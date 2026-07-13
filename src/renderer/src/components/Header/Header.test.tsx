@@ -28,6 +28,7 @@ vi.mock('../../lib/fingering-engine', () => ({
 describe('Header', () => {
   beforeEach(() => {
     usePracticeStore.setState({
+      language: 'ja',
       practiceMode: 'both',
       bpm: 120,
       originalBpm: 120,
@@ -330,6 +331,21 @@ describe('Header', () => {
 
       fireEvent.keyDown(window, { code: 'Space' });
       expect(audioEngine.pauseAccompaniment).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('言語切り替え (TASK-097, US-016)', () => {
+    it('shows English accessible names when the store language is "en"', () => {
+      usePracticeStore.setState({ language: 'en' });
+      renderHeader();
+
+      expect(screen.getByRole('button', { name: 'Open file' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+      expect(screen.getByTestId('metronome-toggle').getAttribute('title')).toBe('Metronome');
+      expect(screen.getByTestId('quick-panel-toggle').getAttribute('title')).toBe(
+        'View & tools (volume, zoom, fingering, stats)'
+      );
+      expect(screen.getByRole('button', { name: 'Reset tempo' })).toBeInTheDocument();
     });
   });
 });

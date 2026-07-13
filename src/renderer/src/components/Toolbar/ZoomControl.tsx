@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePracticeStore } from '../../store';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 // ズームレベルの選択肢（REQ-002-006）。50%〜400%の範囲を用意し、
 // 400%はE2Eの手動スクロール検証（tests/e2e/app.spec.ts）が
@@ -22,18 +23,19 @@ const ZOOM_LEVELS: Array<{ value: number; label: string }> = [
  */
 export const ZoomControl: React.FC = () => {
   const { zoom, setZoom } = usePracticeStore();
+  const t = useTranslation();
 
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
       <label htmlFor="zoom-select" style={{ fontSize: '14px', color: '#374151' }}>
-        表示倍率:
+        {t.zoomControl.label}
       </label>
       <select
         id="zoom-select"
         data-testid="zoom-select"
         value={String(zoom)}
         onChange={(e) => setZoom(Number(e.target.value))}
-        title="楽譜の表示倍率を変更します"
+        title={t.zoomControl.title}
         style={{
           height: '44px',
           fontSize: '15px',

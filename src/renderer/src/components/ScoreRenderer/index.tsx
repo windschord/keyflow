@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Score, PracticeMode, Note, Annotation, Hand } from '../../types';
 import { OSMDController } from './osmd-controller';
+import { useTranslation } from '../../lib/i18n/useTranslation';
 
 export interface ScoreRendererProps {
   score: Score | null;
@@ -43,6 +44,7 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
   noteHighlights,
   onNoteContextMenu,
 }) => {
+  const t = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const osmdControllerRef = useRef<OSMDController | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -227,7 +229,7 @@ export const ScoreRenderer: React.FC<ScoreRendererProps> = ({
     >
       {!score && (
         <div style={{ margin: 'auto', color: '#666' }} data-testid="placeholder">
-          楽譜ファイルを開いてください
+          {t.scoreRenderer.placeholder}
         </div>
       )}
       <div

@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { Score, FingerAssignment } from '../../types';
 import { FingeringEngineService, DEFAULT_HAND_SETTINGS } from '../../lib/fingering-engine';
 import type { FingeringHand } from '../../workers/fingering/types';
+import { useTranslation } from '../../lib/i18n/useTranslation';
+import { formatMessage } from '../../lib/i18n/format';
 
 interface FingeringPanelProps {
   score: Score | null;
@@ -12,6 +14,7 @@ interface FingeringPanelProps {
 const TOUCH_HEIGHT = 44;
 
 export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggested, disabled }) => {
+  const t = useTranslation();
   const [computing, setComputing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +44,9 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
       .filter((n) => n.hand === hand && !n.isRest);
 
     if (notesToCompute.length === 0) {
-      setError(hand === 'right' ? '右手の音符が見つかりません' : '左手の音符が見つかりません');
+      const handLabel =
+        hand === 'right' ? t.fingeringPanel.handOptionRight : t.fingeringPanel.handOptionLeft;
+      setError(formatMessage(t.fingeringPanel.noNotesError, { hand: handLabel }));
       setComputing(false);
       return;
     }
@@ -69,14 +74,14 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
         htmlFor="hand-select"
         style={{ fontSize: '14px', whiteSpace: 'nowrap', color: '#374151' }}
       >
-        運指対象:
+        {t.fingeringPanel.handSelectLabel}
       </label>
       <select
         id="hand-select"
         value={hand}
         onChange={(e) => setHand(e.target.value as FingeringHand)}
         disabled={computing || !!disabled}
-        title="運指を計算する対象の手を選択します（練習対象パートの設定とは別です）"
+        title={t.fingeringPanel.handSelectTitle}
         style={{
           height: `${TOUCH_HEIGHT}px`,
           fontSize: '16px',
@@ -87,8 +92,8 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
           cursor: computing || !!disabled ? 'not-allowed' : 'pointer',
         }}
       >
-        <option value="right">右手</option>
-        <option value="left">左手</option>
+        <option value="right">{t.fingeringPanel.handOptionRight}</option>
+        <option value="left">{t.fingeringPanel.handOptionLeft}</option>
       </select>
 
       <div style={{ position: 'relative' }}>
@@ -111,7 +116,7 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
             overflow: 'hidden',
           }}
         >
-          {computing ? `${Math.round(progress * 100)}%` : '運指提案'}
+          {computing ? `${Math.round(progress * 100)}%` : t.fingeringPanel.computeButton}
           {computing && (
             <div
               style={{

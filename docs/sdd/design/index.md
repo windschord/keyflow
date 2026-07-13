@@ -93,6 +93,7 @@ graph TB
 | Instrument Voices | Renderer | 再生音色（Salamander+シンセ）・メトロノーム音色の選択（US-013） | [詳細](components/instrument-voices.md) @components/instrument-voices.md |
 | Pedal Playback | Renderer | ペダル記号の解析・再生反映（US-014） | [詳細](components/pedal-playback.md) @components/pedal-playback.md |
 | About Page | Renderer (UI) + ビルドスクリプト | バージョン・ライセンス表示（US-015） | [詳細](components/about-page.md) @components/about-page.md |
+| I18n | Renderer + Main | UI表示言語の日英切り替え（US-016） | [詳細](components/i18n.md) @components/i18n.md |
 
 ---
 
@@ -177,6 +178,7 @@ interface Annotation {
 | DEC-006 | 再生音色にSalamander Grand Piano V3（CC-BY 3.0）+ Tone.Samplerを採用 | 承認済 | [詳細](decisions/DEC-006.md) @decisions/DEC-006.md |
 | DEC-007 | ヘッダーを1行+ポップオーバー方式へ再設計 | 承認済 | [詳細](decisions/DEC-007.md) @decisions/DEC-007.md |
 | DEC-008 | ライブラリライセンス一覧をビルド時に自動生成 | 承認済 | [詳細](decisions/DEC-008.md) @decisions/DEC-008.md |
+| DEC-009 | UIの多言語対応を依存追加なしの軽量独自i18nで実装 | 承認済 | [詳細](decisions/DEC-009.md) @decisions/DEC-009.md |
 
 ---
 
@@ -240,6 +242,7 @@ docs/sdd/design/
 │   ├── instrument-voices.md       # 再生・メトロノーム音色（US-013）
 │   ├── pedal-playback.md          # ペダル記号の再生反映（US-014）
 │   ├── about-page.md              # Aboutページ（US-015）
+│   ├── i18n.md                    # UI多言語対応（US-016）
 │   └── data-model-v2.md           # 時刻ベースデータモデル（v2）
 ├── database/
 │   └── schema.md                  # データスキーマ
@@ -251,5 +254,6 @@ docs/sdd/design/
     ├── DEC-005.md                  # 時刻ベースデータモデル・noteId統一
     ├── DEC-006.md                  # Salamander音源+Tone.Sampler採用
     ├── DEC-007.md                  # ヘッダー1行+ポップオーバー方式
-    └── DEC-008.md                  # ライセンス一覧のビルド時自動生成
+    ├── DEC-008.md                  # ライセンス一覧のビルド時自動生成
+    └── DEC-009.md                  # 軽量独自i18n採用（UI多言語対応）
 ```

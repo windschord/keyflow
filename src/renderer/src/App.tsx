@@ -13,6 +13,8 @@ import { AnnotationStoreService } from './lib/annotation-store';
 import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
 import { PLAYBACK_VOICES } from './lib/audio-engine/voices';
 import { METRONOME_VOICES } from './lib/audio-engine/metronome-voices';
+import { resolveLanguage } from './lib/i18n/resolve-language';
+import { useTranslation } from './lib/i18n/useTranslation';
 import type { Annotation, Finger, FingerAssignment, Note, Score } from './types';
 
 // TASK-053: ドラッグ＆ドロップで受け付けるMusicXMLの拡張子（大文字小文字を区別しない）。
@@ -24,10 +26,8 @@ function hasAcceptedDropExtension(fileName: string): boolean {
   return ACCEPTED_DROP_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
-const UNSUPPORTED_DROP_MESSAGE =
-  '対応していないファイル形式です。.xml / .musicxml / .mxl ファイルをドロップしてください。';
-
 function App(): React.JSX.Element {
+  const t = useTranslation();
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   // TASK-082: Aboutをメニューバー経由で開く独立モーダルへ分離した（US-015）。
   const [isAboutOpen, setIsAboutOpen] = React.useState(false);
@@ -86,6 +86,7 @@ function App(): React.JSX.Element {
     setKeyboardSize,
     setPlaybackVoice,
     setMetronomeVoice,
+    setLanguage,
     currentMeasure,
     currentNoteIndex,
     loopEnabled,
@@ -118,6 +119,7 @@ function App(): React.JSX.Element {
       setKeyboardSize: s.setKeyboardSize,
       setPlaybackVoice: s.setPlaybackVoice,
       setMetronomeVoice: s.setMetronomeVoice,
+      setLanguage: s.setLanguage,
       currentMeasure: s.currentMeasure,
       currentNoteIndex: s.currentNoteIndex,
       loopEnabled: s.loopEnabled,
@@ -191,6 +193,9 @@ function App(): React.JSX.Element {
   // - audio.playbackVoice / audio.metronomeVoice → ui-slice.playbackVoice / metronomeVoice
   //   （TASK-073, US-013）。
   //   usePractice.ts側のuseEffectがaudioEngine.setPlaybackVoice / setMetronomeVoiceへ反映する。
+  // - ui.language → resolveLanguage(ui.language, navigator.language) → ui-slice.language
+  //   （TASK-096, US-016, REQ-016-002/005）。'auto'・不正値・未定義はOSロケール判定に
+  //   フォールバックする。useTranslation()がこの値を購読して表示文言を切り替える。
   React.useEffect(() => {
     if (!window.electronAPI?.settings) return;
 
@@ -227,6 +232,7 @@ function App(): React.JSX.Element {
           if (typeof uiSettings.keyboardSize === 'number') {
             setKeyboardSize(uiSettings.keyboardSize);
           }
+          setLanguage(resolveLanguage(uiSettings.language, navigator.language));
         }
         if (midiSettings) {
           setMidiDeviceId(midiSettings.selectedDeviceId);
@@ -270,6 +276,7 @@ function App(): React.JSX.Element {
     setKeyboardSize,
     setPlaybackVoice,
     setMetronomeVoice,
+    setLanguage,
   ]);
 
   // ダイアログ経由（handleOpenFile）・ドラッグ＆ドロップ経由（handleDrop）の両方から
@@ -312,17 +319,17 @@ function App(): React.JSX.Element {
         setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
       } catch (error) {
         console.error('Failed to parse file:', error);
-        alert('MusicXML ファイルの解析に失敗しました。ファイル形式を確認してください。');
+        alert(t.app.parseError);
       } finally {
         setIsLoadingAnnotations(false);
       }
     },
-    [practiceEngine, setOriginalBpm, setScore]
+    [practiceEngine, setOriginalBpm, setScore, t]
   );
 
   const handleOpenFile = async () => {
     if (!window.electronAPI) {
-      alert('Electron API が利用できません。Electron アプリとして起動してください。');
+      alert(t.app.electronApiUnavailable);
       return;
     }
 
@@ -331,7 +338,7 @@ function App(): React.JSX.Element {
       filePath = await window.electronAPI.file.showOpenDialog();
     } catch (error) {
       console.error('Failed to open dialog:', error);
-      alert('ファイル選択ダイアログを開けませんでした。');
+      alert(t.app.openDialogError);
       return;
     }
 
@@ -371,7 +378,7 @@ function App(): React.JSX.Element {
       setIsDraggingOver(false);
 
       if (!window.electronAPI) {
-        alert('Electron API が利用できません。Electron アプリとして起動してください。');
+        alert(t.app.electronApiUnavailable);
         return;
       }
 
@@ -381,7 +388,7 @@ function App(): React.JSX.Element {
       if (!file) return;
 
       if (!hasAcceptedDropExtension(file.name)) {
-        alert(UNSUPPORTED_DROP_MESSAGE);
+        alert(t.app.unsupportedDropFormat);
         return;
       }
 
@@ -393,7 +400,7 @@ function App(): React.JSX.Element {
       }
 
       if (!filePath) {
-        alert('ドロップされたファイルのパスを取得できませんでした。');
+        alert(t.app.droppedFilePathError);
         return;
       }
 
@@ -402,13 +409,13 @@ function App(): React.JSX.Element {
       // （Main 側でも拡張子を検証する多層防御。TASK-053）。
       const registered = await window.electronAPI.file.registerDroppedFile(filePath);
       if (!registered) {
-        alert(UNSUPPORTED_DROP_MESSAGE);
+        alert(t.app.unsupportedDropFormat);
         return;
       }
 
       await openMusicXmlFile(filePath);
     },
-    [openMusicXmlFile]
+    [openMusicXmlFile, t]
   );
 
   const handleFingering = React.useCallback(
@@ -428,10 +435,10 @@ function App(): React.JSX.Element {
         await annotationStore.current.save();
       } catch (error) {
         console.error('Failed to save fingering annotations:', error);
-        alert('運指アノテーションの保存に失敗しました。');
+        alert(t.app.fingeringSaveError);
       }
     },
-    [musicXmlPath, isLoadingAnnotations, showFingerings, setShowFingerings]
+    [musicXmlPath, isLoadingAnnotations, showFingerings, setShowFingerings, t]
   );
 
   // 運指メモの右クリックメニュー結線（REQ-008-001/003/006、REQ-009-005）。
@@ -454,9 +461,9 @@ function App(): React.JSX.Element {
       setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
     } catch (error) {
       console.error('Failed to save annotation:', error);
-      alert('運指メモの保存に失敗しました。');
+      alert(t.app.annotationSaveError);
     }
-  }, []);
+  }, [t]);
 
   const handleSelectFinger = React.useCallback(
     async (noteId: string, finger: Finger) => {
@@ -618,7 +625,7 @@ function App(): React.JSX.Element {
               pointerEvents: 'none',
             }}
           >
-            ここにMusicXMLファイルをドロップ（またはファイルを開く）
+            {t.app.dropHint}
           </div>
         )}
       </div>

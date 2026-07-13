@@ -17,7 +17,7 @@ describe('PlaybackControls', () => {
   });
 
   beforeEach(() => {
-    usePracticeStore.setState({ playbackState: 'stopped', voiceLoading: false });
+    usePracticeStore.setState({ language: 'ja', playbackState: 'stopped', voiceLoading: false });
   });
 
   afterEach(() => {
@@ -201,6 +201,19 @@ describe('PlaybackControls', () => {
       render(<PlaybackControls audioEngine={audioEngine} />);
 
       expect(screen.getByTestId('playback-play')).not.toBeDisabled();
+    });
+  });
+
+  describe('言語切り替え (TASK-097, US-016)', () => {
+    it('shows English labels and tooltips when the store language is "en"', () => {
+      usePracticeStore.setState({ language: 'en' });
+      render(<PlaybackControls audioEngine={createAudioEngineMock()} />);
+
+      const playButton = screen.getByTestId('playback-play');
+      expect(playButton).toHaveTextContent('Play');
+      expect(playButton).toHaveAttribute('title', 'Play (Space)');
+      expect(screen.getByTestId('playback-pause')).toHaveTextContent('Pause');
+      expect(screen.getByTestId('playback-stop')).toHaveTextContent('Stop');
     });
   });
 });

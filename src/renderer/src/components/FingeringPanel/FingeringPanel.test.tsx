@@ -9,10 +9,12 @@ const computeFingeringMock = vi.fn();
 // FingeringEngineService instantiates a Web Worker, which jsdom does not provide.
 // This test only exercises label rendering, so the engine is mocked out.
 vi.mock('../../lib/fingering-engine', () => ({
-  FingeringEngineService: vi.fn().mockImplementation(() => ({
-    computeFingering: computeFingeringMock,
-    dispose: vi.fn(),
-  })),
+  FingeringEngineService: vi.fn().mockImplementation(function () {
+    return {
+      computeFingering: computeFingeringMock,
+      dispose: vi.fn(),
+    };
+  }),
   DEFAULT_HAND_SETTINGS: { maxSpanSemitones: 14, scaleFactorLeft: 1.0 },
 }));
 

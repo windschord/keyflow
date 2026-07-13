@@ -18,10 +18,12 @@ vi.mock('tone', () => ({
 }));
 
 vi.mock('../../lib/fingering-engine', () => ({
-  FingeringEngineService: vi.fn().mockImplementation(() => ({
-    computeFingering: vi.fn(),
-    dispose: vi.fn(),
-  })),
+  FingeringEngineService: vi.fn().mockImplementation(function () {
+    return {
+      computeFingering: vi.fn(),
+      dispose: vi.fn(),
+    };
+  }),
   DEFAULT_HAND_SETTINGS: { maxSpanSemitones: 14, scaleFactorLeft: 1.0 },
 }));
 

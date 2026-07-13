@@ -21,7 +21,7 @@ const mockLoad = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('./osmd-controller', () => {
   return {
-    OSMDController: vi.fn().mockImplementation(() => {
+    OSMDController: vi.fn().mockImplementation(function () {
       return {
         load: mockLoad,
         moveCursor: vi.fn(),

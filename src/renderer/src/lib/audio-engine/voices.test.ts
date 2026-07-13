@@ -4,21 +4,25 @@ import { PLAYBACK_VOICES, createPlaybackInstrument, type PlaybackVoiceId } from 
 
 vi.mock('tone', () => {
   return {
-    Sampler: vi.fn().mockImplementation((options: Record<string, unknown>) => ({
-      __kind: 'Sampler',
-      __options: options,
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
-    PolySynth: vi.fn().mockImplementation((voice: unknown, options: unknown) => ({
-      __kind: 'PolySynth',
-      __voice: voice,
-      __options: options,
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
+    Sampler: vi.fn().mockImplementation(function (options: Record<string, unknown>) {
+      return {
+        __kind: 'Sampler',
+        __options: options,
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
+    PolySynth: vi.fn().mockImplementation(function (voice: unknown, options: unknown) {
+      return {
+        __kind: 'PolySynth',
+        __voice: voice,
+        __options: options,
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
     Synth: vi.fn(),
     FMSynth: vi.fn(),
   };

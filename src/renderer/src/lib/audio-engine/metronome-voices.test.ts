@@ -14,9 +14,15 @@ vi.mock('tone', () => {
   }
 
   return {
-    Synth: vi.fn().mockImplementation(() => createSynthMock()),
-    MembraneSynth: vi.fn().mockImplementation(() => createSynthMock()),
-    MetalSynth: vi.fn().mockImplementation(() => createSynthMock()),
+    Synth: vi.fn().mockImplementation(function () {
+      return createSynthMock();
+    }),
+    MembraneSynth: vi.fn().mockImplementation(function () {
+      return createSynthMock();
+    }),
+    MetalSynth: vi.fn().mockImplementation(function () {
+      return createSynthMock();
+    }),
   };
 });
 

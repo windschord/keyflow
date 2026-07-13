@@ -28,59 +28,79 @@ vi.mock('tone', () => {
     getTransport: vi.fn(() => mockTransport),
     getDraw: vi.fn(() => mockDraw),
     getDestination: vi.fn(() => mockDestination),
-    Synth: vi.fn().mockImplementation(() => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
-    PolySynth: vi.fn().mockImplementation(() => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
+    Synth: vi.fn().mockImplementation(function () {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
+    PolySynth: vi.fn().mockImplementation(function () {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
     // TASK-071: 既定の再生音色（grand-piano）がTone.Samplerを生成するため、
     // AudioEngineServiceの初期化そのものを検証しない本ファイルの他のテストが
     // 壊れないよう、onload/onerrorを受け取れる最小限のモックを用意する。
-    Sampler: vi
-      .fn()
-      .mockImplementation((options: { onload?: () => void; onerror?: (error: Error) => void }) => ({
+    Sampler: vi.fn().mockImplementation(function (options: {
+      onload?: () => void;
+      onerror?: (error: Error) => void;
+    }) {
+      return {
         toDestination: vi.fn().mockReturnThis(),
         triggerAttackRelease: vi.fn(),
         dispose: vi.fn(),
         onload: options?.onload,
         onerror: options?.onerror,
-      })),
+      };
+    }),
     FMSynth: vi.fn(),
     // TASK-073: メトロノーム音色（woodblock/cowbell）はMembraneSynth/MetalSynthを生成する。
     // そのためSynth/PolySynthと同じ最小限のモックを用意する
     // （metronome-voices.ts createWoodblockVoice/createCowbellVoice）。
-    MembraneSynth: vi.fn().mockImplementation(() => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
-    MetalSynth: vi.fn().mockImplementation(() => ({
-      toDestination: vi.fn().mockReturnThis(),
-      triggerAttackRelease: vi.fn(),
-      dispose: vi.fn(),
-    })),
-    Sequence: vi.fn().mockImplementation(() => ({
-      start: vi.fn(),
-      stop: vi.fn(),
-      dispose: vi.fn(),
-    })),
+    MembraneSynth: vi.fn().mockImplementation(function () {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
+    MetalSynth: vi.fn().mockImplementation(function () {
+      return {
+        toDestination: vi.fn().mockReturnThis(),
+        triggerAttackRelease: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
+    Sequence: vi.fn().mockImplementation(function () {
+      return {
+        start: vi.fn(),
+        stop: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
     // TASK-066: メトロノーム単独再生（独立クロック）用モック。
-    Clock: vi.fn().mockImplementation((callback: (time: number) => void, frequency: number) => ({
-      callback,
-      frequency: { value: frequency },
-      start: vi.fn(),
-      stop: vi.fn(),
-      dispose: vi.fn(),
-    })),
-    Part: vi.fn().mockImplementation(() => ({
-      start: vi.fn().mockReturnThis(),
-      dispose: vi.fn(),
-    })),
+    Clock: vi.fn().mockImplementation(function (
+      callback: (time: number) => void,
+      frequency: number
+    ) {
+      return {
+        callback,
+        frequency: { value: frequency },
+        start: vi.fn(),
+        stop: vi.fn(),
+        dispose: vi.fn(),
+      };
+    }),
+    Part: vi.fn().mockImplementation(function () {
+      return {
+        start: vi.fn().mockReturnThis(),
+        dispose: vi.fn(),
+      };
+    }),
     Frequency: vi.fn((midiNumber) => ({
       toNote: () => {
         if (midiNumber === 60) return 'C4';

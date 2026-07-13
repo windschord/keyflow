@@ -72,6 +72,11 @@ export interface UiSlice {
    * （設計: docs/sdd/design/components/i18n.md）。useTranslation()が購読する。
    */
   language: Language;
+  /**
+   * 現在表示中の画面（US-017、TASK-102）。初期値'library'。App.tsxでの
+   * 表示切り替え結線はTASK-103のスコープであり、本タスクではstateのみ定義する。
+   */
+  activeView: 'score' | 'library';
   setBpm: (bpm: number) => void;
   setMetronomeEnabled: (enabled: boolean) => void;
   /** メトロノームの一拍目アクセントの有効/無効を切り替える（TASK-063）。 */
@@ -109,6 +114,8 @@ export interface UiSlice {
   setOriginalBpm: (bpm: number) => void;
   /** UI表示言語を設定する（TASK-096）。 */
   setLanguage: (language: Language) => void;
+  /** 現在表示中の画面を切り替える（US-017、TASK-102）。 */
+  setActiveView: (view: 'score' | 'library') => void;
 }
 
 export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
@@ -138,6 +145,7 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   metronomeVoice: 'click',
   voiceLoading: false,
   language: 'ja',
+  activeView: 'library',
   // REQ-006-003: 元のテンポ（originalBpm）の20%〜200%の範囲でクランプする。
   // originalBpmが未設定（0以下）の場合は初期値120を基準にする。
   // originalBpm自体のクランプ（絶対値20〜400）はsetOriginalBpm側の責務であり、
@@ -165,4 +173,5 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
     set({ originalBpm: clamped, bpm: clamped });
   },
   setLanguage: (language) => set({ language }),
+  setActiveView: (view) => set({ activeView: view }),
 });

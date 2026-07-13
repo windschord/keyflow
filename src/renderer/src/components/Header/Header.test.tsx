@@ -55,15 +55,17 @@ describe('Header', () => {
     const onOpenFile = vi.fn();
     const onOpenSettings = vi.fn();
     const onFingeringSuggested = vi.fn();
+    const onOpenLibrary = vi.fn();
     const props: React.ComponentProps<typeof Header> = {
       onOpenFile,
       onOpenSettings,
       onFingeringSuggested,
+      onOpenLibrary,
       score: null,
       ...overrides,
     };
     const utils = render(<Header {...props} />);
-    return { ...utils, onOpenFile, onOpenSettings, onFingeringSuggested };
+    return { ...utils, onOpenFile, onOpenSettings, onFingeringSuggested, onOpenLibrary };
   };
 
   it('renders as a single-row header no taller than 56px (REQ-012-001/005)', () => {
@@ -107,6 +109,48 @@ describe('Header', () => {
     renderHeader();
     const settingsButton = screen.getByLabelText('設定');
     expect(settingsButton.getAttribute('title')).toBe('設定');
+  });
+
+  describe('ライブラリボタン (TASK-103, US-017)', () => {
+    it('renders a library button with a Japanese aria-label/tooltip', () => {
+      renderHeader();
+      const libraryButton = screen.getByRole('button', { name: 'ライブラリ' });
+      expect(libraryButton.getAttribute('title')).toBe('ライブラリ画面を表示します');
+    });
+
+    it('calls onOpenLibrary when the library button is clicked', () => {
+      const { onOpenLibrary } = renderHeader();
+      fireEvent.click(screen.getByRole('button', { name: 'ライブラリ' }));
+      expect(onOpenLibrary).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('楽譜へ戻る導線 (TASK-105, REQ-017-012)', () => {
+    it('shows the library label/tooltip when isReturnToScoreMode is false (default)', () => {
+      renderHeader();
+      const button = screen.getByRole('button', { name: 'ライブラリ' });
+      expect(button.getAttribute('title')).toBe('ライブラリ画面を表示します');
+    });
+
+    it('switches to the return-to-score label/tooltip when isReturnToScoreMode is true', () => {
+      renderHeader({ isReturnToScoreMode: true });
+      const button = screen.getByRole('button', { name: '楽譜へ戻る' });
+      expect(button.getAttribute('title')).toBe('楽譜表示へ戻ります');
+      expect(screen.queryByRole('button', { name: 'ライブラリ' })).not.toBeInTheDocument();
+    });
+
+    it('still calls onOpenLibrary when the button is clicked in return-to-score mode', () => {
+      const { onOpenLibrary } = renderHeader({ isReturnToScoreMode: true });
+      fireEvent.click(screen.getByRole('button', { name: '楽譜へ戻る' }));
+      expect(onOpenLibrary).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the English return-to-score label/tooltip when the store language is "en"', () => {
+      usePracticeStore.setState({ language: 'en' });
+      renderHeader({ isReturnToScoreMode: true });
+      const button = screen.getByRole('button', { name: 'Back to score' });
+      expect(button.getAttribute('title')).toBe('Return to the score view');
+    });
   });
 
   describe('メトロノーム (header toggle, TASK-079)', () => {
@@ -346,6 +390,7 @@ describe('Header', () => {
         'View & tools (volume, zoom, fingering, stats)'
       );
       expect(screen.getByRole('button', { name: 'Reset tempo' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Library' })).toBeInTheDocument();
     });
   });
 });

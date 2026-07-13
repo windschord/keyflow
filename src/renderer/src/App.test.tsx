@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 import { AudioEngineService } from './lib/audio-engine';
 import { WebMidiService } from './lib/midi/web-midi';
 import { usePracticeStore } from './store';
+import type { ElectronAPI } from './types/electron-api';
 
 // Mock Tone.js globally to avoid AudioContext errors during testing
 vi.mock('tone', () => {
@@ -97,6 +98,10 @@ let latestScoreRendererProps: any = null;
 let latestPianoKeyboardProps: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let latestHeaderProps: any = null;
+// TASK-103: ライブラリ統合（US-017）。App.tsxがLibraryViewへ橋渡しするprops
+// （onOpenEntry/onOpenFileDialog/missingPaths）の結線を検証するために捕捉する。
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let latestLibraryViewProps: any = null;
 
 vi.mock('./components/ScoreRenderer', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -128,6 +133,17 @@ vi.mock('./components/Header', () => ({
   Header: (props: any) => {
     latestHeaderProps = props;
     return <div data-testid="mock-header">Header</div>;
+  },
+}));
+
+// TASK-103: LibraryView自体の表示・検索・並べ替え・削除確認はLibraryView.test.tsxで
+// 検証済みのため、ここではApp.tsxからの橋渡しprops（onOpenEntry/onOpenFileDialog/
+// missingPaths）のみを検証する。
+vi.mock('./components/LibraryView', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  LibraryView: (props: any) => {
+    latestLibraryViewProps = props;
+    return <div data-testid="mock-library-view">LibraryView</div>;
   },
 }));
 
@@ -165,12 +181,16 @@ describe('App', () => {
       // TASK-098: 言語切り替えテスト（"App - 言語切り替え"）による変更値の
       // 後続テストへの残留を防ぐためリセットする（keyboardSize等の既存パターン踏襲）。
       language: 'ja',
+      // TASK-103: ライブラリ統合（US-017）テストによる画面切り替えが
+      // 後続テストへ残留しないようリセットする（keyboardSize等の既存パターン踏襲）。
+      activeView: 'library',
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).electronAPI;
     latestScoreRendererProps = null;
     latestPianoKeyboardProps = null;
     latestHeaderProps = null;
+    latestLibraryViewProps = null;
   });
 
   it('renders correctly with layout components', () => {
@@ -1774,5 +1794,486 @@ describe('App - 言語切り替え (TASK-098, US-016)', () => {
     render(<App />);
 
     expect(screen.getByText('Drop a MusicXML file here (or open a file)')).toBeInTheDocument();
+  });
+});
+
+// TASK-103: ライブラリ統合（US-017）。
+// TASK-101（electronAPI.library IPC）とTASK-102（LibraryView、ui-slice.activeView）は
+// LibraryView.test.tsx/ui-slice.test.tsxで検証済みである。
+// ここではApp.tsxが実際に正しく結線していることのみを検証する
+// （自動登録・画面切り替え・欠損処理）。
+describe('App - ライブラリ統合（TASK-103, US-017）', () => {
+  const SIMPLE_XML = `<?xml version="1.0"?>
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+  const XML_WITH_METADATA = `<?xml version="1.0"?>
+<score-partwise>
+  <work><work-title>Moonlight Sonata</work-title></work>
+  <identification><creator type="composer">Beethoven</creator></identification>
+  <part-list><score-part id="P1"><part-name>Piano Right</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+  function makeLibraryApi(
+    overrides?: Partial<{
+      getAll: ReturnType<typeof vi.fn>;
+      upsert: ReturnType<typeof vi.fn>;
+      remove: ReturnType<typeof vi.fn>;
+      open: ReturnType<typeof vi.fn>;
+    }>
+  ) {
+    return {
+      getAll: vi.fn().mockResolvedValue([]),
+      upsert: vi.fn().mockResolvedValue(undefined),
+      remove: vi.fn().mockResolvedValue(undefined),
+      open: vi.fn().mockResolvedValue({ ok: true }),
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    // 直前の描画済みdescribeブロック（言語切り替えテスト等）による
+    // activeView/languageの残留がこのブロックの前提を崩さないようにする。
+    usePracticeStore.setState({ activeView: 'library', language: 'ja' });
+  });
+
+  afterEach(() => {
+    usePracticeStore.setState({
+      score: null,
+      musicXmlPath: null,
+      musicXmlContent: null,
+      activeView: 'library',
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).electronAPI;
+  });
+
+  it('shows the LibraryView on startup, before any score is opened (REQ-017-010)', () => {
+    render(<App />);
+
+    expect(usePracticeStore.getState().activeView).toBe('library');
+    expect(screen.getByTestId('mock-library-view')).toBeInTheDocument();
+  });
+
+  it('registers the score opened via the file dialog to the library with title/composer/path (REQ-017-001)', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('/scores/test.xml');
+    const readMock = vi.fn().mockResolvedValue(XML_WITH_METADATA);
+    const libraryApi = makeLibraryApi();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: showOpenDialogMock, read: readMock },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
+
+    await waitFor(() =>
+      expect(libraryApi.upsert).toHaveBeenCalledWith({
+        path: '/scores/test.xml',
+        title: 'Moonlight Sonata',
+        composer: 'Beethoven',
+      })
+    );
+  });
+
+  it('falls back to the file name (without extension) as the library title when the score has no title (REQ-017-001)', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('/scores/my-piece.musicxml');
+    const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+    const libraryApi = makeLibraryApi();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: showOpenDialogMock, read: readMock },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
+
+    await waitFor(() =>
+      expect(libraryApi.upsert).toHaveBeenCalledWith({
+        path: '/scores/my-piece.musicxml',
+        title: 'my-piece',
+        composer: '',
+      })
+    );
+  });
+
+  it('registers a score dropped via drag & drop to the library through the same success point as the dialog (REQ-017-001)', async () => {
+    const getDroppedFilePathMock = vi.fn().mockReturnValue('/scores/dropped.xml');
+    const registerDroppedFileMock = vi.fn().mockResolvedValue(true);
+    const readMock = vi.fn().mockResolvedValue(XML_WITH_METADATA);
+    const libraryApi = makeLibraryApi();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: {
+        showOpenDialog: vi.fn(),
+        read: readMock,
+        getDroppedFilePath: getDroppedFilePathMock,
+        registerDroppedFile: registerDroppedFileMock,
+      },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    const appRoot = screen.getByTestId('app-container');
+    const file = new File([XML_WITH_METADATA], 'dropped.xml', { type: 'application/xml' });
+    fireEvent.drop(appRoot, { dataTransfer: { files: [file], types: ['Files'] } });
+
+    await waitFor(() =>
+      expect(libraryApi.upsert).toHaveBeenCalledWith({
+        path: '/scores/dropped.xml',
+        title: 'Moonlight Sonata',
+        composer: 'Beethoven',
+      })
+    );
+  });
+
+  it('does not throw and still opens the score when electronAPI.library is unavailable (backward compatibility)', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: showOpenDialogMock, read: readMock },
+    };
+
+    render(<App />);
+    await act(async () => {
+      await latestHeaderProps.onOpenFile();
+    });
+
+    expect(usePracticeStore.getState().score).not.toBeNull();
+  });
+
+  it('switches to the score view once a score has been successfully opened, hiding the LibraryView (REQ-017-010)', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+    const libraryApi = makeLibraryApi();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: showOpenDialogMock, read: readMock },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    expect(screen.getByTestId('mock-library-view')).toBeInTheDocument();
+
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
+
+    await waitFor(() => expect(usePracticeStore.getState().activeView).toBe('score'));
+    expect(screen.queryByTestId('mock-library-view')).not.toBeInTheDocument();
+  });
+
+  it('switches back to the library view when the Header library button is clicked (US-017 acceptance)', async () => {
+    const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+    const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: showOpenDialogMock, read: readMock },
+    };
+
+    render(<App />);
+    act(() => {
+      void latestHeaderProps.onOpenFile();
+    });
+    await waitFor(() => expect(usePracticeStore.getState().activeView).toBe('score'));
+
+    act(() => {
+      latestHeaderProps.onOpenLibrary();
+    });
+
+    expect(usePracticeStore.getState().activeView).toBe('library');
+    expect(screen.getByTestId('mock-library-view')).toBeInTheDocument();
+  });
+
+  describe('楽譜へ戻る導線 (TASK-105, REQ-017-012)', () => {
+    // file APIのみを差し替える構造型キャスト（anyは使わない。TASK-088是正と同じパターン）。
+    function setFileOnlyElectronAPI(file: Pick<ElectronAPI['file'], 'showOpenDialog' | 'read'>) {
+      (window as unknown as { electronAPI: { file: typeof file } }).electronAPI = { file };
+    }
+
+    it('passes isReturnToScoreMode=false to Header and does not switch away from library when no score is loaded', () => {
+      render(<App />);
+
+      expect(latestHeaderProps.isReturnToScoreMode).toBe(false);
+
+      act(() => {
+        latestHeaderProps.onOpenLibrary();
+      });
+
+      expect(usePracticeStore.getState().activeView).toBe('library');
+    });
+
+    it('passes isReturnToScoreMode=true to Header once a score is loaded and the library is shown, and toggles back to score on click', async () => {
+      const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+      const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+
+      setFileOnlyElectronAPI({ showOpenDialog: showOpenDialogMock, read: readMock });
+
+      render(<App />);
+      act(() => {
+        void latestHeaderProps.onOpenFile();
+      });
+      await waitFor(() => expect(usePracticeStore.getState().activeView).toBe('score'));
+
+      act(() => {
+        latestHeaderProps.onOpenLibrary();
+      });
+      expect(usePracticeStore.getState().activeView).toBe('library');
+      expect(latestHeaderProps.isReturnToScoreMode).toBe(true);
+
+      const readCallCountBeforeReturn = readMock.mock.calls.length;
+
+      act(() => {
+        latestHeaderProps.onOpenLibrary();
+      });
+
+      expect(usePracticeStore.getState().activeView).toBe('score');
+      // 再パースが発生しないこと（REQ-017-012の注意事項）。setActiveView('score')のみを呼ぶ。
+      expect(readMock.mock.calls.length).toBe(readCallCountBeforeReturn);
+    });
+
+    it('passes onReturnToScore to LibraryView only when a score is loaded', async () => {
+      const showOpenDialogMock = vi.fn().mockResolvedValue('test.xml');
+      const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+
+      setFileOnlyElectronAPI({ showOpenDialog: showOpenDialogMock, read: readMock });
+
+      render(<App />);
+      expect(latestLibraryViewProps.onReturnToScore).toBeUndefined();
+
+      act(() => {
+        void latestHeaderProps.onOpenFile();
+      });
+      await waitFor(() => expect(usePracticeStore.getState().activeView).toBe('score'));
+
+      act(() => {
+        latestHeaderProps.onOpenLibrary();
+      });
+      expect(latestLibraryViewProps.onReturnToScore).toBeInstanceOf(Function);
+
+      act(() => {
+        latestLibraryViewProps.onReturnToScore();
+      });
+      expect(usePracticeStore.getState().activeView).toBe('score');
+    });
+  });
+
+  it('opens a score selected from the library via electronAPI.library.open then the standard read/parse pipeline (REQ-017-007)', async () => {
+    const readMock = vi.fn().mockResolvedValue(SIMPLE_XML);
+    const libraryApi = makeLibraryApi({ open: vi.fn().mockResolvedValue({ ok: true }) });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn(), read: readMock },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    await waitFor(() => expect(latestLibraryViewProps?.onOpenEntry).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestLibraryViewProps.onOpenEntry('/scores/entry.xml');
+    });
+
+    expect(libraryApi.open).toHaveBeenCalledWith('/scores/entry.xml');
+    await waitFor(() => expect(readMock).toHaveBeenCalledWith('/scores/entry.xml'));
+    await waitFor(() => expect(usePracticeStore.getState().activeView).toBe('score'));
+    expect(usePracticeStore.getState().musicXmlPath).toBe('/scores/entry.xml');
+  });
+
+  it('reuses the file dialog handler for the LibraryView empty-state "open file" button', () => {
+    render(<App />);
+
+    expect(latestLibraryViewProps.onOpenFileDialog).toBe(latestHeaderProps.onOpenFile);
+  });
+
+  it('shows an error and a delete-confirmation dialog when a library entry file is missing, and removes it on confirmation (REQ-017-008)', async () => {
+    const libraryApi = makeLibraryApi({
+      open: vi.fn().mockResolvedValue({ ok: false, reason: 'not-found' }),
+    });
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    await waitFor(() => expect(latestLibraryViewProps?.onOpenEntry).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestLibraryViewProps.onOpenEntry('/scores/missing.xml');
+    });
+
+    expect(alertMock).toHaveBeenCalledWith(
+      '選択した楽譜ファイルが見つかりませんでした。移動または削除された可能性があります。'
+    );
+    await waitFor(() =>
+      expect(latestLibraryViewProps.missingPaths?.has('/scores/missing.xml')).toBe(true)
+    );
+    expect(screen.getByRole('dialog', { name: 'ライブラリから削除しますか' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '削除する' }));
+    });
+
+    expect(libraryApi.remove).toHaveBeenCalledWith('/scores/missing.xml');
+    expect(
+      screen.queryByRole('dialog', { name: 'ライブラリから削除しますか' })
+    ).not.toBeInTheDocument();
+
+    alertMock.mockRestore();
+  });
+
+  it('shows an alert when electronAPI.library.open itself throws (CodeRabbit #46指摘3)', async () => {
+    const libraryApi = makeLibraryApi({
+      open: vi.fn().mockRejectedValue(new Error('ipc failure')),
+    });
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    await waitFor(() => expect(latestLibraryViewProps?.onOpenEntry).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestLibraryViewProps.onOpenEntry('/scores/broken.xml');
+    });
+
+    expect(alertMock).toHaveBeenCalledWith('ライブラリのエントリを開けませんでした。');
+
+    alertMock.mockRestore();
+  });
+
+  it('clears the missing mark and triggers a library reload after confirming removal of a missing entry (CodeRabbit #46指摘4)', async () => {
+    const libraryApi = makeLibraryApi({
+      open: vi.fn().mockResolvedValue({ ok: false, reason: 'not-found' }),
+    });
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    await waitFor(() => expect(latestLibraryViewProps?.onOpenEntry).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestLibraryViewProps.onOpenEntry('/scores/missing.xml');
+    });
+    const signalBeforeRemoval = latestLibraryViewProps.reloadSignal;
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '削除する' }));
+    });
+
+    await waitFor(() =>
+      expect(latestLibraryViewProps.missingPaths?.has('/scores/missing.xml')).toBe(false)
+    );
+    await waitFor(() => expect(latestLibraryViewProps.reloadSignal).not.toBe(signalBeforeRemoval));
+
+    alertMock.mockRestore();
+  });
+
+  it('does not clear the missing mark or trigger a reload when removing a missing entry fails (CodeRabbit #46指摘4)', async () => {
+    const libraryApi = makeLibraryApi({
+      open: vi.fn().mockResolvedValue({ ok: false, reason: 'not-found' }),
+      remove: vi.fn().mockRejectedValue(new Error('boom')),
+    });
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    await waitFor(() => expect(latestLibraryViewProps?.onOpenEntry).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestLibraryViewProps.onOpenEntry('/scores/missing.xml');
+    });
+    const signalBeforeRemoval = latestLibraryViewProps.reloadSignal;
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '削除する' }));
+    });
+
+    await waitFor(() => expect(libraryApi.remove).toHaveBeenCalled());
+    expect(latestLibraryViewProps.missingPaths?.has('/scores/missing.xml')).toBe(true);
+    expect(latestLibraryViewProps.reloadSignal).toBe(signalBeforeRemoval);
+    // CodeRabbit #46第2ラウンド指摘2: 削除失敗がユーザーへ無通知のまま回帰しないことを検証する。
+    // openEntry時のmissingEntryErrorMessageと区別するため、削除失敗専用の文言で検証する。
+    await waitFor(() =>
+      expect(alertMock).toHaveBeenCalledWith(
+        'ライブラリからの削除に失敗しました。もう一度お試しください。'
+      )
+    );
+
+    alertMock.mockRestore();
+  });
+
+  it('keeps the library entry when the user cancels the missing-file removal confirmation (REQ-017-008)', async () => {
+    const libraryApi = makeLibraryApi({
+      open: vi.fn().mockResolvedValue({ ok: false, reason: 'not-found' }),
+    });
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).electronAPI = {
+      file: { showOpenDialog: vi.fn() },
+      library: libraryApi,
+    };
+
+    render(<App />);
+    await waitFor(() => expect(latestLibraryViewProps?.onOpenEntry).toBeInstanceOf(Function));
+
+    await act(async () => {
+      await latestLibraryViewProps.onOpenEntry('/scores/missing.xml');
+    });
+    expect(screen.getByRole('dialog', { name: 'ライブラリから削除しますか' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }));
+    });
+
+    expect(libraryApi.remove).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('dialog', { name: 'ライブラリから削除しますか' })
+    ).not.toBeInTheDocument();
+
+    alertMock.mockRestore();
   });
 });

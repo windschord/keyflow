@@ -76,13 +76,18 @@ src/
 │   │                       #   （About/Edit/View/Window/Help等）をja/enに切り替える。role指定の
 │   │                       #   標準メニュー項目（undo/redo/cut/copy/paste等）は言語に関わらず不変（TASK-099）
 │   ├── window-options.ts  # BrowserWindowのtitle/iconオプション生成（プラットフォーム分岐、REQ-011）
-│   └── path-allowlist.ts  # ファイル読み書き許可パスの検証（assertAllowedAnnotationPath: file:write用、
-│                            #   assertAllowedReadPath: file:read系3ハンドラ用、TASK-086）
+│   ├── path-allowlist.ts  # ファイル読み書き許可パスの検証（assertAllowedAnnotationPath: file:write用、
+│   │                        #   assertAllowedReadPath: file:read系3ハンドラ用、TASK-086）
+│   ├── library.ts         # LibraryService（US-017、electron-store名'library'、フェイルソフト検証）。
+│   │                        #   upsert/remove/getAllを提供する（TASK-101）
+│   └── library-handlers.ts # library:* IPCハンドラのファクトリ（file-handlers.tsと同パターン、TASK-101）。
+│                            #   library:openは拡張子検証・ファイル存在確認・allowlist登録・recent追加を行う
 ├── preload/
-│   └── index.ts           # contextBridge 定義（file/settings/menu系APIを公開。menuはMain→Rendererの
+│   └── index.ts           # contextBridge 定義（file/settings/menu/library系APIを公開。menuはMain→Rendererの
 │                                #   受信専用購読のみでrenderer→mainの送信機能を持たない、TASK-082。
 │                                #   MIDI関連IPCは公開していない。electronAPI.isE2Eで実起動E2E専用計装
-│                                #   （__e2eStore__等）の公開可否をrendererへ伝搬する、TASK-088）
+│                                #   （__e2eStore__等）の公開可否をrendererへ伝搬する、TASK-088。
+│                                #   electronAPI.library.{getAll,upsert,remove,open}をTASK-101で追加公開）
 └── renderer/
     └── src/
         ├── lib/
@@ -121,9 +126,13 @@ src/
         │   │                       #   それを内包しメニューバーから開く独立モーダルAboutModal.tsx（TASK-082）
         │   ├── NoteContextMenu/   # 運指番号・コメント編集
         │   ├── StatsDisplay/      # 正解率・連続正解数表示
-        │   └── FingeringPanel/    # 運指提案UI
+        │   ├── FingeringPanel/    # 運指提案UI
+        │   └── LibraryView/       # 楽譜ライブラリ画面（US-017、TASK-102）。一覧・検索・並べ替え・
+        │                          #   削除・空状態を1コンポーネントで実装（index.tsx）。純関数部分は
+        │                          #   library-utils.ts（filterLibraryEntries/sortLibraryEntries）に分離
         ├── store/
-        │   └── slices/            # Zustand store（practice/score/playback/ui-slice構成）
+        │   └── slices/            # Zustand store（practice/score/playback/ui-slice構成）。
+        │                          #   ui-slice.activeView: 'score' | 'library'（初期値'library'、TASK-102/103）
         ├── generated/             # ビルド時生成物（gitignore対象）。licenses.json（scripts/generate-licenses.mjs出力）
         └── tests/
 ```
@@ -210,6 +219,44 @@ npm run build:mac
 | `settings:get` / `settings:set` | Renderer→Main | アプリ設定の取得・保存（electron-store）。`settings:set`は`key: 'ui'`かつ`ui.language`が変化した場合、副作用としてアプリケーションメニューを再構築する（下記「UI多言語対応」参照、TASK-099） |
 | `settings:get-recent-files` | Renderer→Main | 最近使ったファイル一覧の取得 |
 | `menu:open-about` | Main→Renderer | アプリケーションメニューのAbout項目クリック通知（`src/main/menu.ts`、TASK-082） |
+| `library:get-all` | Renderer→Main | 楽譜ライブラリ（US-017）の全エントリ取得（TASK-101） |
+| `library:upsert` | Renderer→Main | `{path, title, composer}`の登録。既存pathは更新、新規は`addedAt`も記録（REQ-017-001/002） |
+| `library:remove` | Renderer→Main | pathで削除。ファイル本体・アノテーションは触らない（REQ-017-006） |
+| `library:open` | Renderer→Main | ライブラリから開く前処理。拡張子検証・存在確認・allowlist登録・recentFiles追加を行い、存在しなければ`{ok: false, reason: 'not-found'}`を、対応拡張子（.xml/.musicxml/.mxl）以外なら`{ok: false, reason: 'invalid-extension'}`を返す（REQ-017-007/008） |
+
+### UI多言語対応（i18n、US-016）
+- 表示言語は`AppSettings.ui.language: 'auto' | 'ja' | 'en'`（既定値`'auto'`）。`'auto'`はOSロケールに
+  よる自動判定を意味し、Rendererは`resolve-language.ts`、Mainは`locale.ts`が同一規則
+  （保存値が`'ja'`/`'en'`ならそのまま採用、それ以外はOSロケールが`ja`前方一致なら`'ja'`、
+  それ以外は`'en'`）で解決する。既存設定ファイルに保存済みの`'ja'`はそのまま日本語として扱われる
+- Rendererの翻訳リソースは`src/renderer/src/lib/i18n/`（`ja.ts`/`en.ts`）。コンポーネントからは
+  `useTranslation()`で取得した`t`を`t.header.play`のように参照する。キー欠落は`en`への型適合強制
+  （`en: Messages`）でコンパイル時に検出され、実行時フォールバック（`getMessages`のマージ）は
+  防御的に用意されている
+- 言語切り替えはSettingsModalの言語セレクタから行う。`ui-slice.setLanguage`でRendererのUIが即時
+  再描画され、`settings:set`で永続化される。新規IPCチャンネルは追加していない
+- Mainのアプリケーションメニュー（`src/main/menu.ts`のラベル）は起動時（`app.getLocale()`と保存値から
+  解決）と、言語変更時（`settings:set`ハンドラが`settings-handlers.ts`経由で検知し
+  `Menu.setApplicationMenu`を再構築）の双方で言語に応じて構築される。role指定の標準メニュー項目
+  （undo/redo/cut/copy/paste等）は言語に関わらず不変
+
+### 楽譜ライブラリ（US-017）
+- 取り込んだ楽譜の一覧管理画面。設計は`docs/sdd/design/components/score-library.md`を正とする
+- 画面切り替えは`ui-slice.activeView: 'score' | 'library'`（初期値`'library'`、TASK-102/103）が担う。
+  **アプリ起動時、楽譜が未読み込みの間はライブラリ画面が初期表示される**（REQ-017-010）。
+  ScoreRenderer/PianoKeyboardは常時マウントを維持し`display:none`で切り替える（既存の結線テストの
+  前提を壊さないため）。LibraryViewは`activeView === 'library'`の間のみマウントする
+- 自動登録（REQ-017-001/002）: `App.tsx`の`openMusicXmlFile`（ダイアログ・D&D・ライブラリの
+  3経路が通る唯一の成功点）で`electronAPI.library.upsert`を呼ぶ。タイトルは`score.title`、
+  パーサー既定値`'Untitled'`のときはファイル名（拡張子除く）へフォールバックする
+- ライブラリから開く（REQ-017-007/008）: `library:open`が`ok: true`なら既存の読み込みフロー
+  （file:read等→パース→表示）を再利用して開く。`ok: false`の理由は`reason: 'not-found'`
+  （ファイル未存在）と`reason: 'invalid-extension'`（対応拡張子.xml/.musicxml/.mxl以外）の2種類がある。
+  App.tsx側はこの理由を区別せず、同じ非okフローでエラー通知＋欠損マーク＋アプリ内確認ダイアログ
+  での削除/維持を行う（`window.confirm`は不使用）
+- Headerに「ライブラリ」ボタン（アイコン）を常設し、楽譜表示⇔ライブラリをいつでも往復できる。
+  隣接する「ファイルを開く」ボタンにはE2Eでの一意特定用に`data-testid="header-open-file-button"`を
+  付与している（LibraryView空状態のボタンも同じ文言のため、TASK-104）
 
 ### UI多言語対応（i18n、US-016）
 - 表示言語は`AppSettings.ui.language: 'auto' | 'ja' | 'en'`（既定値`'auto'`）。`'auto'`はOSロケールに
@@ -237,6 +284,10 @@ npm run build:mac
 - `noteId` フォーマット: `{partId}-M{measureNumber}-N{noteIndex}` 例: `P1-M3-N0`
 - 設定スキーマ（electron-store、`AppSettings`）: `ui` / `practice` / `midi` に加え `audio: { playbackVoice, metronomeVoice }`（既定値 `'grand-piano'` / `'click'`、TASK-073）。キー欠落時はDEFAULT_SETTINGSとの浅いマージで後方互換を維持する。`ui.language: 'auto' | 'ja' | 'en'`（既定値`'auto'`、TASK-096）はUI表示言語（詳細は「UI多言語対応」節）
 - アノテーション読み込み（`annotation-store/index.ts` の `load()`）はスキーマ・値域検証つき（TASK-092）。`normalizeAnnotation` で不正な要素（`noteId` 非文字列/空、`fingerNumber` 値域外/非整数、`comment` 非文字列）を除外するフェイルソフト方式。`annotations` が非配列のファイルは空状態で継続する
+- 楽譜ライブラリ（`LibraryService`、electron-store名`'library'`、設定とは別ストア、TASK-101）:
+  `{ entries: LibraryEntry[] }`（`LibraryEntry = { path, title, composer, addedAt, lastOpenedAt }`、
+  `path`が一意キー）。読み込み時は`path`非空文字列必須のフェイルソフト検証を行い、不正な要素は除外する
+  （TASK-092と同方針）。楽譜ファイル本体・アノテーションはこのストアの対象外（削除しても触れない）
 
 ### 入力ファイルの堅牢化（MusicXML/MXLパース、TASK-091）
 - `musicxml-parser/parser.ts` はDoS耐性のため以下を検査する。XXEは両パーサとも外部エンティティを解決しないため対象外

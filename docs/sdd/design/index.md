@@ -94,6 +94,7 @@ graph TB
 | Pedal Playback | Renderer | ペダル記号の解析・再生反映（US-014） | [詳細](components/pedal-playback.md) @components/pedal-playback.md |
 | About Page | Renderer (UI) + ビルドスクリプト | バージョン・ライセンス表示（US-015） | [詳細](components/about-page.md) @components/about-page.md |
 | I18n | Renderer + Main | UI表示言語の日英切り替え（US-016） | [詳細](components/i18n.md) @components/i18n.md |
+| Score Library | Renderer + Main | 楽譜ライブラリの一覧管理（US-017） | [詳細](components/score-library.md) @components/score-library.md |
 
 ---
 
@@ -179,6 +180,7 @@ interface Annotation {
 | DEC-007 | ヘッダーを1行+ポップオーバー方式へ再設計 | 承認済 | [詳細](decisions/DEC-007.md) @decisions/DEC-007.md |
 | DEC-008 | ライブラリライセンス一覧をビルド時に自動生成 | 承認済 | [詳細](decisions/DEC-008.md) @decisions/DEC-008.md |
 | DEC-009 | UIの多言語対応を依存追加なしの軽量独自i18nで実装 | 承認済 | [詳細](decisions/DEC-009.md) @decisions/DEC-009.md |
+| DEC-010 | 楽譜ライブラリの永続化をMain側の独立electron-storeで実装 | 承認済 | [詳細](decisions/DEC-010.md) @decisions/DEC-010.md |
 
 ---
 
@@ -243,6 +245,7 @@ docs/sdd/design/
 │   ├── pedal-playback.md          # ペダル記号の再生反映（US-014）
 │   ├── about-page.md              # Aboutページ（US-015）
 │   ├── i18n.md                    # UI多言語対応（US-016）
+│   ├── score-library.md           # 楽譜ライブラリ（US-017）
 │   └── data-model-v2.md           # 時刻ベースデータモデル（v2）
 ├── database/
 │   └── schema.md                  # データスキーマ
@@ -255,5 +258,6 @@ docs/sdd/design/
     ├── DEC-006.md                  # Salamander音源+Tone.Sampler採用
     ├── DEC-007.md                  # ヘッダー1行+ポップオーバー方式
     ├── DEC-008.md                  # ライセンス一覧のビルド時自動生成
-    └── DEC-009.md                  # 軽量独自i18n採用（UI多言語対応）
+    ├── DEC-009.md                  # 軽量独自i18n採用（UI多言語対応）
+    └── DEC-010.md                  # ライブラリ永続化を独立electron-storeで実装
 ```

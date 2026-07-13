@@ -1,4 +1,5 @@
 import { AppSettings } from './settings';
+import { LibraryEntry, LibraryOpenResult } from './library';
 
 export interface ElectronAPI {
   file: {
@@ -29,6 +30,21 @@ export interface ElectronAPI {
     get<K extends keyof AppSettings>(key: K): Promise<AppSettings[K]>;
     set<K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void>;
     getRecentFiles(): Promise<Array<{ path: string; openedAt: string }>>;
+  };
+  /**
+   * TASK-101: 楽譜ライブラリ（US-017）関連のAPI。
+   */
+  library: {
+    getAll(): Promise<LibraryEntry[]>;
+    /** 既存pathはtitle/composer/lastOpenedAtを更新、新規はaddedAtも記録する（REQ-017-001/002）。 */
+    upsert(input: { path: string; title: string; composer: string }): Promise<void>;
+    /** 対象pathのエントリのみ削除する。ファイル本体・アノテーションは触らない（REQ-017-006）。 */
+    remove(path: string): Promise<void>;
+    /**
+     * ライブラリから開く前処理（拡張子検証・存在確認・allowlist登録・recent追加）。
+     * 例外は投げず、失敗時は理由付きの構造化値を返す（REQ-017-007/008）。
+     */
+    open(path: string): Promise<LibraryOpenResult>;
   };
   /**
    * TASK-082: アプリケーションメニュー（Main→Renderer）関連のAPI。

@@ -76,6 +76,8 @@ export const en: Messages = {
     quickPanelTitle: 'View & tools (volume, zoom, fingering, stats)',
     libraryButtonAriaLabel: 'Library',
     libraryButtonTitle: 'Show the library screen',
+    returnToScoreAriaLabel: 'Back to score',
+    returnToScoreTitle: 'Return to the score view',
     settingsAriaLabel: 'Settings',
     settingsTitle: 'Settings',
   },
@@ -203,5 +205,6 @@ export const en: Messages = {
     missingEntryConfirmTitle: 'Remove from library',
     missingEntryConfirmMessage:
       'Remove this file from the library? The original file location is not changed.',
+    returnToScoreButton: 'Back to score',
   },
 };

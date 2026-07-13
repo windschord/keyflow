@@ -642,6 +642,12 @@ function App(): React.JSX.Element {
     [audioEngine, practiceEngine]
   );
 
+  // TASK-105: 楽譜表示への復帰導線（REQ-017-012）。楽譜読み込み済みかつ
+  // ライブラリ画面表示中の場合のみ、Headerのライブラリボタンを「楽譜へ戻る」表示にし、
+  // クリック時もscoreへ戻すトグルとして扱う。楽譜未読み込み時は従来通りライブラリを
+  // 開く導線のみとする（戻り先がないため）。
+  const isReturnToScoreMode = Boolean(score) && activeView === 'library';
+
   return (
     <div
       data-testid="app-container"
@@ -662,7 +668,8 @@ function App(): React.JSX.Element {
           score={score}
           onFingeringSuggested={handleFingering}
           fingeringDisabled={isLoadingAnnotations}
-          onOpenLibrary={() => setActiveView('library')}
+          onOpenLibrary={() => setActiveView(isReturnToScoreMode ? 'score' : 'library')}
+          isReturnToScoreMode={isReturnToScoreMode}
         />
       </div>
 
@@ -739,6 +746,7 @@ function App(): React.JSX.Element {
             onOpenFileDialog={handleOpenFile}
             missingPaths={missingLibraryPaths}
             reloadSignal={libraryReloadSignal}
+            onReturnToScore={score ? () => setActiveView('score') : undefined}
           />
         </div>
       )}

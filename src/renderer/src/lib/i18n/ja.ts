@@ -80,6 +80,8 @@ export const ja = {
     quickPanelTitle: '表示・補助（音量・表示倍率・運指・成績）',
     libraryButtonAriaLabel: 'ライブラリ',
     libraryButtonTitle: 'ライブラリ画面を表示します',
+    returnToScoreAriaLabel: '楽譜へ戻る',
+    returnToScoreTitle: '楽譜表示へ戻ります',
     settingsAriaLabel: '設定',
     settingsTitle: '設定',
   },
@@ -204,5 +206,6 @@ export const ja = {
     missingEntryConfirmTitle: 'ライブラリから削除しますか',
     missingEntryConfirmMessage:
       'このファイルをライブラリから削除しますか。元のファイルの場所は変更されません。',
+    returnToScoreButton: '楽譜へ戻る',
   },
 } as const satisfies Record<string, Record<string, string>>;

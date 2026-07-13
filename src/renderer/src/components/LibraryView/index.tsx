@@ -26,6 +26,11 @@ interface LibraryViewProps {
    * `getAll()`を再実行して一覧を再取得する。値そのものに意味はなく変化のみを見る。
    */
   reloadSignal?: number;
+  /**
+   * 楽譜表示への復帰導線（TASK-105、REQ-017-012）。指定時のみ画面上部に
+   * 「楽譜へ戻る」ボタンを表示する。App.tsx側は楽譜読み込み済みのときのみ渡す。
+   */
+  onReturnToScore?: () => void;
 }
 
 const SORT_KEYS: readonly LibrarySortKey[] = ['title', 'addedAt', 'lastOpenedAt'];
@@ -35,6 +40,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   onOpenFileDialog,
   missingPaths,
   reloadSignal,
+  onReturnToScore,
 }) => {
   const t = useTranslation();
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
@@ -127,9 +133,23 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     setRetryToken((current) => current + 1);
   };
 
+  // TASK-105: 楽譜表示への復帰導線（REQ-017-012）。onReturnToScore指定時のみ、
+  // どの表示状態（一覧・空状態・エラー状態）でも画面上部に表示する。
+  const returnToScoreButton = onReturnToScore ? (
+    <button
+      type="button"
+      onClick={onReturnToScore}
+      data-testid="library-return-to-score-button"
+      style={styles.returnToScoreButton}
+    >
+      {t.library.returnToScoreButton}
+    </button>
+  ) : null;
+
   if (loaded && loadError) {
     return (
       <div role="region" aria-label={t.library.title} style={styles.container}>
+        {returnToScoreButton}
         <div style={styles.emptyState}>
           <p style={styles.emptyTitle}>{t.library.loadErrorTitle}</p>
           <p style={styles.emptyDescription}>{t.library.loadErrorDescription}</p>
@@ -144,6 +164,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   if (loaded && entries.length === 0) {
     return (
       <div role="region" aria-label={t.library.title} style={styles.container}>
+        {returnToScoreButton}
         <div style={styles.emptyState}>
           <p style={styles.emptyTitle}>{t.library.emptyTitle}</p>
           <p style={styles.emptyDescription}>{t.library.emptyDescription}</p>
@@ -157,6 +178,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
   return (
     <div role="region" aria-label={t.library.title} style={styles.container}>
+      {returnToScoreButton}
       <h2 style={styles.heading}>{t.library.title}</h2>
 
       <div style={styles.controls}>
@@ -274,6 +296,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
 const styles: Record<string, React.CSSProperties> = {
   container: { padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '16px' },
+  returnToScoreButton: {
+    alignSelf: 'flex-start',
+    padding: '6px 12px',
+    borderRadius: '4px',
+    border: '1px solid #d1d5db',
+    backgroundColor: 'transparent',
+    color: '#374151',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+  },
   heading: { margin: 0, fontSize: '1.25rem', fontWeight: 600 },
   controls: { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' },
   searchInput: {

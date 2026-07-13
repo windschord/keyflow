@@ -25,6 +25,12 @@ export interface HeaderProps {
   fingeringDisabled?: boolean;
   /** ライブラリボタンクリック時に呼び出される（US-017、TASK-103）。 */
   onOpenLibrary: () => void;
+  /**
+   * ライブラリボタンを「楽譜へ戻る」表示へ切り替えるかどうか（US-017、TASK-105、
+   * REQ-017-012）。楽譜読み込み済みかつライブラリ画面表示中のときのみtrueを渡す想定。
+   * クリック時の挙動自体はApp.tsx側のonOpenLibraryが担い、本propsは表示切り替えのみ行う。
+   */
+  isReturnToScoreMode?: boolean;
 }
 
 const ICON_BUTTON_STYLE: React.CSSProperties = {
@@ -74,6 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
   onFingeringSuggested,
   fingeringDisabled,
   onOpenLibrary,
+  isReturnToScoreMode = false,
 }) => {
   const t = useTranslation();
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
@@ -143,8 +150,13 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenLibrary}
-            aria-label={t.header.libraryButtonAriaLabel}
-            title={t.header.libraryButtonTitle}
+            aria-label={
+              isReturnToScoreMode
+                ? t.header.returnToScoreAriaLabel
+                : t.header.libraryButtonAriaLabel
+            }
+            title={isReturnToScoreMode ? t.header.returnToScoreTitle : t.header.libraryButtonTitle}
+            data-testid="header-library-button"
             style={ICON_BUTTON_STYLE}
           >
             <svg

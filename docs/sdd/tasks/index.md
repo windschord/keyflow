@@ -445,7 +445,7 @@
 | TASK-102 | LibraryView（一覧・検索・並べ替え・削除・空状態・i18n） | DONE | TASK-101 | 90min | [詳細](phase-20/TASK-102.md) @phase-20/TASK-102.md |
 | TASK-103 | ライブラリ統合（自動登録・開くフロー・画面切り替え・欠損処理） | DONE | TASK-101, TASK-102 | 90min | [詳細](phase-20/TASK-103.md) @phase-20/TASK-103.md |
 | TASK-104 | Phase 20統合検証・ライブラリE2E・ドキュメント同期 | REVIEW | TASK-101〜103 | 60min | [詳細](phase-20/TASK-104.md) @phase-20/TASK-104.md |
-| TASK-105 | ライブラリ画面から元の楽譜表示へ戻る導線（REQ-017-012） | TODO | TASK-103 | 45min | [詳細](phase-20/TASK-105.md) @phase-20/TASK-105.md |
+| TASK-105 | ライブラリ画面から元の楽譜表示へ戻る導線（REQ-017-012） | DONE | TASK-103 | 45min | [詳細](phase-20/TASK-105.md) @phase-20/TASK-105.md |
 
 > TASK-101→102→103→104の順次実行とする（102はUI、103が結線のため実質直列）。
 > TASK-105は2026-07-13の実機フィードバック起点の追加タスク。

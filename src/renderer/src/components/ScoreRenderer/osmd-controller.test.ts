@@ -1291,12 +1291,23 @@ describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
     };
   }
 
+  /**
+   * jsdomのHTMLElementはレイアウト計算を行わずclientWidth/clientHeightが常に0のため、
+   * TASK-106の不可視スキップガードを回避してリサイズ処理本体を検証するテストでは
+   * コンテナに非0サイズを明示的に定義する。
+   */
+  function setContainerSize(container: HTMLDivElement, width: number, height: number): void {
+    Object.defineProperty(container, 'clientWidth', { value: width, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: height, configurable: true });
+  }
+
   it('re-renders, rebuilds the noteId map, and reapplies overlays (in that order) after a debounced resize (200-300ms)', () => {
     vi.useFakeTimers();
     const ro = installFakeResizeObserver();
 
     try {
       const container = document.createElement('div');
+      setContainerSize(container, 800, 600);
       const controller = new OSMDController(container);
       expect(ro.observeMock).toHaveBeenCalledWith(container);
 
@@ -1360,6 +1371,7 @@ describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
 
     try {
       const container = document.createElement('div');
+      setContainerSize(container, 800, 600);
       const controller = new OSMDController(container);
       const mockRender = vi.fn();
       // @ts-expect-error test mock access
@@ -1411,6 +1423,10 @@ describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
 describe('OSMDController setZoom rebuilds the noteId map before reapplying overlays (TASK-049)', () => {
   it('calls render, then buildNoteIdMap, then reapplyOverlays in that order', () => {
     const container = document.createElement('div');
+    // jsdomの既定clientWidth/clientHeightは0のため、TASK-106の不可視スキップガードを
+    // 回避してsetZoomの再描画本体を検証できるよう非0サイズを明示する。
+    Object.defineProperty(container, 'clientWidth', { value: 800, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: 600, configurable: true });
     const controller = new OSMDController(container);
     const mockRender = vi.fn();
     // @ts-expect-error test mock access
@@ -1447,6 +1463,169 @@ describe('OSMDController setZoom rebuilds the noteId map before reapplying overl
     );
     // @ts-expect-error test access to private osmd field
     expect(controller.osmd.zoom).toBe(1.5);
+  });
+});
+
+describe('OSMDController ライブラリ往復時の再レンダリング抑止 (TASK-106)', () => {
+  function installFakeResizeObserver(): {
+    getCallback: () => (() => void) | undefined;
+    restore: () => void;
+  } {
+    let callback: (() => void) | undefined;
+    class FakeResizeObserver {
+      constructor(cb: () => void) {
+        callback = cb;
+      }
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+    const original = globalThis.ResizeObserver;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).ResizeObserver = FakeResizeObserver;
+    return {
+      getCallback: () => callback,
+      restore: () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (globalThis as any).ResizeObserver = original;
+      },
+    };
+  }
+
+  function setContainerSize(container: HTMLDivElement, width: number, height: number): void {
+    Object.defineProperty(container, 'clientWidth', { value: width, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: height, configurable: true });
+  }
+
+  it('コンテナが不可視（サイズ0）の間のリサイズ通知ではrenderが呼ばれない（SVGを破棄しない）', () => {
+    vi.useFakeTimers();
+    const ro = installFakeResizeObserver();
+
+    try {
+      const container = document.createElement('div');
+      setContainerSize(container, 800, 600);
+      const controller = new OSMDController(container);
+      const mockRender = vi.fn();
+      // @ts-expect-error test mock access
+      controller.osmd = { cursor: null, render: mockRender, zoom: 1 };
+      // @ts-expect-error test mock access
+      controller.loaded = true;
+      // @ts-expect-error test mock access to private rendered-size cache
+      controller.lastRenderedWidth = 800;
+      // @ts-expect-error test mock access to private rendered-size cache
+      controller.lastRenderedHeight = 600;
+
+      setContainerSize(container, 0, 0); // display:noneでの不可視化を模す
+      ro.getCallback()?.();
+      vi.advanceTimersByTime(250);
+
+      expect(mockRender).not.toHaveBeenCalled();
+    } finally {
+      ro.restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('隠す→同一サイズで戻す往復ではrenderが呼ばれない（即時復帰）', () => {
+    vi.useFakeTimers();
+    const ro = installFakeResizeObserver();
+
+    try {
+      const container = document.createElement('div');
+      setContainerSize(container, 800, 600);
+      const controller = new OSMDController(container);
+      const mockRender = vi.fn();
+      // @ts-expect-error test mock access
+      controller.osmd = { cursor: null, render: mockRender, zoom: 1 };
+      // @ts-expect-error test mock access
+      controller.loaded = true;
+      // @ts-expect-error test mock access to private rendered-size cache
+      controller.lastRenderedWidth = 800;
+      // @ts-expect-error test mock access to private rendered-size cache
+      controller.lastRenderedHeight = 600;
+
+      // 同一サイズへの復帰通知（ライブラリ→楽譜へ戻る想定）。
+      ro.getCallback()?.();
+      vi.advanceTimersByTime(250);
+
+      expect(mockRender).not.toHaveBeenCalled();
+    } finally {
+      ro.restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('描画時サイズと異なるサイズへの変化ではrenderが呼ばれる（回帰なし）', () => {
+    vi.useFakeTimers();
+    const ro = installFakeResizeObserver();
+
+    try {
+      const container = document.createElement('div');
+      setContainerSize(container, 800, 600);
+      const controller = new OSMDController(container);
+      const mockRender = vi.fn();
+      // @ts-expect-error test mock access
+      controller.osmd = { cursor: null, render: mockRender, zoom: 1 };
+      // @ts-expect-error test mock access
+      controller.loaded = true;
+      // @ts-expect-error test mock access to private rendered-size cache
+      controller.lastRenderedWidth = 800;
+      // @ts-expect-error test mock access to private rendered-size cache
+      controller.lastRenderedHeight = 600;
+
+      setContainerSize(container, 1000, 600); // ウィンドウリサイズ等による実際のサイズ変化
+      ro.getCallback()?.();
+      vi.advanceTimersByTime(250);
+
+      expect(mockRender).toHaveBeenCalledTimes(1);
+      // @ts-expect-error test access to private rendered-size cache
+      expect(controller.lastRenderedWidth).toBe(1000);
+    } finally {
+      ro.restore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('不可視中のsetZoomは保留され、可視復帰時のリサイズ通知で一度だけrenderされる', () => {
+    vi.useFakeTimers();
+    const ro = installFakeResizeObserver();
+
+    try {
+      const container = document.createElement('div');
+      setContainerSize(container, 800, 600);
+      const controller = new OSMDController(container);
+      const mockRender = vi.fn();
+      const mockOsmd = { cursor: null, render: mockRender, zoom: 1 };
+      // @ts-expect-error test mock access
+      controller.osmd = mockOsmd;
+      // @ts-expect-error test mock access
+      controller.loaded = true;
+      // @ts-expect-error test mock access to private rendered-size cache
+      controller.lastRenderedWidth = 800;
+      // @ts-expect-error test mock access to private rendered-size cache
+      controller.lastRenderedHeight = 600;
+
+      setContainerSize(container, 0, 0); // ライブラリ表示によるdisplay:noneを模す
+      controller.setZoom(1.5);
+
+      // 不可視中は即時renderされないが、zoom自体は反映される。
+      expect(mockRender).not.toHaveBeenCalled();
+      expect(mockOsmd.zoom).toBe(1.5);
+
+      setContainerSize(container, 800, 600); // 楽譜へ戻る（同一サイズでの可視復帰）
+      ro.getCallback()?.();
+      vi.advanceTimersByTime(250);
+
+      expect(mockRender).toHaveBeenCalledTimes(1);
+
+      // 保留は消化済みのため、同一サイズの通知が再度来てもrenderは増えない。
+      ro.getCallback()?.();
+      vi.advanceTimersByTime(250);
+
+      expect(mockRender).toHaveBeenCalledTimes(1);
+    } finally {
+      ro.restore();
+      vi.useRealTimers();
+    }
   });
 });
 

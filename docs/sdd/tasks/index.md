@@ -446,7 +446,7 @@
 | TASK-103 | ライブラリ統合（自動登録・開くフロー・画面切り替え・欠損処理） | DONE | TASK-101, TASK-102 | 90min | [詳細](phase-20/TASK-103.md) @phase-20/TASK-103.md |
 | TASK-104 | Phase 20統合検証・ライブラリE2E・ドキュメント同期 | REVIEW | TASK-101〜103 | 60min | [詳細](phase-20/TASK-104.md) @phase-20/TASK-104.md |
 | TASK-105 | ライブラリ画面から元の楽譜表示へ戻る導線（REQ-017-012） | DONE | TASK-103 | 45min | [詳細](phase-20/TASK-105.md) @phase-20/TASK-105.md |
-| TASK-106 | [BugFix] ライブラリ往復時のOSMD再レンダリング抑止（即時復帰） | TODO | TASK-105 | 45min | [詳細](phase-20/TASK-106.md) @phase-20/TASK-106.md |
+| TASK-106 | [BugFix] ライブラリ往復時のOSMD再レンダリング抑止（即時復帰） | DONE | TASK-105 | 45min | [詳細](phase-20/TASK-106.md) @phase-20/TASK-106.md |
 
 > TASK-101→102→103→104の順次実行とする（102はUI、103が結線のため実質直列）。
 > TASK-105・TASK-106は2026-07-13の実機フィードバック起点の追加タスク

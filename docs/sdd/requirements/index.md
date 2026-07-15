@@ -33,6 +33,7 @@ SynthesiaやPiano Marvelに匹敵する練習体験を実現する。
 | US-015 | Aboutページ（バージョン・ライセンス表示） | 中 | 定義済 | [詳細](stories/US-015.md) @stories/US-015.md |
 | US-016 | UIの多言語対応（日本語・英語切り替え） | 中 | 定義済 | [詳細](stories/US-016.md) @stories/US-016.md |
 | US-017 | 楽譜ライブラリ（一覧管理画面） | 高 | 定義済 | [詳細](stories/US-017.md) @stories/US-017.md |
+| US-018 | Windowsの配布形態拡充（arm64対応・インストール不要版） | 中 | 定義済 | [詳細](stories/US-018.md) @stories/US-018.md |
 
 ---
 
@@ -57,6 +58,7 @@ SynthesiaやPiano Marvelに匹敵する練習体験を実現する。
 | REQ-015 | Aboutページ（バージョン・本体/ライブラリ/音源ライセンス表示） | US-015 | 定義済 |
 | REQ-016 | UI表示言語の日英切り替え（OSロケール自動判定・即時切替・永続化） | US-016 | 定義済 |
 | REQ-017 | 楽譜ライブラリ（自動登録・一覧・検索・並べ替え・削除・永続化） | US-017 | 定義済 |
+| REQ-018 | Windows配布形態の拡充（x64/arm64・NSIS/portable・完全性検証対象） | US-018 | 定義済 |
 
 ---
 
@@ -112,7 +114,8 @@ docs/sdd/requirements/
 │   ├── US-014.md              # ペダル記号の再生反映
 │   ├── US-015.md              # Aboutページ（バージョン・ライセンス表示）
 │   ├── US-016.md              # UIの多言語対応（日本語・英語切り替え）
-│   └── US-017.md              # 楽譜ライブラリ（一覧管理画面）
+│   ├── US-017.md              # 楽譜ライブラリ（一覧管理画面）
+│   └── US-018.md              # Windowsの配布形態拡充（arm64・portable）
 └── nfr/
     ├── performance.md          # 性能要件
     ├── usability.md            # ユーザビリティ要件

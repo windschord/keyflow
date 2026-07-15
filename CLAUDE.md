@@ -26,7 +26,7 @@ MIDI入力の正誤判定・運指提案・A-Bループ練習を備え、Synthes
 | 永続化 | electron-store（設定）、JSONサイドカー（アノテーション） |
 | テスト | Vitest |
 | Linter/Formatter | ESLint + Prettier |
-| パッケージング | electron-builder（Windows: NSIS） |
+| パッケージング | electron-builder（Windows: NSIS+portable、いずれもx64/arm64。US-018） |
 
 ## ドキュメント構成
 

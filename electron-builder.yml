@@ -49,11 +49,16 @@ nsis:
   installerLanguages: [ja_JP, en_US]
   # US-018: 配布形態（Setup）とアーキテクチャを識別できる命名にする。
   # 複数archを別々のインストーラーとして出力する（ユニバーサル1本化を避ける）。
+  # buildUniversalInstaller: false でx64/arm64を1本に束ねた統合版の生成を抑止し、
+  # arch別インストーラーのみを出力する（既定はtrueで統合版も追加生成される）。
+  buildUniversalInstaller: false
   artifactName: ${productName}-Setup-${version}-${arch}.${ext}
 
 # US-018: インストール不要のportable版（単一実行ファイル）。
 # 実行時に一時フォルダへ展開して起動し、レジストリ変更・管理者権限を要さない。
+# portable側もbuildUniversalInstaller: falseで統合版を抑止し、arch別の単一実行ファイルのみ出力する。
 portable:
+  buildUniversalInstaller: false
   artifactName: ${productName}-Portable-${version}-${arch}.${ext}
 
 files:

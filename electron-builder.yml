@@ -15,9 +15,13 @@ directories:
 npmRebuild: false
 
 win:
+  # US-018: x64/arm64の2アーキテクチャへ対応し、NSISインストーラーに加えて
+  # インストール不要のportable版（単一実行ファイル）も提供する。
   target:
     - target: nsis
-      arch: [x64]
+      arch: [x64, arm64]
+    - target: portable
+      arch: [x64, arm64]
   icon: build/icon.ico
   requestedExecutionLevel: asInvoker
 
@@ -43,6 +47,14 @@ nsis:
   createStartMenuShortcut: true
   multiLanguageInstaller: true
   installerLanguages: [ja_JP, en_US]
+  # US-018: 配布形態（Setup）とアーキテクチャを識別できる命名にする。
+  # 複数archを別々のインストーラーとして出力する（ユニバーサル1本化を避ける）。
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
+
+# US-018: インストール不要のportable版（単一実行ファイル）。
+# 実行時に一時フォルダへ展開して起動し、レジストリ変更・管理者権限を要さない。
+portable:
+  artifactName: ${productName}-Portable-${version}-${arch}.${ext}
 
 files:
   - out/**/*

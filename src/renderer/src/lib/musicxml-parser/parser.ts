@@ -42,16 +42,91 @@ const MAX_ZIP_ENTRIES = 1000;
  * 外部DTD自体は両パーサとも取得しない（XXE不成立）ため、外部参照のみのDOCTYPEにリスクはない。
  * そのため、内部サブセットを伴うDOCTYPEのみを拒否対象とする。
  */
+const DOCTYPE_KEYWORD = '<!DOCTYPE';
+
+/**
+ * DOCTYPE宣言の走査時に、コメント・CDATA・処理命令（PI）の各領域をスキップする。
+ * これらの領域内に現れるDOCTYPEらしき文字列は宣言ではなく単なるテキストであり、
+ * パーサーはエンティティ宣言として解釈しないため、検査対象から除外する（CodeRabbit #59指摘）。
+ * 領域の閉じが見つからない（壊れたXML）場合は安全側で拒否を示すため -1 を返す。
+ *
+ * @returns スキップ後の次の走査開始位置。閉じが見つからない場合は -1。
+ */
+function skipNonDeclarationRegion(xml: string, index: number): number | null {
+  if (xml.startsWith('<!--', index)) {
+    const end = xml.indexOf('-->', index + 4);
+    return end === -1 ? -1 : end + 3;
+  }
+  if (xml.startsWith('<![CDATA[', index)) {
+    const end = xml.indexOf(']]>', index + 9);
+    return end === -1 ? -1 : end + 3;
+  }
+  if (xml.startsWith('<?', index)) {
+    const end = xml.indexOf('?>', index + 2);
+    return end === -1 ? -1 : end + 2;
+  }
+  return null; // この位置はスキップ対象領域ではない
+}
+
+/**
+ * DOCTYPE宣言のうち、内部サブセット（角括弧で囲む部分）を伴うものだけを危険として検出する（TASK-091）。
+ *
+ * 内部サブセットはカスタムエンティティを宣言できる箇所であり、実体参照の入れ子展開
+ * （billion laughs型DoS）の攻撃面となる。一方、主要な採譜ソフト（MuseScore・Finale・
+ * Sibelius）の出力や本プロジェクトのE2Eフィクスチャは、外部DTD参照のみのDOCTYPEを持つ。
+ * これを一律拒否すると実在する正常なMusicXMLを開けなくなり、リグレッションになる。
+ * 外部DTD自体は両パーサとも取得しない（XXE不成立）ため、外部参照のみのDOCTYPEにリスクはない。
+ * そのため、内部サブセットを伴うDOCTYPEのみを拒否対象とする。
+ *
+ * セキュリティレビュー対応（L-1）＋CodeRabbit #59指摘: 単純な文字列検索では以下の回避が成立するため、
+ * XMLを左から1回走査しながら宣言の終端を引用符対応で判定する。
+ * - 最初のDOCTYPEだけでなく出現する全てのDOCTYPEを検査する。繰り返しDOCTYPEでの回避対策であり、
+ *   fast-xml-parserのGHSA-8r6m-32jq-jx6q「繰り返しDOCTYPEがエンティティ展開上限をリセット」と対になる
+ * - SYSTEM/PUBLIC識別子の引用符リテラル内に置かれた大なり記号を宣言終端と誤認しない
+ * - コメント・CDATA・PI領域内のDOCTYPEらしき文字列は宣言とみなさない
+ */
 function hasDoctypeWithInternalSubset(xmlContent: string): boolean {
-  const doctypeIndex = xmlContent.search(/<!DOCTYPE/i);
-  if (doctypeIndex === -1) return false;
-  const rest = xmlContent.slice(doctypeIndex);
-  const bracketIndex = rest.indexOf('[');
-  if (bracketIndex === -1) return false; // 内部サブセットなし（外部DTD参照のみ）
-  const closeIndex = rest.indexOf('>');
-  // 閉じ`>`が見つからない（壊れたXML）場合は安全側で拒否する。
-  if (closeIndex === -1) return true;
-  return bracketIndex < closeIndex;
+  const n = xmlContent.length;
+  let i = 0;
+  while (i < n) {
+    if (xmlContent[i] !== '<') {
+      i++;
+      continue;
+    }
+
+    const skipTo = skipNonDeclarationRegion(xmlContent, i);
+    if (skipTo === -1) return true; // 領域の閉じがない壊れたXML → 安全側で拒否
+    if (skipTo !== null) {
+      i = skipTo;
+      continue;
+    }
+
+    // DOCTYPE宣言か（大文字小文字を区別しない）
+    if (xmlContent.slice(i, i + DOCTYPE_KEYWORD.length).toUpperCase() !== DOCTYPE_KEYWORD) {
+      i++;
+      continue;
+    }
+
+    // 宣言の終端となる大なり記号を、二重引用符または単一引用符のリテラル内を除いて探す。
+    // その手前に引用符外の角括弧が現れれば内部サブセットを伴うため拒否する。
+    let j = i + DOCTYPE_KEYWORD.length;
+    let quote: string | null = null;
+    for (; j < n; j++) {
+      const c = xmlContent[j];
+      if (quote !== null) {
+        if (c === quote) quote = null;
+      } else if (c === '"' || c === "'") {
+        quote = c;
+      } else if (c === '[') {
+        return true; // 引用符外の角括弧 = 内部サブセットあり
+      } else if (c === '>') {
+        break; // 引用符外の終端 = 内部サブセットなしで宣言終了
+      }
+    }
+    if (j >= n) return true; // 終端が見つからない壊れたXML → 安全側で拒否
+    i = j + 1;
+  }
+  return false;
 }
 
 interface MeasureBuilder {

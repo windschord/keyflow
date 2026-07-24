@@ -105,13 +105,18 @@ describe('createRegisterDroppedFileHandler', () => {
   });
 });
 
+// L-2: 読み取りハンドラは lstat も注入する。既定は「シンボリックリンクでない」を返す。
+function notSymlinkLstat(): (path: string) => Promise<{ isSymbolicLink(): boolean }> {
+  return vi.fn(async () => ({ isSymbolicLink: () => false }));
+}
+
 // TASK-086: file:read系ハンドラがPathAllowlist.assertAllowedReadPathという
 // モック境界を実際に経由していることを検証する結線テスト。
 describe('createReadFileHandler', () => {
   it('reads a registered MusicXML path via the injected fs module', async () => {
     const pathAllowlist = new PathAllowlist();
     pathAllowlist.allowMusicXml('/scores/example.musicxml');
-    const fsModule = { readFile: vi.fn().mockResolvedValue('<score/>') };
+    const fsModule = { readFile: vi.fn().mockResolvedValue('<score/>'), lstat: notSymlinkLstat() };
 
     const handler = createReadFileHandler(pathAllowlist, fsModule);
     const result = await handler({} as never, '/scores/example.musicxml');
@@ -122,7 +127,7 @@ describe('createReadFileHandler', () => {
 
   it('rejects an unregistered path without touching the fs module', async () => {
     const pathAllowlist = new PathAllowlist();
-    const fsModule = { readFile: vi.fn().mockResolvedValue('<score/>') };
+    const fsModule = { readFile: vi.fn().mockResolvedValue('<score/>'), lstat: notSymlinkLstat() };
 
     const handler = createReadFileHandler(pathAllowlist, fsModule);
 
@@ -137,7 +142,7 @@ describe('createReadFileIfExistsHandler', () => {
   it('reads a registered annotation sidecar path via the injected fs module', async () => {
     const pathAllowlist = new PathAllowlist();
     pathAllowlist.allowMusicXml('/scores/example.musicxml');
-    const fsModule = { readFile: vi.fn().mockResolvedValue('{}') };
+    const fsModule = { readFile: vi.fn().mockResolvedValue('{}'), lstat: notSymlinkLstat() };
 
     const handler = createReadFileIfExistsHandler(pathAllowlist, fsModule);
     const result = await handler({} as never, '/scores/example.musicxml.annotation.json');
@@ -153,7 +158,7 @@ describe('createReadFileIfExistsHandler', () => {
     const pathAllowlist = new PathAllowlist();
     pathAllowlist.allowMusicXml('/scores/example.musicxml');
     const enoent = Object.assign(new Error('not found'), { code: 'ENOENT' });
-    const fsModule = { readFile: vi.fn().mockRejectedValue(enoent) };
+    const fsModule = { readFile: vi.fn().mockRejectedValue(enoent), lstat: notSymlinkLstat() };
 
     const handler = createReadFileIfExistsHandler(pathAllowlist, fsModule);
     const result = await handler({} as never, '/scores/example.musicxml.annotation.json');
@@ -163,12 +168,29 @@ describe('createReadFileIfExistsHandler', () => {
 
   it('rejects an unregistered path without touching the fs module', async () => {
     const pathAllowlist = new PathAllowlist();
-    const fsModule = { readFile: vi.fn().mockResolvedValue('{}') };
+    const fsModule = { readFile: vi.fn().mockResolvedValue('{}'), lstat: notSymlinkLstat() };
 
     const handler = createReadFileIfExistsHandler(pathAllowlist, fsModule);
 
     await expect(handler({} as never, '/etc/hosts.annotation.json')).rejects.toThrow(
       /Refused to read from disallowed path/
+    );
+    expect(fsModule.readFile).not.toHaveBeenCalled();
+  });
+
+  // L-2: 許可済みだが実体がシンボリックリンクのサイドカーは読み取りを拒否する。
+  it('rejects reading an annotation sidecar that is a symlink (L-2)', async () => {
+    const pathAllowlist = new PathAllowlist();
+    pathAllowlist.allowMusicXml('/scores/example.musicxml');
+    const fsModule = {
+      readFile: vi.fn().mockResolvedValue('{}'),
+      lstat: vi.fn().mockResolvedValue({ isSymbolicLink: () => true }),
+    };
+
+    const handler = createReadFileIfExistsHandler(pathAllowlist, fsModule);
+
+    await expect(handler({} as never, '/scores/example.musicxml.annotation.json')).rejects.toThrow(
+      /Refused to read through symlink/
     );
     expect(fsModule.readFile).not.toHaveBeenCalled();
   });
@@ -179,7 +201,7 @@ describe('createReadBinaryFileHandler', () => {
     const pathAllowlist = new PathAllowlist();
     pathAllowlist.allowMusicXml('/scores/example.mxl');
     const buffer = Buffer.from([1, 2, 3, 4]);
-    const fsModule = { readFile: vi.fn().mockResolvedValue(buffer) };
+    const fsModule = { readFile: vi.fn().mockResolvedValue(buffer), lstat: notSymlinkLstat() };
 
     const handler = createReadBinaryFileHandler(pathAllowlist, fsModule);
     const result = await handler({} as never, '/scores/example.mxl');
@@ -190,7 +212,10 @@ describe('createReadBinaryFileHandler', () => {
 
   it('rejects an unregistered path without touching the fs module', async () => {
     const pathAllowlist = new PathAllowlist();
-    const fsModule = { readFile: vi.fn().mockResolvedValue(Buffer.from([])) };
+    const fsModule = {
+      readFile: vi.fn().mockResolvedValue(Buffer.from([])),
+      lstat: notSymlinkLstat(),
+    };
 
     const handler = createReadBinaryFileHandler(pathAllowlist, fsModule);
 

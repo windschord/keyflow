@@ -67,6 +67,9 @@ src/
 │   ├── navigation-policy.ts # openExternal（isAllowedExternalUrl: http/httpsのみ許可）とwill-navigate
 │   │                       #   （isAllowedNavigationUrl: 開発時HMR URLと同一オリジン、または本番file:のみ許可）の
 │   │                       #   URL判定。Electron API非依存の純粋関数（TASK-087）
+│   ├── permission-policy.ts # setPermissionRequestHandler/CheckHandler用の許可判定（isAllowedPermission）。
+│   │                       #   必要な'midi'のみ許可し'midiSysex'を含む他は全拒否。Web MIDIは
+│   │                       #   requestMIDIAccess({sysex:false})で要求するためSysExは不要（セキュリティレビューL-3）
 │   ├── settings.ts        # electron-store ラッパー（アプリ設定・最近使ったファイル）
 │   ├── settings-handlers.ts # settings:set IPCハンドラのファクトリ。ui.languageの変更を検知した
 │   │                       #   場合のみonLanguageChangedコールバックを呼ぶ（TASK-099、REQ-016-004）
@@ -193,7 +196,10 @@ npm run build:mac
 - ファイル読み取り（`file:read`/`file:read-if-exists`/`file:read-binary`）は
   `PathAllowlist.assertAllowedReadPath` により、ユーザーがダイアログ/ドロップで開いたMusicXML本体と
   その `.annotation.json` サイドカー以外の読み取りを拒否する（TASK-086。書き込み`file:write`側の
-  `assertAllowedAnnotationPath` と対になる読み取り版）
+  `assertAllowedAnnotationPath` と対になる読み取り版）。加えて、`.annotation.json` サイドカーの読み取りは
+  `lstat` でシンボリックリンクを検出したら拒否する（`file-handlers.ts` の `assertAnnotationSidecarNotSymlink`。
+  自動生成される派生ファイルがシンボリックリンク経由で別ファイルを読み出す経路を塞ぐ。書き込み側の
+  シンボリックリンク拒否と対称。ユーザーが明示選択した本体ファイルは検査対象外。セキュリティレビューL-2）
 - 外部ナビゲーション制御は `src/main/navigation-policy.ts` が担う。`shell.openExternal` へ渡すURLは
   `isAllowedExternalUrl` でhttp/https以外（`file:`・カスタムスキーム等）を拒否し、メインウィンドウの
   トップレベルナビゲーション（`will-navigate`）は `isAllowedNavigationUrl` で開発時HMR URLと同一オリジン、
@@ -216,13 +222,13 @@ npm run build:mac
 | `file:read-if-exists` | Renderer→Main | 存在しないのが正常なファイル（注釈サイドカー等）の読み込み。ENOENTはnullを返す。読み取りallowlist検証あり（TASK-086） |
 | `file:read-binary` | Renderer→Main | バイナリファイル読み込み（.mxl）。読み取りallowlist検証あり（TASK-086） |
 | `file:write` | Renderer→Main | アノテーションJSON書き込み。`PathAllowlist.assertAllowedAnnotationPath`で許可パスのみ書き込み可 |
-| `settings:get` / `settings:set` | Renderer→Main | アプリ設定の取得・保存（electron-store）。`settings:set`は`key: 'ui'`かつ`ui.language`が変化した場合、副作用としてアプリケーションメニューを再構築する（下記「UI多言語対応」参照、TASK-099） |
+| `settings:get` / `settings:set` | Renderer→Main | アプリ設定の取得・保存（electron-store）。`settings:set`は既知のトップレベルキー（recentFiles/midi/handSettings/ui/practice/audio）以外を無視する（未知キーの永続化・プロトタイプ汚染面の遮断。セキュリティレビューM-2）。`key: 'ui'`かつ`ui.language`が変化した場合、副作用としてアプリケーションメニューを再構築する（下記「UI多言語対応」参照、TASK-099） |
 | `settings:get-recent-files` | Renderer→Main | 最近使ったファイル一覧の取得 |
 | `menu:open-about` | Main→Renderer | アプリケーションメニューのAbout項目クリック通知（`src/main/menu.ts`、TASK-082） |
 | `library:get-all` | Renderer→Main | 楽譜ライブラリ（US-017）の全エントリ取得（TASK-101） |
 | `library:upsert` | Renderer→Main | `{path, title, composer}`の登録。既存pathは更新、新規は`addedAt`も記録（REQ-017-001/002） |
 | `library:remove` | Renderer→Main | pathで削除。ファイル本体・アノテーションは触らない（REQ-017-006） |
-| `library:open` | Renderer→Main | ライブラリから開く前処理。拡張子検証・存在確認・allowlist登録・recentFiles追加を行い、存在しなければ`{ok: false, reason: 'not-found'}`を、対応拡張子（.xml/.musicxml/.mxl）以外なら`{ok: false, reason: 'invalid-extension'}`を返す（REQ-017-007/008） |
+| `library:open` | Renderer→Main | ライブラリから開く前処理。拡張子検証・**ライブラリ登録済みpathか照合（セキュリティレビューM-1）**・存在確認・allowlist登録・recentFiles追加を行い、未登録または存在しなければ`{ok: false, reason: 'not-found'}`を、対応拡張子（.xml/.musicxml/.mxl）以外なら`{ok: false, reason: 'invalid-extension'}`を返す（REQ-017-007/008） |
 
 ### UI多言語対応（i18n、US-016）
 - 表示言語は`AppSettings.ui.language: 'auto' | 'ja' | 'en'`（既定値`'auto'`）。`'auto'`はOSロケールに
@@ -292,7 +298,7 @@ npm run build:mac
 ### 入力ファイルの堅牢化（MusicXML/MXLパース、TASK-091）
 - `musicxml-parser/parser.ts` はDoS耐性のため以下を検査する。XXEは両パーサとも外部エンティティを解決しないため対象外
   - XMLサイズ上限 `MAX_XML_LENGTH`（3千万文字）超過を拒否
-  - **内部サブセット付きDOCTYPEのみ**拒否（`hasDoctypeWithInternalSubset`）。billion laughs型の実体展開DoSを遮断する一方、実在の標準MusicXMLが持つ外部DTD参照のみのDOCTYPE（例: `sample-two-hands.musicxml`）は許可する
+  - **内部サブセット付きDOCTYPEのみ**拒否（`hasDoctypeWithInternalSubset`）。billion laughs型の実体展開DoSを遮断する一方、実在の標準MusicXMLが持つ外部DTD参照のみのDOCTYPE（例: `sample-two-hands.musicxml`）は許可する。**最初のDOCTYPEだけでなく出現する全ての`<!DOCTYPE`を走査する**（1つ目を外部DTD参照のみにして2つ目に内部サブセットを仕込む回避を塞ぐ。fast-xml-parserのGHSA-8r6m-32jq-jx6q「繰り返しDOCTYPEがエンティティ展開上限をリセットする」と対になる攻撃面。セキュリティレビューL-1）
   - メインパーサの `processEntities` は既定（true）維持（`&amp;` 等の予約実体参照を正しく復号するため）。`container.xml` 用パーサはDOCTYPE非検査のため `processEntities: false`
   - `.mxl` 展開は `unzipSync` の `filter` コールバックで展開前に宣言サイズ（`originalSize`）・エントリ数を検査し、zip爆弾を展開バッファ確保前に遮断（`MAX_UNZIPPED_BYTES` = 50MB、`MAX_ZIP_ENTRIES` = 1000）
 

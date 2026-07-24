@@ -92,15 +92,32 @@ describe('createSettingsSetHandler', () => {
     expect(onLanguageChanged).not.toHaveBeenCalled();
   });
 
-  // M-2: 既知キー'ui'だがvalueが非オブジェクト（不正入力）でもクラッシュしない。
-  it('key=uiでvalueが非オブジェクトでも例外を投げず、書き込みは行う', () => {
+  // M-2（CodeRabbit #59）: 既知キーでもvalueが非オブジェクト（プリミティブ・null）なら
+  // 破損データの永続化を防ぐため書き込まない。例外も投げない。
+  it('既知キーでもvalueが非オブジェクト/nullなら書き込まず例外も投げない', () => {
     const settingsService = createSettingsServiceMock(baseUi);
     const onLanguageChanged = vi.fn();
     const handler = createSettingsSetHandler(settingsService, onLanguageChanged);
 
-    expect(() =>
-      handler(undefined, 'ui', 'not-an-object' as unknown as AppSettings['ui'])
-    ).not.toThrow();
+    for (const badValue of ['not-an-object', 42, null, undefined, true]) {
+      expect(() =>
+        handler(undefined, 'ui', badValue as unknown as AppSettings['ui'])
+      ).not.toThrow();
+    }
+
+    expect(settingsService.set).not.toHaveBeenCalled();
     expect(onLanguageChanged).not.toHaveBeenCalled();
+  });
+
+  // M-2: 配列値（recentFiles）は typeof 'object' として許可される。
+  it('配列値（recentFiles）は書き込む', () => {
+    const settingsService = createSettingsServiceMock(baseUi);
+    const onLanguageChanged = vi.fn();
+    const handler = createSettingsSetHandler(settingsService, onLanguageChanged);
+
+    const recent: AppSettings['recentFiles'] = [{ path: '/a.musicxml', openedAt: 'x' }];
+    handler(undefined, 'recentFiles', recent);
+
+    expect(settingsService.set).toHaveBeenCalledWith('recentFiles', recent);
   });
 });

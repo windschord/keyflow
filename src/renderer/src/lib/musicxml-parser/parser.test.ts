@@ -318,6 +318,32 @@ describe('MusicXML Parser - 入力堅牢化（TASK-091）', () => {
     expect(() => parse(evasion)).toThrow(MusicXMLParseError);
   });
 
+  it('SYSTEM引用符リテラル内の>で終端を偽装した内部サブセットを拒否する（CodeRabbit #59、非回帰）', () => {
+    // SYSTEM識別子の引用符内に > を置くと、引用符非対応の終端判定では
+    // その > を宣言終端と誤認し、後続の内部サブセット（角括弧）を見逃す。
+    // 引用符内を無視して終端を判定することで、この回避を拒否する。
+    const quotedGtEvasion = `<?xml version="1.0"?>
+<!DOCTYPE score-partwise SYSTEM "urn:evil>id" [
+  <!ENTITY lol "lol">
+  <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;">
+]>
+<score-partwise>&lol2;</score-partwise>`;
+    expect(() => parse(quotedGtEvasion)).toThrow(MusicXMLParseError);
+  });
+
+  it('コメント内に現れるDOCTYPEらしきテキストは宣言とみなさず許可する（非回帰）', () => {
+    // コメント領域内のDOCTYPEらしき文字列はパーサーが宣言として解釈しない
+    // （エンティティ展開されない）ため、拒否対象から除外する。
+    const doctypeInComment = `<?xml version="1.0"?>
+<!-- <!DOCTYPE evil [ <!ENTITY x "y"> ]> -->
+<score-partwise>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1"><note><rest/><duration>4</duration></note></measure></part>
+</score-partwise>`;
+    const score = parse(doctypeInComment);
+    expect(score.parts[0].id).toBe('P1');
+  });
+
   it('予約実体参照（&amp; 等）は従来どおり復号する（processEntities維持の回帰確認）', () => {
     // processEntitiesを既定（true）で維持するため、曲名・歌詞の予約実体参照は
     // 正しく復号される。実体展開DoSは内部サブセット付きDOCTYPE拒否で防いでおり、

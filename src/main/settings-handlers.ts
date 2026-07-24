@@ -35,15 +35,21 @@ export function createSettingsSetHandler(
       return;
     }
 
+    // M-2: AppSettingsの全トップレベル値はオブジェクトまたは配列であり、プリミティブ値は
+    // 想定しない。既知キーであっても文字列・数値・nullなどの不正なvalueがそのまま
+    // ストアへ書き込まれ、参照側で想定外の形になるのを防ぐため、書き込み前に検証する
+    // （CodeRabbit #59指摘）。
+    if (typeof value !== 'object' || value === null) {
+      return;
+    }
+
     const previousLanguage = key === 'ui' ? settingsService.get('ui').language : undefined;
 
     settingsService.set(key, value);
 
-    if (key === 'ui' && typeof value === 'object' && value !== null) {
+    if (key === 'ui') {
       // keyが'ui'であることを上で確認済みだが、keyとvalueは別引数のため
       // 型システム上はvalueの型が自動では絞り込まれず、明示キャストが必要になる。
-      // M-2: valueが非オブジェクト（null含む）でも .language 参照でクラッシュしないよう
-      // オブジェクトであることを確認してから読む。
       const newLanguage = (value as AppSettings['ui']).language;
       if (newLanguage !== previousLanguage) {
         onLanguageChanged(newLanguage);

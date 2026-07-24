@@ -39,7 +39,7 @@
   "dependencies": {
     "conf": "^15.1.0",
     "electron-store": "^8.2.0",
-    "fast-xml-parser": "^5.9.3",
+    "fast-xml-parser": "^5.10.1",
     "fflate": "^0.8.3",
     "opensheetmusicdisplay": "^2.0.0",
     "tone": "^15.1.22",

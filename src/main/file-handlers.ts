@@ -75,15 +75,51 @@ export function createRegisterDroppedFileHandler(
 }
 
 /**
- * ipcMain.handle に渡す fs.promises 依存の最小インターフェース。
- * テストでは実ファイルシステムに触れず readFile のみ差し替えられるようにする。
+ * セキュリティレビュー対応（L-2）: シンボリックリンク検査に用いる lstat の最小インターフェース。
  */
-export interface TextFileReader {
+export interface SymlinkChecker {
+  lstat(path: string): Promise<{ isSymbolicLink(): boolean }>;
+}
+
+/**
+ * ipcMain.handle に渡す fs.promises 依存の最小インターフェース。
+ * テストでは実ファイルシステムに触れず readFile / lstat のみ差し替えられるようにする。
+ */
+export interface TextFileReader extends SymlinkChecker {
   readFile(path: string, encoding: 'utf-8'): Promise<string>;
 }
 
-export interface BinaryFileReader {
+export interface BinaryFileReader extends SymlinkChecker {
   readFile(path: string): Promise<Buffer>;
+}
+
+const ANNOTATION_SUFFIX = '.annotation.json';
+
+/**
+ * セキュリティレビュー対応（L-2）: アノテーションサイドカー（`*.annotation.json`）は
+ * このアプリ自身が atomic write で生成する派生ファイルであり、シンボリックリンクである
+ * べきではない。読み取り前に lstat でシンボリックリンクを検出したら拒否し、
+ * サイドカーパスに置かれたシンボリックリンク経由で別ファイルの内容を読み出す経路を塞ぐ
+ * （書き込み側 file:write のシンボリックリンク拒否と対称）。
+ *
+ * ユーザーがダイアログ/D&Dで明示的に選択した本体ファイル（.xml/.musicxml/.mxl）は
+ * ユーザー自身の選択であり、シンボリックリンクでも尊重するため検査対象外とする。
+ */
+async function assertAnnotationSidecarNotSymlink(
+  fsModule: SymlinkChecker,
+  resolvedPath: string
+): Promise<void> {
+  if (!resolvedPath.endsWith(ANNOTATION_SUFFIX)) return;
+  try {
+    const stats = await fsModule.lstat(resolvedPath);
+    if (stats.isSymbolicLink()) {
+      throw new Error(`Refused to read through symlink: ${resolvedPath}`);
+    }
+  } catch (err) {
+    // まだ存在しない（初回オープン）のは正常。それ以外のエラーは伝播する。
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw err;
+  }
 }
 
 /**
@@ -99,6 +135,7 @@ export function createReadFileHandler(
 ): (event: unknown, path: string) => Promise<string> {
   return async (_event: unknown, path: string): Promise<string> => {
     const allowedPath = pathAllowlist.assertAllowedReadPath(path);
+    await assertAnnotationSidecarNotSymlink(fsModule, allowedPath);
     return fsModule.readFile(allowedPath, 'utf-8');
   };
 }
@@ -116,6 +153,7 @@ export function createReadFileIfExistsHandler(
 ): (event: unknown, path: string) => Promise<string | null> {
   return async (_event: unknown, path: string): Promise<string | null> => {
     const allowedPath = pathAllowlist.assertAllowedReadPath(path);
+    await assertAnnotationSidecarNotSymlink(fsModule, allowedPath);
     try {
       return await fsModule.readFile(allowedPath, 'utf-8');
     } catch (err) {
@@ -138,6 +176,7 @@ export function createReadBinaryFileHandler(
 ): (event: unknown, path: string) => Promise<ArrayBuffer> {
   return async (_event: unknown, path: string): Promise<ArrayBuffer> => {
     const allowedPath = pathAllowlist.assertAllowedReadPath(path);
+    await assertAnnotationSidecarNotSymlink(fsModule, allowedPath);
     const content = await fsModule.readFile(allowedPath);
     // Buffer.buffer は SharedArrayBuffer の可能性を含む ArrayBufferLike 型のため、
     // 新規 ArrayBuffer へコピーして型を確定させる（IPC経由で送るには元々コピーが必要）。

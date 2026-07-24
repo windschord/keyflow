@@ -304,6 +304,20 @@ describe('MusicXML Parser - 入力堅牢化（TASK-091）', () => {
     expect(() => parse(bomb)).toThrow(MusicXMLParseError);
   });
 
+  it('繰り返しDOCTYPEで2つ目に内部サブセットを仕込む回避を拒否する（L-1、非回帰）', () => {
+    // 1つ目を外部DTD参照のみにして自前フィルタを通し、2つ目のDOCTYPEに
+    // 内部サブセット（エンティティ宣言）を仕込む回避パターン。最初のDOCTYPEしか
+    // 見ない実装ではすり抜けるため、全DOCTYPEを走査して拒否する。
+    const evasion = `<?xml version="1.0"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<!DOCTYPE evil [
+  <!ENTITY lol "lol">
+  <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;">
+]>
+<score-partwise>&lol2;</score-partwise>`;
+    expect(() => parse(evasion)).toThrow(MusicXMLParseError);
+  });
+
   it('予約実体参照（&amp; 等）は従来どおり復号する（processEntities維持の回帰確認）', () => {
     // processEntitiesを既定（true）で維持するため、曲名・歌詞の予約実体参照は
     // 正しく復号される。実体展開DoSは内部サブセット付きDOCTYPE拒否で防いでおり、

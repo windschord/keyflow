@@ -24,6 +24,7 @@ import { createWindowOptions, APP_TITLE } from './window-options';
 import { applyDockIcon } from './dock-icon';
 import { createApplicationMenuTemplate } from './menu';
 import { isAllowedExternalUrl, isAllowedNavigationUrl } from './navigation-policy';
+import { isAllowedPermission } from './permission-policy';
 import { resolveLanguage, type Language } from './locale';
 import { createSettingsSetHandler } from './settings-handlers';
 
@@ -142,6 +143,11 @@ app.whenReady().then(() => {
   ipcMain.handle('file:read-binary', createReadBinaryFileHandler(pathAllowlist, fs.promises));
 
   ipcMain.handle('file:write', async (_, path: string, content: string) => {
+    // セキュリティレビュー対応（M-2）: IPCは任意JSONを送れるため、path/contentが
+    // 文字列であることを実行時に検証する（非文字列は以降のパス検証・書き込みに渡さない）。
+    if (typeof path !== 'string' || typeof content !== 'string') {
+      throw new Error('file:write requires string path and content');
+    }
     const allowedPath = pathAllowlist.assertAllowedAnnotationPath(path);
 
     // Security: Verify that parent directory chain is not escaped via symlinks
@@ -215,13 +221,15 @@ app.whenReady().then(() => {
 
   createWindow();
 
+  // セキュリティレビュー対応（L-3）: 必要な 'midi' のみ許可し、SysEx送信を伴う
+  // 'midiSysex' を含む他の権限はすべて拒否する（判定は permission-policy.ts の純関数）。
+  // 権限チェック（同期）側も同一ポリシーで閉じる。
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if (permission === 'midi' || permission === 'midiSysex') {
-      callback(true);
-    } else {
-      callback(false);
-    }
+    callback(isAllowedPermission(permission));
   });
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) =>
+    isAllowedPermission(permission)
+  );
 
   ipcMain.handle('settings:get', (_, key) => settingsService.get(key));
   // TASK-099: ui.languageの変更を検知したらメニューを再構築する（REQ-016-004）。
@@ -240,7 +248,7 @@ app.whenReady().then(() => {
   ipcMain.handle('library:remove', createLibraryRemoveHandler(libraryService));
   ipcMain.handle(
     'library:open',
-    createLibraryOpenHandler(pathAllowlist, settingsService, fs.promises)
+    createLibraryOpenHandler(pathAllowlist, settingsService, fs.promises, libraryService)
   );
 
   app.on('activate', function () {

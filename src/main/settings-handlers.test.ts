@@ -66,4 +66,41 @@ describe('createSettingsSetHandler', () => {
     expect(settingsService.set).toHaveBeenCalledWith('midi', nextMidi);
     expect(onLanguageChanged).not.toHaveBeenCalled();
   });
+
+  // M-2: 既知でないキー（プロトタイプ汚染面・未知キーの永続化）は書き込まず副作用も呼ばない。
+  it('既知でないキーは書き込まず、onLanguageChangedも呼ばない', () => {
+    const settingsService = createSettingsServiceMock(baseUi);
+    const onLanguageChanged = vi.fn();
+    const handler = createSettingsSetHandler(settingsService, onLanguageChanged);
+
+    for (const badKey of ['__proto__', 'constructor', 'ui.language', 'unknownKey']) {
+      handler(undefined, badKey as unknown as keyof AppSettings, { evil: true } as never);
+    }
+
+    expect(settingsService.set).not.toHaveBeenCalled();
+    expect(onLanguageChanged).not.toHaveBeenCalled();
+  });
+
+  it('keyが非文字列の場合も書き込まない', () => {
+    const settingsService = createSettingsServiceMock(baseUi);
+    const onLanguageChanged = vi.fn();
+    const handler = createSettingsSetHandler(settingsService, onLanguageChanged);
+
+    handler(undefined, 42 as unknown as keyof AppSettings, {} as never);
+
+    expect(settingsService.set).not.toHaveBeenCalled();
+    expect(onLanguageChanged).not.toHaveBeenCalled();
+  });
+
+  // M-2: 既知キー'ui'だがvalueが非オブジェクト（不正入力）でもクラッシュしない。
+  it('key=uiでvalueが非オブジェクトでも例外を投げず、書き込みは行う', () => {
+    const settingsService = createSettingsServiceMock(baseUi);
+    const onLanguageChanged = vi.fn();
+    const handler = createSettingsSetHandler(settingsService, onLanguageChanged);
+
+    expect(() =>
+      handler(undefined, 'ui', 'not-an-object' as unknown as AppSettings['ui'])
+    ).not.toThrow();
+    expect(onLanguageChanged).not.toHaveBeenCalled();
+  });
 });

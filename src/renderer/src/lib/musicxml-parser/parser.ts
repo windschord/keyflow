@@ -43,15 +43,23 @@ const MAX_ZIP_ENTRIES = 1000;
  * そのため、内部サブセットを伴うDOCTYPEのみを拒否対象とする。
  */
 function hasDoctypeWithInternalSubset(xmlContent: string): boolean {
-  const doctypeIndex = xmlContent.search(/<!DOCTYPE/i);
-  if (doctypeIndex === -1) return false;
-  const rest = xmlContent.slice(doctypeIndex);
-  const bracketIndex = rest.indexOf('[');
-  if (bracketIndex === -1) return false; // 内部サブセットなし（外部DTD参照のみ）
-  const closeIndex = rest.indexOf('>');
-  // 閉じ`>`が見つからない（壊れたXML）場合は安全側で拒否する。
-  if (closeIndex === -1) return true;
-  return bracketIndex < closeIndex;
+  // セキュリティレビュー対応（L-1）: 最初のDOCTYPEだけでなく、出現する全ての
+  // DOCTYPE宣言を検査する。1つ目を外部DTD参照のみにして自前フィルタを通し、
+  // 2つ目に内部サブセットを仕込む回避（fast-xml-parserのGHSA-8r6m-32jq-jx6q
+  // 「繰り返しDOCTYPEがエンティティ展開上限をリセットする」と対になる攻撃面）を塞ぐ。
+  const doctypeRegex = /<!DOCTYPE/gi;
+  let match: RegExpExecArray | null;
+  while ((match = doctypeRegex.exec(xmlContent)) !== null) {
+    const rest = xmlContent.slice(match.index);
+    const bracketIndex = rest.indexOf('[');
+    if (bracketIndex === -1) continue; // このDOCTYPEには内部サブセットなし（外部DTD参照のみ）
+    const closeIndex = rest.indexOf('>');
+    // 終端の閉じ記号が見つからない（壊れたXML）場合は安全側で拒否する。
+    if (closeIndex === -1) return true;
+    // このDOCTYPEの終端より前に角括弧が現れれば内部サブセットを伴うため拒否する。
+    if (bracketIndex < closeIndex) return true;
+  }
+  return false;
 }
 
 interface MeasureBuilder {

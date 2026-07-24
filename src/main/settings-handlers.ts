@@ -7,14 +7,19 @@ import type { AppSettings, SettingsService } from './settings';
  * `ui.language`のような文字列を無検証で渡すと未知キーの永続化やプロトタイプ汚染の攻撃面に
  * なりうる。既知のトップレベルキー以外は書き込まない。
  */
-const KNOWN_SETTINGS_KEYS: ReadonlySet<string> = new Set<keyof AppSettings>([
-  'recentFiles',
-  'midi',
-  'handSettings',
-  'ui',
-  'practice',
-  'audio',
-]);
+// CodeRabbit #59指摘（Nitpick）: 配列リテラルでの手動列挙は AppSettings への
+// フィールド追加時に更新漏れがあってもコンパイルエラーにならず、当該キーの
+// settings:set が静かに無視される。Record<keyof AppSettings, true> で網羅性を
+// コンパイル時に保証し、追加フィールドの列挙漏れをビルドで検出する。
+const KNOWN_SETTINGS_KEYS_MAP: Record<keyof AppSettings, true> = {
+  recentFiles: true,
+  midi: true,
+  handSettings: true,
+  ui: true,
+  practice: true,
+  audio: true,
+};
+const KNOWN_SETTINGS_KEYS: ReadonlySet<string> = new Set(Object.keys(KNOWN_SETTINGS_KEYS_MAP));
 
 /**
  * `settings:set` IPCハンドラのファクトリ（TASK-099）。

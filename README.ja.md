@@ -28,7 +28,7 @@ Synthesia / Piano Marvel ライクな体験を、自分の楽譜で実現しま�
 
 | 項目             | 要件                                                                        |
 | ---------------- | --------------------------------------------------------------------------- |
-| OS               | Windows 10 / 11（Phase 1）、macOS 12+（パッケージビルドあり・未署名）       |
+| OS               | Windows 10 / 11（Phase 1、Azure Trusted Signingでコード署名）、macOS 12+（パッケージビルドあり・未署名） |
 | MIDI             | USB/Bluetooth MIDIキーボード（任意）                                        |
 | インストール要否 | **追加ランタイム不要** — インストーラー (.exe) の実行または .dmg を開くだけ |
 
@@ -39,7 +39,9 @@ Synthesia / Piano Marvel ライクな体験を、自分の楽譜で実現しま�
 ## リリース成果物の完全性検証
 
 GitHub Releaseに添付される成果物（.exe / .dmg / .zip）は、次の2通りで完全性を検証できます。
-なおコード署名・公証は現時点で未対応のため、初回起動時にOSの警告が出ます（既知の制約）。
+Windows成果物はAzure Trusted Signingでコード署名されています（リリース担当者が署名用GitHub Secretsを
+設定している場合。未設定時は署名なしでビルドされる。詳細は後述「Windows成果物のコード署名」参照）。
+macOSのコード署名・公証は現時点で未対応のため、初回起動時にOSの警告が出ます（既知の制約）。
 
 ### SHA256チェックサム
 
@@ -163,9 +165,33 @@ macOS向けリリース前は`npm run build:mac`でパッケージビルドし�
    shasum -a 256 -c SHA256SUMS.txt          # Linuxは sha256sum -c
    ```
 
-コード署名・公証は未対応（`electron-builder.yml` の `identity: null`）。初回起動時のOS警告は既知の制約。
+Windows成果物はAzure Trusted Signingで署名される（下記「Windows成果物のコード署名」参照。署名用Secrets
+未設定時は従来どおり未署名でビルドが成功する）。macOSのコード署名・公証は未対応（`electron-builder.yml` の
+`identity: null`）。初回起動時のOS警告は既知の制約。
 検証用のプレリリースを試す場合は `v0.1.0-rc.1` のようなSemVerプレリリース識別子（ハイフン付き）のタグを使う。
 ワークフローがハイフン付きタグを自動でプレリリースとしてマークするため、通常版のlatestには露出しない。
+
+### Windows成果物のコード署名（Azure Trusted Signing）
+
+`build-windows` ジョブは、以下のGitHub Secretsが**全て**設定されている場合のみAzure Trusted Signingで
+`.exe`成果物に署名する。1つでも未設定なら（フォークからの実行等）従来どおり未署名でビルドが成功する。
+ローカルの `npm run build:win` はこの仕組みの対象外で、常に未署名のままである。
+
+| Secret名 | 用途 | 取得元（Azureポータル） |
+| --- | --- | --- |
+| `AZURE_TENANT_ID` | Microsoft Entra IDテナントID | Microsoft Entra ID → 概要 → テナントID |
+| `AZURE_CLIENT_ID` | 署名用サービスプリンシパル（アプリの登録）のクライアントID | Microsoft Entra ID → アプリの登録 → 対象アプリ → アプリケーション(クライアント)ID |
+| `AZURE_CLIENT_SECRET` | 上記アプリ登録のクライアントシークレット | Microsoft Entra ID → アプリの登録 → 対象アプリ → 証明書とシークレット |
+| `AZURE_SIGNING_ENDPOINT` | Trusted Signingアカウントのエンドポイント（例: `https://<region>.codesigning.azure.net`） | Trusted Signingアカウント → 概要 → エンドポイントURI |
+| `AZURE_SIGNING_ACCOUNT_NAME` | Trusted Signingアカウント名 | Trusted Signingアカウント → 概要 → アカウント名 |
+| `AZURE_CERT_PROFILE_NAME` | 証明書プロファイル名 | Trusted Signingアカウント → 証明書プロファイル |
+| `AZURE_SIGNING_PUBLISHER_NAME` | 証明書のSubject名（署名済みバイナリの発行者名。証明書と完全一致させる必要あり） | 証明書プロファイルの詳細画面、または署名済みファイルのデジタル署名プロパティ（例: `CN=..., O=..., L=..., S=..., C=...`） |
+
+サービスプリンシパル（`AZURE_CLIENT_ID`のアプリ登録）には、対象のTrusted Signingアカウントに対する
+「Trusted Signing Certificate Profile Signer」ロールをAzureポータルのアクセス制御(IAM)で付与しておく。
+
+署名に必要なPowerShellモジュール（`TrustedSigning`）のインストールはelectron-builder
+（`WindowsSignAzureManager`）がビルド時に自動で行うため、ワークフロー側で追加のインストール手順は不要。
 
 ---
 

@@ -36,8 +36,65 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Windows installer
-        run: npm run build:win
+      # 署名の有無に関わらずアプリ本体のビルド（typecheck + electron-vite build）は共通。
+      - name: Build application
+        run: npm run build
+
+      # 署名用GitHub Secretsが全て設定されている場合のみAzure Trusted Signingを有効化する。
+      # 未設定（forkからの実行等）でも従来どおり未署名ビルドが成功することを保証するため、
+      # ここでは判定のみ行い後続ステップの分岐に使う（ローカル `npm run build:win` は本判定の対象外で常に未署名）。
+      - name: Check Azure Trusted Signing secrets
+        id: check-azure-signing
+        shell: bash
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_SIGNING_ACCOUNT_NAME }}
+          AZURE_CERT_PROFILE_NAME: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          AZURE_SIGNING_PUBLISHER_NAME: ${{ secrets.AZURE_SIGNING_PUBLISHER_NAME }}
+        run: |
+          if [ -n "$AZURE_TENANT_ID" ] && [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_CLIENT_SECRET" ] \
+            && [ -n "$AZURE_SIGNING_ENDPOINT" ] && [ -n "$AZURE_SIGNING_ACCOUNT_NAME" ] \
+            && [ -n "$AZURE_CERT_PROFILE_NAME" ] && [ -n "$AZURE_SIGNING_PUBLISHER_NAME" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Azure Trusted Signingで署名してパッケージング。
+      # `-c.win.azureSignOptions.*` はelectron-builder CLIのドット記法によるconfigオーバーライドで、
+      # electron-builder.ymlに秘密情報を書かないまま`win.azureSignOptions`を注入する
+      # （`electron-builder --help`の`-c.extraMetadata.foo=bar`と同じ仕組み）。
+      # 認証はAZURE_TENANT_ID/AZURE_CLIENT_ID/AZURE_CLIENT_SECRET環境変数（Azure.Identityの
+      # EnvironmentCredential）をelectron-builder同梱のTrustedSigning PowerShellモジュール
+      # （Invoke-TrustedSigning）が読み取る。モジュール自体のインストールはelectron-builder
+      # （WindowsSignAzureManager）がビルド時に自動実行するため、本ワークフローでの追加インストールは不要。
+      - name: Package Windows installer (Azure Trusted Signing)
+        if: steps.check-azure-signing.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          # secretsの値をrunスクリプトへ直接展開せず、すべて環境変数経由で参照する
+          # （スクリプトインジェクション対策。GitHub Actionsのハードニング指針に従う）。
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_SIGNING_ACCOUNT_NAME }}
+          AZURE_CERT_PROFILE_NAME: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          AZURE_SIGNING_PUBLISHER_NAME: ${{ secrets.AZURE_SIGNING_PUBLISHER_NAME }}
+        run: |
+          npx electron-builder --win `
+            "-c.win.azureSignOptions.endpoint=$env:AZURE_SIGNING_ENDPOINT" `
+            "-c.win.azureSignOptions.codeSigningAccountName=$env:AZURE_SIGNING_ACCOUNT_NAME" `
+            "-c.win.azureSignOptions.certificateProfileName=$env:AZURE_CERT_PROFILE_NAME" `
+            "-c.win.azureSignOptions.publisherName=$env:AZURE_SIGNING_PUBLISHER_NAME"
+
+      # 署名用Secretsが未設定の場合は従来どおり未署名でビルドする（フォーク等でも失敗させない）。
+      - name: Package Windows installer (unsigned)
+        if: steps.check-azure-signing.outputs.enabled != 'true'
+        run: npx electron-builder --win
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1

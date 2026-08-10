@@ -28,7 +28,7 @@ It aims to deliver a Synthesia / Piano Marvel-like experience with the sheet mus
 
 | Item | Requirement |
 |------|-------------|
-| OS | Windows 10 / 11 (Phase 1), macOS 12+ (packaged builds available, unsigned) |
+| OS | Windows 10 / 11 (Phase 1, code-signed via Azure Trusted Signing), macOS 12+ (packaged builds available, unsigned) |
 | MIDI | USB/Bluetooth MIDI keyboard (optional) |
 | Installation | **Self-contained** — just run the installer (.exe) or open the .dmg |
 
@@ -39,7 +39,9 @@ It aims to deliver a Synthesia / Piano Marvel-like experience with the sheet mus
 ## Verifying Release Artifacts
 
 Artifacts attached to GitHub Releases (.exe / .dmg / .zip) can be verified in two ways.
-Note that code signing / notarization is not yet supported, so the OS shows a warning on first launch (known limitation).
+Windows artifacts are code-signed with Azure Trusted Signing when the maintainer has configured the
+signing secrets (unsigned otherwise; see "Code signing for Windows artifacts" below).
+macOS code signing / notarization is not yet supported, so the OS shows a warning on first launch (known limitation).
 
 ### SHA256 checksums
 
@@ -163,9 +165,35 @@ Releases are automated by pushing a tag (`.github/workflows/release.yml`):
    shasum -a 256 -c SHA256SUMS.txt          # on Linux: sha256sum -c
    ```
 
-Code signing / notarization is not supported yet (`identity: null` in `electron-builder.yml`); the OS warning on first launch is a known limitation.
+Windows artifacts are code-signed with Azure Trusted Signing (see "Code signing for Windows artifacts" below;
+the build still succeeds unsigned if the signing secrets are not configured). macOS code signing /
+notarization is not supported yet (`identity: null` in `electron-builder.yml`); the OS warning on first
+launch is a known limitation.
 To publish a test pre-release, use a SemVer pre-release tag with a hyphen such as `v0.1.0-rc.1`.
 The workflow automatically marks hyphenated tags as pre-releases, so they never surface as the regular latest release.
+
+### Code signing for Windows artifacts (Azure Trusted Signing)
+
+The `build-windows` job signs the `.exe` artifacts with Azure Trusted Signing only when **all** of the
+following GitHub Secrets are configured. If any one of them is missing (e.g. a fork build), the job falls
+back to an unsigned build, same as before. The local `npm run build:win` command is unaffected and always
+produces an unsigned build.
+
+| Secret | Purpose | Where to find it (Azure portal) |
+| --- | --- | --- |
+| `AZURE_TENANT_ID` | Microsoft Entra ID tenant ID | Microsoft Entra ID → Overview → Tenant ID |
+| `AZURE_CLIENT_ID` | Client ID of the service principal (app registration) used for signing | Microsoft Entra ID → App registrations → your app → Application (client) ID |
+| `AZURE_CLIENT_SECRET` | Client secret for the same app registration | Microsoft Entra ID → App registrations → your app → Certificates & secrets |
+| `AZURE_SIGNING_ENDPOINT` | Trusted Signing account endpoint (e.g. `https://<region>.codesigning.azure.net`) | Trusted Signing account → Overview → Endpoint URI |
+| `AZURE_SIGNING_ACCOUNT_NAME` | Trusted Signing account name | Trusted Signing account → Overview → Account name |
+| `AZURE_CERT_PROFILE_NAME` | Certificate profile name | Trusted Signing account → Certificate profiles |
+| `AZURE_SIGNING_PUBLISHER_NAME` | Certificate subject name (must exactly match the certificate) | Certificate profile details, or the digital signature properties of a previously signed file (e.g. `CN=..., O=..., L=..., S=..., C=...`) |
+
+Grant the service principal (the `AZURE_CLIENT_ID` app registration) the "Trusted Signing Certificate
+Profile Signer" role on the Trusted Signing account (Azure portal → Access control (IAM)).
+
+electron-builder (`WindowsSignAzureManager`) automatically installs the required PowerShell module
+(`TrustedSigning`) at build time, so no extra installation step is needed in the workflow.
 
 ---
 

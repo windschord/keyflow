@@ -148,7 +148,7 @@ src/
 
 ## CI・リリース・依存管理
 
-- `.github/workflows/release.yml`: タグ（`v*`）push時にWindows/macOS成果物を単一Releaseへ添付（TASK-085）。成果物には `SHA256SUMS.txt` とGitHub Actionsの来歴証明（`actions/attest-build-provenance`）を付与し、入手者が完全性を検証できる（TASK-093、検証手順はREADME）。permissionsは最小権限（既定read、buildジョブは`id-token`/`attestations`、releaseジョブは`contents: write`）。コード署名・公証は未対応（`identity: null`）
+- `.github/workflows/release.yml`: タグ（`v*`）push時にWindows/macOS成果物を単一Releaseへ添付（TASK-085）。成果物には `SHA256SUMS.txt` とGitHub Actionsの来歴証明（`actions/attest-build-provenance`）を付与し、入手者が完全性を検証できる（TASK-093、検証手順はREADME）。permissionsは最小権限（既定read、buildジョブは`id-token`/`attestations`、releaseジョブは`contents: write`）。Windows成果物はAzure Trusted Signingで署名対応（`win.azureSignOptions`をCLIの`-c.win.azureSignOptions.*`でCI注入。署名用secrets未設定時は従来どおり未署名でビルド成功、詳細はREADME「Windows成果物のコード署名」）。macOSのコード署名・公証は未対応（`identity: null`）
 - `.github/dependabot.yml`: npm・github-actionsの依存を weekly で自動更新（TASK-094）。devDependenciesはグループ化
 - リリースの`build-windows`/`build-macos`ジョブは素の`npm ci`（electron/esbuild/electron-winstallerのinstallスクリプトがビルドに必須のため`--ignore-scripts`不可）。CI（`ci.yml`）側は全ジョブ`npm ci --ignore-scripts`
 

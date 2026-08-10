@@ -32,7 +32,7 @@ Synthesia / Piano Marvel ライクな体験を、自分の楽譜で実現しま�
 | MIDI             | USB/Bluetooth MIDIキーボード（任意）                                         |
 | インストール要否 | **追加ランタイム不要** — Storeから入手、またはmacOSは .dmg を開くだけ        |
 
-> Node.js・Pythonなどの追加インストールは一切不要です。
+Node.js・Pythonなどの追加インストールは一切不要です。
 
 > [!IMPORTANT]
 > **WindowsはMicrosoft Storeのみでの配布です**（`.exe`のGitHub配布は廃止しました）

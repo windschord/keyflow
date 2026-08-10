@@ -32,7 +32,7 @@ It aims to deliver a Synthesia / Piano Marvel-like experience with the sheet mus
 | MIDI | USB/Bluetooth MIDI keyboard (optional) |
 | Installation | **Self-contained** — install from the Store, or open the .dmg on macOS |
 
-> No additional runtime such as Node.js or Python is required for end users.
+No additional runtime such as Node.js or Python is required for end users.
 
 > [!IMPORTANT]
 > **Windows is distributed through the Microsoft Store only** (`.exe` downloads on GitHub have been discontinued).

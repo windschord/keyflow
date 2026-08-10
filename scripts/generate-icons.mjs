@@ -37,6 +37,12 @@ const APPX_ASSETS = [
   { name: 'Wide310x150Logo.png', width: 310, height: 150 },
 ];
 
+/**
+ * SVGを指定した一辺のサイズで正方形PNGへレンダリングする
+ * @param {string} svg - レンダリング対象のSVG文字列
+ * @param {number} size - 出力PNGの一辺のピクセル数
+ * @returns {Buffer} PNGバイナリ
+ */
 function renderPng(svg, size) {
   const resvg = new Resvg(svg, {
     fitTo: { mode: 'width', value: size },
@@ -44,9 +50,16 @@ function renderPng(svg, size) {
   return resvg.render().asPng();
 }
 
-// マスターSVGの図案を維持したまま任意のアスペクト比へ収める。
-// 正方形でないタイル（Wide310x150）でも図案を歪ませないよう、
-// 短辺に合わせて等倍縮小し中央へ配置したラッパーSVGを組み立てる。
+/**
+ * マスターSVGの図案を維持したまま任意のアスペクト比のPNGへレンダリングする
+ *
+ * 正方形でないタイル（Wide310x150）でも図案を歪ませないよう、短辺に合わせて
+ * 等倍縮小し中央へ配置したラッパーSVGを組み立ててからレンダリングする。
+ * @param {string} svg - レンダリング対象のSVG文字列（viewBox属性が必須）
+ * @param {number} width - 出力PNGの幅（ピクセル）
+ * @param {number} height - 出力PNGの高さ（ピクセル）
+ * @returns {Buffer} PNGバイナリ
+ */
 function renderPngWithAspect(svg, width, height) {
   if (width === height) {
     return renderPng(svg, width);
@@ -72,6 +85,10 @@ function renderPngWithAspect(svg, width, height) {
   return renderPng(wrapped, width);
 }
 
+/**
+ * マスターSVGから全アイコン生成物を書き出す
+ * @returns {void}
+ */
 function main() {
   const svg = readFileSync(SVG_PATH, 'utf-8');
 

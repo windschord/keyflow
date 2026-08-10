@@ -91,10 +91,11 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    # US-019: GitHub Releaseの添付物はmacOS成果物のみとなったため、build-windows
-    # （Store提出用パッケージ）は待たない。Store提出はPartner Center側の手順であり、
-    # そのビルドが失敗してもmacOSのリリース公開は妨げない。
-    needs: [build-macos]
+    # 同一タグのリリースをWindows・macOSの両方で揃えるため、両ビルドの成功を必須とする。
+    # US-019でGitHub Releaseの添付物はmacOS成果物のみになったが、build-windowsが失敗した
+    # ままReleaseを公開すると、そのバージョンのStore提出用パッケージが存在しないまま
+    # リリースが成立してしまうため、依存関係としては引き続き両方を待つ。
+    needs: [build-windows, build-macos]
     timeout-minutes: 15
     # Release作成に必要な書き込み権限。
     permissions:

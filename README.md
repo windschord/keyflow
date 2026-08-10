@@ -28,7 +28,7 @@ It aims to deliver a Synthesia / Piano Marvel-like experience with the sheet mus
 
 | Item | Requirement |
 |------|-------------|
-| OS | Windows 10 / 11 (Phase 1, code-signed via Azure Trusted Signing), macOS 12+ (packaged builds available, unsigned) |
+| OS | Windows 10 / 11 (Phase 1; release artifacts are code-signed via Azure Trusted Signing only when all signing secrets are configured), macOS 12+ (packaged builds available, unsigned) |
 | MIDI | USB/Bluetooth MIDI keyboard (optional) |
 | Installation | **Self-contained** — just run the installer (.exe) or open the .dmg |
 

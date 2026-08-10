@@ -173,6 +173,8 @@ US-017（REQ-017-001〜011）を新設したため、Phase 19と同形式で行�
 | REQ-017-009 | ○ | library.test（`LibraryService`を同一cwdで再インスタンス化し、再起動相当の永続化復元を検証） |
 | REQ-017-010 | ○ | ui-slice.test（activeView初期値'library'）+ App.test（起動時にLibraryView表示）+ E2E（起動直後にライブラリ画面（空状態）が表示されることを実バイナリで検証、TASK-104） |
 | REQ-017-011 | ○ | LibraryView.test（language: 'en'でのラベル英語化） |
+| REQ-018-001 | △ | 配布設定（`electron-builder.yml`）のみで、アプリ挙動のテスト対象外。x64/arm64の生成成立はリリースワークフローの通し確認を検証手段とする。US-019によりMSIXへ引き継ぎ |
+| REQ-019-001〜007 | △ | 同上（配布設定）。AppXのビルドはWindows上でのみ可能なためローカル・PR CIでは検証できず、タグpush時の`build-windows`ジョブ成功とPartner Centerでの受理をもって検証とする。`electron-builder.yml`のappx設定はelectron-builderのスキーマ検証（ajv）を通ることを確認済み |
 
 | タスク | 内容 | 検証 |
 |--------|------|------|

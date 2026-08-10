@@ -26,7 +26,7 @@ MIDI入力の正誤判定・運指提案・A-Bループ練習を備え、Synthes
 | 永続化 | electron-store（設定）、JSONサイドカー（アノテーション） |
 | テスト | Vitest |
 | Linter/Formatter | ESLint + Prettier |
-| パッケージング | electron-builder（Windows: NSIS+portable、いずれもx64/arm64。US-018） |
+| パッケージング | electron-builder（Windows: Microsoft Store向けMSIX/AppX、x64/arm64。US-019。NSIS+portableのGitHub配布はUS-019で廃止） |
 
 ## ドキュメント構成
 
@@ -142,13 +142,13 @@ src/
 
 ## ビルド補助スクリプト（`scripts/`）
 
-- `generate-icons.mjs`: `build/icon.svg`（マスター）から `icon.icns`/`icon.ico`/`resources/icon.png` を生成（`npm run generate:icons`）
+- `generate-icons.mjs`: `resources/icon.svg`（マスター）から `build/icon.icns`/`build/icon.ico`/`resources/icon.png` と、MSIXのタイル画像 `build/appx/*.png`（StoreLogo/Square44x44Logo/Square150x150Logo/Wide310x150Logo）を生成（`npm run generate:icons`）。非正方形のWide310x150は図案を歪めないよう中央配置でレンダリングする
 - `generate-licenses.mjs`: `dependencies` を起点に `node_modules/*/package.json` とLICENSE本文を走査し `src/renderer/src/generated/licenses.json` を出力。`predev`/`prebuild`/`prelint`/`pretest`/`pretest:coverage` の各npmフックから自動生成される（DEC-008、TASK-076）
 - `lint-jp-ts-comments.mjs`: TypeScriptコメントの日本語チェック
 
 ## CI・リリース・依存管理
 
-- `.github/workflows/release.yml`: タグ（`v*`）push時にWindows/macOS成果物を単一Releaseへ添付（TASK-085）。成果物には `SHA256SUMS.txt` とGitHub Actionsの来歴証明（`actions/attest-build-provenance`）を付与し、入手者が完全性を検証できる（TASK-093、検証手順はREADME）。permissionsは最小権限（既定read、buildジョブは`id-token`/`attestations`、releaseジョブは`contents: write`）。コード署名・公証は未対応（`identity: null`）
+- `.github/workflows/release.yml`: タグ（`v*`）push時に3ジョブ（`build-windows`/`build-macos`/`release`）を実行する（TASK-085）。**GitHub Releaseへ添付するのはmacOS成果物（.dmg/.zip）と `SHA256SUMS.txt` のみ**で、`build-windows` が生成するMicrosoft Store提出用の `.appx` はワークフロー成果物（`store-package`）としてのみ保管しReleaseには添付しない（US-019。未署名AppXは利用者が直接インストールできず、署名はStoreが行うため）。`release` ジョブは `needs: [build-macos]` でありStoreパッケージのビルド失敗はRelease公開を妨げない。macOS成果物にはGitHub Actionsの来歴証明（`actions/attest-build-provenance`）を付与する（TASK-093、検証手順はREADME）。permissionsは最小権限（既定read、`build-macos`は`id-token`/`attestations`、releaseジョブは`contents: write`）。macOSのコード署名・公証は未対応（`identity: null`）
 - `.github/dependabot.yml`: npm・github-actionsの依存を weekly で自動更新（TASK-094）。devDependenciesはグループ化
 - リリースの`build-windows`/`build-macos`ジョブは素の`npm ci`（electron/esbuild/electron-winstallerのinstallスクリプトがビルドに必須のため`--ignore-scripts`不可）。CI（`ci.yml`）側は全ジョブ`npm ci --ignore-scripts`
 
@@ -177,7 +177,7 @@ npm run typecheck
 # Lint
 npm run lint
 
-# Windowsインストーラービルド
+# Microsoft Store提出用パッケージ（MSIX/AppX）ビルド。Windows上でのみ実行可（US-019）
 npm run build:win
 
 # macOSパッケージビルド（dmg/zip、arm64+x64。TASK-035）

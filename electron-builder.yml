@@ -15,12 +15,12 @@ directories:
 npmRebuild: false
 
 win:
-  # US-018: x64/arm64の2アーキテクチャへ対応し、NSISインストーラーに加えて
-  # インストール不要のportable版（単一実行ファイル）も提供する。
+  # US-019: WindowsはMicrosoft Store（MSIX/AppX）のみで配布する。
+  # 未署名の.exeはWindows 11のスマート アプリ コントロール（SAC）に回避手段なくブロックされるため、
+  # NSISインストーラー版・portable版のGitHub Releases配布は廃止した（US-018から変更）。
+  # x64/arm64の2アーキテクチャ対応（REQ-018-001）はStoreパッケージ側で維持する。
   target:
-    - target: nsis
-      arch: [x64, arm64]
-    - target: portable
+    - target: appx
       arch: [x64, arm64]
   icon: build/icon.ico
   requestedExecutionLevel: asInvoker
@@ -40,26 +40,31 @@ mac:
   hardenedRuntime: false
   gatekeeperAssess: false
 
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
-  createDesktopShortcut: true
-  createStartMenuShortcut: true
-  multiLanguageInstaller: true
-  installerLanguages: [ja_JP, en_US]
-  # US-018: 配布形態（Setup）とアーキテクチャを識別できる命名にする。
-  # 複数archを別々のインストーラーとして出力する（ユニバーサル1本化を避ける）。
-  # buildUniversalInstaller: false でx64/arm64を1本に束ねた統合版の生成を抑止し、
-  # arch別インストーラーのみを出力する（既定はtrueで統合版も追加生成される）。
-  buildUniversalInstaller: false
-  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
-
-# US-018: インストール不要のportable版（単一実行ファイル）。
-# 実行時に一時フォルダへ展開して起動し、レジストリ変更・管理者権限を要さない。
-# portable側もbuildUniversalInstaller: falseで統合版を抑止し、arch別の単一実行ファイルのみ出力する。
-portable:
-  buildUniversalInstaller: false
-  artifactName: ${productName}-Portable-${version}-${arch}.${ext}
+# Microsoft Store配布用のMSIX/AppXパッケージ。
+# 目的はWindows 11のスマートアプリコントロール（SAC）対策である。SACは未署名の実行ファイルを
+# 回避手段なしにブロックするが、Store経由で配布されたアプリはMicrosoftが署名するため対象外となる。
+# そのため本パッケージはローカルでは意図的に未署名のまま生成し、署名はStore側に委ねる
+# （electron-builderは署名証明書が未設定のとき "Windows Store only build" として未署名で出力する）。
+#
+# ここに記載する3つの識別子はPartner Centerが発行した公開情報であり、秘密情報ではない
+# （配布されるMSIXのAppxManifest.xmlに平文で埋め込まれ、誰でも参照できる）。
+# Partner Centerの登録値と1文字でも異なるとStoreへの提出が拒否されるため、変更しないこと。
+#
+# AppXのビルドはWindows上でのみ可能（app-builder-lib: AppxTarget）。
+# 他OSで `npm run build:win` を実行するとターゲット生成時にエラーとなる。
+appx:
+  identityName: windschrod.keyflow
+  publisher: CN=AD71CC87-67F9-486A-A009-E3EA028C435D
+  publisherDisplayName: winds chrod
+  applicationId: keyflow
+  displayName: keyflow
+  # タイル画像（build/appx/*.png）の余白と馴染ませるため、アイコン背景と同じダークネイビーにする。
+  backgroundColor: '#122036'
+  # 先頭の言語がStore掲載の既定言語になる（US-016でUIはja/en対応済み）。
+  languages:
+    - ja-JP
+    - en-US
+  artifactName: ${productName}-Store-${version}-${arch}.${ext}
 
 files:
   - out/**/*

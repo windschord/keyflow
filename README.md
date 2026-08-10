@@ -28,18 +28,31 @@ It aims to deliver a Synthesia / Piano Marvel-like experience with the sheet mus
 
 | Item | Requirement |
 |------|-------------|
-| OS | Windows 10 / 11 (Phase 1), macOS 12+ (packaged builds available, unsigned) |
+| OS | Windows 10 / 11 (from the Microsoft Store), macOS 12+ (.dmg / .zip, unsigned) |
 | MIDI | USB/Bluetooth MIDI keyboard (optional) |
-| Installation | **Self-contained** — just run the installer (.exe) or open the .dmg |
+| Installation | **Self-contained** — install from the Store, or open the .dmg on macOS |
 
 > No additional runtime such as Node.js or Python is required for end users.
+
+> [!IMPORTANT]
+> **Windows is distributed through the Microsoft Store only** (`.exe` downloads on GitHub have been discontinued).
+>
+> Unsigned `.exe` files are blocked by Smart App Control (SAC) on Windows 11 with
+> "blocked because the publisher could not be verified". Unlike SmartScreen, SAC offers
+> no "More info → Run anyway" escape hatch, and it blocks both the installer and the
+> portable build.
+>
+> Packages distributed through the Microsoft Store are signed by Microsoft, so they are
+> not subject to SAC and the problem does not occur — without having to buy and maintain
+> a code signing certificate.
 
 ---
 
 ## Verifying Release Artifacts
 
-Artifacts attached to GitHub Releases (.exe / .dmg / .zip) can be verified in two ways.
-Note that code signing / notarization is not yet supported, so the OS shows a warning on first launch (known limitation).
+The macOS artifacts attached to GitHub Releases (.dmg / .zip) can be verified in two ways.
+Note that macOS builds are not signed or notarized, so Gatekeeper shows a warning on first launch (known limitation).
+Windows builds are signed and verified by the Microsoft Store at distribution time, so they are out of scope here.
 
 ### SHA256 checksums
 
@@ -55,7 +68,7 @@ shasum -a 256 -c SHA256SUMS.txt
 
 ```powershell
 # Windows (PowerShell): compute the hash and compare it against SHA256SUMS.txt manually
-Get-FileHash .\keyflow.Setup.<version>.exe -Algorithm SHA256
+Get-FileHash .\keyflow-<version>-arm64.dmg -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 
@@ -81,7 +94,7 @@ Web MIDI API           MIDI input, handled directly in the renderer process
 Tone.js                Audio synthesis (playback voices / metronome)
 Zustand v5             Global state management
 Web Worker             Fingering DP computation (no UI blocking)
-electron-builder       Windows NSIS installer / macOS dmg+zip packaging
+electron-builder       Microsoft Store MSIX / macOS dmg+zip packaging
 Vitest                 Unit and integration tests
 Playwright             End-to-end tests against the real built app
 ```
@@ -109,7 +122,7 @@ npm run dev          # start the dev server
 ```bash
 npm run dev           # development mode (hot reload)
 npm run build         # production build
-npm run build:win     # build the Windows NSIS installer
+npm run build:win     # build the Microsoft Store package (Windows hosts only)
 npm run build:mac     # build macOS packages (dmg/zip, arm64+x64)
 npm run test          # unit tests
 npm run test:coverage # coverage report
@@ -145,25 +158,31 @@ Releases are automated by pushing a tag (`.github/workflows/release.yml`):
    git push origin v0.1.0
    ```
 
-3. **Watch the workflow**: three jobs run — `build-windows` / `build-macos` / `release`. The two build jobs attach build provenance attestations to the artifacts, and the `release` job uploads all artifacts plus `SHA256SUMS.txt` to a single GitHub Release.
+3. **Watch the workflow**: three jobs run — `build-windows` (Store package) / `build-macos` / `release`. `build-macos` attaches a build provenance attestation to its artifacts, and the `release` job uploads the macOS artifacts plus `SHA256SUMS.txt` to a GitHub Release. The Windows `.appx` is kept as a workflow artifact only and is never attached to the Release.
 
    ```bash
    gh run watch                        # follow the running jobs
    gh run list --workflow=release.yml  # check the status of all three jobs
    ```
 
-4. **Verify the artifacts**: confirm everything is attached (Windows .exe, macOS .dmg×2 / .zip×2, `SHA256SUMS.txt`), then verify attestations and checksums.
+4. **Verify the macOS artifacts**: confirm everything is attached (.dmg×2 / .zip×2, `SHA256SUMS.txt`), then verify attestations and checksums.
 
    ```bash
    gh release download v0.1.0 -D ./verify   # fetch all artifacts and SHA256SUMS.txt
    cd verify
-   for f in *.exe *.dmg *.zip; do            # verify provenance for every artifact (.exe/.dmg/.zip)
+   for f in *.dmg *.zip; do                  # verify provenance for the macOS artifacts
      gh attestation verify "$f" --repo windschord/keyflow
    done
    shasum -a 256 -c SHA256SUMS.txt          # on Linux: sha256sum -c
    ```
 
-Code signing / notarization is not supported yet (`identity: null` in `electron-builder.yml`); the OS warning on first launch is a known limitation.
+5. **Submit to the Microsoft Store**: download the `.appx` packages (x64 and arm64) from the `store-package` workflow artifact of the `build-windows` job and upload them to the product in [Partner Center](https://partner.microsoft.com/dashboard). Microsoft signs the package, so no certificate is needed on our side. Certification usually takes one to three days.
+
+   ```bash
+   gh run download <run-id> -n store-package -D ./store   # fetch the .appx packages
+   ```
+
+macOS code signing / notarization is not supported yet (`identity: null` in `electron-builder.yml`); the Gatekeeper warning on first launch is a known limitation. This no longer applies to Windows, which moved to Store distribution.
 To publish a test pre-release, use a SemVer pre-release tag with a hyphen such as `v0.1.0-rc.1`.
 The workflow automatically marks hyphenated tags as pre-releases, so they never surface as the regular latest release.
 

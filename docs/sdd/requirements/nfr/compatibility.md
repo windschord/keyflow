@@ -37,7 +37,7 @@ Electronベースのアーキテクチャにより、同一コードベースで
 
 ## 配布・インストール要件
 
-- **NFR-C-006**: システムはWindowsではNSISインストーラーとインストール不要のportable版（いずれもx64/arm64）、macOSではDMG/zipとして配布しなければならない（Windowsの配布形態拡充は [US-018](../stories/US-018.md) を参照）
+- **NFR-C-006**: システムはWindowsではMicrosoft Store経由のMSIX/AppX（x64/arm64）、macOSではDMG/zipとして配布しなければならない。WindowsのStore配布への移行と`.exe`配布の廃止は [US-019](../stories/US-019.md)、その前身のNSIS/portable配布は [US-018](../stories/US-018.md) を参照
 - **NFR-C-007**: システムはElectron Updateを使って自動アップデートをサポートしなければならない
 - **NFR-C-008**: エンドユーザーはNode.js・Python・その他ランタイムを別途インストールすることなく、アプリを起動して全機能を使用できなければならない
 - **NFR-C-009**: アプリのインストーラーはElectronのバンドルNode.jsランタイムを含み、完全に自己完結したパッケージとして配布しなければならない

@@ -26,20 +26,32 @@ Synthesia / Piano Marvel ライクな体験を、自分の楽譜で実現しま�
 
 ## 動作環境
 
-| 項目             | 要件                                                                        |
-| ---------------- | --------------------------------------------------------------------------- |
-| OS               | Windows 10 / 11（Phase 1）、macOS 12+（パッケージビルドあり・未署名）       |
-| MIDI             | USB/Bluetooth MIDIキーボード（任意）                                        |
-| インストール要否 | **追加ランタイム不要** — インストーラー (.exe) の実行または .dmg を開くだけ |
+| 項目             | 要件                                                                         |
+| ---------------- | ---------------------------------------------------------------------------- |
+| OS               | Windows 10 / 11（Microsoft Storeから入手）、macOS 12+（.dmg / .zip・未署名） |
+| MIDI             | USB/Bluetooth MIDIキーボード（任意）                                         |
+| インストール要否 | **追加ランタイム不要** — Storeから入手、またはmacOSは .dmg を開くだけ        |
 
 > Node.js・Pythonなどの追加インストールは一切不要です。
+
+> [!IMPORTANT]
+> **WindowsはMicrosoft Storeのみでの配布です**（`.exe`のGitHub配布は廃止しました）
+>
+> 理由は、未署名の`.exe`がWindows 11のスマート アプリ コントロール（SAC）に
+> 「安全に実行できることを発行元が確認できなかったため、ブロックしました」と表示されて
+> 実行できないためです。SACはSmartScreenと異なり「詳細情報 → 実行」のような回避手段を
+> 提供せず、インストーラー版・portable版のいずれもブロックされます。
+>
+> Microsoft Storeで配布されるパッケージはMicrosoftが署名するためSACの対象外となり、
+> この問題が発生しません。コード署名証明書を別途購入・維持する必要もなくなります。
 
 ---
 
 ## リリース成果物の完全性検証
 
-GitHub Releaseに添付される成果物（.exe / .dmg / .zip）は、次の2通りで完全性を検証できます。
-なおコード署名・公証は現時点で未対応のため、初回起動時にOSの警告が出ます（既知の制約）。
+GitHub Releaseに添付されるmacOS成果物（.dmg / .zip）は、次の2通りで完全性を検証できます。
+なおmacOS版はコード署名・公証が未対応のため、初回起動時にGatekeeperの警告が出ます（既知の制約）。
+Windows版はMicrosoft Storeが配布時に署名・検証を行うため、この手順の対象外です。
 
 ### SHA256チェックサム
 
@@ -55,7 +67,7 @@ shasum -a 256 -c SHA256SUMS.txt
 
 ```powershell
 # Windows (PowerShell): 算出したハッシュを SHA256SUMS.txt の期待値と目視で比較する
-Get-FileHash .\keyflow.Setup.<version>.exe -Algorithm SHA256
+Get-FileHash .\keyflow-<version>-arm64.dmg -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 
@@ -81,7 +93,7 @@ Web MIDI API           MIDI入力（Rendererプロセスで直接処理）
 Tone.js                音声合成（再生音色・メトロノーム）
 Zustand v5             グローバル状態管理
 Web Worker             運指DP計算（UIブロックなし）
-electron-builder       Windows NSISインストーラー / macOS dmg+zip 生成
+electron-builder       Microsoft Store向けMSIX / macOS dmg+zip 生成
 Vitest                 ユニット・統合テスト
 Playwright             実ビルドを起動するE2Eテスト
 ```
@@ -109,7 +121,7 @@ npm run dev          # 開発サーバー起動
 ```bash
 npm run dev           # 開発モード（ホットリロード）
 npm run build         # プロダクションビルド
-npm run build:win     # Windows NSISインストーラー生成
+npm run build:win     # Microsoft Store提出用パッケージ生成（Windows上でのみ実行可）
 npm run build:mac     # macOSパッケージビルド（dmg/zip、arm64+x64）
 npm run test          # ユニットテスト
 npm run test:coverage # カバレッジレポート
@@ -145,25 +157,32 @@ macOS向けリリース前は`npm run build:mac`でパッケージビルドし�
    git push origin v0.1.0
    ```
 
-3. **ワークフローの通し確認**: `build-windows` / `build-macos` / `release` の3ジョブが実行される。ビルド2ジョブは成果物へビルド来歴証明（attestation）を付与し、`release` ジョブが全成果物と `SHA256SUMS.txt` を単一のGitHub Releaseへ添付する。
+3. **ワークフローの通し確認**: `build-windows`（Store提出用パッケージ） / `build-macos` / `release` の3ジョブが実行される。`build-macos` は成果物へビルド来歴証明（attestation）を付与し、`release` ジョブがmacOS成果物と `SHA256SUMS.txt` をGitHub Releaseへ添付する。Windowsの `.appx` はワークフロー成果物としてのみ保管され、Releaseには添付されない。
 
    ```bash
    gh run watch                        # 実行中ジョブの進捗を追う
    gh run list --workflow=release.yml  # 3ジョブの成否を一覧確認
    ```
 
-4. **成果物の検証**: 添付物が揃っていること（Windows .exe、macOS .dmg×2 / .zip×2、`SHA256SUMS.txt`）を確認し、来歴証明とチェックサムを検証する。
+4. **macOS成果物の検証**: 添付物が揃っていること（.dmg×2 / .zip×2、`SHA256SUMS.txt`）を確認し、来歴証明とチェックサムを検証する。
 
    ```bash
    gh release download v0.1.0 -D ./verify   # 成果物とSHA256SUMS.txtをまとめて取得
    cd verify
-   for f in *.exe *.dmg *.zip; do            # 全成果物（.exe/.dmg/.zip）の来歴証明を検証
+   for f in *.dmg *.zip; do                  # macOS成果物の来歴証明を検証
      gh attestation verify "$f" --repo windschord/keyflow
    done
    shasum -a 256 -c SHA256SUMS.txt          # Linuxは sha256sum -c
    ```
 
-コード署名・公証は未対応（`electron-builder.yml` の `identity: null`）。初回起動時のOS警告は既知の制約。
+5. **Microsoft Storeへの提出**: `build-windows` ジョブのワークフロー成果物 `store-package` から `.appx`（x64 / arm64 の2本）をダウンロードし、[Partner Center](https://partner.microsoft.com/dashboard) の該当製品へアップロードして提出する。署名はMicrosoftが行うため、こちらで証明書を用意する必要はない。審査は通常1〜3日程度かかる。
+
+   ```bash
+   gh run download <run-id> -n store-package -D ./store   # .appxを取得
+   ```
+
+macOSのコード署名・公証は未対応（`electron-builder.yml` の `identity: null`）。初回起動時のGatekeeper警告は既知の制約。
+WindowsはStore配布へ移行したため、この制約はWindows版には該当しない。
 検証用のプレリリースを試す場合は `v0.1.0-rc.1` のようなSemVerプレリリース識別子（ハイフン付き）のタグを使う。
 ワークフローがハイフン付きタグを自動でプレリリースとしてマークするため、通常版のlatestには露出しない。
 

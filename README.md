@@ -259,7 +259,8 @@ The grand piano voice (the default playback voice) bundles a reduced sample set 
 
 ## Privacy
 
-keyflow collects and transmits no personal data and runs fully offline.
+keyflow runs fully offline and sends none of your data to the developer or anyone else.
+Settings, the score library, and fingering annotations are stored only on your own device.
 See the [Privacy Policy](./PRIVACY.md) for details.
 
 ---

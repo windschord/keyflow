@@ -6,9 +6,11 @@ English | [日本語](./PRIVACY.ja.md)
 
 ## Summary
 
-**keyflow does not collect, transmit, or share any personal data.**
+**keyflow does not send any of your data to us or to anyone else.**
 
-keyflow is a desktop application that runs entirely on your own computer. It has no user accounts, no servers, no analytics, and no telemetry. Nothing you do in the app is sent anywhere.
+keyflow is a desktop application that runs entirely on your own computer. It has no user accounts, no servers, no analytics, and no telemetry, and the developer receives nothing about you or your use of the app.
+
+To function, the app does save some data on your own device — including the file paths of the scores you open, which can contain personal information such as your operating system user name. That data is stored locally for your own use only. It is never transmitted, sold, or shared.
 
 ## Data stored on your device
 
@@ -21,7 +23,10 @@ keyflow saves the following data locally on your computer so the app can work. T
 | List of recently opened files                                                                                                 | The same application data folder                                        |
 | Fingering numbers and comments you write on notes                                                                             | A `.annotation.json` file saved next to the MusicXML file you annotated |
 
-You can delete this data at any time by removing the application data folder, or by uninstalling the app.
+### Deleting this data
+
+- **Settings, score library entries, and the recent files list**: removing the application data folder, or uninstalling the app, deletes all of them.
+- **Fingering annotations (`.annotation.json`)**: these are **not** removed by uninstalling the app, because they are saved next to your own MusicXML files rather than in the application data folder. To delete them, remove the `.annotation.json` file sitting beside each annotated score.
 
 ## Files you open
 

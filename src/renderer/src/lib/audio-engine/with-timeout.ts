@@ -11,6 +11,10 @@
 
 /** `withTimeout` が制限時間の超過を通知するために送出するエラー。 */
 export class TimeoutError extends Error {
+  /**
+   * @param label タイムアウトした処理名（エラーメッセージに含める）
+   * @param timeoutMs 超過した制限時間（ミリ秒）
+   */
   constructor(label: string, timeoutMs: number) {
     super(`${label} did not settle within ${timeoutMs}ms`);
     this.name = 'TimeoutError';

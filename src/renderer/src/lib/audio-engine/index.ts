@@ -182,6 +182,10 @@ export class AudioEngineService {
       resolveReady = resolve;
     });
 
+    /**
+     * この世代のロードを決着させる（成功・失敗・タイムアウトの共通終端）。冪等。
+     * 最新世代のときだけロード上限タイマーを解除し、ローディング状態を通知する。
+     */
     const finishLoading = (): void => {
       if (settled) return;
       settled = true;
@@ -194,11 +198,16 @@ export class AudioEngineService {
       resolveReady();
     };
 
+    /** 伴奏用・手動プレビュー用の2インスタンスが揃ってロード完了したら決着させる。 */
     const markLoaded = (): void => {
       loadedCount += 1;
       if (loadedCount >= 2) finishLoading();
     };
 
+    /**
+     * サンプルのロード失敗・タイムアウト時にsynthプリセットへ倒して決着させる。
+     * ロード待ちPromiseを永久のpendingにしないための退避経路である。
+     */
     const fallbackToSynth = (error: Error): void => {
       if (settled) return;
       console.error(

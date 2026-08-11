@@ -69,7 +69,7 @@ MusicXML仕様上 `number` は表示用のラベル（CDATA）であり、一意
 
 利用者ファイルを実際にパーサへ通した結果:
 
-```
+```text
 measureCount= 1
 measures(number, startTick, noteCount)= [[0, 28800, 171]]
 startTick range= 28800 .. 30480
@@ -210,7 +210,9 @@ Windows環境（WASAPI）はこの状態に入りやすく、開発者のmacOS�
 ## 再発防止（テスト）
 
 「テストの期待値は要件から導く」「失敗は握り潰さない」の原則に沿い、
-**修正前のコードでは失敗する**ことを確認したうえで以下を追加した（20件）。
+**修正前のコードでは失敗する**ことを確認したうえで以下を追加した（29件）。
+内訳は `parser.test.ts` 9件・`PlaybackControls.test.tsx` 9件・`audio-engine.test.ts` 6件・
+`with-timeout.test.ts` 5件である。下表は主な検証内容を示す。
 
 | 検証内容 | 場所 |
 | --- | --- |
@@ -233,6 +235,8 @@ Windows環境（WASAPI）はこの状態に入りやすく、開発者のmacOS�
 | 開始処理の失敗後も再生ボタンが再び押下可能になる | 同上 |
 | `dispose()` 後に上限時間が経過してもフォールバック音源を生成しない | `audio-engine.test.ts` |
 | 音色を切り替えると旧世代の上限タイマーを解除する | 同上 |
+| `number`が小数表記・余分な文字つきでも整数として受理せず連番へ振り直す | `parser.test.ts` |
+| AudioContextが`suspended`へ戻ったら次の再生で`Tone.start()`をやり直す | `PlaybackControls.test.tsx` |
 
 ### E2Eについて
 

@@ -1003,6 +1003,19 @@ describe('MusicXML Parser - 小節番号が一意でないファイル（TASK-10
     expect(score.measures.map((m) => m.number)).toEqual([1, 2, 3]);
   });
 
+  it('number が小数表記の場合も整数として受理せず連番へ振り直す（CodeRabbit PR#77指摘）', () => {
+    // parseIntは先頭一致で '2.5' を 2 と解釈してしまうため、全体一致で検証する必要がある。
+    const score = parse(buildXml(['2.5', '4.5']));
+
+    expect(score.measures.map((m) => m.number)).toEqual([1, 2]);
+  });
+
+  it('number に余分な文字が続く場合も整数として受理せず連番へ振り直す（CodeRabbit PR#77指摘）', () => {
+    const score = parse(buildXml(['2foo', '4foo']));
+
+    expect(score.measures.map((m) => m.number)).toEqual([1, 2]);
+  });
+
   it('正しく採番されたファイルの番号はそのまま維持する（既存挙動を変えない）', () => {
     const score = parse(buildXml(['1', '2', '3', '4']));
 

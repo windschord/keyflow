@@ -89,8 +89,16 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
   // 呼び出し側が楽譜有無を渡していないケースであり、後方互換のため無効化しない。
   const noScoreLoaded = score === null;
 
+  /**
+   * AudioContextを起動し、`running` 状態へ遷移したことを確認する。
+   *
+   * TASK-106: AudioContextは起動後でも `suspended` へ戻ることがある（出力デバイスの
+   * 切り替え等）。`toneStartedRef` だけで早期returnすると、その状態のまま検証を飛ばし、
+   * 無音のまま「再生中」へ遷移してしまう。
+   * 起動済みフラグと現在の状態の両方が揃ったときだけ再起動を省略する（CodeRabbit PR#77指摘）。
+   */
   const ensureToneStarted = useCallback(async () => {
-    if (toneStartedRef.current) return;
+    if (toneStartedRef.current && Tone.getContext().state === 'running') return;
 
     await withTimeout(Tone.start(), AUDIO_START_TIMEOUT_MS, 'Tone.start()');
 
@@ -105,6 +113,9 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
     toneStartedRef.current = true;
   }, []);
 
+  /**
+   * 再生を開始する。失敗・タイムアウトは必ずダイアログで利用者へ通知する（TASK-106）。
+   */
   const handlePlay = useCallback(async () => {
     if (noScoreLoaded || voiceLoading) return;
     if (startingRef.current) return;

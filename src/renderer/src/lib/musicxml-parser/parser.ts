@@ -151,8 +151,11 @@ function resolveMeasureNumbers(measureElements: Element[]): number[] {
   const parsed = measureElements.map((el) => {
     const raw = el.getAttribute('number');
     if (raw === null) return Number.NaN;
-    const value = parseInt(raw, 10);
-    return Number.isInteger(value) ? value : Number.NaN;
+    // `parseInt` は先頭一致で解釈するため `2.5`→2 / `2foo`→2 を通してしまう。
+    // ラベル全体が整数表記のときだけ採用する（CodeRabbit PR#77指摘）。
+    const trimmed = raw.trim();
+    if (!/^[+-]?\d+$/.test(trimmed)) return Number.NaN;
+    return Number.parseInt(trimmed, 10);
   });
 
   const allIntegers = parsed.every((value) => Number.isInteger(value));
@@ -448,7 +451,12 @@ export function parse(xmlContent: string): Score {
   const rawPedalSpans: PedalSpan[] = [];
   const openPedalStartsAtEnd: number[] = [];
 
-  // TASK-107: 文書順のindexをキーにする。パート間の小節の対応も「同じ位置の小節」で取る。
+  /**
+   * 文書順の位置に対応する `MeasureBuilder` を取得する（無ければ生成する）。
+   *
+   * TASK-107: キーは文書順のindexである。パート間の小節の対応も「同じ位置の小節」で取る。
+   * XMLの`number`属性は一意である保証が無いため、同一性の判定には使わない。
+   */
   const ensureMeasure = (measureIndex: number): MeasureBuilder => {
     if (!measuresMap.has(measureIndex)) {
       measuresMap.set(measureIndex, {

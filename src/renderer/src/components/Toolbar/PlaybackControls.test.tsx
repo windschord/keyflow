@@ -348,6 +348,30 @@ describe('PlaybackControls', () => {
       expect(playButton).not.toBeDisabled();
     });
 
+    it('AudioContextがsuspendedへ戻ったら次の再生でTone.start()をやり直す（CodeRabbit PR#77指摘）', async () => {
+      const audioEngine = createAudioEngineMock();
+      render(<PlaybackControls audioEngine={audioEngine} />);
+
+      const playButton = screen.getByTestId('playback-play');
+      fireEvent.click(playButton);
+      await waitFor(() => expect(usePracticeStore.getState().playbackState).toBe('playing'));
+      expect(mockedToneStart).toHaveBeenCalledTimes(1);
+
+      // 出力デバイスの切り替え等でAudioContextがsuspendedへ戻った状況を再現する。
+      // 再生ボタンの再有効化（playbackState='stopped'）は再描画を伴うためactで包む。
+      mockToneContext.state = 'suspended';
+      await act(async () => {
+        usePracticeStore.setState({ playbackState: 'stopped' });
+      });
+
+      fireEvent.click(screen.getByTestId('playback-play'));
+
+      // 起動済みフラグだけで早期returnせず、再度Tone.start()を呼んで状態を検証する。
+      await waitFor(() => expect(mockedToneStart).toHaveBeenCalledTimes(2));
+      expect(window.alert).toHaveBeenCalledTimes(1);
+      expect(usePracticeStore.getState().playbackState).toBe('stopped');
+    });
+
     it('失敗後にもう一度クリックすると Tone.start() からやり直す', async () => {
       mockedToneStart.mockRejectedValueOnce(new Error('resume failed'));
       const audioEngine = createAudioEngineMock();

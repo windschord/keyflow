@@ -257,6 +257,13 @@ The grand piano voice (the default playback voice) bundles a reduced sample set 
 
 ---
 
+## Privacy
+
+keyflow collects and transmits no personal data and runs fully offline.
+See the [Privacy Policy](./PRIVACY.md) for details.
+
+---
+
 ## License
 
 Apache License 2.0 (see [LICENSE](./LICENSE))

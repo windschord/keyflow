@@ -1414,7 +1414,10 @@ describe('AudioEngineService', () => {
       it('onload/onerrorがどちらも返らないまま上限時間を超えたらsynthへフォールバックし、ensurePlaybackVoiceLoaded()を解決する', async () => {
         vi.useFakeTimers();
         // タイマーを差し替えた状態で新しい世代のロードを開始する。
-        const readyPromise = service.setPlaybackVoice('grand-piano');
+        void service.setPlaybackVoice('grand-piano');
+        // 再生ボタンが待つのは公開APIのensurePlaybackVoiceLoaded()であるため、
+        // setPlaybackVoiceの返り値ではなくこちらで検証する（voiceReadyPromiseへの結線も兼ねる）。
+        const readyPromise = service.ensurePlaybackVoiceLoaded();
         let resolved = false;
         void readyPromise.then(() => {
           resolved = true;
@@ -1431,6 +1434,35 @@ describe('AudioEngineService', () => {
         service.playNote(60);
         // @ts-expect-error private
         expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
+      });
+
+      it('dispose()後に上限時間が経過してもフォールバック音源を生成しない（CodeRabbit PR#77指摘）', async () => {
+        vi.useFakeTimers();
+        void service.setPlaybackVoice('grand-piano');
+
+        service.dispose();
+        const polySynthCallsAfterDispose = (Tone.PolySynth as unknown as Mock).mock.calls.length;
+
+        await vi.advanceTimersByTimeAsync(SAMPLE_LOAD_TIMEOUT_MS + 1);
+
+        expect((Tone.PolySynth as unknown as Mock).mock.calls.length).toBe(
+          polySynthCallsAfterDispose
+        );
+      });
+
+      it('音色を切り替えると旧世代の上限タイマーを解除する（CodeRabbit PR#77指摘）', async () => {
+        vi.useFakeTimers();
+        void service.setPlaybackVoice('grand-piano');
+
+        await service.setPlaybackVoice('electric-piano');
+        const polySynthCallsAfterSwitch = (Tone.PolySynth as unknown as Mock).mock.calls.length;
+
+        await vi.advanceTimersByTimeAsync(SAMPLE_LOAD_TIMEOUT_MS + 1);
+
+        // 旧世代のタイマーが発火すると、使われないsynthフォールバックが2個生成される。
+        expect((Tone.PolySynth as unknown as Mock).mock.calls.length).toBe(
+          polySynthCallsAfterSwitch
+        );
       });
 
       it('タイムアウトでのフォールバック時もローディング状態をfalseへ戻す（再生ボタンが無効のまま固まらない）', async () => {

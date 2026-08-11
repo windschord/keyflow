@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import * as Tone from 'tone';
@@ -11,12 +11,15 @@ import { usePracticeStore } from '../../store';
 
 // TASK-106: AudioContextが running にならない環境を再現できるよう、getContext().state を
 // テストから差し替え可能にする（既定は正常系の 'running'）。
-const mockToneContext = { state: 'running' as AudioContextState };
+const mockToneContext: { state: AudioContextState } = { state: 'running' };
 
 vi.mock('tone', () => ({
   start: vi.fn().mockResolvedValue(undefined),
   getContext: vi.fn(() => mockToneContext),
 }));
+
+// 型付きモック参照（`as unknown as Mock` のキャストを避ける）。
+const mockedToneStart = vi.mocked(Tone.start);
 
 describe('PlaybackControls', () => {
   const createAudioEngineMock = () => ({
@@ -28,7 +31,7 @@ describe('PlaybackControls', () => {
   beforeEach(() => {
     usePracticeStore.setState({ language: 'ja', playbackState: 'stopped', voiceLoading: false });
     mockToneContext.state = 'running';
-    (Tone.start as unknown as Mock).mockResolvedValue(undefined);
+    mockedToneStart.mockResolvedValue(undefined);
     vi.spyOn(window, 'alert').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -246,7 +249,7 @@ describe('PlaybackControls', () => {
     });
 
     it('Tone.start()が失敗したらエラーダイアログを表示し、playAccompanimentを呼ばない', async () => {
-      (Tone.start as unknown as Mock).mockRejectedValue(new Error('resume failed'));
+      mockedToneStart.mockRejectedValue(new Error('resume failed'));
       const audioEngine = createAudioEngineMock();
       render(<PlaybackControls audioEngine={audioEngine} />);
 
@@ -272,7 +275,7 @@ describe('PlaybackControls', () => {
     it('Tone.start()が決着しない場合、上限時間の経過でエラーダイアログを表示する', async () => {
       vi.useFakeTimers();
       // 決着しないPromise（音声デバイスを開けないときのresume()の挙動）。
-      (Tone.start as unknown as Mock).mockReturnValue(new Promise<void>(() => {}));
+      mockedToneStart.mockReturnValue(new Promise<void>(() => {}));
       const audioEngine = createAudioEngineMock();
       render(<PlaybackControls audioEngine={audioEngine} />);
 
@@ -305,8 +308,48 @@ describe('PlaybackControls', () => {
       expect(usePracticeStore.getState().playbackState).toBe('stopped');
     });
 
+    it('開始処理の実行中は再生ボタンを無効化し、連打しても要求は1件に制限される（CodeRabbit PR#77指摘）', async () => {
+      let resolvePlay: () => void = () => {};
+      const playPromise = new Promise<void>((resolve) => {
+        resolvePlay = resolve;
+      });
+      const audioEngine = {
+        ...createAudioEngineMock(),
+        playAccompaniment: vi.fn().mockReturnValue(playPromise),
+      };
+      render(<PlaybackControls audioEngine={audioEngine} />);
+
+      const playButton = screen.getByTestId('playback-play');
+      fireEvent.click(playButton);
+
+      await waitFor(() => expect(playButton).toBeDisabled());
+
+      // 開始処理の完了前に連打しても、追加の要求は発行されない。
+      fireEvent.click(playButton);
+      fireEvent.keyDown(window, { code: 'Space' });
+
+      await act(async () => {
+        resolvePlay();
+        await playPromise;
+      });
+
+      expect(audioEngine.playAccompaniment).toHaveBeenCalledTimes(1);
+      expect(usePracticeStore.getState().playbackState).toBe('playing');
+    });
+
+    it('開始処理が失敗しても再生ボタンは再び押下可能になる', async () => {
+      mockedToneStart.mockRejectedValueOnce(new Error('resume failed'));
+      render(<PlaybackControls audioEngine={createAudioEngineMock()} />);
+
+      const playButton = screen.getByTestId('playback-play');
+      fireEvent.click(playButton);
+
+      await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(1));
+      expect(playButton).not.toBeDisabled();
+    });
+
     it('失敗後にもう一度クリックすると Tone.start() からやり直す', async () => {
-      (Tone.start as unknown as Mock).mockRejectedValueOnce(new Error('resume failed'));
+      mockedToneStart.mockRejectedValueOnce(new Error('resume failed'));
       const audioEngine = createAudioEngineMock();
       render(<PlaybackControls audioEngine={audioEngine} />);
 

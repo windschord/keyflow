@@ -77,6 +77,14 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
   const { playbackState, setPlaybackState, voiceLoading } = usePracticeStore();
   const t = useTranslation();
   const toneStartedRef = useRef(false);
+  // TASK-106: 再生開始要求の実行中フラグ。playbackStateが'playing'になるのは
+  // 開始処理の完了後であり、それまでボタンは押下可能なままだった。上限時間を最大
+  // 30秒まで待つようになったことで再入の窓が広がり、連打すると複数の開始要求が
+  // 並行する。先行要求が後からタイムアウトすると、成功済みの状態を巻き戻して
+  // 不要なエラーダイアログを出してしまう（CodeRabbit PR#77指摘）。
+  // refで再入を弾き、stateでボタンを無効化して再描画する。
+  const startingRef = useRef(false);
+  const [isStarting, setIsStarting] = React.useState(false);
   // score === null のときだけ「未読込」として無効化する。undefined（未指定）は
   // 呼び出し側が楽譜有無を渡していないケースであり、後方互換のため無効化しない。
   const noScoreLoaded = score === null;
@@ -99,6 +107,10 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
 
   const handlePlay = useCallback(async () => {
     if (noScoreLoaded || voiceLoading) return;
+    if (startingRef.current) return;
+
+    startingRef.current = true;
+    setIsStarting(true);
 
     // TASK-106: 再生開始経路で例外や未決着Promiseが起きると、以前は
     // setPlaybackState('playing') に到達しないまま握り潰されていた。
@@ -121,6 +133,10 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
       // 次回クリックで AudioContext の起動からやり直せるようにする。
       toneStartedRef.current = false;
       window.alert(t.playbackControls.startError);
+    } finally {
+      // 成功・失敗（タイムアウトを含む）のいずれでも解除し、次回の操作を必ず受け付ける。
+      startingRef.current = false;
+      setIsStarting(false);
     }
   }, [audioEngine, ensureToneStarted, setPlaybackState, noScoreLoaded, voiceLoading, t]);
 
@@ -172,9 +188,9 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
         }
         aria-label={t.playbackControls.play}
         onClick={() => void handlePlay()}
-        disabled={noScoreLoaded || playbackState === 'playing' || voiceLoading}
+        disabled={noScoreLoaded || playbackState === 'playing' || voiceLoading || isStarting}
         style={
-          noScoreLoaded || playbackState === 'playing' || voiceLoading
+          noScoreLoaded || playbackState === 'playing' || voiceLoading || isStarting
             ? BTN_DISABLED_STYLE
             : BTN_STYLE
         }

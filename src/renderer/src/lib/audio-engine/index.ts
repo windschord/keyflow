@@ -107,6 +107,9 @@ export class AudioEngineService {
   // grand-piano（Tone.Sampler）のサンプルダウンロード完了、またはそれ以外の即時利用可な
   // 音色への切替完了で解決するPromise。ensurePlaybackVoiceLoaded()が参照する。
   private voiceReadyPromise: Promise<void> = Promise.resolve();
+  // TASK-106: 現行世代のサンプルロード上限タイマー。音色の切り替え・ロードの決着・
+  // dispose()のいずれでも解除し、古い世代のタイマーを発火させない。
+  private voiceLoadTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.ensureInitialized();
@@ -125,6 +128,14 @@ export class AudioEngineService {
     this.metronome.setBeatsPerMeasure(this.metronomeBeatsPerMeasure);
     this.metronome.setVoice(this.metronomeVoiceId);
     this.initialized = true;
+  }
+
+  /** 現行世代のサンプルロード上限タイマーを解除する。冪等（TASK-106）。 */
+  private clearVoiceLoadTimeout(): void {
+    if (this.voiceLoadTimeoutId !== null) {
+      clearTimeout(this.voiceLoadTimeoutId);
+      this.voiceLoadTimeoutId = null;
+    }
   }
 
   /**
@@ -146,6 +157,11 @@ export class AudioEngineService {
     const isCurrentGeneration = (): boolean => generation === this.voiceGeneration;
     const definition = PLAYBACK_VOICES[id];
 
+    // TASK-106: この呼び出しで世代が進むため、旧世代のロード上限タイマーは不要になる。
+    // 残したままにすると、古い世代のタイマーが発火してフォールバック音源を生成し、
+    // 世代不一致で即座に破棄するだけの無駄なTone.jsノードを作ってしまう。
+    this.clearVoiceLoadTimeout();
+
     if (!definition.requiresLoading) {
       this.accompanimentSynth = createPlaybackInstrument(id).toDestination();
       this.playSynth = createPlaybackInstrument(id).toDestination();
@@ -161,8 +177,6 @@ export class AudioEngineService {
 
     let settled = false;
     let loadedCount = 0;
-    // ロード上限タイマー（下記のインスタンス生成後に登録する）。
-    let loadTimeoutId: ReturnType<typeof setTimeout> | undefined = undefined;
     let resolveReady!: () => void;
     const ready = new Promise<void>((resolve) => {
       resolveReady = resolve;
@@ -171,8 +185,10 @@ export class AudioEngineService {
     const finishLoading = (): void => {
       if (settled) return;
       settled = true;
-      if (loadTimeoutId !== undefined) clearTimeout(loadTimeoutId);
+      // 最新世代のときだけ解除する。古い世代の決着で最新世代のタイマーを
+      // 巻き添えに解除しないため。
       if (isCurrentGeneration()) {
+        this.clearVoiceLoadTimeout();
         this.voiceLoadingCallback?.(false);
       }
       resolveReady();
@@ -227,7 +243,9 @@ export class AudioEngineService {
     // TASK-106: onload / onerror のいずれも返らない状態（ロードのハング）に備えた上限時間。
     // インスタンス生成後に登録することで、fallbackToSynth が参照する
     // accompanimentSynthInstance / playSynthInstance が必ず初期化済みであることを保証する。
-    loadTimeoutId = setTimeout(
+    // タイマーIDはインスタンスフィールドで保持し、音色の切り替え時と dispose() 時に
+    // 解除する（古い世代のタイマーが後から発火してフォールバック音源を生成するのを防ぐ）。
+    this.voiceLoadTimeoutId = setTimeout(
       () => fallbackToSynth(new TimeoutError('Loading the piano samples', SAMPLE_LOAD_TIMEOUT_MS)),
       SAMPLE_LOAD_TIMEOUT_MS
     );
@@ -631,8 +649,12 @@ export class AudioEngineService {
     this.clearLoopReleaseEvent();
     this.currentSoundingNotes = new Set();
 
-    // TASK-106: 破棄後に届くサンプルロードのonload/onerror/タイムアウトを「古い世代」と
-    // みなさせ、破棄済みインスタンスへの状態反映（およびフォールバック生成物の残留）を防ぐ。
+    // TASK-106: 保留中のロード上限タイマーを解除する。破棄後に発火させると、
+    // 使われないフォールバック音源をTone.js上に生成してしまう。
+    this.clearVoiceLoadTimeout();
+
+    // TASK-106: 破棄後に届くサンプルロードのonload/onerrorを「古い世代」とみなさせ、
+    // 破棄済みインスタンスへの状態反映（およびフォールバック生成物の残留）を防ぐ。
     // 次回の ensureInitialized() がさらに世代を採番するため、再初期化には影響しない。
     this.voiceGeneration += 1;
 

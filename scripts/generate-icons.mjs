@@ -6,6 +6,7 @@
 //   - build/icon.icns (macOSパッケージ用)
 //   - build/icon.ico (Windowsパッケージ用。electron-builder.ymlの参照欠落解消)
 //   - build/appx/*.png (Microsoft Store配布向けMSIX/AppXのタイル画像)
+//   - resources/store/*.png (Microsoft Store掲載情報のロゴ画像)
 //
 // 生成物はリポジトリにコミットする方針（ビルド環境に生成ツールを要求しないため）。
 // 実行: npm run generate:icons
@@ -24,6 +25,7 @@ const PNG_PATH = resolve(ROOT, 'resources/icon.png');
 const ICNS_PATH = resolve(ROOT, 'build/icon.icns');
 const ICO_PATH = resolve(ROOT, 'build/icon.ico');
 const APPX_ASSETS_DIR = resolve(ROOT, 'build/appx');
+const STORE_ART_DIR = resolve(ROOT, 'resources/store');
 
 const MASTER_PNG_SIZE = 1024;
 
@@ -35,6 +37,20 @@ const APPX_ASSETS = [
   { name: 'Square44x44Logo.png', width: 44, height: 44 },
   { name: 'Square150x150Logo.png', width: 150, height: 150 },
   { name: 'Wide310x150Logo.png', width: 310, height: 150 },
+];
+
+// Partner Centerの「Store 登録情報」で使うロゴ画像。パッケージ内のタイル画像
+// （build/appx/）とは別物で、ストアページ上の表示にのみ使われる。
+// 透過部分があるとStore側の背景次第で角の欠けが目立つため、
+// アイコン背景と同じ色を全面に敷いたうえで図案を中央へ配置する。
+const STORE_ART_BACKGROUND = '#122036';
+const STORE_ART = [
+  // 9:16 ポスターアート。縦長のため図案を縮小して中央へ置く
+  { name: 'poster-art-720x1080.png', width: 720, height: 1080, scale: 0.83 },
+  // 1:1 ボックスアート
+  { name: 'box-art-1080x1080.png', width: 1080, height: 1080, scale: 1 },
+  // 1:1 アプリタイルアイコン
+  { name: 'app-tile-icon-300x300.png', width: 300, height: 300, scale: 1 },
 ];
 
 /**
@@ -64,7 +80,19 @@ function renderPngWithAspect(svg, width, height) {
   if (width === height) {
     return renderPng(svg, width);
   }
+  return renderPng(buildWrappedSvg(svg, width, height, 1, null), width);
+}
 
+/**
+ * マスターSVGの図案を、任意のキャンバスサイズへ等倍縮小して中央配置したSVGを組み立てる
+ * @param {string} svg - 元のSVG文字列（viewBox属性が必須）
+ * @param {number} width - キャンバス幅（ピクセル）
+ * @param {number} height - キャンバス高さ（ピクセル）
+ * @param {number} scale - 短辺に対する図案の占有率（1で短辺いっぱい）
+ * @param {string|null} background - 全面に敷く背景色。nullなら透過のまま
+ * @returns {string} 組み立てたSVG文字列
+ */
+function buildWrappedSvg(svg, width, height, scale, background) {
   const viewBox = /viewBox="\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*"/.exec(svg);
   if (!viewBox) {
     throw new Error('resources/icon.svg にviewBox属性が見つからない');
@@ -72,17 +100,21 @@ function renderPngWithAspect(svg, width, height) {
   const [sourceWidth, sourceHeight] = [Number(viewBox[3]), Number(viewBox[4])];
 
   const inner = svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-  const scale = Math.min(width / sourceWidth, height / sourceHeight);
-  const offsetX = (width - sourceWidth * scale) / 2;
-  const offsetY = (height - sourceHeight * scale) / 2;
+  const artScale = (Math.min(width, height) * scale) / Math.max(sourceWidth, sourceHeight);
+  const offsetX = (width - sourceWidth * artScale) / 2;
+  const offsetY = (height - sourceHeight * artScale) / 2;
 
-  const wrapped =
+  const backgroundRect = background
+    ? `<rect width="${width}" height="${height}" fill="${background}"/>`
+    : '';
+
+  return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" ` +
     `viewBox="0 0 ${width} ${height}">` +
-    `<g transform="translate(${offsetX} ${offsetY}) scale(${scale})">${inner}</g>` +
-    `</svg>`;
-
-  return renderPng(wrapped, width);
+    backgroundRect +
+    `<g transform="translate(${offsetX} ${offsetY}) scale(${artScale})">${inner}</g>` +
+    `</svg>`
+  );
 }
 
 /**
@@ -119,6 +151,14 @@ function main() {
     const png = renderPngWithAspect(svg, asset.width, asset.height);
     const path = resolve(APPX_ASSETS_DIR, asset.name);
     writeFileSync(path, png);
+    console.log(`Generated ${path}`);
+  }
+
+  mkdirSync(STORE_ART_DIR, { recursive: true });
+  for (const art of STORE_ART) {
+    const wrapped = buildWrappedSvg(svg, art.width, art.height, art.scale, STORE_ART_BACKGROUND);
+    const path = resolve(STORE_ART_DIR, art.name);
+    writeFileSync(path, renderPng(wrapped, art.width));
     console.log(`Generated ${path}`);
   }
 }

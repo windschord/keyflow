@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vitest';
-import { AudioEngineService } from './index';
+import { AudioEngineService, SAMPLE_LOAD_TIMEOUT_MS } from './index';
 import * as Tone from 'tone';
 import type { Score } from '../../types';
 
@@ -1397,6 +1397,82 @@ describe('AudioEngineService', () => {
       expect(orphanedFallbackInstances.length).toBeGreaterThan(0);
       orphanedFallbackInstances.forEach((instance) => {
         expect(instance.dispose).toHaveBeenCalled();
+      });
+    });
+
+    /**
+     * TASK-106: サンプルロードが決着しないと ensurePlaybackVoiceLoaded() が永久にpendingとなり、
+     * これを待つ再生ボタンが無反応になる（Win11 Portable版の「再生ボタンを押しても
+     * 何も起きない」報告への再発防止）。
+     * docs/sdd/troubleshooting/2026-08-11-portable-play-no-response/analysis.md
+     */
+    describe('TASK-106: サンプルロードの決着保証', () => {
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('onload/onerrorがどちらも返らないまま上限時間を超えたらsynthへフォールバックし、ensurePlaybackVoiceLoaded()を解決する', async () => {
+        vi.useFakeTimers();
+        // タイマーを差し替えた状態で新しい世代のロードを開始する。
+        const readyPromise = service.setPlaybackVoice('grand-piano');
+        let resolved = false;
+        void readyPromise.then(() => {
+          resolved = true;
+        });
+
+        await vi.advanceTimersByTimeAsync(SAMPLE_LOAD_TIMEOUT_MS - 1);
+        expect(resolved).toBe(false);
+
+        await vi.advanceTimersByTimeAsync(2);
+        await readyPromise;
+        expect(resolved).toBe(true);
+
+        // フォールバック後は（Samplerではなく）PolySynthで発音できる。
+        service.playNote(60);
+        // @ts-expect-error private
+        expect(service.playSynth.triggerAttackRelease).toHaveBeenCalledWith('C4', '8n');
+      });
+
+      it('タイムアウトでのフォールバック時もローディング状態をfalseへ戻す（再生ボタンが無効のまま固まらない）', async () => {
+        vi.useFakeTimers();
+        const onLoadingChange = vi.fn();
+        service.setVoiceLoadingCallback(onLoadingChange);
+
+        const readyPromise = service.setPlaybackVoice('grand-piano');
+        expect(onLoadingChange).toHaveBeenLastCalledWith(true);
+
+        await vi.advanceTimersByTimeAsync(SAMPLE_LOAD_TIMEOUT_MS + 1);
+        await readyPromise;
+
+        expect(onLoadingChange).toHaveBeenLastCalledWith(false);
+      });
+
+      it('ロード完了後は上限時間が経過してもフォールバックしない（タイマーを解除している）', async () => {
+        vi.useFakeTimers();
+        const readyPromise = service.setPlaybackVoice('grand-piano');
+        getSamplerOnloadHandlers()
+          .slice(-2)
+          .forEach((onload) => onload());
+        await readyPromise;
+
+        const polySynthCallsBefore = (Tone.PolySynth as unknown as Mock).mock.calls.length;
+        await vi.advanceTimersByTimeAsync(SAMPLE_LOAD_TIMEOUT_MS + 1);
+
+        expect((Tone.PolySynth as unknown as Mock).mock.calls.length).toBe(polySynthCallsBefore);
+      });
+
+      it('ロード中の音色から即時利用可な音色へ切り替えたらローディング状態をfalseへ戻す', async () => {
+        const onLoadingChange = vi.fn();
+        service.setVoiceLoadingCallback(onLoadingChange);
+
+        // grand-piano のロード開始（onload/onerrorは発火させない）。
+        void service.setPlaybackVoice('grand-piano');
+        expect(onLoadingChange).toHaveBeenLastCalledWith(true);
+
+        // ロード完了を待たずに synth（ロード不要）へ切り替える。
+        await service.setPlaybackVoice('synth');
+
+        expect(onLoadingChange).toHaveBeenLastCalledWith(false);
       });
     });
 

@@ -2,7 +2,25 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import { usePracticeStore } from '../../store';
 import { useTranslation } from '../../lib/i18n/useTranslation';
+import { withTimeout } from '../../lib/audio-engine/with-timeout';
 import type { Score } from '../../types';
+
+/**
+ * `Tone.start()` の完了を待つ上限時間（TASK-106）。
+ *
+ * ChromiumのAudioContext.resumeは、音声出力デバイスを開けない環境では
+ * 決着しないまま留まることがある。上限を設けないと再生ボタンのクリックが
+ * 永久に決着せず、画面上は一切変化しない状態になる。
+ * 分析: docs/sdd/troubleshooting/2026-08-11-portable-play-no-response/analysis.md
+ */
+export const AUDIO_START_TIMEOUT_MS = 5_000;
+
+/**
+ * 再生開始要求（音色のロード待ちを含む）の完了を待つ上限時間（TASK-106）。
+ * `AudioEngineService` 側にもサンプルロードの上限（`SAMPLE_LOAD_TIMEOUT_MS`）があるが、
+ * ここはUI側の最終防衛線であり、想定外の未決着Promiseでもボタンを無反応のままにしない。
+ */
+export const PLAY_REQUEST_TIMEOUT_MS = 30_000;
 
 // TASK-075: 1行ヘッダー統合に伴い、高さを44px→36pxへコンパクト化する。
 const BTN_STYLE: React.CSSProperties = {
@@ -64,21 +82,47 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({ audioEngine,
   const noScoreLoaded = score === null;
 
   const ensureToneStarted = useCallback(async () => {
-    if (!toneStartedRef.current) {
-      await Tone.start();
-      toneStartedRef.current = true;
+    if (toneStartedRef.current) return;
+
+    await withTimeout(Tone.start(), AUDIO_START_TIMEOUT_MS, 'Tone.start()');
+
+    // TASK-106: `Tone.start()` が解決しても AudioContext が running にならない環境
+    // （音声出力デバイスを開けない等）では、以降のTransportが進まず無音・カーソル停止に
+    // なる。その場合はエラーとして扱い、無反応ではなく理由を提示する。
+    const contextState = Tone.getContext().state;
+    if (contextState !== 'running') {
+      throw new Error(`AudioContext is not running (state: ${contextState})`);
     }
+
+    toneStartedRef.current = true;
   }, []);
 
   const handlePlay = useCallback(async () => {
     if (noScoreLoaded || voiceLoading) return;
-    await ensureToneStarted();
-    // REQ-013-003: audioEngine.playAccompanimentは再生音色のロード待ち
-    // （ensurePlaybackVoiceLoaded）を内包しうるため、完了を待ってから
-    // playbackStateを'playing'にする。
-    await audioEngine?.playAccompaniment();
-    setPlaybackState('playing');
-  }, [audioEngine, ensureToneStarted, setPlaybackState, noScoreLoaded, voiceLoading]);
+
+    // TASK-106: 再生開始経路で例外や未決着Promiseが起きると、以前は
+    // setPlaybackState('playing') に到達しないまま握り潰されていた。
+    // ユーザーから見ると「再生ボタンを押しても何も起きない」状態になる。
+    // パッケージ版はDevToolsを開けないため、原因を特定する手段もなかった。
+    // 失敗は必ずダイアログで通知する（CLAUDE.md「エラーハンドリング」）。
+    try {
+      await ensureToneStarted();
+      // REQ-013-003: audioEngine.playAccompanimentは再生音色のロード待ち
+      // （ensurePlaybackVoiceLoaded）を内包しうるため、完了を待ってから
+      // playbackStateを'playing'にする。
+      await withTimeout(
+        Promise.resolve(audioEngine?.playAccompaniment()),
+        PLAY_REQUEST_TIMEOUT_MS,
+        'playAccompaniment()'
+      );
+      setPlaybackState('playing');
+    } catch (error) {
+      console.error('Failed to start playback:', error);
+      // 次回クリックで AudioContext の起動からやり直せるようにする。
+      toneStartedRef.current = false;
+      window.alert(t.playbackControls.startError);
+    }
+  }, [audioEngine, ensureToneStarted, setPlaybackState, noScoreLoaded, voiceLoading, t]);
 
   const handlePause = useCallback(() => {
     if (noScoreLoaded) return;

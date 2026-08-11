@@ -102,6 +102,8 @@ export const en: Messages = {
     noScoreTooltip: 'Open a score to play',
     voiceLoadingTooltip: 'Loading voice...',
     voiceLoadingLabel: 'Loading...',
+    startError:
+      'Playback could not be started. Check that an audio output device is available (speakers or headphones connected, and not held exclusively by another app), then try again.',
   },
   loopControl: {
     toggleTitle: 'Toggle loop playback (repeats the specified measure range)',

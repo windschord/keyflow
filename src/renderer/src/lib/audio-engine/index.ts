@@ -10,6 +10,20 @@ import {
 } from './voices';
 import type { MetronomeVoiceId } from './metronome-voices';
 import { resolveEffectiveDurations } from './pedal-extension';
+import { TimeoutError } from './with-timeout';
+
+/**
+ * 再生音色のサンプルロード（`grand-piano`）を打ち切るまでの上限時間（TASK-106）。
+ *
+ * サンプルはアプリに同梱されており、ローカル読み込みだけで完結するため通常は1秒未満で
+ * 完了する。それでも `Tone.Sampler` が `onload` と `onerror` のどちらも返さない状態に
+ * 陥ると、`ensurePlaybackVoiceLoaded()` が永久にpendingとなる。
+ * するとこれを待つ再生ボタンが「押しても何も起きない」状態になる。
+ * 上限を超えた場合はロード失敗と同じフォールバック（synthプリセット）へ倒し、
+ * 無音・無反応ではなく「音色は簡易だが再生はできる」状態を保証する。
+ * 分析: docs/sdd/troubleshooting/2026-08-11-portable-play-no-response/analysis.md
+ */
+export const SAMPLE_LOAD_TIMEOUT_MS = 20_000;
 
 /** 再生位置（判定グループ単位）が進むたびに呼ばれるコールバック。 */
 export type PositionChangeCallback = (measureNumber: number, groupIndex: number) => void;
@@ -135,6 +149,11 @@ export class AudioEngineService {
     if (!definition.requiresLoading) {
       this.accompanimentSynth = createPlaybackInstrument(id).toDestination();
       this.playSynth = createPlaybackInstrument(id).toDestination();
+      // TASK-106: ロード中（voiceLoading=true）の音色から即時利用可な音色へ切り替えた場合、
+      // 旧世代の finishLoading は世代不一致で false を通知しない。この分岐でも明示的に
+      // false を通知しないと voiceLoading が true のまま残り、再生ボタンが「読込中...」表示の
+      // 無効状態から復帰しなくなる（押しても何も起きない状態の一因）。
+      this.voiceLoadingCallback?.(false);
       return Promise.resolve();
     }
 
@@ -142,6 +161,8 @@ export class AudioEngineService {
 
     let settled = false;
     let loadedCount = 0;
+    // ロード上限タイマー（下記のインスタンス生成後に登録する）。
+    let loadTimeoutId: ReturnType<typeof setTimeout> | undefined = undefined;
     let resolveReady!: () => void;
     const ready = new Promise<void>((resolve) => {
       resolveReady = resolve;
@@ -150,6 +171,7 @@ export class AudioEngineService {
     const finishLoading = (): void => {
       if (settled) return;
       settled = true;
+      if (loadTimeoutId !== undefined) clearTimeout(loadTimeoutId);
       if (isCurrentGeneration()) {
         this.voiceLoadingCallback?.(false);
       }
@@ -201,6 +223,14 @@ export class AudioEngineService {
 
     this.accompanimentSynth = accompanimentSynthInstance;
     this.playSynth = playSynthInstance;
+
+    // TASK-106: onload / onerror のいずれも返らない状態（ロードのハング）に備えた上限時間。
+    // インスタンス生成後に登録することで、fallbackToSynth が参照する
+    // accompanimentSynthInstance / playSynthInstance が必ず初期化済みであることを保証する。
+    loadTimeoutId = setTimeout(
+      () => fallbackToSynth(new TimeoutError('Loading the piano samples', SAMPLE_LOAD_TIMEOUT_MS)),
+      SAMPLE_LOAD_TIMEOUT_MS
+    );
 
     return ready;
   }
@@ -600,6 +630,11 @@ export class AudioEngineService {
     this.clearSoundingNoteEvents();
     this.clearLoopReleaseEvent();
     this.currentSoundingNotes = new Set();
+
+    // TASK-106: 破棄後に届くサンプルロードのonload/onerror/タイムアウトを「古い世代」と
+    // みなさせ、破棄済みインスタンスへの状態反映（およびフォールバック生成物の残留）を防ぐ。
+    // 次回の ensureInitialized() がさらに世代を採番するため、再初期化には影響しない。
+    this.voiceGeneration += 1;
 
     this.initialized = false;
   }

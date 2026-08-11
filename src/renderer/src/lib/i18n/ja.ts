@@ -106,6 +106,8 @@ export const ja = {
     noScoreTooltip: '楽譜を開くと再生できます',
     voiceLoadingTooltip: '音色を読み込み中です',
     voiceLoadingLabel: '読込中...',
+    startError:
+      '再生を開始できませんでした。音声の出力先が利用可能か（スピーカー・ヘッドホンが接続され、他のアプリに占有されていないか）を確認してから、もう一度お試しください。',
   },
   loopControl: {
     toggleTitle: 'ループ再生（指定した小節範囲の繰り返し）の有効/無効を切り替えます',

@@ -1,12 +1,21 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import * as Tone from 'tone';
-import { PlaybackControls } from './PlaybackControls';
+import {
+  PlaybackControls,
+  AUDIO_START_TIMEOUT_MS,
+  PLAY_REQUEST_TIMEOUT_MS,
+} from './PlaybackControls';
 import { usePracticeStore } from '../../store';
+
+// TASK-106: AudioContextが running にならない環境を再現できるよう、getContext().state を
+// テストから差し替え可能にする（既定は正常系の 'running'）。
+const mockToneContext = { state: 'running' as AudioContextState };
 
 vi.mock('tone', () => ({
   start: vi.fn().mockResolvedValue(undefined),
+  getContext: vi.fn(() => mockToneContext),
 }));
 
 describe('PlaybackControls', () => {
@@ -18,10 +27,16 @@ describe('PlaybackControls', () => {
 
   beforeEach(() => {
     usePracticeStore.setState({ language: 'ja', playbackState: 'stopped', voiceLoading: false });
+    mockToneContext.state = 'running';
+    (Tone.start as unknown as Mock).mockResolvedValue(undefined);
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('renders play, pause, and stop buttons', () => {
@@ -201,6 +216,108 @@ describe('PlaybackControls', () => {
       render(<PlaybackControls audioEngine={audioEngine} />);
 
       expect(screen.getByTestId('playback-play')).not.toBeDisabled();
+    });
+  });
+
+  /**
+   * TASK-106: 再生開始経路の失敗を必ずユーザーへ提示する（再発防止）。
+   *
+   * 修正前は `Tone.start()` / `playAccompaniment()` の失敗や未決着が握り潰され、
+   * クリックしても画面上は一切変化しなかった。
+   * Win11 Portable版の「再生ボタンを押しても何も起きない」報告の直接原因である。
+   * docs/sdd/troubleshooting/2026-08-11-portable-play-no-response/analysis.md
+   */
+  describe('TASK-106: 再生開始失敗時のエラー通知', () => {
+    it('playAccompaniment()が失敗したらエラーダイアログを表示し、再生中にはしない', async () => {
+      const audioEngine = {
+        ...createAudioEngineMock(),
+        playAccompaniment: vi.fn().mockRejectedValue(new Error('boom')),
+      };
+      render(<PlaybackControls audioEngine={audioEngine} />);
+
+      fireEvent.click(screen.getByTestId('playback-play'));
+
+      await waitFor(() =>
+        expect(window.alert).toHaveBeenCalledWith(
+          expect.stringContaining('再生を開始できませんでした')
+        )
+      );
+      expect(usePracticeStore.getState().playbackState).toBe('stopped');
+    });
+
+    it('Tone.start()が失敗したらエラーダイアログを表示し、playAccompanimentを呼ばない', async () => {
+      (Tone.start as unknown as Mock).mockRejectedValue(new Error('resume failed'));
+      const audioEngine = createAudioEngineMock();
+      render(<PlaybackControls audioEngine={audioEngine} />);
+
+      fireEvent.click(screen.getByTestId('playback-play'));
+
+      await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(1));
+      expect(audioEngine.playAccompaniment).not.toHaveBeenCalled();
+      expect(usePracticeStore.getState().playbackState).toBe('stopped');
+    });
+
+    it('AudioContextがrunningにならない場合はエラーダイアログを表示する（音声デバイスを開けない環境）', async () => {
+      mockToneContext.state = 'suspended';
+      const audioEngine = createAudioEngineMock();
+      render(<PlaybackControls audioEngine={audioEngine} />);
+
+      fireEvent.click(screen.getByTestId('playback-play'));
+
+      await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(1));
+      expect(audioEngine.playAccompaniment).not.toHaveBeenCalled();
+      expect(usePracticeStore.getState().playbackState).toBe('stopped');
+    });
+
+    it('Tone.start()が決着しない場合、上限時間の経過でエラーダイアログを表示する', async () => {
+      vi.useFakeTimers();
+      // 決着しないPromise（音声デバイスを開けないときのresume()の挙動）。
+      (Tone.start as unknown as Mock).mockReturnValue(new Promise<void>(() => {}));
+      const audioEngine = createAudioEngineMock();
+      render(<PlaybackControls audioEngine={audioEngine} />);
+
+      fireEvent.click(screen.getByTestId('playback-play'));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(AUDIO_START_TIMEOUT_MS + 1);
+      });
+
+      expect(window.alert).toHaveBeenCalledTimes(1);
+      expect(audioEngine.playAccompaniment).not.toHaveBeenCalled();
+      expect(usePracticeStore.getState().playbackState).toBe('stopped');
+    });
+
+    it('playAccompaniment()が決着しない場合、上限時間の経過でエラーダイアログを表示する', async () => {
+      vi.useFakeTimers();
+      const audioEngine = {
+        ...createAudioEngineMock(),
+        playAccompaniment: vi.fn().mockReturnValue(new Promise<void>(() => {})),
+      };
+      render(<PlaybackControls audioEngine={audioEngine} />);
+
+      fireEvent.click(screen.getByTestId('playback-play'));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(PLAY_REQUEST_TIMEOUT_MS + 1);
+      });
+
+      expect(window.alert).toHaveBeenCalledTimes(1);
+      expect(usePracticeStore.getState().playbackState).toBe('stopped');
+    });
+
+    it('失敗後にもう一度クリックすると Tone.start() からやり直す', async () => {
+      (Tone.start as unknown as Mock).mockRejectedValueOnce(new Error('resume failed'));
+      const audioEngine = createAudioEngineMock();
+      render(<PlaybackControls audioEngine={audioEngine} />);
+
+      fireEvent.click(screen.getByTestId('playback-play'));
+      await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(1));
+
+      fireEvent.click(screen.getByTestId('playback-play'));
+
+      await waitFor(() => expect(audioEngine.playAccompaniment).toHaveBeenCalledTimes(1));
+      expect(Tone.start).toHaveBeenCalledTimes(2);
+      expect(usePracticeStore.getState().playbackState).toBe('playing');
     });
   });
 

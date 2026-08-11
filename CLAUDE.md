@@ -97,7 +97,8 @@ src/
         │   ├── musicxml-parser/   # MusicXML → Score変換（ペダル記号解析・pedalSpans生成を含む、TASK-069）
         │   ├── practice-engine/   # 正誤判定・ループ管理
         │   ├── annotation-store/  # 運指メモCRUD
-        │   ├── audio-engine/      # Tone.js ラッパー（voices.ts: 再生音色定義（グランドピアノ等4種、Salamanderサンプル）、
+        │   ├── audio-engine/      # Tone.js ラッパー（with-timeout.ts: 決着しないPromiseをTimeoutErrorで打ち切る純関数。
+        │   │                       #   再生開始経路の無反応（TASK-106）対策で導入、voices.ts: 再生音色定義（グランドピアノ等4種、Salamanderサンプル）、
         │   │                       #   metronome-voices.ts: メトロノーム音色定義（4種）、pedal-extension.ts: ペダル区間による
         │   │                       #   リリース延長の純関数、metronome.ts: メトロノーム本体）
         │   ├── midi/              # Web MIDI API直接利用（web-midi.ts）。navigator.requestMIDIAccess()をRendererで呼び出す

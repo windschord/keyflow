@@ -70,7 +70,7 @@
 | REQ-009-A04 | △ | cost-functions.test（fiveOnBlackCostの黒鍵/白鍵・小指以外のケース）を追加。DP統合での検証は引き続き弱い。TASK-046で対応済み |
 | REQ-009-A05 | △※ | 手の大きさ設定UIなし。DPテストは空虚 |
 | REQ-009-A06 | ○ | computeFingering内でapplyScalePatternを優先適用済み（dp-solver.test、TASK-043） |
-| REQ-010-001 | ○ | audio-engine.test（loadScoreスケジューリング、playAccompaniment開始tickオフセット）+ practice-engine.test（getCurrentPositionTick）+ App.test（停止中の再生操作は現在のカーソル位置のtickから開始、一時停止からの再開はtickを渡さず一時停止位置を維持することを確認、TASK-051）+ E2E |
+| REQ-010-001 | ○ | audio-engine.test（loadScoreスケジューリング、playAccompaniment開始tickオフセット）+ practice-engine.test（getCurrentPositionTick）+ App.test（停止中の再生操作は現在のカーソル位置のtickから開始、一時停止からの再開はtickを渡さず一時停止位置を維持することを確認、TASK-051）+ PlaybackControls.test（再生開始の失敗・タイムアウト時にエラーダイアログを表示し'playing'にしない、TASK-106）+ E2E |
 | REQ-010-002 | ○ | PlaybackControls.test（score===nullで再生/一時停止/停止がdisabled＋title「楽譜を開くと再生できます」、読込後に有効化・通常ツールチップへ復帰）。TASK-047で対応済み |
 | REQ-010-003 | △ | 状態遷移＋ユニット。実機聴感は不可 |
 | REQ-010-004 | ○ | usePractice結線 + audio-engine setOnStop + E2E（模範パターン） |
@@ -96,7 +96,7 @@
 | REQ-014-005 | ○ | audio-engine.test（stop/pause/ループ折り返し時に`accompanimentSynth.releaseAll()`が呼ばれることを検証）。ただし「実際に音が残留しないこと」の聴感確認はTASK-070の実起動確認項目が未実施のまま残っており、ユーザー実機確認待ち |
 | REQ-013-001 | ○ | voices.test（PLAYBACK_VOICES 4種のid・requiresLoading・ラベル、各idごとのTone.Sampler/PolySynth生成）。TASK-071で対応済み |
 | REQ-013-002 | ○ | audio-engine.test（setPlaybackVoiceが旧Sampler/PolySynthをdisposeし新音色へ差し替え、loadScore済みTone.Partの再スケジュールなしで次発音から反映されることを検証）。TASK-071で対応済み |
-| REQ-013-003 | ○ | audio-engine.test（ensurePlaybackVoiceLoadedがSampler onload/onerrorに応じて解決、synth系音色は即時解決、setVoiceLoadingCallbackのtrue/false通知）+ usePractice.test（store.playbackVoice→setPlaybackVoice結線、setVoiceLoadingCallback→ui-slice.voiceLoading結線）+ PlaybackControls.test（voiceLoading中は再生ボタン無効化・「読込中...」表示、audioEngine.playAccompaniment()の解決を待ってからplaybackStateを'playing'にする）+ App.test（playbackAudioEngineラッパーがensurePlaybackVoiceLoadedを内包）。TASK-073で対応済み |
+| REQ-013-003 | ○ | audio-engine.test（ensurePlaybackVoiceLoadedがSampler onload/onerrorに応じて解決、synth系音色は即時解決、setVoiceLoadingCallbackのtrue/false通知）+ usePractice.test（store.playbackVoice→setPlaybackVoice結線、setVoiceLoadingCallback→ui-slice.voiceLoading結線）+ PlaybackControls.test（voiceLoading中は再生ボタン無効化・「読込中...」表示、audioEngine.playAccompaniment()の解決を待ってからplaybackStateを'playing'にする）+ App.test（playbackAudioEngineラッパーがensurePlaybackVoiceLoadedを内包）+ audio-engine.test（サンプルロードが決着しない場合もSAMPLE_LOAD_TIMEOUT_MSでsynthへフォールバックし解決、ロード不要な音色への切替でローディング状態を解除、TASK-106）。TASK-073で対応済み |
 | REQ-013-004 | ○ | metronome-voices.test（METRONOME_VOICES 4種のid・ラベル、各idごとのTone.Synth/MembraneSynth/MetalSynth生成）+ audio-engine.test（setMetronomeVoiceの差し替え結線）。TASK-072で対応済み |
 | REQ-013-005 | ○ | metronome-voices.test（各音色のtrigger(time, accent, velocity)がアクセント有無で音高・音量を書き分けることを検証）。TASK-072で対応済み |
 | REQ-013-006 | ○ | settings.test（DEFAULT_SETTINGS.audioの既定値、audioキー不在の既存設定ファイルへの後方互換マージ、settings:set/get往復）+ SettingsModal.test（音色selectの変更がui-slice即時反映＋settings:set永続化に到達、保存失敗時ロールバック）+ App.test（起動時にaudio.playbackVoice/metronomeVoiceをAudioEngineへ適用、キー欠落時は既定値維持）+ usePractice.test（store→audioEngine.setPlaybackVoice/setMetronomeVoice結線）。TASK-073で対応済み。「音色変更→アプリ再起動で選択が復元される」という実機での往復確認（electron-storeの実ファイル永続化を挟む）はユニット・結線レベルの検証にとどまり、TASK-077でも自動化しておらず、ユーザー実機確認待ち |

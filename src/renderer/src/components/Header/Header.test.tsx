@@ -15,6 +15,9 @@ import { usePracticeStore } from '../../store';
 
 vi.mock('tone', () => ({
   start: vi.fn().mockResolvedValue(undefined),
+  // TASK-106: PlaybackControlsは Tone.start() 後にAudioContextがrunningになったかを
+  // 検証してから再生状態へ遷移する。
+  getContext: vi.fn(() => ({ state: 'running' as AudioContextState })),
 }));
 
 vi.mock('../../lib/fingering-engine', () => ({

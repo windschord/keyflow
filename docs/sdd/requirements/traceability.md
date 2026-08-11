@@ -70,7 +70,7 @@
 | REQ-009-A04 | △ | cost-functions.test（fiveOnBlackCostの黒鍵/白鍵・小指以外のケース）を追加。DP統合での検証は引き続き弱い。TASK-046で対応済み |
 | REQ-009-A05 | △※ | 手の大きさ設定UIなし。DPテストは空虚 |
 | REQ-009-A06 | ○ | computeFingering内でapplyScalePatternを優先適用済み（dp-solver.test、TASK-043） |
-| REQ-010-001 | ○ | audio-engine.test（loadScoreスケジューリング、playAccompaniment開始tickオフセット）+ practice-engine.test（getCurrentPositionTick）+ App.test（停止中の再生操作は現在のカーソル位置のtickから開始、一時停止からの再開はtickを渡さず一時停止位置を維持することを確認、TASK-051）+ PlaybackControls.test（再生開始の失敗・タイムアウト時にエラーダイアログを表示し'playing'にしない、TASK-106）+ E2E |
+| REQ-010-001 | ○ | audio-engine.test（loadScoreスケジューリング、playAccompaniment開始tickオフセット）+ practice-engine.test（getCurrentPositionTick）+ App.test（停止中の再生操作は現在のカーソル位置のtickから開始、一時停止からの再開はtickを渡さず一時停止位置を維持することを確認、TASK-051）+ parser.test（小節番号が一意でないMusicXMLでも小節が統合されず最初の音がtick 0で鳴る、TASK-107）+ PlaybackControls.test（再生開始の失敗・タイムアウト時にエラーダイアログを表示し'playing'にしない、TASK-106）+ E2E |
 | REQ-010-002 | ○ | PlaybackControls.test（score===nullで再生/一時停止/停止がdisabled＋title「楽譜を開くと再生できます」、読込後に有効化・通常ツールチップへ復帰）。TASK-047で対応済み |
 | REQ-010-003 | △ | 状態遷移＋ユニット。実機聴感は不可 |
 | REQ-010-004 | ○ | usePractice結線 + audio-engine setOnStop + E2E（模範パターン） |

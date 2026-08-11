@@ -923,3 +923,96 @@ describe('midi-utils', () => {
     expect(toMidiNumber('C', 0)).toBe(12);
   });
 });
+
+/**
+ * TASK-107: `<measure number="...">` が一意でないファイルの解析（実機報告 2026-08-11）。
+ *
+ * MusicXML仕様上 `number` は表示用のラベル（CDATA）であり、一意である保証は無く、
+ * 整数とも限らない。music21が出力したファイルで全小節が `number="0"` になっており、
+ * これを小節の同一性に使っていたため全小節が1つへ統合され、`startTick` も
+ * 最後の小節の値（=曲の終端付近）で上書きされていた。結果として再生を押しても
+ * 数十秒間まったく音が鳴らず、カーソルも動かなかった。
+ * 分析: docs/sdd/troubleshooting/2026-08-11-portable-play-no-response/analysis.md
+ */
+describe('MusicXML Parser - 小節番号が一意でないファイル（TASK-107）', () => {
+  /** 4/4・1小節あたり全音符1つ、`number` を呼び出し側で差し替えられるXMLを組み立てる。 */
+  const buildXml = (measureNumbers: string[]): string => {
+    const measures = measureNumbers
+      .map(
+        (number, index) => `
+      <measure number="${number}">
+        ${
+          index === 0
+            ? `<attributes>
+          <divisions>1</divisions>
+          <time><beats>4</beats><beat-type>4</beat-type></time>
+          <clef><sign>G</sign><line>2</line></clef>
+        </attributes>`
+            : ''
+        }
+        <note>
+          <pitch><step>C</step><octave>4</octave></pitch>
+          <duration>4</duration>
+          <type>whole</type>
+        </note>
+      </measure>`
+      )
+      .join('');
+
+    return `<?xml version="1.0"?>
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1">${measures}</part>
+    </score-partwise>`;
+  };
+
+  it('全小節が number="0" でも小節が統合されず、文書順に連番へ振り直される', () => {
+    const score = parse(buildXml(['0', '0', '0', '0']));
+
+    expect(score.measures).toHaveLength(4);
+    expect(score.measures.map((m) => m.number)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('全小節が number="0" でも startTick が小節長ぶんずつ進む（最初の音が tick 0 で鳴る）', () => {
+    const score = parse(buildXml(['0', '0', '0', '0']));
+
+    // 4/4・ticksPerQuarter=480 なので1小節=1920 tick。
+    expect(score.measures.map((m) => m.startTick)).toEqual([0, 1920, 3840, 5760]);
+
+    const notes = score.measures.flatMap((m) => m.notes).filter((n) => !n.isRest);
+    expect(notes.map((n) => n.startTick)).toEqual([0, 1920, 3840, 5760]);
+  });
+
+  it('全小節が number="0" でも noteId が小節ごとに一意になる', () => {
+    const score = parse(buildXml(['0', '0', '0', '0']));
+
+    const noteIds = score.measures.flatMap((m) => m.notes).map((n) => n.id);
+    expect(new Set(noteIds).size).toBe(noteIds.length);
+  });
+
+  it('number が重複する場合も文書順の連番へ振り直す（先頭が0のアウフタクト表記は対象外）', () => {
+    const score = parse(buildXml(['1', '1', '2', '2']));
+
+    expect(score.measures.map((m) => m.number)).toEqual([1, 2, 3, 4]);
+    expect(score.measures.map((m) => m.startTick)).toEqual([0, 1920, 3840, 5760]);
+  });
+
+  it('number が整数でない場合も文書順の連番へ振り直す', () => {
+    const score = parse(buildXml(['X', 'Y', 'Z']));
+
+    expect(score.measures.map((m) => m.number)).toEqual([1, 2, 3]);
+  });
+
+  it('正しく採番されたファイルの番号はそのまま維持する（既存挙動を変えない）', () => {
+    const score = parse(buildXml(['1', '2', '3', '4']));
+
+    expect(score.measures.map((m) => m.number)).toEqual([1, 2, 3, 4]);
+    expect(score.measures.map((m) => m.startTick)).toEqual([0, 1920, 3840, 5760]);
+  });
+
+  it('アウフタクト（0始まりの連番）の番号もそのまま維持する', () => {
+    const score = parse(buildXml(['0', '1', '2']));
+
+    expect(score.measures.map((m) => m.number)).toEqual([0, 1, 2]);
+  });
+});

@@ -130,9 +130,36 @@ function hasDoctypeWithInternalSubset(xmlContent: string): boolean {
 }
 
 interface MeasureBuilder {
+  /** 文書順の位置（0始まり）。小節の同一性はこの値で決まる（TASK-107）。 */
+  index: number;
   number: number;
   startTick: number;
   notes: Note[];
+}
+
+/**
+ * MusicXMLの`<measure number="...">`から小節番号を解決する（TASK-107）。
+ *
+ * `number` はMusicXML仕様上ラベル（CDATA）であり、一意である保証は無く、整数とも限らない。
+ * music21のように全小節を `number="0"` で出力する処理系が実在し、その値を小節の同一性に
+ * 使うと全小節が1つに統合されてしまう。
+ * そこで、全小節の番号が「整数かつ一意」のときだけXMLの値を採用し、
+ * それ以外は文書順の連番（1始まり）へ振り直す。
+ * 正しく採番されたファイルの解析結果は従来と変わらない。
+ */
+function resolveMeasureNumbers(measureElements: Element[]): number[] {
+  const parsed = measureElements.map((el) => {
+    const raw = el.getAttribute('number');
+    if (raw === null) return Number.NaN;
+    const value = parseInt(raw, 10);
+    return Number.isInteger(value) ? value : Number.NaN;
+  });
+
+  const allIntegers = parsed.every((value) => Number.isInteger(value));
+  const allUnique = new Set(parsed).size === parsed.length;
+  if (allIntegers && allUnique) return parsed;
+
+  return measureElements.map((_, index) => index + 1);
 }
 
 /**
@@ -363,17 +390,22 @@ export function parse(xmlContent: string): Score {
   let keySignature = 0;
 
   // Pass 1: Measure.startTick はパート1の小節長累積で決定する（設計書の規則）。
-  const measureStartTicks = new Map<number, number>();
+  // TASK-107: 小節の同一性はXMLの`number`属性ではなく文書順（0始まりのindex）で決める。
+  // `number`は一意である保証がなく、全小節が同一番号のファイルでは小節がすべて
+  // 統合され、`startTick`も最後の小節の値で上書きされてしまうため。
+  const measureStartTickByIndex: number[] = [];
+  // 表示・参照用の小節番号（noteId・カーソル・ループ範囲が使う）。文書順のindexに対応する。
+  let measureNumbers: number[] = [];
   if (partElements.length > 0) {
     let divisions = 1;
     let runningTick = 0;
     const firstPartMeasures = Array.from(partElements[0].children).filter(
       (c) => c.tagName === 'measure'
     );
+    measureNumbers = resolveMeasureNumbers(firstPartMeasures);
 
-    for (const measureEl of firstPartMeasures) {
-      const measureNumber = parseInt(measureEl.getAttribute('number') || '0', 10);
-      measureStartTicks.set(measureNumber, runningTick);
+    for (const [measureIndex, measureEl] of firstPartMeasures.entries()) {
+      measureStartTickByIndex[measureIndex] = runningTick;
 
       let cursor = 0;
       let maxCursor = 0;
@@ -416,15 +448,17 @@ export function parse(xmlContent: string): Score {
   const rawPedalSpans: PedalSpan[] = [];
   const openPedalStartsAtEnd: number[] = [];
 
-  const ensureMeasure = (measureNumber: number): MeasureBuilder => {
-    if (!measuresMap.has(measureNumber)) {
-      measuresMap.set(measureNumber, {
-        number: measureNumber,
-        startTick: measureStartTicks.get(measureNumber) ?? 0,
+  // TASK-107: 文書順のindexをキーにする。パート間の小節の対応も「同じ位置の小節」で取る。
+  const ensureMeasure = (measureIndex: number): MeasureBuilder => {
+    if (!measuresMap.has(measureIndex)) {
+      measuresMap.set(measureIndex, {
+        index: measureIndex,
+        number: measureNumbers[measureIndex] ?? measureIndex + 1,
+        startTick: measureStartTickByIndex[measureIndex] ?? 0,
         notes: [],
       });
     }
-    return measuresMap.get(measureNumber)!;
+    return measuresMap.get(measureIndex)!;
   };
 
   for (const partEl of partElements) {
@@ -438,9 +472,9 @@ export function parse(xmlContent: string): Score {
     // TASK-069: このパート内で現在開いているペダル区間の開始tick（未開始はnull）。
     let openPedalStart: number | null = null;
 
-    for (const measureEl of measureElements) {
-      const measureNumber = parseInt(measureEl.getAttribute('number') || '0', 10);
-      const measure = ensureMeasure(measureNumber);
+    for (const [measureIndex, measureEl] of measureElements.entries()) {
+      const measure = ensureMeasure(measureIndex);
+      const measureNumber = measure.number;
       const measureStartTick = measure.startTick;
 
       let cursor = 0;
@@ -623,8 +657,10 @@ export function parse(xmlContent: string): Score {
     }
   }
 
+  // TASK-107: 並び順は文書順（index）で決める。`number`は重複や非連番がありうるため
+  // 並べ替えのキーには使わない。
   const measures: Measure[] = Array.from(measuresMap.values())
-    .sort((a, b) => a.number - b.number)
+    .sort((a, b) => a.index - b.index)
     .map((m) => ({ number: m.number, startTick: m.startTick, notes: m.notes }));
 
   return {

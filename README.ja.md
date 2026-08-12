@@ -5,7 +5,12 @@
 MusicXMLファイルを読み込み、MIDI入力で練習できるデスクトップアプリ。
 Synthesia / Piano Marvel ライクな体験を、自分の楽譜で実現します。
 
-> **ステータス**: プレリリース段階 — v0.1.0 リリース候補を公開中
+> **ステータス**: v0.1.0 公開中
+
+## 入手方法
+
+- **Windows**: [Microsoft Storeから入手](https://apps.microsoft.com/store/detail/9NJ1HXGZLK0F)
+- **macOS**: [GitHub Releases](https://github.com/windschord/keyflow/releases/latest) から `.dmg` をダウンロード（未署名のため初回起動時にGatekeeperの警告が出ます）
 
 ---
 
@@ -26,11 +31,11 @@ Synthesia / Piano Marvel ライクな体験を、自分の楽譜で実現しま�
 
 ## 動作環境
 
-| 項目             | 要件                                                                         |
-| ---------------- | ---------------------------------------------------------------------------- |
-| OS               | Windows 10 / 11（Microsoft Storeから入手）、macOS 12+（.dmg / .zip・未署名） |
-| MIDI             | USB/Bluetooth MIDIキーボード（任意）                                         |
-| インストール要否 | **追加ランタイム不要** — Storeから入手、またはmacOSは .dmg を開くだけ        |
+| 項目             | 要件                                                                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| OS               | Windows 10 / 11（[Microsoft Store](https://apps.microsoft.com/store/detail/9NJ1HXGZLK0F)から入手）、macOS 12+（.dmg / .zip・未署名） |
+| MIDI             | USB/Bluetooth MIDIキーボード（任意）                                                                                                 |
+| インストール要否 | **追加ランタイム不要** — Storeから入手、またはmacOSは .dmg を開くだけ                                                                |
 
 Node.js・Pythonなどの追加インストールは一切不要です。
 
@@ -44,6 +49,8 @@ Node.js・Pythonなどの追加インストールは一切不要です。
 >
 > Microsoft Storeで配布されるパッケージはMicrosoftが署名するためSACの対象外となり、
 > この問題が発生しません。コード署名証明書を別途購入・維持する必要もなくなります。
+>
+> 入手先: https://apps.microsoft.com/store/detail/9NJ1HXGZLK0F
 
 ---
 

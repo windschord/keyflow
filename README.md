@@ -5,7 +5,12 @@ English | [日本語](./README.ja.md)
 A desktop app for practicing piano with your own MusicXML scores and a MIDI keyboard.
 It aims to deliver a Synthesia / Piano Marvel-like experience with the sheet music you already own.
 
-> **Status**: Pre-release — v0.1.0 release candidates are available
+> **Status**: v0.1.0 available
+
+## Download
+
+- **Windows**: [Get it from the Microsoft Store](https://apps.microsoft.com/store/detail/9NJ1HXGZLK0F)
+- **macOS**: download the `.dmg` from [GitHub Releases](https://github.com/windschord/keyflow/releases/latest) (unsigned, so Gatekeeper warns on first launch)
 
 ---
 
@@ -28,7 +33,7 @@ It aims to deliver a Synthesia / Piano Marvel-like experience with the sheet mus
 
 | Item | Requirement |
 |------|-------------|
-| OS | Windows 10 / 11 (from the Microsoft Store), macOS 12+ (.dmg / .zip, unsigned) |
+| OS | Windows 10 / 11 (from the [Microsoft Store](https://apps.microsoft.com/store/detail/9NJ1HXGZLK0F)), macOS 12+ (.dmg / .zip, unsigned) |
 | MIDI | USB/Bluetooth MIDI keyboard (optional) |
 | Installation | **Self-contained** — install from the Store, or open the .dmg on macOS |
 
@@ -45,6 +50,8 @@ No additional runtime such as Node.js or Python is required for end users.
 > Packages distributed through the Microsoft Store are signed by Microsoft, so they are
 > not subject to SAC and the problem does not occur — without having to buy and maintain
 > a code signing certificate.
+>
+> Store listing: https://apps.microsoft.com/store/detail/9NJ1HXGZLK0F
 
 ---
 

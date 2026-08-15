@@ -296,10 +296,15 @@ describe('SettingsModal→store→practice-engineの結線（TASK-040）', () =>
 
     render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-    const select = (await screen.findByLabelText('既定のエラーモード')) as HTMLSelectElement;
-    await waitFor(() => expect(select.value).toBe('wait'));
+    // KfSelect（自定义下拉）交互：trigger 按钮被 label 关联，accessible name
+    // 含 label 文本，因此用 findByLabelText 定位（与旧 select 断言方式一致）。
+    const trigger = (await screen.findByLabelText('既定のエラーモード')) as HTMLButtonElement;
+    await waitFor(() => expect(trigger.textContent).toContain('正しい音を待つ'));
 
-    fireEvent.change(select, { target: { value: 'pass' } });
+    // 展开下拉并选择"誤りがあっても先へ進む"（pass）。
+    fireEvent.click(trigger);
+    const passOption = await screen.findByRole('option', { name: '誤りがあっても先へ進む' });
+    fireEvent.click(passOption);
 
     await waitFor(() => expect(usePracticeStore.getState().errorMode).toBe('pass'));
 

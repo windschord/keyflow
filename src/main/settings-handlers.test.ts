@@ -18,6 +18,7 @@ describe('createSettingsSetHandler', () => {
     volume: 80,
     showFingerings: true,
     keyboardSize: 88,
+    scoreLayout: 'vertical',
   };
 
   function createSettingsServiceMock(currentUi: AppSettings['ui']): SettingsService {

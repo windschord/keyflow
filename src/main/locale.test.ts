@@ -13,6 +13,11 @@ describe('resolveLanguage (main)', () => {
     expect(resolveLanguage('en', 'ja-JP')).toBe('en');
   });
 
+  it('保存値が"zh"の場合はOSロケールに関わらず"zh"を返す（手動選択で有効になる）', () => {
+    expect(resolveLanguage('zh', 'ja-JP')).toBe('zh');
+    expect(resolveLanguage('zh', 'en-US')).toBe('zh');
+  });
+
   it('保存値が"auto"かつOSロケールが"ja-JP"の場合は"ja"を返す', () => {
     expect(resolveLanguage('auto', 'ja-JP')).toBe('ja');
   });

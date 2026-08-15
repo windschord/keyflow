@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { OSMDController, computeFingeringCoords } from './osmd-controller';
+import type { ScoreMapCache } from './osmd-controller';
 import type { Score, Note } from '../../types';
 
 /**
@@ -61,6 +62,10 @@ describe('OSMDController moveCursor and buildNoteIdMap', () => {
       }),
       cursorElement: {
         scrollIntoView: mockScrollIntoView,
+        style: { cssText: '' },
+        // mock 没有 closest，走 scrollCursorIntoView 的回退路径（无动画）
+        getBoundingClientRect: () =>
+          ({ left: 0, top: 0, right: 4, bottom: 40, width: 4, height: 40 }) as DOMRect,
       },
       get Iterator() {
         return {
@@ -106,18 +111,183 @@ describe('OSMDController moveCursor and buildNoteIdMap', () => {
 
     // Let's test moveCursor to note P1-M2-N0 which should be at iteratorIndex = 2
     // because measure 0 is steps 0,1. measure 1 is steps 2,3.
-    // Since currentIteratorIndex is 0 after buildNoteIdMap reset, moveCursor needs to call next() twice (0->1->2)
-    // With incremental navigation, moveCursor should NOT call reset() again
+    // buildNoteIdMap で iteratorIndexToCursorStyle に cssText がキャッシュされているため、
+    // moveCursor は O(1) の高速パス（cssText 復元）を使用し next() を呼ばない。
     controller.moveCursor('P1-M2-N0');
 
     expect(mockCursor.show).toHaveBeenCalled();
-    expect(mockCursor.reset).toHaveBeenCalledTimes(2); // Still 2 (from buildNoteIdMap only, not from moveCursor)
-    expect(mockCursor.next).toHaveBeenCalledTimes(7); // 5 for buildNoteIdMap, 2 for moveCursor (incremental from 0 to 2)
+    expect(mockCursor.reset).toHaveBeenCalledTimes(2); // buildNoteIdMap の開始・終了のみ
+    expect(mockCursor.next).toHaveBeenCalledTimes(5); // buildNoteIdMap の 5 回のみ（moveCursor は高速パス）
+    // mock には closest がなく scroll コンテナが見つからないため、回退パス
+    // （behavior:'auto' の scrollIntoView）が呼ばれる。smooth ではなく無アニメーション。
     expect(mockScrollIntoView).toHaveBeenCalledWith({
-      behavior: 'smooth',
+      behavior: 'auto',
       block: 'nearest',
       inline: 'nearest',
     });
+  });
+
+  it('跨页跳转时先把 cursorElement 移动到目标页面的 div 下再应用坐标样式（分页 bug 修复）', () => {
+    // 模拟分页模式：容器下有两个页面 div（osmdCanvasPage1 / osmdCanvasPage2）
+    const container = document.createElement('div');
+    const page1 = document.createElement('div');
+    page1.id = 'osmdCanvasPage1';
+    const page2 = document.createElement('div');
+    page2.id = 'osmdCanvasPage2';
+    container.appendChild(page1);
+    container.appendChild(page2);
+
+    // cursorElement 当前挂在第 1 页（旧页面）
+    const cursorEl = document.createElement('img');
+    page1.appendChild(cursorEl);
+
+    const mockCursor = {
+      Hidden: false,
+      show: vi.fn(),
+      hide: vi.fn(),
+      reset: vi.fn(),
+      next: vi.fn(),
+      cursorElement: cursorEl,
+      Iterator: { CurrentMeasureIndex: 1, EndReached: true, CurrentVoiceEntries: [] },
+    };
+
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+    // @ts-expect-error test mock access
+    controller.osmd = { cursor: mockCursor };
+    // @ts-expect-error test mock access
+    controller.noteIdToCursorState = new Map([['P1-M13-N0', { iteratorIndex: 12 }]]);
+    // @ts-expect-error test mock access
+    controller.iteratorIndexToCursorStyle = new Map([[12, 'left: 100px; top: 500px;']]);
+    // 目标音符在第 2 页（pageIndex=1）
+    // @ts-expect-error test mock access
+    controller.noteIdToSvgCoord = new Map([
+      ['P1-M13-N0', { x: 100, y: 500, pageIndex: 1 }],
+    ]);
+
+    controller.moveCursor('P1-M13-N0');
+
+    // O(1) 高速路径：不调用 next()，但 cursorElement 应被 reparent 到第 2 页
+    expect(mockCursor.next).not.toHaveBeenCalled();
+    expect(cursorEl.parentElement).toBe(page2);
+    expect(cursorEl.style.cssText).toBe('left: 100px; top: 500px;');
+  });
+});
+
+/** 给元素安装 mock 的 getBoundingClientRect（jsdom 默认全 0，需显式指定）。 */
+function installRect(
+  el: Element,
+  rect: { left: number; top: number; width: number; height: number }
+): void {
+  Object.defineProperty(el, 'getBoundingClientRect', {
+    configurable: true,
+    value: () =>
+      ({
+        left: rect.left,
+        top: rect.top,
+        right: rect.left + rect.width,
+        bottom: rect.top + rect.height,
+        width: rect.width,
+        height: rect.height,
+        x: rect.left,
+        y: rect.top,
+        toJSON: () => ({}),
+      }) as DOMRect,
+  });
+}
+
+/**
+ * 构建与真实 DOM 一致的结构：
+ * scroll container (data-testid="score-scroll-container") > osmd-container > 页面 div > cursorElement
+ * 用于验证 scrollCursorIntoView 的自定义即时定位逻辑。
+ */
+function buildScrollContext(opts: {
+  scroller: { left: number; top: number; width: number; height: number };
+  pageWidth: number;
+  cursorRect: { left: number; top: number; width: number; height: number };
+}): { controller: OSMDController; scrollContainer: HTMLDivElement } {
+  const scrollContainer = document.createElement('div');
+  scrollContainer.setAttribute('data-testid', 'score-scroll-container');
+  scrollContainer.scrollLeft = 0;
+  scrollContainer.scrollTop = 0;
+  installRect(scrollContainer, opts.scroller);
+
+  const osmdContainer = document.createElement('div');
+  scrollContainer.appendChild(osmdContainer);
+
+  const page = document.createElement('div');
+  page.id = 'osmdCanvasPage1';
+  osmdContainer.appendChild(page);
+  installRect(page, { left: 0, top: 0, width: opts.pageWidth, height: 1123 });
+
+  const cursorEl = document.createElement('img');
+  page.appendChild(cursorEl);
+  installRect(cursorEl, opts.cursorRect);
+
+  const controller = new OSMDController(osmdContainer);
+  // @ts-expect-error test mock access
+  controller.loaded = true;
+  // @ts-expect-error test mock access
+  controller.osmd = { cursor: { cursorElement: cursorEl } };
+  return { controller, scrollContainer };
+}
+
+describe('OSMDController scrollCursorIntoView (instant cursor focusing)', () => {
+  it('整行可整屏显示时，光标超出右边缘则瞬间定位到视口左 1/3（无 smooth 动画）', () => {
+    const { controller, scrollContainer } = buildScrollContext({
+      scroller: { left: 0, top: 0, width: 800, height: 600 },
+      pageWidth: 794, // ≤ 视口宽 800 → 整行可整屏显示
+      cursorRect: { left: 900, top: 100, width: 4, height: 40 }, // 右边缘超出
+    });
+    // @ts-expect-error test access to private method
+    controller.scrollCursorIntoView();
+
+    // 光标定位到左 1/3：targetLeft = 800/3，scrollLeft += 900 - 800/3
+    expect(scrollContainer.scrollLeft).toBeCloseTo(900 - 800 / 3, 5);
+    // 垂直方向光标在视口内，不滚动
+    expect(scrollContainer.scrollTop).toBe(0);
+  });
+
+  it('整行超过屏幕长度时，光标超出右边缘则瞬间定位到屏幕最右边', () => {
+    const { controller, scrollContainer } = buildScrollContext({
+      scroller: { left: 0, top: 0, width: 800, height: 600 },
+      pageWidth: 1000, // > 视口宽 800 → 整行超屏
+      cursorRect: { left: 900, top: 100, width: 4, height: 40 },
+    });
+    // @ts-expect-error test access to private method
+    controller.scrollCursorIntoView();
+
+    // 光标贴屏幕最右边：targetLeft = 800 - 4(光标宽) - 8(边距) = 788
+    expect(scrollContainer.scrollLeft).toBeCloseTo(900 - (800 - 4 - 8), 5);
+  });
+
+  it('光标完全在视口内时不滚动', () => {
+    const { controller, scrollContainer } = buildScrollContext({
+      scroller: { left: 0, top: 0, width: 800, height: 600 },
+      pageWidth: 794,
+      cursorRect: { left: 300, top: 200, width: 4, height: 40 },
+    });
+    // @ts-expect-error test access to private method
+    controller.scrollCursorIntoView();
+
+    expect(scrollContainer.scrollLeft).toBe(0);
+    expect(scrollContainer.scrollTop).toBe(0);
+  });
+
+  it('光标超出视口顶部时瞬间定位到视口上 1/4', () => {
+    const { controller, scrollContainer } = buildScrollContext({
+      scroller: { left: 0, top: 0, width: 800, height: 600 },
+      pageWidth: 794,
+      cursorRect: { left: 100, top: -50, width: 4, height: 40 }, // 顶部超出
+    });
+    // @ts-expect-error test access to private method
+    controller.scrollCursorIntoView();
+
+    // 水平方向光标在视口内，不滚动
+    expect(scrollContainer.scrollLeft).toBe(0);
+    // targetTop = 600/4 = 150，scrollTop += -50 - 150 = -200
+    expect(scrollContainer.scrollTop).toBe(-200);
   });
 });
 
@@ -139,7 +309,7 @@ describe('OSMDController drawLoopBracket / clearLoopBracket', () => {
 
     controller.drawLoopBracket(1, 2);
 
-    const layer = svg.querySelector('#loop-bracket-layer');
+    const layer = svg.querySelector('[id^="loop-bracket-layer"]');
     expect(layer).not.toBeNull();
     const rect = layer?.querySelector('rect');
     expect(rect).not.toBeNull();
@@ -166,7 +336,7 @@ describe('OSMDController drawLoopBracket / clearLoopBracket', () => {
     controller.drawLoopBracket(1, 2);
     controller.drawLoopBracket(1, 2);
 
-    expect(svg.querySelectorAll('#loop-bracket-layer').length).toBe(1);
+    expect(svg.querySelectorAll('[id^="loop-bracket-layer"]').length).toBe(1);
   });
 
   it('does nothing when there is no svg to draw onto', () => {
@@ -184,10 +354,10 @@ describe('OSMDController drawLoopBracket / clearLoopBracket', () => {
     controller.noteIdToSvgCoord = new Map([['P1-M1-N0', { x: 10, y: 20 }]]);
 
     controller.drawLoopBracket(1, 1);
-    expect(svg.querySelector('#loop-bracket-layer')).not.toBeNull();
+    expect(svg.querySelector('[id^="loop-bracket-layer"]')).not.toBeNull();
 
     controller.clearLoopBracket();
-    expect(svg.querySelector('#loop-bracket-layer')).toBeNull();
+    expect(svg.querySelector('[id^="loop-bracket-layer"]')).toBeNull();
   });
 });
 
@@ -414,6 +584,137 @@ describe('OSMDController setGrayedOutNotes (REQ-002-007, note単位グレーア�
     controller.setGrayedOutNotes(new Set());
     expect(chordEl.style.opacity).toBe('0.9');
   });
+
+  it('rebuilds noteIdToGraphicalNote from GraphicSheet after a cache hit (rebuildGrayoutNoteMap)', () => {
+    const { container } = makeContainerWithSvg();
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+
+    const svgEl = makeSvgGElement();
+    const graphicalNote = {
+      sourceNote: {
+        halfTone: 0, // midiNumber = 0 + 12 = 12（makeScore の note と同じ）
+        ParentStaffEntry: {
+          ParentStaff: { Id: 1 }, // staff = 1
+          AbsoluteTimestamp: { RealValue: 0 }, // absoluteTick = 0
+        },
+      },
+      getSVGGElement: vi.fn(() => svgEl),
+    };
+    // @ts-expect-error test mock access
+    controller.osmd = {
+      GraphicSheet: {
+        MusicPages: [
+          {
+            MusicSystems: [
+              {
+                graphicalMeasures: [
+                  [
+                    {
+                      MeasureNumber: 1,
+                      staffEntries: [{ graphicalVoiceEntries: [{ notes: [graphicalNote] }] }],
+                    },
+                  ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    const score = makeScore([{ number: 1, noteIds: ['P1-M1-N0'] }]);
+    // @ts-expect-error test mock access to private rebuild method
+    controller.rebuildGrayoutNoteMap(score);
+
+    // @ts-expect-error test mock access to private noteId->GraphicalNote map
+    expect(controller.noteIdToGraphicalNote.get('P1-M1-N0')).toBe(graphicalNote);
+  });
+
+  it('applies grayout on the cache-hit path (applyCache → rebuild → dims the SVG element)', () => {
+    const { container } = makeContainerWithSvg();
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+
+    const svgEl = makeSvgGElement();
+    const graphicalNote = {
+      sourceNote: {
+        halfTone: 0,
+        ParentStaffEntry: {
+          ParentStaff: { Id: 1 },
+          AbsoluteTimestamp: { RealValue: 0 },
+        },
+      },
+      getSVGGElement: vi.fn(() => svgEl),
+    };
+    // @ts-expect-error test mock access
+    controller.osmd = {
+      cursor: { Hidden: true },
+      GraphicSheet: {
+        MusicPages: [
+          {
+            MusicSystems: [
+              {
+                graphicalMeasures: [
+                  [
+                    {
+                      MeasureNumber: 1,
+                      staffEntries: [{ graphicalVoiceEntries: [{ notes: [graphicalNote] }] }],
+                    },
+                  ],
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    const score = makeScore([{ number: 1, noteIds: ['P1-M1-N0'] }]);
+    const cache: ScoreMapCache = {
+      version: 2,
+      pageFormat: 'A4_P',
+      zoomBase: 1.0,
+      noteIdToCursorState: { 'P1-M1-N0': { iteratorIndex: 0 } },
+      noteIdToSvgCoord: { 'P1-M1-N0': { x: 0, y: 0, pageIndex: 0 } },
+      iteratorIndexToCursorStyle: {},
+    };
+
+    expect(controller.applyCache(score, cache, 1.0)).toBe(true);
+
+    controller.setGrayedOutNotes(new Set(['P1-M1-N0']), 0.5);
+    expect(graphicalNote.getSVGGElement).toHaveBeenCalled();
+    expect(svgEl.style.opacity).toBe('0.5');
+
+    controller.setGrayedOutNotes(new Set());
+    expect(svgEl.style.opacity).toBe('');
+  });
+
+  it('keeps applyCache working when GraphicSheet is absent (rebuild is a defensive no-op)', () => {
+    const { container } = makeContainerWithSvg();
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+    // @ts-expect-error test mock access
+    controller.osmd = { cursor: { Hidden: true } };
+
+    const score = makeScore([{ number: 1, noteIds: ['P1-M1-N0'] }]);
+    const cache: ScoreMapCache = {
+      version: 2,
+      pageFormat: 'A4_P',
+      zoomBase: 1.0,
+      noteIdToCursorState: { 'P1-M1-N0': { iteratorIndex: 0 } },
+      noteIdToSvgCoord: { 'P1-M1-N0': { x: 0, y: 0, pageIndex: 0 } },
+      iteratorIndexToCursorStyle: {},
+    };
+
+    expect(() => controller.applyCache(score, cache, 1.0)).not.toThrow();
+    expect(controller.applyCache(score, cache, 1.0)).toBe(true);
+    // 灰化は単に何もしない（落ちない）
+    expect(() => controller.setGrayedOutNotes(new Set(['P1-M1-N0']))).not.toThrow();
+  });
 });
 
 describe('OSMDController buildNoteIdMap -> GraphicalNote resolution for grayout (TASK-060)', () => {
@@ -526,7 +827,7 @@ describe('OSMDController highlightNote (REQ-004-003/004)', () => {
 
     controller.highlightNote('P1-M1-N0', 'correct');
 
-    const layer = svg.querySelector('#note-highlight-layer');
+    const layer = svg.querySelector('[id^="note-highlight-layer"]');
     expect(layer).not.toBeNull();
     const circle = layer?.querySelector('circle[data-note-id="P1-M1-N0"]');
     expect(circle).not.toBeNull();
@@ -558,10 +859,10 @@ describe('OSMDController highlightNote (REQ-004-003/004)', () => {
     controller.noteIdToSvgCoord = new Map([['P1-M1-N0', { x: 10, y: 20 }]]);
 
     controller.highlightNote('P1-M1-N0', 'correct');
-    expect(svg.querySelector('#note-highlight-layer')).not.toBeNull();
+    expect(svg.querySelector('[id^="note-highlight-layer"]')).not.toBeNull();
 
     controller.highlightNote('P1-M1-N0', 'expected');
-    expect(svg.querySelector('#note-highlight-layer')).toBeNull();
+    expect(svg.querySelector('[id^="note-highlight-layer"]')).toBeNull();
   });
 
   it('supports highlighting multiple notes independently', () => {
@@ -579,7 +880,7 @@ describe('OSMDController highlightNote (REQ-004-003/004)', () => {
     controller.highlightNote('P1-M1-N0', 'correct');
     controller.highlightNote('P2-M1-N0', 'incorrect');
 
-    const layer = svg.querySelector('#note-highlight-layer');
+    const layer = svg.querySelector('[id^="note-highlight-layer"]');
     expect(layer?.querySelectorAll('circle').length).toBe(2);
   });
 
@@ -610,18 +911,18 @@ describe('OSMDController measure click resolution (REQ-002-004)', () => {
     expect(controller.findNearestNoteId({ x: 0, y: 0 })).toBeNull();
   });
 
-  it('invokes the registered measure-click callback with the measure number of the nearest note when the container is clicked', () => {
+  it('invokes the registered measure-click callback when the click lands inside a measure rect (REQ-002-004)', () => {
     const container = document.createElement('div');
     const controller = new OSMDController(container);
-    // @ts-expect-error test mock access to private note coordinate map
-    controller.noteIdToSvgCoord = new Map([
-      ['P1-M1-N0', { x: 10, y: 20 }],
-      ['P1-M3-N0', { x: 200, y: 20 }],
+    // 小节 3 的判定矩形（viewBox 坐标，第 1 页）
+    // @ts-expect-error test mock access to private measure rect map
+    controller.measureNumberToRect = new Map([
+      [3, [{ x: 150, y: 5, width: 100, height: 40, pageIndex: 0 }]],
     ]);
     // Bypass real DOM geometry (jsdom does not implement SVG viewBox/getBoundingClientRect
-    // meaningfully); stub the screen-to-SVG conversion to a fixed point near M3.
+    // meaningfully); stub the screen-to-SVG conversion to a fixed point inside the rect.
     // @ts-expect-error test override of private method
-    controller.screenToSvgCoord = () => ({ x: 190, y: 22 });
+    controller.screenToSvgCoord = () => ({ x: 190, y: 22, pageIndex: 0 });
 
     const onMeasureClick = vi.fn();
     controller.setOnMeasureClick(onMeasureClick);
@@ -629,6 +930,113 @@ describe('OSMDController measure click resolution (REQ-002-004)', () => {
     container.dispatchEvent(new MouseEvent('click', { clientX: 5, clientY: 5, bubbles: true }));
 
     expect(onMeasureClick).toHaveBeenCalledWith(3);
+  });
+
+  it('does not invoke the callback when the click lands outside every measure rect (blank area)', () => {
+    const container = document.createElement('div');
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access to private measure rect map
+    controller.measureNumberToRect = new Map([
+      [3, [{ x: 150, y: 5, width: 100, height: 40, pageIndex: 0 }]],
+    ]);
+    // 点击点在小节 3 矩形之外（空白区域）
+    // @ts-expect-error test override of private method
+    controller.screenToSvgCoord = () => ({ x: 50, y: 300, pageIndex: 0 });
+
+    const onMeasureClick = vi.fn();
+    controller.setOnMeasureClick(onMeasureClick);
+
+    container.dispatchEvent(new MouseEvent('click', { clientX: 5, clientY: 5, bubbles: true }));
+
+    expect(onMeasureClick).not.toHaveBeenCalled();
+  });
+
+  it('does not match a measure rect on a different page', () => {
+    const controller = new OSMDController(document.createElement('div'));
+    // @ts-expect-error test mock access to private measure rect map
+    controller.measureNumberToRect = new Map([
+      [3, [{ x: 150, y: 5, width: 100, height: 40, pageIndex: 0 }]],
+    ]);
+    // 点击第 2 页（pageIndex=1）同坐标，不应命中第 1 页的小节 3
+    // @ts-expect-error test access to private method
+    expect(controller.findMeasureAtPoint({ x: 190, y: 22, pageIndex: 1 })).toBeNull();
+    // @ts-expect-error test access to private method
+    expect(controller.findMeasureAtPoint({ x: 190, y: 22, pageIndex: 0 })).toBe(3);
+  });
+
+  it('collects measure rects from GraphicSheet with units x10 -> viewBox coordinates', () => {
+    const controller = new OSMDController(document.createElement('div'));
+    const gm = {
+      MeasureNumber: 1,
+      PositionAndShape: {
+        AbsolutePosition: { x: 10, y: 20 },
+        Size: { width: 30, height: 0 },
+      },
+      StaffLines: [
+        { PositionAndShape: { RelativePosition: { y: 0 } } },
+        { PositionAndShape: { RelativePosition: { y: 4 } }, StaffHeight: 1 },
+      ],
+    };
+    // @ts-expect-error test mock access to private osmd
+    controller.osmd = {
+      GraphicSheet: { MusicPages: [{ MusicSystems: [{ graphicalMeasures: [[gm]] }] }] },
+    };
+    // @ts-expect-error test access to private method
+    controller.collectMeasureRects();
+    // 内部单位 ×10：x=100, y=(20+0)*10=200, width=300, height=(4-0)*10=40。
+    // 底线即 lastLine.relY（=StaffHeight=4），不再叠加 StaffHeight（否则向下多延伸一个谱表高度）。
+    // @ts-expect-error test access to private map
+    expect(controller.measureNumberToRect.get(1)).toEqual([
+      { x: 100, y: 200, width: 300, height: 40, pageIndex: 0 },
+    ]);
+  });
+
+  it('stores one rect per staff (treble/bass separately) so the gap between them is not clickable', () => {
+    const controller = new OSMDController(document.createElement('div'));
+    // 高音谱：顶线 relY=0、底线 relY=4（=StaffHeight，内部单位）
+    const trebleGm = {
+      MeasureNumber: 1,
+      PositionAndShape: {
+        AbsolutePosition: { x: 10, y: 20 },
+        Size: { width: 30, height: 0 },
+      },
+      StaffLines: [
+        { PositionAndShape: { RelativePosition: { y: 0 } } },
+        { PositionAndShape: { RelativePosition: { y: 4 } } },
+      ],
+    };
+    // 低音谱：abs.y 比高音谱大（在下方），谱线相对位置相同
+    const bassGm = {
+      MeasureNumber: 1,
+      PositionAndShape: {
+        AbsolutePosition: { x: 10, y: 60 },
+        Size: { width: 30, height: 0 },
+      },
+      StaffLines: [
+        { PositionAndShape: { RelativePosition: { y: 0 } } },
+        { PositionAndShape: { RelativePosition: { y: 4 } } },
+      ],
+    };
+    // @ts-expect-error test mock access to private osmd
+    controller.osmd = {
+      GraphicSheet: { MusicPages: [{ MusicSystems: [{ graphicalMeasures: [[trebleGm, bassGm]] }] }] },
+    };
+    // @ts-expect-error test access to private method
+    controller.collectMeasureRects();
+
+    // @ts-expect-error test access to private map
+    expect(controller.measureNumberToRect.get(1)).toEqual([
+      { x: 100, y: 200, width: 300, height: 40, pageIndex: 0 }, // 高音谱
+      { x: 100, y: 600, width: 300, height: 40, pageIndex: 0 }, // 低音谱
+    ]);
+    // 高音谱与低音谱之间的空白（y=400）不应命中
+    // @ts-expect-error test access to private method
+    expect(controller.findMeasureAtPoint({ x: 150, y: 400, pageIndex: 0 })).toBeNull();
+    // 高音谱内、低音谱内各自命中
+    // @ts-expect-error test access to private method
+    expect(controller.findMeasureAtPoint({ x: 150, y: 220, pageIndex: 0 })).toBe(1);
+    // @ts-expect-error test access to private method
+    expect(controller.findMeasureAtPoint({ x: 150, y: 620, pageIndex: 0 })).toBe(1);
   });
 
   it('does not invoke the callback when no callback is registered', () => {
@@ -640,6 +1048,51 @@ describe('OSMDController measure click resolution (REQ-002-004)', () => {
     controller.screenToSvgCoord = () => ({ x: 10, y: 20 });
 
     expect(() => container.dispatchEvent(new MouseEvent('click', { bubbles: true }))).not.toThrow();
+  });
+
+  it('swallows the next click after suppressNextClick (drag pan must not jump to a measure)', () => {
+    const container = document.createElement('div');
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access to private measure rect map
+    controller.measureNumberToRect = new Map([
+      [3, [{ x: 150, y: 5, width: 100, height: 40, pageIndex: 0 }]],
+    ]);
+    // @ts-expect-error test override of private method
+    controller.screenToSvgCoord = () => ({ x: 190, y: 22, pageIndex: 0 });
+
+    const onMeasureClick = vi.fn();
+    controller.setOnMeasureClick(onMeasureClick);
+
+    // 拖动乐谱后：suppressNextClick → 紧随 mouseup 派发的 click 被吞掉（不跳小节）
+    controller.suppressNextClick();
+    container.dispatchEvent(new MouseEvent('click', { clientX: 5, clientY: 5, bubbles: true }));
+    expect(onMeasureClick).not.toHaveBeenCalled();
+
+    // 抑制标志已消费：下一次正常点击恢复跳转
+    container.dispatchEvent(new MouseEvent('click', { clientX: 5, clientY: 5, bubbles: true }));
+    expect(onMeasureClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets the suppression window expire so a stale flag does not swallow a later genuine click', () => {
+    const container = document.createElement('div');
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access to private measure rect map
+    controller.measureNumberToRect = new Map([
+      [3, [{ x: 150, y: 5, width: 100, height: 40, pageIndex: 0 }]],
+    ]);
+    // @ts-expect-error test override of private method
+    controller.screenToSvgCoord = () => ({ x: 190, y: 22, pageIndex: 0 });
+
+    const onMeasureClick = vi.fn();
+    controller.setOnMeasureClick(onMeasureClick);
+
+    // 模拟「鼠标在窗口外松开」等 click 未触发的边界情况：标志超过时间窗口后过期
+    controller.suppressNextClick();
+    // @ts-expect-error test access to private field
+    controller.suppressClickUntil = Date.now() - 1000;
+
+    container.dispatchEvent(new MouseEvent('click', { clientX: 5, clientY: 5, bubbles: true }));
+    expect(onMeasureClick).toHaveBeenCalledWith(3);
   });
 });
 
@@ -863,7 +1316,105 @@ describe('OSMDController buildNoteIdMap 照合ベース採番 (TASK-049)', () =>
     expect(map.has('P1-M1-N2')).toBe(true); // C2 (staff2)
   });
 
-  it('skips notes it cannot resolve and logs a warning instead of guessing (誤対応を作らない)', () => {
+  it('fallback: notes that fail tick matching are paired by order (7連音などの累積誤差対策)', () => {
+    const score: Score = {
+      title: 'Unmatched',
+      parts: [{ id: 'P1', name: 'Piano', hand: 'right', clef: 'treble' }],
+      tempo: 120,
+      ticksPerQuarter: 480,
+      tempoMap: [{ tick: 0, bpm: 120 }],
+      timeSignature: { beats: 4, beatType: 4 },
+      keySignature: 0,
+      pedalSpans: [],
+      measures: [
+        {
+          number: 1,
+          startTick: 0,
+          notes: [
+            {
+              id: 'P1-M1-N0',
+              partId: 'P1',
+              measureNumber: 1,
+              noteIndex: 0,
+              pitch: { step: 'C', octave: 4 },
+              midiNumber: 60,
+              duration: 1,
+              startTick: 0,
+              durationTicks: 480,
+              startSeconds: 0,
+              durationSeconds: 0,
+              voice: 1,
+              isChord: false,
+              isRest: false,
+              staff: 1,
+            },
+            {
+              id: 'P1-M1-N1',
+              partId: 'P1',
+              measureNumber: 1,
+              noteIndex: 1,
+              pitch: { step: 'D', octave: 4 },
+              midiNumber: 62,
+              duration: 1,
+              startTick: 480,
+              durationTicks: 480,
+              startSeconds: 0,
+              durationSeconds: 0,
+              voice: 1,
+              isChord: false,
+              isRest: false,
+              staff: 1,
+            },
+          ],
+        },
+      ],
+    };
+
+    // OSMD側のabsoluteTickがパーサ側startTickと大きくずれていても（TICK_MATCH_TOLERANCE超え）、
+    // 順序が一致していれば順序ベース兜底で1:1対応付けされる。
+    let idx = 0;
+    const mockCursor = {
+      Hidden: true,
+      show: vi.fn(),
+      hide: vi.fn(),
+      reset: vi.fn(() => {
+        idx = 0;
+      }),
+      next: vi.fn(() => {
+        idx++;
+      }),
+      get Iterator() {
+        return {
+          CurrentMeasureIndex: 0,
+          EndReached: idx >= 2,
+          get CurrentVoiceEntries() {
+            // tickがずれている（100ではなく10,000など）が、順序はscoreと一致している。
+            const ticks = [10, 500];
+            const halftones = [48, 50]; // C4, D4
+            return [{ Notes: [makeOsmdNote({ staffId: 1, absTimestamp: ticks[idx] / 480 / 4, halfTone: halftones[idx] })] }];
+          },
+        };
+      },
+    };
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const controller = new OSMDController(document.createElement('div'));
+    // @ts-expect-error test mock access
+    controller.loaded = true;
+    // @ts-expect-error test mock access
+    controller.osmd = { cursor: mockCursor };
+
+    const map = controller.buildNoteIdMap(score);
+
+    // 順序ベース兜底で両方とも対応付けられる
+    expect(map.size).toBe(2);
+    expect(map.has('P1-M1-N0')).toBe(true);
+    expect(map.has('P1-M1-N1')).toBe(true);
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('skips notes that cannot be resolved even by order fallback and logs a warning (誤対応を作らない)', () => {
     const score: Score = {
       title: 'Unmatched',
       parts: [{ id: 'P1', name: 'Piano', hand: 'right', clef: 'treble' }],
@@ -900,6 +1451,9 @@ describe('OSMDController buildNoteIdMap 照合ベース採番 (TASK-049)', () =>
       ],
     };
 
+    // OSMD側にscoreに存在しない余分な音（D5=midi74）を含める。
+    // score小節1のcandidateは1つだけなので、兜底で対応付けられるのは1つまで。
+    // 残った余剰エントリは対応付けられず警告される。
     let idx = 0;
     const mockCursor = {
       Hidden: true,
@@ -916,8 +1470,12 @@ describe('OSMDController buildNoteIdMap 照合ベース採番 (TASK-049)', () =>
           CurrentMeasureIndex: 0,
           EndReached: idx >= 1,
           get CurrentVoiceEntries() {
-            // score上に存在しない音高(D4=midi62)なので照合できない。
-            return [{ Notes: [makeOsmdNote({ staffId: 1, absTimestamp: 0, halfTone: 50 })] }];
+            // tickが大きくずれていて（TICK_MATCH_TOLERANCE超え）、音高もscoreと一致しない。
+            // D4=midi62 と D5=midi74。score小節1のcandidate(C4)は1つだけ。
+            return [
+              { Notes: [makeOsmdNote({ staffId: 1, absTimestamp: 100 / 480 / 4, halfTone: 50 })] }, // D4
+              { Notes: [makeOsmdNote({ staffId: 1, absTimestamp: 101 / 480 / 4, halfTone: 62 })] }, // D5
+            ];
           },
         };
       },
@@ -932,7 +1490,10 @@ describe('OSMDController buildNoteIdMap 照合ベース採番 (TASK-049)', () =>
 
     const map = controller.buildNoteIdMap(score);
 
-    expect(map.size).toBe(0);
+    // 兜底でscore小節1のcandidate(C4)に1つだけ対応付けられる。
+    // 残った余剰エントリ（もう1つ）は対応付けられず、警告が出る。
+    expect(map.size).toBe(1);
+    expect(map.has('P1-M1-N0')).toBe(true);
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
@@ -982,6 +1543,7 @@ describe('OSMDController buildNoteIdMap 和音の符頭単位座標オフセッ�
 
     const cursorElement = {
       getBoundingClientRect: () => makeRectStub({ left: 50, top: 60, width: 10, height: 20 }),
+      style: { cssText: '' },
     } as unknown as HTMLImageElement;
 
     let idx = 0;
@@ -1135,7 +1697,7 @@ describe('OSMDController buildNoteIdMap 和音の符頭単位座標オフセッ�
       { noteId: 'P1-M1-N2', finger: 5, isApproved: true },
     ]);
 
-    const texts = Array.from(svg.querySelectorAll('#fingering-layer text'));
+    const texts = Array.from(svg.querySelectorAll('[id^="fingering-layer"] text'));
     expect(texts).toHaveLength(3);
     const positions = texts.map((t) => ({
       x: t.getAttribute('x'),
@@ -1163,7 +1725,7 @@ describe('OSMDController buildNoteIdMap 和音の符頭単位座標オフセッ�
       { noteId: 'P1-M1-N1', finger: 4, isApproved: true },
     ]);
 
-    const texts = Array.from(svg.querySelectorAll('#fingering-layer text'));
+    const texts = Array.from(svg.querySelectorAll('[id^="fingering-layer"] text'));
     expect(texts).toHaveLength(2);
 
     for (const text of texts) {
@@ -1175,9 +1737,9 @@ describe('OSMDController buildNoteIdMap 和音の符頭単位座標オフセッ�
       expect(text.getAttribute('paint-order')).toBe('stroke');
     }
 
-    // 未承認（提案中）でも薄い水色（旧: #93c5fd）ではなく濃色で描画される
+    // 未承認（提案中）でも淡色ではなく濃色（中灰）で描画される
     const suggested = texts.find((t) => t.textContent === '2')!;
-    expect(suggested.getAttribute('fill')).toBe('#1d4ed8');
+    expect(suggested.getAttribute('fill')).toBe('#52525b');
     // 承認済みは提案中と区別できる濃色
     const approved = texts.find((t) => t.textContent === '4')!;
     expect(approved.getAttribute('fill')).toBe('#15803d');
@@ -1299,7 +1861,7 @@ describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
     Object.defineProperty(container, 'clientHeight', { value: height, configurable: true });
   }
 
-  it('re-renders, rebuilds the noteId map, and reapplies overlays (in that order) after a debounced resize (200-300ms)', () => {
+  it('does NOT re-render after a debounced resize in A4 fixed-width mode (layout is window-independent)', () => {
     vi.useFakeTimers();
     const ro = installFakeResizeObserver();
 
@@ -1330,10 +1892,6 @@ describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
       controller.buildNoteIdMap(score);
 
       const buildSpy = vi.spyOn(controller, 'buildNoteIdMap');
-      const reapplySpy = vi.spyOn(
-        controller as unknown as { reapplyOverlays: () => void },
-        'reapplyOverlays'
-      );
 
       const callback = ro.getCallback();
       expect(callback).toBeDefined();
@@ -1341,29 +1899,18 @@ describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
 
       // デバウンス中は何も実行されない。
       expect(mockRender).not.toHaveBeenCalled();
-      expect(buildSpy).not.toHaveBeenCalled();
-      expect(reapplySpy).not.toHaveBeenCalled();
 
-      vi.advanceTimersByTime(249);
+      vi.advanceTimersByTime(250); // 250ms経過
+      // A4 固定幅モードでは resize による再レンダリングは行われない
       expect(mockRender).not.toHaveBeenCalled();
-
-      vi.advanceTimersByTime(1); // 250ms経過
-      expect(mockRender).toHaveBeenCalledTimes(1);
-      expect(buildSpy).toHaveBeenCalledTimes(1);
-      expect(reapplySpy).toHaveBeenCalledTimes(1);
-
-      const renderOrder = mockRender.mock.invocationCallOrder[0];
-      const buildOrder = buildSpy.mock.invocationCallOrder[0];
-      const reapplyOrder = reapplySpy.mock.invocationCallOrder[0];
-      expect(renderOrder).toBeLessThan(buildOrder);
-      expect(buildOrder).toBeLessThan(reapplyOrder);
+      expect(buildSpy).not.toHaveBeenCalled();
     } finally {
       ro.restore();
       vi.useRealTimers();
     }
   });
 
-  it('does not run render multiple times when resize fires repeatedly within the debounce window', () => {
+  it('does not run render when resize fires repeatedly within the debounce window (A4 fixed-width mode)', () => {
     vi.useFakeTimers();
     const ro = installFakeResizeObserver();
 
@@ -1387,7 +1934,8 @@ describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
       expect(mockRender).not.toHaveBeenCalled();
 
       vi.advanceTimersByTime(1);
-      expect(mockRender).toHaveBeenCalledTimes(1);
+      // A4 固定幅モードでは resize による再レンダリングは行われない
+      expect(mockRender).not.toHaveBeenCalled();
     } finally {
       ro.restore();
       vi.useRealTimers();
@@ -1415,52 +1963,6 @@ describe('OSMDController resize handling (ResizeObserver, TASK-049)', () => {
       ro.restore();
       vi.useRealTimers();
     }
-  });
-});
-
-describe('OSMDController setZoom rebuilds the noteId map before reapplying overlays (TASK-049)', () => {
-  it('calls render, then buildNoteIdMap, then reapplyOverlays in that order', () => {
-    const container = document.createElement('div');
-    // jsdomの既定clientWidth/clientHeightは0のため、TASK-106の不可視スキップガードを
-    // 回避してsetZoomの再描画本体を検証できるよう非0サイズを明示する。
-    Object.defineProperty(container, 'clientWidth', { value: 800, configurable: true });
-    Object.defineProperty(container, 'clientHeight', { value: 600, configurable: true });
-    const controller = new OSMDController(container);
-    const mockRender = vi.fn();
-    // @ts-expect-error test mock access
-    controller.osmd = { cursor: null, render: mockRender, zoom: 1 };
-    // @ts-expect-error test mock access
-    controller.loaded = true;
-
-    const score: Score = {
-      title: 'T',
-      parts: [],
-      tempo: 120,
-      ticksPerQuarter: 480,
-      tempoMap: [{ tick: 0, bpm: 120 }],
-      timeSignature: { beats: 4, beatType: 4 },
-      keySignature: 0,
-      pedalSpans: [],
-      measures: [],
-    };
-    controller.buildNoteIdMap(score); // lastScoreを設定しておく
-
-    const buildSpy = vi.spyOn(controller, 'buildNoteIdMap');
-    const reapplySpy = vi.spyOn(
-      controller as unknown as { reapplyOverlays: () => void },
-      'reapplyOverlays'
-    );
-
-    controller.setZoom(1.5);
-
-    expect(mockRender).toHaveBeenCalledTimes(1);
-    expect(buildSpy).toHaveBeenCalledTimes(1);
-    expect(reapplySpy).toHaveBeenCalledTimes(1);
-    expect(buildSpy.mock.invocationCallOrder[0]).toBeLessThan(
-      reapplySpy.mock.invocationCallOrder[0]
-    );
-    // @ts-expect-error test access to private osmd field
-    expect(controller.osmd.zoom).toBe(1.5);
   });
 });
 
@@ -1552,7 +2054,7 @@ describe('OSMDController ライブラリ往復時の再レンダリング抑止 
     }
   });
 
-  it('描画時サイズと異なるサイズへの変化ではrenderが呼ばれる（回帰なし）', () => {
+  it('描画時サイズと異なるサイズへの変化でもrenderは呼ばれない（A4固定幅モード）', () => {
     vi.useFakeTimers();
     const ro = installFakeResizeObserver();
 
@@ -1574,52 +2076,8 @@ describe('OSMDController ライブラリ往復時の再レンダリング抑止 
       ro.getCallback()?.();
       vi.advanceTimersByTime(250);
 
-      expect(mockRender).toHaveBeenCalledTimes(1);
-      // @ts-expect-error test access to private rendered-size cache
-      expect(controller.lastRenderedWidth).toBe(1000);
-    } finally {
-      ro.restore();
-      vi.useRealTimers();
-    }
-  });
-
-  it('不可視中のsetZoomは保留され、可視復帰時のリサイズ通知で一度だけrenderされる', () => {
-    vi.useFakeTimers();
-    const ro = installFakeResizeObserver();
-
-    try {
-      const container = document.createElement('div');
-      setContainerSize(container, 800, 600);
-      const controller = new OSMDController(container);
-      const mockRender = vi.fn();
-      const mockOsmd = { cursor: null, render: mockRender, zoom: 1 };
-      // @ts-expect-error test mock access
-      controller.osmd = mockOsmd;
-      // @ts-expect-error test mock access
-      controller.loaded = true;
-      // @ts-expect-error test mock access to private rendered-size cache
-      controller.lastRenderedWidth = 800;
-      // @ts-expect-error test mock access to private rendered-size cache
-      controller.lastRenderedHeight = 600;
-
-      setContainerSize(container, 0, 0); // ライブラリ表示によるdisplay:noneを模す
-      controller.setZoom(1.5);
-
-      // 不可視中は即時renderされないが、zoom自体は反映される。
+      // A4 固定幅モードでは resize による再レンダリングは行われない
       expect(mockRender).not.toHaveBeenCalled();
-      expect(mockOsmd.zoom).toBe(1.5);
-
-      setContainerSize(container, 800, 600); // 楽譜へ戻る（同一サイズでの可視復帰）
-      ro.getCallback()?.();
-      vi.advanceTimersByTime(250);
-
-      expect(mockRender).toHaveBeenCalledTimes(1);
-
-      // 保留は消化済みのため、同一サイズの通知が再度来てもrenderは増えない。
-      ro.getCallback()?.();
-      vi.advanceTimersByTime(250);
-
-      expect(mockRender).toHaveBeenCalledTimes(1);
     } finally {
       ro.restore();
       vi.useRealTimers();
@@ -1727,5 +2185,98 @@ describe('OSMDController dispose (TASK-049)', () => {
     controller.dispose();
 
     expect(el.style.opacity).toBe('');
+  });
+});
+
+describe('OSMDController fingering edit mode', () => {
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function makeControllerWithFingeringLayer(): {
+    container: HTMLDivElement;
+    controller: OSMDController;
+    getTexts: () => Element[];
+  } {
+    const container = document.createElement('div');
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    container.appendChild(svg);
+    const controller = new OSMDController(container);
+    // @ts-expect-error test mock access to private note coordinate map
+    controller.noteIdToSvgCoord = new Map([
+      ['P1-M1-N0', { x: 10, y: 30 }],
+      ['P1-M1-N1', { x: 20, y: 30 }],
+    ]);
+    controller.showFingerings([
+      { noteId: 'P1-M1-N0', finger: 2, isApproved: true },
+      { noteId: 'P1-M1-N1', finger: 4, isApproved: false },
+    ]);
+    return {
+      container,
+      controller,
+      getTexts: () => Array.from(svg.querySelectorAll('[id^="fingering-layer"] text')),
+    };
+  }
+
+  it('renders fingering digits with data-note-id and keeps pointer-events: none by default', () => {
+    const { getTexts } = makeControllerWithFingeringLayer();
+    const texts = getTexts();
+    expect(texts).toHaveLength(2);
+    expect(texts[0].getAttribute('data-note-id')).toBe('P1-M1-N0');
+    expect(texts[1].getAttribute('data-note-id')).toBe('P1-M1-N1');
+    // 非编辑模式：数字不可点击（不拦截小节点击）
+    expect(texts[0].getAttribute('pointer-events')).toBe('none');
+  });
+
+  it('switches digits to clickable when edit mode is turned on (re-renders existing layer)', () => {
+    const { controller, getTexts } = makeControllerWithFingeringLayer();
+    controller.setFingeringEditMode(true);
+    for (const text of getTexts()) {
+      expect(text.getAttribute('pointer-events')).toBe('auto');
+    }
+    // 关闭后恢复不可点击
+    controller.setFingeringEditMode(false);
+    for (const text of getTexts()) {
+      expect(text.getAttribute('pointer-events')).toBe('none');
+    }
+  });
+
+  it('clicking a fingering digit in edit mode invokes the callback and does not jump to a measure', () => {
+    const { container, controller, getTexts } = makeControllerWithFingeringLayer();
+    controller.setFingeringEditMode(true);
+
+    const onFingeringClick = vi.fn();
+    controller.setOnFingeringClick(onFingeringClick);
+    const onMeasureClick = vi.fn();
+    controller.setOnMeasureClick(onMeasureClick);
+
+    const text = getTexts()[0];
+    text.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 5, clientY: 5 }));
+
+    expect(onFingeringClick).toHaveBeenCalledWith('P1-M1-N0', 5, 5);
+    expect(onMeasureClick).not.toHaveBeenCalled();
+  });
+
+  it('does not invoke the fingering callback when edit mode is off', () => {
+    const { container, controller, getTexts } = makeControllerWithFingeringLayer();
+    const onFingeringClick = vi.fn();
+    controller.setOnFingeringClick(onFingeringClick);
+
+    const text = getTexts()[0];
+    text.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 5, clientY: 5 }));
+
+    expect(onFingeringClick).not.toHaveBeenCalled();
+  });
+
+  it('does not invoke the fingering callback when no callback is registered', () => {
+    const { container, controller, getTexts } = makeControllerWithFingeringLayer();
+    controller.setFingeringEditMode(true);
+
+    const onMeasureClick = vi.fn();
+    controller.setOnMeasureClick(onMeasureClick);
+
+    const text = getTexts()[0];
+    text.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 5, clientY: 5 }));
+
+    // 无 onFingeringClick 注册时：编辑模式点击数字不应导致异常或小节跳转
+    expect(onMeasureClick).not.toHaveBeenCalled();
   });
 });

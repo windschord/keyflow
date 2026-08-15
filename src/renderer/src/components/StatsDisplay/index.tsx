@@ -14,17 +14,11 @@ export const StatsDisplay: React.FC = () => {
   const accuracyPercent = Math.round(stats.accuracy * 100);
 
   return (
-    <div
-      data-testid="stats-display"
-      style={{ display: 'flex', gap: '16px', alignItems: 'center', fontSize: '14px' }}
-    >
-      <span data-testid="stats-accuracy" style={{ color: '#374151', whiteSpace: 'nowrap' }}>
+    <div data-testid="stats-display" className="kf-stats">
+      <span data-testid="stats-accuracy" className="kf-stats__item">
         {t.statsDisplay.accuracyLabel} <strong>{accuracyPercent}%</strong>
       </span>
-      <span
-        data-testid="stats-consecutive-correct"
-        style={{ color: '#374151', whiteSpace: 'nowrap' }}
-      >
+      <span data-testid="stats-consecutive-correct" className="kf-stats__item">
         {t.statsDisplay.consecutiveLabel} <strong>{stats.consecutiveCorrect}</strong>
       </span>
     </div>

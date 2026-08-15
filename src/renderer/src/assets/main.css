@@ -1,8 +1,13 @@
 @import './base.css';
 
 body {
-  background-image: url('./wavy-lines.svg');
-  background-size: cover;
+  background-color: var(--kf-app-bg, #eef1f6);
+  background-image: radial-gradient(
+    1200px 600px at 50% -100px,
+    rgba(255, 255, 255, 0.85),
+    rgba(255, 255, 255, 0) 70%
+  );
+  background-attachment: fixed;
   user-select: none;
 }
 

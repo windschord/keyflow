@@ -4,6 +4,7 @@ import { FingeringEngineService, DEFAULT_HAND_SETTINGS } from '../../lib/fingeri
 import type { FingeringHand } from '../../workers/fingering/types';
 import { useTranslation } from '../../lib/i18n/useTranslation';
 import { formatMessage } from '../../lib/i18n/format';
+import { KfSelect } from '../KfSelect';
 
 interface FingeringPanelProps {
   score: Score | null;
@@ -72,47 +73,33 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
       <label
         htmlFor="hand-select"
-        style={{ fontSize: '14px', whiteSpace: 'nowrap', color: '#374151' }}
+        style={{ fontSize: '14px', whiteSpace: 'nowrap', color: 'var(--kf-text-2)' }}
       >
         {t.fingeringPanel.handSelectLabel}
       </label>
-      <select
+      <KfSelect
         id="hand-select"
         value={hand}
-        onChange={(e) => setHand(e.target.value as FingeringHand)}
+        onChange={(value) => setHand(value as FingeringHand)}
         disabled={computing || !!disabled}
         title={t.fingeringPanel.handSelectTitle}
-        style={{
-          height: `${TOUCH_HEIGHT}px`,
-          fontSize: '16px',
-          padding: '0 8px',
-          borderRadius: '6px',
-          border: '1px solid #d1d5db',
-          backgroundColor: 'white',
-          cursor: computing || !!disabled ? 'not-allowed' : 'pointer',
-        }}
-      >
-        <option value="right">{t.fingeringPanel.handOptionRight}</option>
-        <option value="left">{t.fingeringPanel.handOptionLeft}</option>
-      </select>
+        options={[
+          { value: 'right', label: t.fingeringPanel.handOptionRight },
+          { value: 'left', label: t.fingeringPanel.handOptionLeft },
+        ]}
+        className="kf-dropdown--touch"
+      />
 
       <div style={{ position: 'relative' }}>
         <button
           onClick={handleCompute}
           disabled={isDisabled}
+          className="kf-btn kf-btn--primary"
           style={{
             height: `${TOUCH_HEIGHT}px`,
             padding: '0 18px',
-            fontSize: '16px',
-            fontWeight: 500,
-            borderRadius: '6px',
-            border: 'none',
-            backgroundColor: isDisabled ? '#9ca3af' : '#3b82f6',
-            color: 'white',
-            cursor: isDisabled ? 'not-allowed' : 'pointer',
-            whiteSpace: 'nowrap',
+            fontSize: '15px',
             minWidth: '110px',
-            transition: 'background-color 0.15s',
             overflow: 'hidden',
           }}
         >
@@ -136,14 +123,8 @@ export const FingeringPanel: React.FC<FingeringPanelProps> = ({ score, onSuggest
       {error && (
         <span
           title={error}
-          style={{
-            fontSize: '13px',
-            color: '#ef4444',
-            whiteSpace: 'nowrap',
-            maxWidth: '200px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
+          className="kf-error"
+          style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}
         >
           ⚠ {error}
         </span>

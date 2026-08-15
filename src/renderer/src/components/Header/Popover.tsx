@@ -76,20 +76,12 @@ export const Popover: React.FC<PopoverProps> = ({
       ref={contentRef}
       data-testid="popover"
       role="dialog"
+      className="kf-popover"
       style={{
-        position: 'absolute',
         top: '100%',
         right: `${rightOffset}px`,
-        marginTop: '4px',
         // モーダル（SettingsModal: zIndex 1000）未満（design/components/header.md）
         zIndex: 900,
-        backgroundColor: '#fff',
-        color: '#111827',
-        border: '1px solid #d1d5db',
-        borderRadius: '8px',
-        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.15)',
-        padding: '12px',
-        minWidth: '260px',
       }}
     >
       {children}

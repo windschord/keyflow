@@ -44,6 +44,13 @@ const MENU_LABELS: Record<
     window: 'Window',
     help: 'Help',
   },
+  zh: {
+    about: (appTitle) => `关于 ${appTitle}`,
+    edit: '编辑',
+    view: '视图',
+    window: '窗口',
+    help: '帮助',
+  },
 };
 
 export function createApplicationMenuTemplate({

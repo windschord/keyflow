@@ -2,15 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { usePracticeStore } from '../../store';
 import { useTranslation } from '../../lib/i18n/useTranslation';
 
-const INPUT_STYLE: React.CSSProperties = {
-  height: '36px',
-  fontSize: '14px',
-  padding: '0 6px',
-  borderRadius: '6px',
-  border: '1px solid #d1d5db',
-  boxSizing: 'border-box',
-};
-
 /**
  * テンポ（BPM入力＋原曲比スライダー＋リセット）を操作するコントロール（TASK-075でコンパクト化）。
  *
@@ -64,7 +55,7 @@ export const TempoControl: React.FC = () => {
       <span
         aria-hidden="true"
         title={t.tempoControl.bpmIconTitle}
-        style={{ fontSize: '15px', color: '#374151' }}
+        style={{ fontSize: '15px', color: '#374151', fontWeight: 600 }}
       >
         &#9834;=
       </span>
@@ -78,7 +69,8 @@ export const TempoControl: React.FC = () => {
         onBlur={handleInputBlur}
         disabled={isTempoLocked}
         title={t.tempoControl.inputTitle}
-        style={{ ...INPUT_STYLE, width: '56px' }}
+        className="kf-input kf-input--num"
+        style={{ width: '58px' }}
         data-testid="tempo-input"
       />
       <input
@@ -90,11 +82,8 @@ export const TempoControl: React.FC = () => {
         onChange={handleSliderChange}
         disabled={isTempoLocked}
         title={t.tempoControl.sliderTitle}
-        style={{
-          height: '36px',
-          width: '100px',
-          cursor: isTempoLocked ? 'not-allowed' : 'pointer',
-        }}
+        className="kf-range"
+        style={{ width: '96px' }}
         data-testid="tempo-slider"
       />
       <button
@@ -103,16 +92,8 @@ export const TempoControl: React.FC = () => {
         disabled={isTempoLocked}
         title={t.tempoControl.resetTitle}
         aria-label={t.tempoControl.resetAriaLabel}
-        style={{
-          height: '36px',
-          width: '36px',
-          padding: 0,
-          fontSize: '15px',
-          borderRadius: '6px',
-          border: '1px solid #9ca3af',
-          backgroundColor: 'white',
-          cursor: isTempoLocked ? 'not-allowed' : 'pointer',
-        }}
+        className="kf-btn"
+        style={{ width: '36px', padding: 0, fontSize: '15px' }}
       >
         &#8635;
       </button>

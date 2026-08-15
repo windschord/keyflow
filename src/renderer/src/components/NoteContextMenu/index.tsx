@@ -110,7 +110,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
                 height: '28px',
                 borderRadius: '4px',
                 border: '1px solid #9ca3af',
-                backgroundColor: annotation?.fingerNumber === finger ? '#2563eb' : '#fff',
+                backgroundColor: annotation?.fingerNumber === finger ? '#18181b' : '#fff',
                 color: annotation?.fingerNumber === finger ? '#fff' : '#111827',
                 cursor: 'pointer',
               }}
@@ -180,7 +180,7 @@ export const NoteContextMenu: React.FC<NoteContextMenuProps> = ({
             padding: '6px',
             borderRadius: '4px',
             border: 'none',
-            backgroundColor: '#2563eb',
+            backgroundColor: '#18181b',
             color: '#fff',
             cursor: 'pointer',
           }}

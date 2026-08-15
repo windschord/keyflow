@@ -1,7 +1,7 @@
 import { ja } from './ja';
 
 /** UI表示言語（US-016、REQ-016-001）。 */
-export type Language = 'ja' | 'en';
+export type Language = 'ja' | 'en' | 'zh';
 
 /**
  * ネストしたオブジェクトの末端の値の型をすべて`string`へ広げるユーティリティ型。

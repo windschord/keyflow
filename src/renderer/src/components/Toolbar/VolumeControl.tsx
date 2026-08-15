@@ -68,7 +68,7 @@ export const VolumeControl: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-      <label htmlFor="volume-slider" style={{ fontSize: '14px', color: '#374151' }}>
+      <label htmlFor="volume-slider" style={{ fontSize: '14px', color: 'var(--kf-text-2)' }}>
         {t.volumeControl.label}
       </label>
       <input
@@ -80,9 +80,12 @@ export const VolumeControl: React.FC = () => {
         value={volume}
         onChange={handleChange}
         title={t.volumeControl.title}
-        style={{ height: '44px', cursor: 'pointer' }}
+        className="kf-range"
+        style={{ width: '150px' }}
       />
-      <span style={{ fontSize: '14px', color: '#374151', minWidth: '28px' }}>{volume}</span>
+      <span style={{ fontSize: '14px', color: 'var(--kf-text-2)', minWidth: '28px', fontVariantNumeric: 'tabular-nums' }}>
+        {volume}
+      </span>
     </div>
   );
 };

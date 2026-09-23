@@ -138,6 +138,26 @@ describe('createApplicationMenuTemplate language switching (REQ-016-004, TASK-09
     }
   });
 
+  it('language: "zh"の場合、カスタムラベル（关于/编辑/视图/窗口/帮助）が中文になる', () => {
+    for (const platform of ['darwin', 'win32', 'linux'] as const) {
+      const template = createApplicationMenuTemplate({
+        platform,
+        appTitle: APP_TITLE,
+        language: 'zh',
+        onOpenAbout: vi.fn(),
+      });
+
+      const aboutItem = findMenuItem(template, (item) => item.id === 'open-about');
+      expect(aboutItem?.label).toBe(`关于 ${APP_TITLE}`);
+      expect(template.some((item) => item.label === '编辑')).toBe(true);
+      expect(template.some((item) => item.label === '视图')).toBe(true);
+      expect(template.some((item) => item.label === '窗口')).toBe(true);
+      if (platform !== 'darwin') {
+        expect(template.some((item) => item.label === '帮助')).toBe(true);
+      }
+    }
+  });
+
   it('language: "en"でもrole指定の標準メニュー項目（undo/redo/cut/copy/paste等）はそのまま維持される', () => {
     const template = createApplicationMenuTemplate({
       platform: 'win32',

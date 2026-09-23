@@ -135,6 +135,10 @@ interface MeasureBuilder {
   number: number;
   startTick: number;
   notes: Note[];
+  repeatStart?: boolean;
+  repeatEnd?: { times: number };
+  endingStart?: { numbers: number[] };
+  endingEnd?: boolean;
 }
 
 /**
@@ -223,6 +227,78 @@ function parseNumberOrDefault(text: string | undefined, fallback: number): numbe
 }
 
 /**
+ * fast-xml-parser が生成するテキストノードから文字列値を取り出す。
+ * 要素に属性がある場合、パーサはテキストを `{ '#text': '...', '@_attr': '...' }`
+ * 形式で返すため、素の `as string` キャストでは undefined になってしまう。
+ * 文字列の場合はそのまま、オブジェクトの場合は `#text` を、それ以外は undefined を返す。
+ */
+function extractTextValue(node: unknown): string | undefined {
+  if (typeof node === 'string') {
+    const trimmed = node.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  if (node && typeof node === 'object' && '#text' in node) {
+    const text = (node as Record<string, unknown>)['#text'];
+    if (typeof text === 'string') {
+      const trimmed = text.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * `<credit><credit-words>` から楽曲タイトルを取り出す。
+ * work-title / movement-title が空の楽譜でよく使われるフォールバック経路。
+ * credit-type に "title" を含むものを優先し、無ければ最初の credit-words を使う。
+ */
+function extractCreditTitle(creditNode: unknown): string | undefined {
+  const credits = Array.isArray(creditNode) ? creditNode : creditNode ? [creditNode] : [];
+  let firstWords: string | undefined;
+  for (const credit of credits) {
+    if (!credit || typeof credit !== 'object') continue;
+    const creditObj = credit as Record<string, unknown>;
+    const creditType = extractTextValue(creditObj['credit-type']);
+    const creditWords = extractTextValue(creditObj['credit-words']);
+    if (!creditWords) continue;
+    if (!firstWords) firstWords = creditWords;
+    if (creditType && creditType.toLowerCase().includes('title')) {
+      return creditWords;
+    }
+  }
+  return firstWords;
+}
+
+/**
+ * 常见の楽譜エディタが書き込む「無題プレースホルダ」集合。
+ * MuseScore 等はロケールに応じて work-title / movement-title に
+ * ローカライズ済みのダミー文字列を入れるため、これらを空とみなして
+ * credit-words 等のより正確なソースへフォールスルーさせる。
+ * 一致判定は trim + case-insensitive。
+ */
+const TITLE_PLACEHOLDERS: readonly string[] = [
+  // 英語
+  'untitled',
+  'untitled score',
+  'untitled work',
+  // 中国語（簡体）
+  '未命名',
+  '未命名乐谱',
+  '无标题',
+  '无题',
+  // 日本語
+  '名称未設定',
+  '無題',
+  'タイトルなし',
+];
+
+function isTitlePlaceholder(value: string | undefined): boolean {
+  if (!value) return true;
+  const normalized = value.trim().toLowerCase();
+  return normalized.length === 0 || TITLE_PLACEHOLDERS.some((p) => p === normalized);
+}
+
+/**
  * MusicXMLの`duration`（`divisions`単位）を正規化tick（PPQ=480）へ変換する。
  *
  * `divisions`が480の約数でない譜面（例: divisions=7）では`duration * (480/divisions)`が
@@ -291,9 +367,13 @@ export function parse(xmlContent: string): Score {
     isArray: (_name, jpath, _isLeafNode, _isAttribute) => {
       const jpathStr = String(jpath);
       if (
-        ['score-partwise.part-list.score-part', 'score-partwise.part', 'measure', 'note'].includes(
-          jpathStr
-        )
+        [
+          'score-partwise.part-list.score-part',
+          'score-partwise.part',
+          'score-partwise.credit',
+          'measure',
+          'note',
+        ].includes(jpathStr)
       ) {
         return true;
       }
@@ -316,10 +396,18 @@ export function parse(xmlContent: string): Score {
 
   const scorePartwise = parsed['score-partwise'] as Record<string, unknown> | undefined;
 
-  const title =
-    ((scorePartwise?.['work'] as Record<string, unknown>)?.['work-title'] as string | undefined) ||
-    (scorePartwise?.['movement-title'] as string | undefined) ||
-    'Untitled';
+  // 标题提取：依次尝试 work-title、movement-title、credit-words。
+  // ただし MuseScore 等のエディタがロケール依存で書き込むプレースホルダ
+  // （例: zh-CN 環境の「未命名乐谱」）はスキップし、次のソースへフォールスルーする。
+  // fast-xml-parser が属性付き要素を { '#text': string, '@_xxx': ... } 形式で
+  // 返すことがあるため、extractTextValue で一律に文字列化する。
+  const workTitle = extractTextValue(
+    (scorePartwise?.['work'] as Record<string, unknown>)?.['work-title']
+  );
+  const movementTitle = extractTextValue(scorePartwise?.['movement-title']);
+  const creditTitle = extractCreditTitle(scorePartwise?.['credit']);
+  const candidates = [workTitle, movementTitle, creditTitle];
+  const title = candidates.find((t) => !isTitlePlaceholder(t)) ?? 'Untitled';
 
   const composer = extractComposer(scorePartwise);
 
@@ -611,6 +699,66 @@ export function parse(xmlContent: string): Score {
         } else if (tag === 'forward') {
           const duration = parseNumberOrDefault(getDirectChildText(child, 'duration'), 0);
           cursor += toTicks(duration, divisions);
+        } else if (tag === 'barline') {
+          // 反复记号（左/右反复、1房子/2房子）都包在 <barline> 里。
+          // 注意：同一个 measure 内可能有多个 <barline>（例如开头一个 + 结尾一个），
+          // 所以必须每个 <barline> 都独立解析，而不是只看第一个。
+          const repeatEl = getDirectChildByTag(child, 'repeat');
+          if (repeatEl) {
+            const dir = repeatEl.getAttribute('direction');
+            const timesAttr = repeatEl.getAttribute('times');
+            const timesRaw = timesAttr ? parseInt(timesAttr, 10) : NaN;
+            const times = Number.isFinite(timesRaw) && timesRaw >= 2 ? timesRaw : 2;
+            // <barline location="left"><repeat direction="forward"/> → 在 measure 开头
+            // <barline location="right"><repeat direction="backward"/> → 在 measure 结尾
+            // 本小节只要出现就记到本 measure 上，跳转推导时按 number 顺序再处理。
+            if (dir === 'forward') {
+              measure.repeatStart = true;
+            } else if (dir === 'backward') {
+              measure.repeatEnd = { times };
+            }
+          }
+          const endingEl = getDirectChildByTag(child, 'ending');
+          if (endingEl) {
+            const typeAttr = endingEl.getAttribute('type');
+            const numberAttr = endingEl.getAttribute('number');
+            if ((typeAttr === 'discontinue' || typeAttr === 'stop')) {
+              measure.endingEnd = true;
+              // ending 结束小节也可能包含 numbers，用于标识结束了哪些房子号，
+              // 推导段时需要，所以一起写入 endingStart.numbers（语义：本小节包含这些房子号的结束边界）。
+              if (numberAttr) {
+                const numbers = numberAttr
+                  .split(',')
+                  .map((s) => parseInt(s.trim(), 10))
+                  .filter((n) => Number.isFinite(n) && n >= 1);
+                if (numbers.length > 0) {
+                  // 如果前面（本 measure 开头的另一个 barline）已经有 endingStart，合并 numbers；
+                  // 否则新建。
+                  if (measure.endingStart) {
+                    const merged = Array.from(new Set([...measure.endingStart.numbers, ...numbers]));
+                    merged.sort((a, b) => a - b);
+                    measure.endingStart.numbers = merged;
+                  } else {
+                    measure.endingStart = { numbers };
+                  }
+                }
+              }
+            } else if (typeAttr === 'start' && numberAttr) {
+              const numbers = numberAttr
+                .split(',')
+                .map((s) => parseInt(s.trim(), 10))
+                .filter((n) => Number.isFinite(n) && n >= 1);
+              if (numbers.length > 0) {
+                if (measure.endingStart) {
+                  const merged = Array.from(new Set([...measure.endingStart.numbers, ...numbers]));
+                  merged.sort((a, b) => a - b);
+                  measure.endingStart.numbers = merged;
+                } else {
+                  measure.endingStart = { numbers };
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -669,7 +817,15 @@ export function parse(xmlContent: string): Score {
   // 並べ替えのキーには使わない。
   const measures: Measure[] = Array.from(measuresMap.values())
     .sort((a, b) => a.index - b.index)
-    .map((m) => ({ number: m.number, startTick: m.startTick, notes: m.notes }));
+    .map((m) => ({
+      number: m.number,
+      startTick: m.startTick,
+      notes: m.notes,
+      repeatStart: m.repeatStart,
+      repeatEnd: m.repeatEnd,
+      endingStart: m.endingStart,
+      endingEnd: m.endingEnd,
+    }));
 
   return {
     title,

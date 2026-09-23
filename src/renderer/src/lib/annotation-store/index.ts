@@ -61,18 +61,22 @@ export class AnnotationStoreService {
   async load(musicXmlPath: string, validNoteIds?: Iterable<string>): Promise<string[]> {
     this.currentFilePath = musicXmlPath + '.annotation.json';
     const skipped: string[] = [];
+    const t0 = performance.now();
     try {
       // 初回オープン時にサイドカーファイルが存在しないのは正常なため、
       // ENOENTでエラーログを出さない readIfExists を使う（2026-07-05）。
       const content = await window.electronAPI.file.readIfExists(this.currentFilePath);
+      const t1 = performance.now();
       if (content === null) {
         this.annotations.clear();
         this.originalContent = '';
         this.dirty = false;
+        console.log(`[perf] annotation.load: ipc=${(t1 - t0).toFixed(0)}ms (not found)`);
         return skipped;
       }
       this.originalContent = content;
       const data = JSON.parse(content) as Partial<AnnotationFile>;
+      const t2 = performance.now();
 
       const validSet = validNoteIds ? new Set(validNoteIds) : null;
 
@@ -93,11 +97,15 @@ export class AnnotationStoreService {
         this.annotations.set(ann.noteId, ann);
       }
       this.dirty = false;
+      console.log(
+        `[perf] annotation.load: ipc=${(t1 - t0).toFixed(0)}ms parse=${(t2 - t1).toFixed(0)}ms loop=${(performance.now() - t2).toFixed(0)}ms size=${content.length}bytes count=${rawAnnotations.length}`
+      );
     } catch (err) {
       // If file does not exist or fails to parse, just start empty.
       this.annotations.clear();
       this.originalContent = '';
       this.dirty = false;
+      console.log(`[perf] annotation.load: error after ${(performance.now() - t0).toFixed(0)}ms`);
     }
     return skipped;
   }

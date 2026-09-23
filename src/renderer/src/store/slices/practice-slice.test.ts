@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createPracticeSlice } from './practice-slice';
 
 describe('createPracticeSlice initial state', () => {
-  it('provides loopStart/loopEnd defaults that satisfy the start < end validation used by LoopControl', () => {
+  it('provides loopStart/loopEnd defaults that satisfy the start < end constraint', () => {
     const set = vi.fn();
     const get = vi.fn();
     // sliceは第3引数（StoreApi）を使用しないため空オブジェクトで足りる（`any`禁止ルールに従う）

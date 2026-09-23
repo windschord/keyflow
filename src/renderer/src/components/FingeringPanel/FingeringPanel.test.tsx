@@ -77,7 +77,8 @@ describe('FingeringPanel note.hand-based filtering (TASK-048)', () => {
 
     render(<FingeringPanel score={score} onSuggested={() => {}} />);
 
-    fireEvent.change(screen.getByLabelText('運指対象:'), { target: { value: 'left' } });
+    fireEvent.click(screen.getByLabelText('運指対象:'));
+    fireEvent.click(screen.getByRole('option', { name: '左手' }));
     fireEvent.click(screen.getByText('運指提案'));
 
     await waitFor(() => expect(computeFingeringMock).toHaveBeenCalled());
@@ -105,7 +106,8 @@ describe('FingeringPanel note.hand-based filtering (TASK-048)', () => {
 
     render(<FingeringPanel score={score} onSuggested={() => {}} />);
 
-    fireEvent.change(screen.getByLabelText('運指対象:'), { target: { value: 'left' } });
+    fireEvent.click(screen.getByLabelText('運指対象:'));
+    fireEvent.click(screen.getByRole('option', { name: '左手' }));
     fireEvent.click(screen.getByText('運指提案'));
 
     await waitFor(() => expect(screen.getByText(/左手の音符が見つかりません/)).toBeInTheDocument());

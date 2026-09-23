@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { resolveLanguage } from './resolve-language';
 
 // TASK-096, REQ-016-002/005: 保存済み設定値とOSロケールから表示言語を解決する
-// 純関数。優先順位は「保存値の'ja'/'en' > 'auto'・不正値・未定義はOSロケール判定」。
+// 純関数。優先順位は「保存値の'ja'/'en'/'zh' > 'auto'・不正値・未定義はOSロケール判定」。
 describe('resolveLanguage', () => {
   it('保存値が"ja"の場合はOSロケールに関わらず"ja"を返す', () => {
     expect(resolveLanguage('ja', 'en-US')).toBe('ja');
@@ -10,6 +10,11 @@ describe('resolveLanguage', () => {
 
   it('保存値が"en"の場合はOSロケールに関わらず"en"を返す', () => {
     expect(resolveLanguage('en', 'ja-JP')).toBe('en');
+  });
+
+  it('保存値が"zh"の場合はOSロケールに関わらず"zh"を返す（手動選択で有効になる）', () => {
+    expect(resolveLanguage('zh', 'ja-JP')).toBe('zh');
+    expect(resolveLanguage('zh', 'en-US')).toBe('zh');
   });
 
   it('保存値が"auto"かつOSロケールが"ja-JP"の場合は"ja"を返す', () => {

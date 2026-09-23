@@ -6,6 +6,7 @@ import { PLAYBACK_VOICES, type PlaybackVoiceId } from '../../lib/audio-engine/vo
 import { METRONOME_VOICES, type MetronomeVoiceId } from '../../lib/audio-engine/metronome-voices';
 import { useTranslation } from '../../lib/i18n/useTranslation';
 import type { Language, Messages } from '../../lib/i18n/types';
+import { KfSelect } from '../KfSelect';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ const DEFAULT_SETTINGS: SettingsModalState = {
     volume: 80,
     showFingerings: true,
     keyboardSize: 88,
+    scoreLayout: 'horizontal',
   },
   practice: { defaultErrorMode: 'wait', metronomeEnabled: false, metronomeAccentEnabled: true },
   midi: { selectedDeviceId: null, selectedDeviceIndex: 0 },
@@ -91,7 +93,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // 上書きしない。表示専用の値であり、保存はupdateUiSetting呼び出し時のみ行う。
   const currentLanguage = usePracticeStore((s) => s.language);
   const languageSelectValue: Language =
-    settings.ui.language === 'ja' || settings.ui.language === 'en'
+    settings.ui.language === 'ja' || settings.ui.language === 'en' || settings.ui.language === 'zh'
       ? settings.ui.language
       : currentLanguage;
 
@@ -326,60 +328,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          backgroundColor: '#fff',
-          color: '#111827',
-          borderRadius: '8px',
-          minWidth: '400px',
-          maxHeight: '80vh',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-        }}
-      >
+    <div className="kf-settings-overlay">
+      <div className="kf-settings-card">
         {/* Header */}
-        <div
-          style={{
-            padding: '16px 24px',
-            borderBottom: '1px solid #e5e7eb',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{t.settings.title}</h2>
+        <header className="kf-settings-header">
+          <h2 className="kf-settings-header__brand">
+            <span className="kf-settings-header__icon" aria-hidden="true">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </span>
+            {t.settings.title}
+          </h2>
+          <div className="kf-settings-header__spacer" />
           <button
             onClick={onClose}
             aria-label={t.settings.closeButtonAriaLabel}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#6b7280',
-            }}
+            className="kf-icon-btn"
           >
-            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -388,70 +365,51 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </svg>
           </button>
-        </div>
+        </header>
 
         {/* Content */}
-        <div style={{ padding: '16px 24px', overflowY: 'auto', flex: 1 }}>
+        <div className="kf-settings-body">
           {/* Practice Settings */}
-          <section style={{ marginBottom: '24px' }}>
-            <h3
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: '#6b7280',
-                textTransform: 'uppercase',
-                marginBottom: '12px',
-              }}
-            >
-              {t.settings.practiceSectionTitle}
-            </h3>
+          <section className="kf-settings-section kf-settings-card-panel">
+            <h3 className="kf-settings-label">{t.settings.practiceSectionTitle}</h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label
-                  htmlFor="errorMode"
-                  style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
-                >
-                  {t.settings.errorModeLabel}
-                </label>
-                <select
-                  id="errorMode"
-                  value={settings.practice.defaultErrorMode}
-                  onChange={(e) =>
-                    updatePracticeSetting(
-                      'defaultErrorMode',
-                      e.target.value as AppSettings['practice']['defaultErrorMode']
-                    )
-                  }
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '4px',
-                    border: '1px solid #d1d5db',
-                  }}
-                >
-                  <option value="wait">{t.settings.errorModeWait}</option>
-                  <option value="pass">{t.settings.errorModePass}</option>
-                </select>
-              </div>
+            <div className="kf-settings-field">
+              <label htmlFor="errorMode" className="kf-settings-field__label">
+                {t.settings.errorModeLabel}
+              </label>
+              <KfSelect
+                id="errorMode"
+                value={settings.practice.defaultErrorMode}
+                onChange={(value) =>
+                  updatePracticeSetting(
+                    'defaultErrorMode',
+                    value as AppSettings['practice']['defaultErrorMode']
+                  )
+                }
+                options={[
+                  { value: 'wait', label: t.settings.errorModeWait },
+                  { value: 'pass', label: t.settings.errorModePass },
+                ]}
+                style={{ width: '100%' }}
+              />
+            </div>
 
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div className="kf-settings-checks">
+              <label htmlFor="metronomeEnabled" className="kf-settings-check kf-settings-check--card">
                 <input
                   id="metronomeEnabled"
                   type="checkbox"
                   checked={settings.practice.metronomeEnabled}
                   onChange={(e) => updatePracticeSetting('metronomeEnabled', e.target.checked)}
-                  style={{ width: '16px', height: '16px' }}
+                  className="kf-check"
                 />
-                <label
-                  htmlFor="metronomeEnabled"
-                  style={{ marginLeft: '8px', fontSize: '0.875rem' }}
-                >
-                  {t.settings.metronomeEnabledLabel}
-                </label>
-              </div>
+                {t.settings.metronomeEnabledLabel}
+              </label>
 
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <label
+                htmlFor="metronomeAccentEnabled"
+                className="kf-settings-check kf-settings-check--card"
+              >
                 <input
                   id="metronomeAccentEnabled"
                   type="checkbox"
@@ -459,40 +417,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={(e) =>
                     updatePracticeSetting('metronomeAccentEnabled', e.target.checked)
                   }
-                  style={{ width: '16px', height: '16px' }}
+                  className="kf-check"
                 />
-                <label
-                  htmlFor="metronomeAccentEnabled"
-                  style={{ marginLeft: '8px', fontSize: '0.875rem' }}
-                >
-                  {t.settings.metronomeAccentEnabledLabel}
-                </label>
-              </div>
+                {t.settings.metronomeAccentEnabledLabel}
+              </label>
             </div>
           </section>
 
           {/* Display Settings (TASK-045) */}
-          <section style={{ marginBottom: '24px' }}>
-            <h3
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: '#6b7280',
-                textTransform: 'uppercase',
-                marginBottom: '12px',
-              }}
-            >
-              {t.settings.displaySectionTitle}
-            </h3>
+          <section className="kf-settings-section kf-settings-card-panel">
+            <h3 className="kf-settings-label">{t.settings.displaySectionTitle}</h3>
 
-            <div>
-              <label
-                htmlFor="pianoHeight"
-                style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
-              >
+            <div className="kf-settings-field">
+              <label htmlFor="pianoHeight" className="kf-settings-field__label">
                 {t.settings.pianoHeightLabel}
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <input
                   id="pianoHeight"
                   type="range"
@@ -501,279 +441,211 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   value={settings.ui.pianoHeight}
                   onChange={(e) => updateUiSetting('pianoHeight', Number(e.target.value))}
                   title={t.settings.pianoHeightTitle}
-                  style={{ flex: 1, cursor: 'pointer' }}
+                  className="kf-range"
+                  style={{ flex: 1, width: 'auto' }}
                 />
-                <span style={{ fontSize: '0.875rem', color: '#6b7280', minWidth: '48px' }}>
+                <span className="kf-settings-field__value">
                   {settings.ui.pianoHeight}px
                 </span>
               </div>
             </div>
 
-            <div style={{ marginTop: '16px' }}>
-              <label
-                htmlFor="keyboardSize"
-                style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
-              >
-                {t.settings.keyboardSizeLabel}
-              </label>
-              <select
-                id="keyboardSize"
-                value={settings.ui.keyboardSize}
-                onChange={(e) =>
-                  updateUiSetting(
-                    'keyboardSize',
-                    Number(e.target.value) as AppSettings['ui']['keyboardSize']
-                  )
-                }
-                title={t.settings.keyboardSizeTitle}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '4px',
-                  border: '1px solid #d1d5db',
-                }}
-              >
-                {keyboardSizeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+            <div className="kf-settings-grid">
+              <div className="kf-settings-field">
+                <label htmlFor="keyboardSize" className="kf-settings-field__label">
+                  {t.settings.keyboardSizeLabel}
+                </label>
+                <KfSelect
+                  id="keyboardSize"
+                  value={String(settings.ui.keyboardSize)}
+                  onChange={(value) =>
+                    updateUiSetting(
+                      'keyboardSize',
+                      Number(value) as AppSettings['ui']['keyboardSize']
+                    )
+                  }
+                  title={t.settings.keyboardSizeTitle}
+                  options={keyboardSizeOptions.map((option) => ({
+                    value: String(option.value),
+                    label: option.label,
+                  }))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div className="kf-settings-field">
+                <label htmlFor="language" className="kf-settings-field__label">
+                  {t.settings.language}
+                </label>
+                <KfSelect
+                  id="language"
+                  value={languageSelectValue}
+                  onChange={(value) =>
+                    updateUiSetting('language', value as AppSettings['ui']['language'])
+                  }
+                  title={t.settings.languageTitle}
+                  options={[
+                    { value: 'ja', label: t.settings.languageOptionJapanese },
+                    { value: 'en', label: t.settings.languageOptionEnglish },
+                    { value: 'zh', label: t.settings.languageOptionChinese },
+                  ]}
+                  style={{ width: '100%' }}
+                />
+              </div>
             </div>
           </section>
 
-          {/* Language Setting (TASK-098, REQ-016-003) */}
-          <section style={{ marginBottom: '24px' }}>
-            <h3
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: '#6b7280',
-                textTransform: 'uppercase',
-                marginBottom: '12px',
-              }}
-            >
-              {t.settings.language}
-            </h3>
-
-            <select
-              id="language"
-              aria-label={t.settings.language}
-              value={languageSelectValue}
-              onChange={(e) =>
-                updateUiSetting('language', e.target.value as AppSettings['ui']['language'])
-              }
-              title={t.settings.languageTitle}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: '1px solid #d1d5db',
-              }}
-            >
-              <option value="ja">{t.settings.languageOptionJapanese}</option>
-              <option value="en">{t.settings.languageOptionEnglish}</option>
-            </select>
-          </section>
-
           {/* MIDI Settings (TASK-045, REQ-004-008) */}
-          <section style={{ marginBottom: '24px' }}>
-            <h3
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: '#6b7280',
-                textTransform: 'uppercase',
-                marginBottom: '12px',
-              }}
-            >
-              {t.settings.midiSectionTitle}
-            </h3>
+          <section className="kf-settings-section kf-settings-card-panel">
+            <h3 className="kf-settings-label">{t.settings.midiSectionTitle}</h3>
 
-            <div>
-              <label
-                htmlFor="midiDevice"
-                style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
-              >
+            <div className="kf-settings-field">
+              <label htmlFor="midiDevice" className="kf-settings-field__label">
                 {t.settings.midiDeviceLabel}
               </label>
-              <select
+              <KfSelect
                 id="midiDevice"
                 value={settings.midi.selectedDeviceId ?? ''}
-                onChange={(e) => updateMidiDevice(e.target.value === '' ? null : e.target.value)}
+                onChange={(value) => updateMidiDevice(value === '' ? null : value)}
                 title={t.settings.midiDeviceTitle}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '4px',
-                  border: '1px solid #d1d5db',
-                }}
-              >
-                <option value="">{t.settings.midiAllDevices}</option>
-                {midiDevices.map((device) => (
-                  <option key={device.id} value={device.id}>
-                    {device.name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: t.settings.midiAllDevices },
+                  ...midiDevices.map((device) => ({ value: device.id, label: device.name })),
+                ]}
+                style={{ width: '100%' }}
+              />
             </div>
           </section>
 
           {/* Voice Settings (TASK-073, US-013) */}
-          <section style={{ marginBottom: '24px' }}>
-            <h3
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: '#6b7280',
-                textTransform: 'uppercase',
-                marginBottom: '12px',
-              }}
-            >
-              {t.settings.voiceSectionTitle}
-            </h3>
+          <section className="kf-settings-section kf-settings-card-panel">
+            <h3 className="kf-settings-label">{t.settings.voiceSectionTitle}</h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label
-                  htmlFor="playbackVoice"
-                  style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
-                >
+            <div className="kf-settings-grid">
+              <div className="kf-settings-field">
+                <label htmlFor="playbackVoice" className="kf-settings-field__label">
                   {t.settings.playbackVoiceLabel}
                 </label>
-                <select
+                <KfSelect
                   id="playbackVoice"
                   value={settings.audio.playbackVoice}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     updateAudioSetting(
                       'playbackVoice',
-                      e.target.value as AppSettings['audio']['playbackVoice']
+                      value as AppSettings['audio']['playbackVoice']
                     )
                   }
                   title={t.settings.playbackVoiceTitle}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '4px',
-                    border: '1px solid #d1d5db',
-                  }}
-                >
-                  {Object.values(PLAYBACK_VOICES).map((voice) => (
-                    <option key={voice.id} value={voice.id}>
-                      {t.voiceNames[PLAYBACK_VOICE_NAME_KEYS[voice.id]]}
-                    </option>
-                  ))}
-                </select>
+                  options={Object.values(PLAYBACK_VOICES).map((voice) => ({
+                    value: voice.id,
+                    label: t.voiceNames[PLAYBACK_VOICE_NAME_KEYS[voice.id]],
+                  }))}
+                  style={{ width: '100%' }}
+                />
               </div>
 
-              <div>
-                <label
-                  htmlFor="metronomeVoice"
-                  style={{ display: 'block', fontSize: '0.875rem', marginBottom: '4px' }}
-                >
+              <div className="kf-settings-field">
+                <label htmlFor="metronomeVoice" className="kf-settings-field__label">
                   {t.settings.metronomeVoiceLabel}
                 </label>
-                <select
+                <KfSelect
                   id="metronomeVoice"
                   value={settings.audio.metronomeVoice}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     updateAudioSetting(
                       'metronomeVoice',
-                      e.target.value as AppSettings['audio']['metronomeVoice']
+                      value as AppSettings['audio']['metronomeVoice']
                     )
                   }
                   title={t.settings.metronomeVoiceTitle}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '4px',
-                    border: '1px solid #d1d5db',
-                  }}
-                >
-                  {Object.values(METRONOME_VOICES).map((voice) => (
-                    <option key={voice.id} value={voice.id}>
-                      {t.voiceNames[METRONOME_VOICE_NAME_KEYS[voice.id]]}
-                    </option>
-                  ))}
-                </select>
+                  options={Object.values(METRONOME_VOICES).map((voice) => ({
+                    value: voice.id,
+                    label: t.voiceNames[METRONOME_VOICE_NAME_KEYS[voice.id]],
+                  }))}
+                  style={{ width: '100%' }}
+                />
               </div>
             </div>
           </section>
 
           {/* Recent Files */}
-          <section>
-            <h3
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: '#6b7280',
-                textTransform: 'uppercase',
-                marginBottom: '12px',
-              }}
-            >
-              {t.settings.recentFilesSectionTitle}
-            </h3>
+          <section className="kf-settings-section kf-settings-card-panel">
+            <h3 className="kf-settings-label">{t.settings.recentFilesSectionTitle}</h3>
             {recentFiles.length === 0 ? (
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', fontStyle: 'italic' }}>
+              <p style={{ fontSize: '13.5px', color: 'var(--kf-text-3)', fontStyle: 'italic' }}>
                 {t.settings.recentFilesEmpty}
               </p>
             ) : (
-              <ul
-                style={{
-                  listStyle: 'none',
-                  padding: 0,
-                  margin: 0,
-                  borderTop: '1px solid #e5e7eb',
-                }}
-              >
+              <ul className="kf-settings-list">
                 {recentFiles.map((file, idx) => {
                   const parts = file.path.split(/[\\/]/);
                   const filename = parts[parts.length - 1];
                   const date = new Date(file.openedAt).toLocaleDateString();
                   return (
-                    <li
-                      key={idx}
-                      style={{
-                        padding: '12px 0',
-                        borderBottom: '1px solid #e5e7eb',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
+                    <li key={idx}>
                       <div
                         style={{
                           display: 'flex',
-                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '10px',
                           overflow: 'hidden',
                           paddingRight: '16px',
                         }}
                       >
-                        <span
-                          style={{
-                            fontSize: '0.875rem',
-                            fontWeight: 500,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                          title={file.path}
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ color: 'var(--kf-text-4)', flexShrink: 0 }}
+                          aria-hidden="true"
                         >
-                          {filename}
-                        </span>
-                        <span
+                          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                        <div
                           style={{
-                            fontSize: '0.75rem',
-                            color: '#6b7280',
-                            whiteSpace: 'nowrap',
+                            display: 'flex',
+                            flexDirection: 'column',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis',
                           }}
                         >
-                          {file.path}
-                        </span>
+                          <span
+                            style={{
+                              fontSize: '13.5px',
+                              fontWeight: 550,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                            title={file.path}
+                          >
+                            {filename}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '12px',
+                              color: 'var(--kf-text-3)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {file.path}
+                          </span>
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#9ca3af', whiteSpace: 'nowrap' }}>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: 'var(--kf-text-4)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
                         {date}
                       </div>
                     </li>
@@ -785,30 +657,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            padding: '16px 24px',
-            borderTop: '1px solid #e5e7eb',
-            backgroundColor: '#f9fafb',
-            display: 'flex',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 500,
-            }}
-          >
-            {t.settings.doneButton}
+        <footer className="kf-settings-footer">
+          <button type="button" onClick={onClose} className="kf-btn">
+            {t.settings.cancelButton}
           </button>
-        </div>
+          <button type="button" onClick={onClose} className="kf-btn kf-btn--primary">
+            {t.settings.saveButton}
+          </button>
+        </footer>
       </div>
     </div>
   );

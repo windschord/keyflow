@@ -1,10 +1,12 @@
 import { resolve } from 'path';
 
 const ANNOTATION_SUFFIX = '.annotation.json';
+const SCOREMAP_CACHE_SUFFIX = '.scoremap.cache.json';
+const SIDECAR_SUFFIXES = [ANNOTATION_SUFFIX, SCOREMAP_CACHE_SUFFIX] as const;
 
 /**
  * renderer からの任意ファイル上書きを防ぐため、
- * main プロセスでユーザーが選択した MusicXML から派生する annotation のみ許可する。
+ * main プロセスでユーザーが選択した MusicXML から派生する sidecar のみ許可する。
  */
 export class PathAllowlist {
   private allowedMusicXmlPaths = new Set<string>();
@@ -13,24 +15,41 @@ export class PathAllowlist {
     this.allowedMusicXmlPaths.add(resolve(musicXmlPath));
   }
 
-  assertAllowedAnnotationPath(requestedPath: string): string {
+  private assertAllowedSidecarSuffix(
+    requestedPath: string,
+    allowedSuffixes: readonly string[]
+  ): { resolvedPath: string; musicXmlPath: string; suffix: string } {
     const resolvedPath = resolve(requestedPath);
 
-    if (!resolvedPath.endsWith(ANNOTATION_SUFFIX)) {
-      throw new Error(`Refused to write to disallowed path: ${requestedPath}`);
+    for (const suffix of allowedSuffixes) {
+      if (resolvedPath.endsWith(suffix)) {
+        const musicXmlPath = resolvedPath.slice(0, -suffix.length);
+        if (this.allowedMusicXmlPaths.has(musicXmlPath)) {
+          return { resolvedPath, musicXmlPath, suffix };
+        }
+      }
     }
 
-    const musicXmlPath = resolvedPath.slice(0, -ANNOTATION_SUFFIX.length);
-    if (!this.allowedMusicXmlPaths.has(musicXmlPath)) {
-      throw new Error(`Refused to write to disallowed path: ${requestedPath}`);
-    }
+    throw new Error(`Refused to write to disallowed path: ${requestedPath}`);
+  }
 
-    return resolvedPath;
+  assertAllowedAnnotationPath(requestedPath: string): string {
+    return this.assertAllowedSidecarSuffix(requestedPath, [ANNOTATION_SUFFIX]).resolvedPath;
+  }
+
+  /**
+   * file:write で書き込めるパスを、ユーザーが選択した MusicXML から派生する
+   * 注釈サイドカー（*.annotation.json）と noteId マップキャッシュ
+   * （*.scoremap.cache.json）に制限する。
+   */
+  assertAllowedSidecarWritePath(requestedPath: string): string {
+    return this.assertAllowedSidecarSuffix(requestedPath, SIDECAR_SUFFIXES).resolvedPath;
   }
 
   /**
    * file:read系IPCが読み取れるパスを、ユーザーが選択したMusicXML本体と
-   * その注釈サイドカー（*.annotation.json）のみに制限する（TASK-086）。
+   * その派生サイドカー（*.annotation.json / *.scoremap.cache.json）のみに
+   * 制限する（TASK-086 + キャッシュ読み取り）。
    */
   assertAllowedReadPath(requestedPath: string): string {
     const resolvedPath = resolve(requestedPath);
@@ -39,10 +58,12 @@ export class PathAllowlist {
       return resolvedPath;
     }
 
-    if (resolvedPath.endsWith(ANNOTATION_SUFFIX)) {
-      const musicXmlPath = resolvedPath.slice(0, -ANNOTATION_SUFFIX.length);
-      if (this.allowedMusicXmlPaths.has(musicXmlPath)) {
-        return resolvedPath;
+    for (const suffix of SIDECAR_SUFFIXES) {
+      if (resolvedPath.endsWith(suffix)) {
+        const musicXmlPath = resolvedPath.slice(0, -suffix.length);
+        if (this.allowedMusicXmlPaths.has(musicXmlPath)) {
+          return resolvedPath;
+        }
       }
     }
 

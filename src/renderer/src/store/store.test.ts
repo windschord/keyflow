@@ -17,6 +17,7 @@ describe('usePracticeStore', () => {
       bpm: 120,
       metronomeEnabled: false,
       playbackState: 'stopped',
+      playbackLoop: false,
     });
   });
 
@@ -80,5 +81,15 @@ describe('usePracticeStore', () => {
 
     setPlaybackState('stopped');
     expect(usePracticeStore.getState().playbackState).toBe('stopped');
+  });
+
+  it('should default playbackLoop to false and set it correctly', () => {
+    expect(usePracticeStore.getState().playbackLoop).toBe(false);
+
+    usePracticeStore.getState().setPlaybackLoop(true);
+    expect(usePracticeStore.getState().playbackLoop).toBe(true);
+
+    usePracticeStore.getState().setPlaybackLoop(false);
+    expect(usePracticeStore.getState().playbackLoop).toBe(false);
   });
 });

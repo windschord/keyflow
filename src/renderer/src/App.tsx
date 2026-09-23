@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { ScoreRenderer } from './components/ScoreRenderer';
 import { PianoKeyboard } from './components/PianoKeyboard';
 import { NoteContextMenu } from './components/NoteContextMenu';
+import { FingeringPicker } from './components/FingeringPicker';
 import { LibraryView } from './components/LibraryView';
 import { usePracticeStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
@@ -13,6 +14,7 @@ import { usePractice } from './hooks/usePractice';
 import { AnnotationStoreService } from './lib/annotation-store';
 import { groupNotesByStartTick } from './lib/practice-engine/note-grouping';
 import { PLAYBACK_VOICES } from './lib/audio-engine/voices';
+import { deriveRepeatPlayRange, segmentsToRangeString } from './lib/audio-engine';
 import { METRONOME_VOICES } from './lib/audio-engine/metronome-voices';
 import { resolveLanguage } from './lib/i18n/resolve-language';
 import { useTranslation } from './lib/i18n/useTranslation';
@@ -48,6 +50,10 @@ function App(): React.JSX.Element {
   // TASK-082: Aboutをメニューバー経由で開く独立モーダルへ分離した（US-015）。
   const [isAboutOpen, setIsAboutOpen] = React.useState(false);
   const [isLoadingAnnotations, setIsLoadingAnnotations] = React.useState(false);
+  // 楽譜読込全体（検証＋パース＋描画＋アノテーション）をカバーするローディング状態。
+  // isLoadingAnnotations はアノテーション読込区間のみを指し、ライブラリ→検証→パースの
+  // 待ち時間をカバーしないため、ユーザーへ「読込中」を示す全画面オーバーレイはこちらを使う。
+  const [isLoadingScore, setIsLoadingScore] = React.useState(false);
   // TASK-053: アプリ全体へのドラッグオーバー時の視覚フィードバック用フラグ。
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
   // dragenter/dragleaveは子要素間の移動でも発火してバブリングするため、
@@ -61,6 +67,15 @@ function App(): React.JSX.Element {
   const [keyboardAnnotations, setKeyboardAnnotations] = React.useState<Annotation[]>([]);
   // 右クリックで開く運指メモ編集メニュー（REQ-008-001/003/006、REQ-009-005）の状態。
   const [noteContextMenu, setNoteContextMenu] = React.useState<{
+    noteId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  // 指法编辑模式开关（QuickPanel 的 FingeringEditToggle）。开启后乐谱上的指法数字
+  // 可点击，点击数字弹出 FingeringPicker（数字选择条）修改指法。
+  const [fingeringEditMode, setFingeringEditMode] = React.useState(false);
+  // 指法编辑模式中点击乐谱数字后弹出的数字选择条（FingeringPicker）的显示状态。
+  const [fingeringPicker, setFingeringPicker] = React.useState<{
     noteId: string;
     x: number;
     y: number;
@@ -93,6 +108,7 @@ function App(): React.JSX.Element {
     incorrectKeys,
     practiceMode,
     zoom,
+    scoreLayout,
     pianoHeight,
     showFingerings,
     keyboardSize,
@@ -102,6 +118,7 @@ function App(): React.JSX.Element {
     setMetronomeAccentEnabled,
     setErrorMode,
     setZoom,
+    setScoreLayout,
     setPianoHeight,
     setMidiDeviceId,
     setVolume,
@@ -116,6 +133,9 @@ function App(): React.JSX.Element {
     loopStart,
     loopEnd,
     playbackState,
+    playbackRange,
+    setPlaybackRange,
+    playbackLoop,
     activeView,
     setActiveView,
   } = usePracticeStore(
@@ -128,6 +148,7 @@ function App(): React.JSX.Element {
       incorrectKeys: s.incorrectKeys,
       practiceMode: s.practiceMode,
       zoom: s.zoom,
+      scoreLayout: s.scoreLayout,
       pianoHeight: s.pianoHeight,
       showFingerings: s.showFingerings,
       keyboardSize: s.keyboardSize,
@@ -137,6 +158,7 @@ function App(): React.JSX.Element {
       setMetronomeAccentEnabled: s.setMetronomeAccentEnabled,
       setErrorMode: s.setErrorMode,
       setZoom: s.setZoom,
+      setScoreLayout: s.setScoreLayout,
       setPianoHeight: s.setPianoHeight,
       setMidiDeviceId: s.setMidiDeviceId,
       setVolume: s.setVolume,
@@ -151,6 +173,9 @@ function App(): React.JSX.Element {
       loopStart: s.loopStart,
       loopEnd: s.loopEnd,
       playbackState: s.playbackState,
+      playbackRange: s.playbackRange,
+      setPlaybackRange: s.setPlaybackRange,
+      playbackLoop: s.playbackLoop,
       activeView: s.activeView,
       setActiveView: s.setActiveView,
     }))
@@ -165,7 +190,10 @@ function App(): React.JSX.Element {
   // 空配列を渡すことで、両方の指番号表示を一括で消す（あくまで表示レイヤの制御であり、
   // annotationStore/keyboardAnnotations自体のデータは変更しない）。ONに戻すと
   // 即座に元のkeyboardAnnotationsが復元される。
-  const displayedAnnotations = showFingerings ? keyboardAnnotations : [];
+  // 指法编辑模式开启时强制显示指法（否则编辑模式看不到数字就无法点击修改），
+  // 退出编辑模式后恢复 showFingerings 的原设置。
+  const displayedAnnotations =
+    fingeringEditMode || showFingerings ? keyboardAnnotations : [];
 
   // currentNoteIndex は小節内の「判定グループ」インデックス（同一startTickの
   // 発音ノーツ集合の並び順）を指す（TASK-032: データモデルv2の判定グループ
@@ -250,6 +278,12 @@ function App(): React.JSX.Element {
         if (uiSettings) {
           setZoom(uiSettings.zoom);
           setPianoHeight(uiSettings.pianoHeight);
+          // scoreLayout はキー追加前に永続化された既存ストアには存在しない可能性が
+          // あるため、'vertical'/'horizontal' のガードで後方互換を保つ
+          // （未定義なら ui-slice の初期値 'vertical' を維持する）。
+          if (uiSettings.scoreLayout === 'vertical' || uiSettings.scoreLayout === 'horizontal') {
+            setScoreLayout(uiSettings.scoreLayout);
+          }
           if (typeof uiSettings.volume === 'number') {
             setVolume(uiSettings.volume);
           }
@@ -310,49 +344,46 @@ function App(): React.JSX.Element {
   // 呼ばれる共通のオープン処理（TASK-053）。パース→setScore→初期化（練習位置リセット）
   // →アノテーション読込、の一連の流れを一本化し、どちらの経路でも同一の挙動を保証する。
   const openMusicXmlFile = React.useCallback(
-    async (filePath: string): Promise<void> => {
+    async (filePath: string, skipLibraryUpsert = false): Promise<void> => {
       setIsLoadingAnnotations(true);
+      setIsLoadingScore(true);
+      const perfTags: string[] = [`t0=${performance.now().toFixed(0)}`];
       try {
         let parsedScore: Score;
         let xmlContent: string;
         if (filePath.toLowerCase().endsWith('.mxl')) {
           const buffer = await window.electronAPI.file.readBinary(filePath);
+          perfTags.push(`read=${performance.now().toFixed(0)}`);
           xmlContent = extractXmlFromMxl(buffer);
+          perfTags.push(`unzip=${performance.now().toFixed(0)}`);
           parsedScore = parse(xmlContent);
         } else {
           xmlContent = await window.electronAPI.file.read(filePath);
+          perfTags.push(`read=${performance.now().toFixed(0)}`);
           parsedScore = parse(xmlContent);
         }
-        setScore(parsedScore, filePath, xmlContent);
-        setOriginalBpm(parsedScore.tempo);
-        // TASK-103: ダイアログ・D&D・ライブラリのいずれの経路で開いた場合も、この
-        // 成功点を通ることで画面遷移とライブラリ自動登録が一律に行われる
-        // （REQ-017-001/002/010）。ライブラリ登録は補助機能のため、失敗しても
-        // 楽譜を開く操作自体は成立させる（catchで握りつぶしログのみ出す）。
-        setActiveView('score');
-        if (window.electronAPI?.library) {
-          try {
-            await window.electronAPI.library.upsert({
-              path: filePath,
-              title: deriveLibraryTitle(parsedScore, filePath),
-              composer: parsedScore.composer ?? '',
-            });
-          } catch (error) {
-            console.error('Failed to register the score to the library:', error);
-          }
-        }
-        // setScore が反映された後にリセットする必要がある（resetToMeasure は
-        // store.getState().score を参照するため、呼び出し順序を変更しないこと）。
-        practiceEngine.resetToMeasure(1);
-        // audioEngine.loadScore は usePractice 側の score/practiceMode 監視エフェクト
-        // （TASK-051）が同期して呼び出すため、ここでは明示的に呼ばない
-        // （二重スケジューリングを避けるため）。
-        setKeyboardAnnotations([]);
-        setNoteContextMenu(null);
+        perfTags.push(`parse=${performance.now().toFixed(0)}`);
         const validNoteIds = new Set(
           parsedScore.measures.flatMap((measure) => measure.notes.map((note) => note.id))
         );
+        perfTags.push(`validNoteIds=${performance.now().toFixed(0)}`);
+
+        // 【重要】annotationStore.load を setScore **より先に** 実行する。
+        // 理由：setScore が発火させる ScoreRenderer の useEffect は
+        // キャッシュ未命中時に buildNoteIdMap（DOM 遍历 8-9 秒の同期処理）を
+        // setTimeout(0) で開始する。JS イベンループ上の「マクロタスク実行権」を
+        // buildNoteIdMap に先に取られると annotation.load IPC の応答受信（
+        // マイクロタスクで解決される Promise）が 8-9 秒遅延してしまう。
+        // そこで setScore の前に annotation.load を await し、
+        // 「OSMD の load/render + buildNoteIdMap のスケジュール」よりも
+        // 先に annotation IPC の往復を完了させておく。
+        setKeyboardAnnotations([]);
+        setNoteContextMenu(null);
+        perfTags.push(`setState1=${performance.now().toFixed(0)}`);
+        console.log(`[perf][diag] before annotation.load, t=${Date.now()}`);
         const skippedNoteIds = await annotationStore.current.load(filePath, validNoteIds);
+        console.log(`[perf][diag] after annotation.load, t=${Date.now()}`);
+        perfTags.push(`annotationLoad=${performance.now().toFixed(0)}`);
         if (skippedNoteIds.length > 0) {
           console.warn(
             `[App] noteId採番方式の変更（TASK-031）により ${skippedNoteIds.length} 件のアノテーションを読み込めませんでした:`,
@@ -360,11 +391,66 @@ function App(): React.JSX.Element {
           );
         }
         setKeyboardAnnotations(annotationStore.current.getAllAnnotations());
+
+        // annotation.load 完了後に setScore / OSMD レンダリングを開始する。
+        setScore(parsedScore, filePath, xmlContent);
+        setOriginalBpm(parsedScore.tempo);
+        // 打开文件时自动根据反复记号推导播放顺序，填充到 playbackRange 文本框。
+        // 用户可手动编辑文本框（编辑后即视为用户接管，软件不再自动覆盖）。
+        // 想恢复系统预设可在 PlaybackControls 上点"重置"按钮。
+        try {
+          const segs = deriveRepeatPlayRange(parsedScore);
+          if (segs.length > 0) {
+            setPlaybackRange(segmentsToRangeString(segs));
+          } else {
+            // 没反复记号的曲子 → 空串（线性播放）
+            setPlaybackRange('');
+          }
+        } catch (err) {
+          console.error('[App] deriveRepeatPlayRange failed:', err);
+          setPlaybackRange('');
+        }
+        perfTags.push(`repeat=${performance.now().toFixed(0)}`);
+        // TASK-103: ダイアログ・D&D・ライブラリのいずれの経路で開いた場合も、この
+        // 成功点を通ることで画面遷移とライブラリ自動登録が一律に行われる
+        // （REQ-017-001/002/010）。ライブラリ登録は補助機能のため、失敗しても
+        // 楽譜を開く操作自体は成立させる（catchで握りつぶしログのみ出す）。
+        setActiveView('score');
+        perfTags.push(`viewSwitch=${performance.now().toFixed(0)}`);
+        // 新規インポート時のみライブラリへ登録する。
+        // library.upsert は主プロセス側で setImmediate → fs.writeFileSync により
+        // 同期的にファイルへ書き込む。IPC レスポンスが戻る前に書込みが実行される
+        // ため await すると書込み完了（OneDrive等では 800ms〜8秒）を待たされる。
+        // ライブラリ登録は補助機能であり失敗しても楽譜オープンに影響しないため、
+        // fire-and-forget で await しない。
+        // ライブラリからの再オープン時は skipLibraryUpsert=true で完全にスキップする。
+        if (!skipLibraryUpsert && window.electronAPI?.library) {
+          window.electronAPI.library
+            .upsert({
+              path: filePath,
+              title: deriveLibraryTitle(parsedScore, filePath),
+              composer: parsedScore.composer ?? '',
+            })
+            .catch((error: unknown) => {
+              console.error('Failed to register the score to the library:', error);
+            });
+        }
+        perfTags.push(`libraryUpsert=${performance.now().toFixed(0)}`);
+        // setScore が反映された後にリセットする必要がある（resetToMeasure は
+        // store.getState().score を参照するため、呼び出し順序を変更しないこと）。
+        practiceEngine.resetToMeasure(1);
+        perfTags.push(`resetToMeasure=${performance.now().toFixed(0)}`);
+        // audioEngine.loadScore は usePractice 側の score/practiceMode 監視エフェクト
+        // （TASK-051）が同期して呼び出すため、ここでは明示的に呼ばない
+        // （二重スケジューリングを避けるため）。
+        perfTags.push(`done=${performance.now().toFixed(0)}`);
+        console.log(`[perf] openMusicXmlFile: ${perfTags.join(' > ')}`);
       } catch (error) {
         console.error('Failed to parse file:', error);
         alert(t.app.parseError);
       } finally {
         setIsLoadingAnnotations(false);
+        setIsLoadingScore(false);
       }
     },
     [practiceEngine, setOriginalBpm, setScore, setActiveView, t]
@@ -471,10 +557,16 @@ function App(): React.JSX.Element {
         return;
       }
 
+      // library.open の検証待ち時間も含めてオーバーレイを表示する。
+      // openMusicXmlFile 内部でも setIsLoadingScore(true) が呼ばれるが、
+      // ここで先に立てておくことで検証中のライブラリ画面待機も覆える。
+      setIsLoadingScore(true);
       try {
         const result = await window.electronAPI.library.open(filePath);
         if (result.ok) {
-          await openMusicXmlFile(filePath);
+          // ライブラリからのオープンは登録済みエントリを開く操作なので、library.upsert を
+          // スキップして読込速度を短縮する（スキップしないと 7〜8 秒程度かかる）。
+          await openMusicXmlFile(filePath, true);
           return;
         }
         // REQ-017-008: 見つからなかった場合はエラー通知＋欠損マーク＋
@@ -485,6 +577,10 @@ function App(): React.JSX.Element {
       } catch (error) {
         console.error('Failed to open the library entry:', error);
         alert(t.app.libraryOpenError);
+      } finally {
+        // openMusicXmlFile が呼ばれた場合はその内部の finally で false にされるが、
+        // 検証失敗等で openMusicXmlFile に到達しなかった場合ここで確実に下ろす。
+        setIsLoadingScore(false);
       }
     },
     [openMusicXmlFile, t]
@@ -548,6 +644,16 @@ function App(): React.JSX.Element {
     setNoteContextMenu(null);
   }, []);
 
+  // 指法编辑模式：点击乐谱上的指法数字 → 弹出数字选择条（FingeringPicker）。
+  // OSMDController 已把点击数字与小节跳转区分开（编辑模式下数字可点、空白仍跳小节）。
+  const handleFingeringPick = React.useCallback((noteId: string, x: number, y: number) => {
+    setFingeringPicker({ noteId, x, y });
+  }, []);
+
+  const closeFingeringPicker = React.useCallback(() => {
+    setFingeringPicker(null);
+  }, []);
+
   // annotation-store への変更後、JSONサイドカーへ即時永続化し（REQ-008-004）、
   // 鍵盤・楽譜の指番号表示を更新する（handleFingering:173-187と同じ
   // エラーハンドリング＝失敗時alert）。
@@ -568,6 +674,16 @@ function App(): React.JSX.Element {
       setNoteContextMenu(null);
     },
     [persistAnnotationChange]
+  );
+
+  // 数字选择条（FingeringPicker）选中后：关闭选择条并复用现有的指法修改流程
+  // （annotation-store 更新 + 保存）。
+  const handleFingerPicked = React.useCallback(
+    (noteId: string, finger: Finger) => {
+      setFingeringPicker(null);
+      void handleSelectFinger(noteId, finger);
+    },
+    [handleSelectFinger]
   );
 
   const handleRemoveFinger = React.useCallback(
@@ -599,6 +715,11 @@ function App(): React.JSX.Element {
 
   const activeNoteAnnotation = noteContextMenu
     ? keyboardAnnotations.find((a) => a.noteId === noteContextMenu.noteId)
+    : undefined;
+
+  // FingeringPicker（数字选择条）当前音符的指法（用于高亮当前值）。
+  const pickedNoteAnnotation = fingeringPicker
+    ? keyboardAnnotations.find((a) => a.noteId === fingeringPicker.noteId)
     : undefined;
 
   // 音符クリックによるカーソル移動（REQ-002-004、TASK-051で小節単位から音単位へ更新）。
@@ -634,13 +755,17 @@ function App(): React.JSX.Element {
         // 完了するまで再生開始を待つ。ロード済み・ロード不要な音色の場合は
         // 即座に解決する（AudioEngineService.ensurePlaybackVoiceLoaded参照）。
         await audioEngine.ensurePlaybackVoiceLoaded();
+        // 播放前设置小节跳转顺序（用户手动展开反复记号）
+        if (score) {
+          audioEngine.setupPlaybackSequence(score, playbackRange, playbackLoop);
+        }
         const startTick = practiceEngine.getCurrentPositionTick();
         audioEngine.playAccompaniment(startTick ?? undefined);
       },
       pauseAccompaniment: () => audioEngine.pauseAccompaniment(),
       stopAccompaniment: () => audioEngine.stopAccompaniment(),
     }),
-    [audioEngine, practiceEngine]
+    [audioEngine, practiceEngine, score, playbackRange, playbackLoop]
   );
 
   // TASK-105: 楽譜表示への復帰導線（REQ-017-012）。楽譜読み込み済みかつ
@@ -660,8 +785,12 @@ function App(): React.JSX.Element {
     >
       {/* 1. Header: 1行ヘッダー（TASK-075、design/components/header.md）。
           頻用操作（開く/再生/停止/ループ/テンポ/練習対象）を常時表示し、
-          低頻度操作（音量・表示倍率・運指・メトロノーム・成績）はQuickPanelへ移設する。 */}
-      <div style={{ flexShrink: 0 }}>
+          低頻度操作（音量・表示倍率・運指・メトロノーム・成績）はQuickPanelへ移設する。
+          ライブラリ画面ではヘッダーを非表示（display:none）にし、楽譜画面のみ表示する。
+          コンポーネントはアンマウントせずCSSで隠す（ScoreRenderer/PianoKeyboardと
+          同パターン。App.test.tsxの多数の結線テストがHeaderの常時マウントを
+          前提としているため）。 */}
+      <div style={{ flexShrink: 0, display: activeView === 'score' ? 'block' : 'none' }}>
         <Header
           onOpenFile={handleOpenFile}
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -671,6 +800,8 @@ function App(): React.JSX.Element {
           fingeringDisabled={isLoadingAnnotations}
           onOpenLibrary={() => setActiveView(isReturnToScoreMode ? 'score' : 'library')}
           isReturnToScoreMode={isReturnToScoreMode}
+          fingeringEditMode={fingeringEditMode}
+          onFingeringEditModeChange={setFingeringEditMode}
         />
       </div>
 
@@ -707,14 +838,20 @@ function App(): React.JSX.Element {
         <ScoreRenderer
           score={score}
           musicXmlContent={musicXmlContent}
+          musicXmlPath={musicXmlPath}
           currentNoteId={currentNoteId}
           practiceMode={practiceMode}
           loopRange={loopRange}
           zoom={zoom}
+          onZoomChange={setZoom}
+          scoreLayout={scoreLayout}
+          onScoreLayoutChange={setScoreLayout}
           onNoteClick={handleNoteClick}
           annotations={displayedAnnotations}
           noteHighlights={noteHighlights}
           onNoteContextMenu={handleNoteContextMenu}
+          fingeringEditMode={fingeringEditMode}
+          onFingeringClick={handleFingeringPick}
         />
         {/* TASK-053: 楽譜未ロード時のドロップ可能表示（US-001 画面/UI要件）。
             ScoreRenderer自体の「楽譜ファイルを開いてください」プレースホルダとは
@@ -728,7 +865,7 @@ function App(): React.JSX.Element {
               left: 0,
               right: 0,
               textAlign: 'center',
-              color: '#2563eb',
+              color: '#18181b',
               fontSize: '14px',
               pointerEvents: 'none',
             }}
@@ -748,7 +885,8 @@ function App(): React.JSX.Element {
             missingPaths={missingLibraryPaths}
             reloadSignal={libraryReloadSignal}
             onReturnToScore={score ? () => setActiveView('score') : undefined}
-          />
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            />
         </div>
       )}
 
@@ -826,8 +964,8 @@ function App(): React.JSX.Element {
           style={{
             position: 'absolute',
             inset: 0,
-            border: '3px dashed #2563eb',
-            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+            border: '3px dashed #18181b',
+            backgroundColor: 'rgba(24, 24, 27, 0.05)',
             pointerEvents: 'none',
             zIndex: 1000,
           }}
@@ -848,6 +986,17 @@ function App(): React.JSX.Element {
         />
       )}
 
+      {fingeringPicker && (
+        <FingeringPicker
+          noteId={fingeringPicker.noteId}
+          x={fingeringPicker.x}
+          y={fingeringPicker.y}
+          currentFinger={pickedNoteAnnotation?.fingerNumber}
+          onSelectFinger={handleFingerPicked}
+          onClose={closeFingeringPicker}
+        />
+      )}
+
       {/* 3. PianoKeyboard (Fixed Footer)。TASK-103: 楽譜画面表示中のみ表示する
           （常時マウントの理由はScoreRendererコンテナのコメントと同様）。 */}
       <div style={{ flexShrink: 0, display: activeView === 'score' ? 'block' : 'none' }}>
@@ -863,6 +1012,52 @@ function App(): React.JSX.Element {
           soundingNotes={soundingNotes}
         />
       </div>
+
+      {/* 楽譜読込中の全画面オーバーレイ。ライブラリ/ダイアログ/D&D のいずれの経路でも
+          openMusicXmlFile の最初から最後まで isLoadingScore が true になるため、
+          その間ユーザーへ「読込中」フィードバックを与える。
+          activeView に依存せず常に最前面に表示する（ライブラリ画面で待機中も覆う）。 */}
+      {isLoadingScore && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.35)',
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              padding: '24px 32px',
+              borderRadius: 12,
+              backgroundColor: '#fff',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              fontSize: 16,
+              fontWeight: 500,
+              color: '#333',
+            }}
+          >
+            <span
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                border: '3px solid #ddd',
+                borderTopColor: '#666',
+                animation: 'app-loading-spin 0.8s linear infinite',
+              }}
+            />
+            {t.app.loadingScore}
+            <style>{`@keyframes app-loading-spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

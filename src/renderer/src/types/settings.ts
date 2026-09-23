@@ -1,4 +1,5 @@
 import type { KeyboardSize } from './keyboard';
+import type { ScoreLayout } from './score-layout';
 import type { PlaybackVoiceId } from '../lib/audio-engine/voices';
 import type { MetronomeVoiceId } from '../lib/audio-engine/metronome-voices';
 
@@ -20,13 +21,15 @@ export interface AppSettings {
      * （lib/i18n/resolve-language.tsが解決する）。既存設定ファイルに保存済みの
      * 'ja'はそのまま日本語として尊重される（DEC-009）。
      */
-    language: 'auto' | 'ja' | 'en';
+    language: 'auto' | 'ja' | 'en' | 'zh';
     /** マスターボリューム（0〜100のUI線形値、TASK-052）。 */
     volume: number;
     /** 楽譜上・鍵盤上の指番号を一括で表示するかどうか（TASK-055）。 */
     showFingerings: boolean;
     /** 画面下鍵盤の鍵盤数プリセット（TASK-056）。 */
     keyboardSize: KeyboardSize;
+    /** 楽譜ページの配置方向（vertical=縦積み / horizontal=横並び）。 */
+    scoreLayout: ScoreLayout;
   };
   practice: {
     defaultErrorMode: 'wait' | 'pass';

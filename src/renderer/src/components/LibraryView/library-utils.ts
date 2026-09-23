@@ -45,11 +45,22 @@ export function sortLibraryEntries(
 }
 
 /**
- * ISO 8601形式の日時文字列を、実行環境のロケールに従った表示用文字列へ整形する。
+ * ISO 8601形式の日時文字列を、実行環境のロケールに従った短い表示用文字列へ整形する。
+ * 秒を省略し、幅を抑えてライブラリ一覧のカードに収まりやすくする。
  * 不正な値（Date変換できない文字列）はそのまま返す。
  */
-export function formatLibraryDateTime(iso: string): string {
+export function formatLibraryDateShort(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString();
+  return date.toLocaleString(undefined, {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
+
+/**
+ * formatLibraryDateShort の旧関数名エイリアス。既存テストとの互換性のために保持。
+ */
+export const formatLibraryDateTime = formatLibraryDateShort;

@@ -27,6 +27,8 @@ describe('createShowOpenDialogHandler', () => {
 
     const handler = createShowOpenDialogHandler(dialogModule, pathAllowlist, settingsService);
     const result = await handler();
+    // addRecentFile は setImmediate で遅延実行されるため1 tick 待つ
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(result).toBe('/scores/example.musicxml');
     expect(settingsService.addRecentFile).toHaveBeenCalledTimes(1);
@@ -76,6 +78,8 @@ describe('createRegisterDroppedFileHandler', () => {
 
     const handler = createRegisterDroppedFileHandler(pathAllowlist, settingsService);
     const result = await handler({} as never, '/scores/dropped.xml');
+    // addRecentFile は setImmediate で遅延実行されるため1 tick 待つ
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(result).toBe(true);
     expect(allowMusicXmlSpy).toHaveBeenCalledWith('/scores/dropped.xml');

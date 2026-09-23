@@ -14,6 +14,14 @@ export function createLibraryGetAllHandler(
 /**
  * `library:upsert` IPCハンドラのファクトリ（TASK-101）。
  * タイトル・作曲者の抽出はRenderer側のパース結果を利用し、Mainでは再パースしない（DEC-010）。
+ *
+ * パフォーマンス最適化: libraryService.upsert は electron-store の同期ファイル書込み
+ * (fs.writeFileSync) を内部で呼び出し、主プロセスのイベントループをブロックする。
+ * 大量エントリや遅いディスク (OneDrive/アンチウイルススキャン等) では 7〜8 秒程度
+ * ブロックし、その間にキューイングされた他の IPC リクエスト (file:read-if-exists 等)
+ * も遅延する。これを防ぐため、upsert 本体を setImmediate で次の tick へ遅延させ、
+ * IPCハンドラは即座に return する。書込み失敗はログ出力のみで握りつぶす
+ * (ライブラリ登録は補助機能であり、楽譜オープン自体に影響させないため)。
  */
 export function createLibraryUpsertHandler(
   libraryService: LibraryService
@@ -35,15 +43,34 @@ export function createLibraryUpsertHandler(
     ) {
       return;
     }
-    libraryService.upsert({ path: input.path, title: input.title, composer: input.composer });
+    // パフォーマンス最適化: electron-store の同期ファイル書込みを setImmediate で遅延させ、
+    // 遅いディスクでも IPC ハンドラが即座に return するようにする。
+    setImmediate(() => {
+      try {
+        libraryService.upsert({ path: input.path, title: input.title, composer: input.composer });
+      } catch (err) {
+        console.error('[main] library.upsert (deferred) failed:', err);
+      }
+    });
   };
 }
 
 /**
  * `library:remove` IPCハンドラのファクトリ（TASK-101）。
+ *
+ * ライブラリエントリの削除に加え、楽譜ファイルから派生する sidecar
+ * （.annotation.json / .scoremap.cache.json）も削除する。
+ * 削除済み・存在しない sidecar の unlink エラーは無視する。
  */
+export interface SidecarDeleter {
+  unlink(path: string): Promise<void>;
+}
+
+const SIDECAR_SUFFIXES_FOR_REMOVE = ['.annotation.json', '.scoremap.cache.json'];
+
 export function createLibraryRemoveHandler(
-  libraryService: LibraryService
+  libraryService: LibraryService,
+  fsModule: SidecarDeleter
 ): (event: unknown, path: string) => Promise<void> {
   return async (_event: unknown, path: string): Promise<void> => {
     // M-2: pathが非空文字列でない場合は何もしない（不正入力による予期しない削除を防ぐ）。
@@ -51,6 +78,13 @@ export function createLibraryRemoveHandler(
       return;
     }
     libraryService.remove(path);
+    for (const suffix of SIDECAR_SUFFIXES_FOR_REMOVE) {
+      try {
+        await fsModule.unlink(path + suffix);
+      } catch {
+        // ファイルが存在しない場合は正常（初回インポート未完了等）なので無視
+      }
+    }
   };
 }
 
@@ -87,6 +121,11 @@ export type LibraryOpenResult =
  * 渡された path がライブラリに登録済みでない場合は allowlist へ載せずに not-found を返す。
  * これにより、拡張子一致と存在確認だけで任意パスを read allowlist へ広げられる状態を防ぐ
  * （TASK-086が意図した「ユーザーがダイアログ/D&Dで開いた本体のみ」の緩和を避ける）。
+ *
+ * パフォーマンス最適化: SettingsService.addRecentFile は electron-store の同期ファイル
+ * 書込み (fs.writeFileSync) を内部で呼び出し、主プロセスのイベントループをブロックする。
+ * これを防ぐため、addRecentFile 本体を setImmediate で次の tick へ遅延させ、
+ * IPCハンドラは検証とパス許可登録だけ済ませて即座に return する。
  */
 export function createLibraryOpenHandler(
   pathAllowlist: PathAllowlist,
@@ -113,7 +152,14 @@ export function createLibraryOpenHandler(
     }
 
     pathAllowlist.allowMusicXml(path);
-    settingsService.addRecentFile(path);
+    // recentFiles の永続化は遅延実行し、IPCハンドラは即座に return する。
+    setImmediate(() => {
+      try {
+        settingsService.addRecentFile(path);
+      } catch (err) {
+        console.error('[main] settingsService.addRecentFile (deferred) failed:', err);
+      }
+    });
     return { ok: true };
   };
 }

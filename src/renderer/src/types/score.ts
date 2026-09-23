@@ -55,6 +55,14 @@ export interface Measure {
   startTick: number;
   /** 全パート混在。startTick昇順（同tickはpartId→noteIndex順）でソート済み。 */
   notes: Note[];
+  /** 左反复 `||:`（MusicXML <repeat direction="forward"/>）。本小节开头有则 true，无则 undefined。 */
+  repeatStart?: boolean;
+  /** 右反复 `:||`（MusicXML <repeat direction="backward" times="N"/>）。times 缺省=2。无则 undefined。 */
+  repeatEnd?: { times: number };
+  /** 房子号 `𝄘/𝄚` 开始（<ending type="start" number="1,2"/>）。numbers 是 [1]/[2]/[1,2,3] 等。无则 undefined。 */
+  endingStart?: { numbers: number[] };
+  /** 房子号结束（<ending type="discontinue|stop" number="1,2"/>）。有则 true。无则 undefined。 */
+  endingEnd?: boolean;
 }
 
 /**

@@ -4,10 +4,10 @@ import React from 'react';
 import { ZoomControl } from './ZoomControl';
 import { usePracticeStore } from '../../store';
 
-// TASK-045: ズームUI（REQ-002-006）。ScoreRenderer→osmd-controller.setZoomの
-// パイプラインは既に確立されており（ui-slice.setZoom）、本コンポーネントは
-// それを呼び出すUIを提供する。モーダルを開かずとも「即座に更新」される
-// ことが要件のため、Toolbarに常設する。
+// TASK-045: ズームUI（REQ-002-006）。ScoreRenderer は CSS zoom で倍率を適用し
+// （OSMD 再描画なし）、ui-slice.setZoom で値のみ更新する。本コンポーネントは
+// その呼び出しUIを提供する。モーダルを開かずとも「即座に更新」されることが
+// 要件のため、Toolbarに常設する。
 describe('ZoomControl labels and behavior', () => {
   beforeEach(() => {
     usePracticeStore.setState({ zoom: 1.0 });
@@ -41,5 +41,13 @@ describe('ZoomControl labels and behavior', () => {
     const select = screen.getByTestId('zoom-select') as HTMLSelectElement;
     const values = Array.from(select.options).map((o) => o.value);
     expect(values).toContain('4');
+  });
+
+  it('shows the current percentage as an option when zoom is a non-preset value (Ctrl+wheel zooming)', () => {
+    usePracticeStore.setState({ zoom: 1.65 });
+    render(<ZoomControl />);
+    const select = screen.getByTestId('zoom-select') as HTMLSelectElement;
+    expect(select.value).toBe('1.65');
+    expect(screen.getByText('165%')).toBeInTheDocument();
   });
 });

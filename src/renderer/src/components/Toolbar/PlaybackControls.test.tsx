@@ -400,4 +400,61 @@ describe('PlaybackControls', () => {
       expect(screen.getByTestId('playback-stop')).toHaveTextContent('Stop');
     });
   });
+
+  describe('循环序列面板 (LoopRangePanel)', () => {
+    it('opens the panel when the Loop button is clicked and closes it via the close button', () => {
+      render(<PlaybackControls audioEngine={createAudioEngineMock()} />);
+
+      expect(screen.queryByTestId('loop-range-panel')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'ループ' }));
+      expect(screen.getByTestId('loop-range-panel')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'クリア' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'リセット' })).toBeInTheDocument();
+
+      // 面板关闭按钮（×）关闭面板
+      fireEvent.click(screen.getByRole('button', { name: '閉じる' }));
+      expect(screen.queryByTestId('loop-range-panel')).not.toBeInTheDocument();
+    });
+
+    it('edits the playback range from the panel input and clears it', () => {
+      usePracticeStore.setState({ playbackRange: '1-3, 5, 7' });
+      render(<PlaybackControls audioEngine={createAudioEngineMock()} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'ループ' }));
+      const input = screen.getByTitle('再生範囲（空欄の場合は全小節）') as HTMLInputElement;
+      expect(input.value).toBe('1-3, 5, 7');
+
+      fireEvent.change(input, { target: { value: '2-4, 6' } });
+      expect(usePracticeStore.getState().playbackRange).toBe('2-4, 6');
+
+      // 清空按钮清空序列
+      fireEvent.click(screen.getByRole('button', { name: 'クリア' }));
+      expect(usePracticeStore.getState().playbackRange).toBe('');
+    });
+
+    it('resets the range from the score repeat marks (reset button)', () => {
+      // deriveRepeatPlayRange 需要乐谱已加载。用 mock score 触发重置。
+      const mockScore = { parts: [], measures: [] } as unknown as import('../../types').Score;
+      render(<PlaybackControls audioEngine={createAudioEngineMock()} score={mockScore} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'ループ' }));
+      fireEvent.click(screen.getByRole('button', { name: 'リセット' }));
+      // 无反复记号时 reset 推导结果为空串
+      expect(usePracticeStore.getState().playbackRange).toBe('');
+    });
+
+    it('toggles the loop playback switch in the panel', () => {
+      usePracticeStore.setState({ playbackLoop: false });
+      render(<PlaybackControls audioEngine={createAudioEngineMock()} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'ループ' }));
+      const toggle = screen.getByRole('checkbox', { name: 'ループ再生' }) as HTMLInputElement;
+      expect(toggle.checked).toBe(false);
+
+      fireEvent.click(toggle);
+      expect(usePracticeStore.getState().playbackLoop).toBe(true);
+      expect(toggle.checked).toBe(true);
+    });
+  });
 });

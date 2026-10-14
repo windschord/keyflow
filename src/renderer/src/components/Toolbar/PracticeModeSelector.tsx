@@ -2,23 +2,6 @@ import React, { useEffect } from 'react';
 import { usePracticeStore } from '../../store';
 import { useTranslation } from '../../lib/i18n/useTranslation';
 
-const BTN_STYLE: React.CSSProperties = {
-  height: '36px',
-  padding: '0 12px',
-  fontSize: '14px',
-  borderRadius: '6px',
-  border: '1px solid #9ca3af',
-  backgroundColor: 'white',
-  cursor: 'pointer',
-};
-
-const BTN_ACTIVE_STYLE: React.CSSProperties = {
-  ...BTN_STYLE,
-  fontWeight: 'bold',
-  backgroundColor: '#dbeafe',
-  borderColor: '#3b82f6',
-};
-
 /**
  * 練習対象（左手/右手/両手）セグメントボタン（TASK-075でコンパクト化）。
  *
@@ -62,12 +45,12 @@ export const PracticeModeSelector: React.FC = () => {
     <div
       data-testid="practice-mode-group"
       title={t.practiceModeSelector.groupTitle}
-      style={{ display: 'flex', gap: '6px', alignItems: 'center' }}
+      className="kf-seg"
     >
       <button
         data-testid="mode-left"
         title={t.practiceModeSelector.leftTitle}
-        style={practiceMode === 'left' ? BTN_ACTIVE_STYLE : BTN_STYLE}
+        className={`kf-seg__btn ${practiceMode === 'left' ? 'kf-seg__btn--active' : ''}`}
         onClick={() => setPracticeMode('left')}
       >
         {t.practiceModeSelector.left}
@@ -75,7 +58,7 @@ export const PracticeModeSelector: React.FC = () => {
       <button
         data-testid="mode-right"
         title={t.practiceModeSelector.rightTitle}
-        style={practiceMode === 'right' ? BTN_ACTIVE_STYLE : BTN_STYLE}
+        className={`kf-seg__btn ${practiceMode === 'right' ? 'kf-seg__btn--active' : ''}`}
         onClick={() => setPracticeMode('right')}
       >
         {t.practiceModeSelector.right}
@@ -83,7 +66,7 @@ export const PracticeModeSelector: React.FC = () => {
       <button
         data-testid="mode-both"
         title={t.practiceModeSelector.bothTitle}
-        style={practiceMode === 'both' ? BTN_ACTIVE_STYLE : BTN_STYLE}
+        className={`kf-seg__btn ${practiceMode === 'both' ? 'kf-seg__btn--active' : ''}`}
         onClick={() => setPracticeMode('both')}
       >
         {t.practiceModeSelector.both}

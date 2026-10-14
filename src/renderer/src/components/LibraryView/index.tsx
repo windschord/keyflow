@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryEntry } from '../../types/library';
 import { useTranslation } from '../../lib/i18n/useTranslation';
+import { usePracticeStore } from '../../store';
 import { formatMessage } from '../../lib/i18n/format';
 import {
   filterLibraryEntries,
   sortLibraryEntries,
-  formatLibraryDateTime,
+  formatLibraryDateShort,
   type LibrarySortKey,
   type LibrarySortOrder,
 } from './library-utils';
@@ -31,9 +32,232 @@ interface LibraryViewProps {
    * 「楽譜へ戻る」ボタンを表示する。App.tsx側は楽譜読み込み済みのときのみ渡す。
    */
   onReturnToScore?: () => void;
+  /** 設定（歯車）ボタンクリック時に呼ばれる。ライブラリ画面はヘッダー非表示のため、
+   *  タイトル行に配置したボタンから設定モーダルを開く（App.tsx側が結線）。 */
+  onOpenSettings?: () => void;
 }
 
 const SORT_KEYS: readonly LibrarySortKey[] = ['title', 'addedAt', 'lastOpenedAt'];
+
+/* 内联 SVG 图标（继承 currentColor） */
+const SearchIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="11" cy="11" r="7" />
+    <path d="m21 21-4.3-4.3" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M3 6h18" />
+    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+    <path d="M10 11v6M14 11v6" />
+  </svg>
+);
+
+const RetryIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M3 12a9 9 0 1 0 2.64-6.36" />
+    <path d="M21 3v6h-6" />
+  </svg>
+);
+
+const MusicIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M9 18V5l12-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="16" r="3" />
+  </svg>
+);
+
+const PianoIcon = () => (
+  <svg
+    width="26"
+    height="26"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="2" y="7" width="20" height="10" rx="2" />
+    <path d="M5.5 7v3M9 7v3M12.5 7v3M16 7v3M19.5 7v3" />
+  </svg>
+);
+
+const FolderIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+  </svg>
+);
+
+const SettingsIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
+interface SortDropdownProps {
+  id: string;
+  value: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+  /** 触发按钮中显示的前缀文本，例如 "Sort by"。 */
+  prefix?: string;
+}
+
+/**
+ * 库页面的自定义下拉选择器。
+ * 原生 <select> 的展开列表由操作系统渲染，无法统一为极简设计系统
+ * （会出现直角边框与蓝色悬停），因此用 button + popover 重新实现。
+ */
+const SortDropdown: React.FC<SortDropdownProps> = ({ id, value, options, onChange, prefix }) => {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selectedLabel = options.find((opt) => opt.value === value)?.label ?? value;
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event: MouseEvent): void => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const triggerLabel = prefix ? `${prefix}: ${selectedLabel}` : selectedLabel;
+
+  return (
+    <div className="kf-dropdown" ref={containerRef}>
+      <button
+        id={id}
+        type="button"
+        className="kf-dropdown__trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        {triggerLabel}
+      </button>
+      {open && (
+        <div className="kf-dropdown__menu" role="listbox" aria-labelledby={id}>
+          {options.map((opt) => {
+            const selected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                className={`kf-dropdown__item${selected ? ' kf-dropdown__item--selected' : ''}`}
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+              >
+                <span>{opt.label}</span>
+                <span className="kf-dropdown__check" aria-hidden="true">
+                  <CheckIcon />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const LibraryView: React.FC<LibraryViewProps> = ({
   onOpenEntry,
@@ -41,6 +265,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   missingPaths,
   reloadSignal,
   onReturnToScore,
+  onOpenSettings,
 }) => {
   const t = useTranslation();
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
@@ -134,290 +359,289 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     setRetryToken((current) => current + 1);
   };
 
-  // TASK-105: 楽譜表示への復帰導線（REQ-017-012）。onReturnToScore指定時のみ、
-  // どの表示状態（一覧・空状態・エラー状態）でも画面上部に表示する。
-  const returnToScoreButton = onReturnToScore ? (
-    <button
-      type="button"
-      onClick={onReturnToScore}
-      data-testid="library-return-to-score-button"
-      style={styles.returnToScoreButton}
-    >
-      {t.library.returnToScoreButton}
-    </button>
+
+
+  // ライブラリ画面ではヘッダーが非表示のため、トップバーにファイル・設定の
+  // カプセルボタンを配置する。
+
+  const topBar = (
+    <header className="kf-library__topbar">
+      <div className="kf-library__brand">
+        <span className="kf-library__brand-icon" aria-hidden="true">
+          <MusicIcon />
+        </span>
+        <span className="kf-library__brand-text">KeyFlow</span>
+      </div>
+      <div className="kf-library__topbar-actions">
+        {onReturnToScore && (
+          <button
+            type="button"
+            onClick={onReturnToScore}
+            data-testid="library-return-to-score-button"
+            className="kf-pill-btn"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m12 19-7-7 7-7" />
+              <path d="M19 12H5" />
+            </svg>
+            {t.library.returnToScoreButton}
+          </button>
+        )}
+        {onOpenFileDialog && (
+          <button
+            type="button"
+            onClick={onOpenFileDialog}
+            aria-label={t.header.openFileAriaLabel}
+            title={t.header.openFileTitle}
+            data-testid="library-open-file-button"
+            className="kf-pill-btn"
+          >
+            <FolderIcon />
+            <span>{t.library.emptyOpenFileButton}</span>
+          </button>
+        )}
+
+        {onOpenSettings && (
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            title={t.header.settingsTitle}
+            aria-label={t.header.settingsAriaLabel}
+            data-testid="library-settings-button"
+            className="kf-pill-btn"
+          >
+            <SettingsIcon />
+            <span>{t.header.settingsTitle}</span>
+          </button>
+        )}
+      </div>
+    </header>
+  );
+
+  const confirmDialog = confirmTarget ? (
+    <div className="kf-modal">
+      <div
+        ref={confirmDialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.library.confirmDeleteTitle}
+        tabIndex={-1}
+        className="kf-modal__card"
+      >
+        <p className="kf-modal__title">
+          <span style={{ color: 'var(--kf-danger)', display: 'inline-flex' }} aria-hidden="true">
+            <TrashIcon />
+          </span>
+          {t.library.confirmDeleteTitle}
+        </p>
+        <p className="kf-modal__message">
+          {formatMessage(t.library.confirmDeleteMessage, { title: confirmTarget.title })}
+        </p>
+        <div className="kf-modal__actions">
+          <button className="kf-btn" onClick={() => setConfirmTarget(null)}>
+            {t.library.confirmDeleteCancelButton}
+          </button>
+          <button className="kf-btn kf-btn--primary" onClick={handleConfirmDelete}>
+            {t.library.confirmDeleteConfirmButton}
+          </button>
+        </div>
+      </div>
+    </div>
   ) : null;
 
-  if (loaded && loadError) {
-    return (
-      <div role="region" aria-label={t.library.title} style={styles.container}>
-        {returnToScoreButton}
-        <div style={styles.emptyState}>
-          <p style={styles.emptyTitle}>{t.library.loadErrorTitle}</p>
-          <p style={styles.emptyDescription}>{t.library.loadErrorDescription}</p>
-          <button style={styles.primaryButton} onClick={handleRetryLoad}>
-            {t.library.retryButton}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (loaded && entries.length === 0) {
-    return (
-      <div role="region" aria-label={t.library.title} style={styles.container}>
-        {returnToScoreButton}
-        <div style={styles.emptyState}>
-          <p style={styles.emptyTitle}>{t.library.emptyTitle}</p>
-          <p style={styles.emptyDescription}>{t.library.emptyDescription}</p>
-          <button style={styles.primaryButton} onClick={onOpenFileDialog}>
-            {t.library.emptyOpenFileButton}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div role="region" aria-label={t.library.title} style={styles.container}>
-      {returnToScoreButton}
-      <h2 style={styles.heading}>{t.library.title}</h2>
-
-      <div style={styles.controls}>
+  const controls = (
+    <div className="kf-library__controls">
+      <div className="kf-search">
+        <span className="kf-search__icon">
+          <SearchIcon />
+        </span>
         <input
           type="search"
           aria-label={t.library.searchLabel}
           placeholder={t.library.searchPlaceholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          style={styles.searchInput}
+          className="kf-search__input"
         />
-        <label style={styles.selectLabel}>
-          {t.library.sortKeyLabel}
-          <select
-            aria-label={t.library.sortKeyLabel}
+      </div>
+      <div className="kf-library__sort">
+        <label className="kf-library__field" htmlFor="library-sort-key">
+          <span className="kf-sr-only">{t.library.sortKeyLabel}</span>
+          <SortDropdown
+            id="library-sort-key"
             value={sortKey}
-            onChange={(e) => setSortKey(e.target.value as LibrarySortKey)}
-            style={styles.select}
-          >
-            {SORT_KEYS.map((key) => (
-              <option key={key} value={key}>
-                {sortKeyLabels[key]}
-              </option>
-            ))}
-          </select>
+            prefix={t.library.sortKeyLabel}
+            options={SORT_KEYS.map((key) => ({ value: key, label: sortKeyLabels[key] }))}
+            onChange={(value) => setSortKey(value as LibrarySortKey)}
+          />
         </label>
-        <label style={styles.selectLabel}>
-          {t.library.sortOrderLabel}
-          <select
-            aria-label={t.library.sortOrderLabel}
+        <label className="kf-library__field" htmlFor="library-sort-order">
+          <span className="kf-sr-only">{t.library.sortOrderLabel}</span>
+          <SortDropdown
+            id="library-sort-order"
             value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as LibrarySortOrder)}
-            style={styles.select}
-          >
-            <option value="asc">{t.library.sortOrderAsc}</option>
-            <option value="desc">{t.library.sortOrderDesc}</option>
-          </select>
+            prefix={t.library.sortOrderLabel}
+            options={[
+              { value: 'asc', label: t.library.sortOrderAsc },
+              { value: 'desc', label: t.library.sortOrderDesc },
+            ]}
+            onChange={(value) => setSortOrder(value as LibrarySortOrder)}
+          />
         </label>
       </div>
+    </div>
+  );
 
-      {visibleEntries.length === 0 ? (
-        <p style={styles.noResults}>{t.library.noResults}</p>
-      ) : (
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>{t.library.columnTitle}</th>
-              <th style={styles.th}>{t.library.columnComposer}</th>
-              <th style={styles.th}>{t.library.columnLastOpenedAt}</th>
-              <th style={styles.th}>{t.library.columnActions}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleEntries.map((entry) => {
-              const isMissing = missingPaths?.has(entry.path) ?? false;
-              return (
-                <tr key={entry.path}>
-                  <td style={styles.td}>
-                    <button style={styles.linkButton} onClick={() => onOpenEntry(entry.path)}>
-                      {entry.title}
-                    </button>
-                    {isMissing && (
-                      <span style={styles.missingBadge} title={t.library.missingTitle}>
-                        {t.library.missingLabel}
-                      </span>
-                    )}
-                  </td>
-                  <td style={styles.td}>{entry.composer}</td>
-                  <td style={styles.td}>{formatLibraryDateTime(entry.lastOpenedAt)}</td>
-                  <td style={styles.td}>
-                    <button
-                      aria-label={formatMessage(t.library.deleteButtonAriaLabel, {
-                        title: entry.title,
-                      })}
-                      style={styles.deleteButton}
-                      onClick={() => handleRequestDelete(entry)}
-                    >
-                      {t.library.deleteButton}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-
-      {confirmTarget && (
-        <div style={styles.overlay}>
+  const list = (
+    <div className="kf-library-list" role="table" aria-label={t.library.title}>
+      {visibleEntries.map((entry) => {
+        const isMissing = missingPaths?.has(entry.path) ?? false;
+        return (
           <div
-            ref={confirmDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t.library.confirmDeleteTitle}
-            tabIndex={-1}
-            style={styles.dialog}
+            key={entry.path}
+            role="row"
+            className="kf-library-card"
+            onClick={() => onOpenEntry(entry.path)}
           >
-            <p style={styles.dialogMessage}>
-              {formatMessage(t.library.confirmDeleteMessage, { title: confirmTarget.title })}
-            </p>
-            <div style={styles.dialogActions}>
-              <button style={styles.secondaryButton} onClick={() => setConfirmTarget(null)}>
-                {t.library.confirmDeleteCancelButton}
+            <div className="kf-library-card__icon" role="cell" aria-hidden="true">
+              <MusicIcon />
+            </div>
+            <div className="kf-library-card__main" role="cell">
+              <button
+                type="button"
+                className="kf-library-card__title"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenEntry(entry.path);
+                }}
+              >
+                {entry.title}
               </button>
-              <button style={styles.dangerButton} onClick={handleConfirmDelete}>
-                {t.library.confirmDeleteConfirmButton}
+              <span className="kf-library-card__composer">{entry.composer}</span>
+              <div className="kf-library-card__meta">
+                <span className="kf-library-card__date">
+                  {formatLibraryDateShort(entry.lastOpenedAt)}
+                </span>
+                {isMissing && (
+                  <span className="kf-badge--danger" title={t.library.missingTitle}>
+                    {t.library.missingLabel}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="kf-library-card__actions" role="cell">
+              <span className="kf-library-card__chevron" aria-hidden="true">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m9 6 6 6-6 6" />
+                </svg>
+              </span>
+              <button
+                type="button"
+                aria-label={formatMessage(t.library.deleteButtonAriaLabel, {
+                  title: entry.title,
+                })}
+                className="kf-library-card__delete"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleRequestDelete(entry);
+                }}
+              >
+                <TrashIcon />
               </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })}
     </div>
   );
-};
 
-const styles: Record<string, React.CSSProperties> = {
-  container: { padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '16px' },
-  returnToScoreButton: {
-    alignSelf: 'flex-start',
-    padding: '6px 12px',
-    borderRadius: '4px',
-    border: '1px solid #d1d5db',
-    backgroundColor: 'transparent',
-    color: '#374151',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-  },
-  heading: { margin: 0, fontSize: '1.25rem', fontWeight: 600 },
-  controls: { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' },
-  searchInput: {
-    flex: 1,
-    minWidth: '200px',
-    padding: '8px 12px',
-    borderRadius: '4px',
-    border: '1px solid #d1d5db',
-  },
-  selectLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '0.875rem',
-    color: '#374151',
-  },
-  select: { padding: '6px 8px', borderRadius: '4px', border: '1px solid #d1d5db' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: {
-    textAlign: 'left',
-    padding: '8px 12px',
-    borderBottom: '1px solid #e5e7eb',
-    fontSize: '0.75rem',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-  },
-  td: { padding: '8px 12px', borderBottom: '1px solid #f3f4f6', fontSize: '0.875rem' },
-  linkButton: {
-    background: 'transparent',
-    border: 'none',
-    padding: 0,
-    color: '#2563eb',
-    cursor: 'pointer',
-    font: 'inherit',
-    textAlign: 'left',
-  },
-  deleteButton: {
-    padding: '4px 10px',
-    borderRadius: '4px',
-    border: '1px solid #ef4444',
-    color: '#ef4444',
-    background: 'transparent',
-    cursor: 'pointer',
-    fontSize: '0.8125rem',
-  },
-  missingBadge: {
-    marginLeft: '8px',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    backgroundColor: '#fee2e2',
-    color: '#b91c1c',
-    fontSize: '0.75rem',
-  },
-  noResults: { color: '#6b7280', fontSize: '0.875rem' },
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '48px 16px',
-    textAlign: 'center',
-  },
-  emptyTitle: { margin: 0, fontSize: '1.125rem', fontWeight: 600 },
-  emptyDescription: { margin: 0, color: '#6b7280', fontSize: '0.875rem' },
-  primaryButton: {
-    padding: '8px 16px',
-    backgroundColor: '#2563eb',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 500,
-  },
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 1000,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dialog: {
-    backgroundColor: '#fff',
-    color: '#111827',
-    borderRadius: '8px',
-    minWidth: '320px',
-    maxWidth: '90vw',
-    padding: '20px 24px',
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-  },
-  dialogMessage: { margin: '0 0 16px 0', fontSize: '0.9375rem' },
-  dialogActions: { display: 'flex', justifyContent: 'flex-end', gap: '8px' },
-  secondaryButton: {
-    padding: '8px 16px',
-    backgroundColor: '#f3f4f6',
-    color: '#111827',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  dangerButton: {
-    padding: '8px 16px',
-    backgroundColor: '#dc2626',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 500,
-  },
+  return (
+    <div role="region" aria-label={t.library.title} className="kf-library">
+      <div className="kf-library__panel">
+        {topBar}
+        <div className="kf-library__body">
+          {loaded && loadError && (
+            <div className="kf-empty">
+              <div className="kf-empty__icon" aria-hidden="true">
+                <FolderIcon />
+              </div>
+              <p className="kf-empty__title">{t.library.loadErrorTitle}</p>
+              <p className="kf-empty__desc">{t.library.loadErrorDescription}</p>
+              <button
+                className="kf-btn kf-btn--primary kf-empty__action"
+                onClick={handleRetryLoad}
+              >
+                <RetryIcon />
+                {t.library.retryButton}
+              </button>
+            </div>
+          )}
+
+          {loaded && !loadError && entries.length === 0 && (
+            <div className="kf-empty">
+              <div className="kf-empty__icon" aria-hidden="true">
+                <PianoIcon />
+              </div>
+              <p className="kf-empty__title">{t.library.emptyTitle}</p>
+              <p className="kf-empty__desc">{t.library.emptyDescription}</p>
+            </div>
+          )}
+
+          {!loaded && (
+            <div className="kf-library-skeleton" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="kf-library-skeleton__card">
+                  <span className="kf-library-skeleton__icon" />
+                  <span className="kf-library-skeleton__lines">
+                    <span className="kf-library-skeleton__line kf-library-skeleton__line--title" />
+                    <span className="kf-library-skeleton__line kf-library-skeleton__line--meta" />
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {loaded && entries.length > 0 && (
+            <>
+              <div className="kf-library__heading">
+                <h1 className="kf-library__heading-title">{t.library.title}</h1>
+                <span className="kf-library__heading-badge">{entries.length}</span>
+              </div>
+              {controls}
+              {visibleEntries.length === 0 ? (
+                <div className="kf-empty">
+                  <div className="kf-empty__icon" aria-hidden="true">
+                    <SearchIcon />
+                  </div>
+                  <p className="kf-empty__title">{t.library.noResults}</p>
+                </div>
+              ) : (
+                list
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      {confirmDialog}
+    </div>
+  );
 };

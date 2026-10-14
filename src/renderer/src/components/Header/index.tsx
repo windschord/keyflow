@@ -1,12 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { PracticeModeSelector } from '../Toolbar/PracticeModeSelector';
 import { TempoControl } from '../Toolbar/TempoControl';
-import { LoopControl } from '../Toolbar/LoopControl';
 import { PlaybackControls, PlaybackAudioEngine } from '../Toolbar/PlaybackControls';
 import { Popover } from './Popover';
 import { QuickPanel } from './QuickPanel';
 import { MetronomeToggle } from './MetronomeToggle';
 import { useTranslation } from '../../lib/i18n/useTranslation';
+import { usePracticeStore } from '../../store';
 import type { Score } from '../../types/score';
 import type { FingerAssignment } from '../../types/annotation';
 
@@ -31,33 +31,20 @@ export interface HeaderProps {
    * クリック時の挙動自体はApp.tsx側のonOpenLibraryが担い、本propsは表示切り替えのみ行う。
    */
   isReturnToScoreMode?: boolean;
+  /** 指法编辑模式是否开启（QuickPanel 的 FingeringEditToggle 受控状态）。 */
+  fingeringEditMode?: boolean;
+  /** 指法编辑模式切换回调（App 持有状态）。 */
+  onFingeringEditModeChange?: (checked: boolean) => void;
 }
 
-const ICON_BUTTON_STYLE: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: '36px',
-  height: '36px',
-  flexShrink: 0,
-  padding: 0,
-  backgroundColor: 'transparent',
-  border: 'none',
-  borderRadius: '6px',
-  color: '#374151',
-  cursor: 'pointer',
-};
-
-const Divider: React.FC = () => (
-  <div style={{ width: '1px', height: '28px', backgroundColor: '#d1d5db', flexShrink: 0 }} />
-);
+const Divider: React.FC = () => <div className="kf-header-divider" aria-hidden="true" />;
 
 /**
  * 1行ヘッダー（TASK-075、design/components/header.md）。
  *
  * 旧App.tsx上段バーとToolbar/index.tsxの2ブロック構成を、高さ48px（最大56px）の
  * 1行へ統合する（US-012、DEC-007）。
- * 頻用操作（開く・再生・停止・ループ・テンポ・練習対象・メトロノームON/OFF）は
+ * 頻用操作（開く・再生・停止・テンポ・練習対象・メトロノームON/OFF）は
  * 常時表示する。低頻度操作（音量・表示倍率・運指・成績・メトロノーム詳細）は
  * 「表示・補助」パネル（QuickPanel）へ移設する。
  * 各子コンポーネントはロジックとstore結線を一切変更せず再利用する（REQ-012-004）。
@@ -81,6 +68,8 @@ export const Header: React.FC<HeaderProps> = ({
   fingeringDisabled,
   onOpenLibrary,
   isReturnToScoreMode = false,
+  fingeringEditMode,
+  onFingeringEditModeChange,
 }) => {
   const t = useTranslation();
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
@@ -90,6 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
     <div data-testid="app-header" style={{ position: 'relative' }}>
       <div
         data-testid="app-header-row"
+        className="kf-header-row"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -97,8 +87,6 @@ export const Header: React.FC<HeaderProps> = ({
           height: '48px',
           maxHeight: '56px',
           padding: '0 12px',
-          backgroundColor: '#f5f5f5',
-          borderBottom: '1px solid #ccc',
           flexWrap: 'nowrap',
           overflow: 'hidden',
           boxSizing: 'border-box',
@@ -110,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
           aria-label={t.header.openFileAriaLabel}
           title={t.header.openFileTitle}
           data-testid="header-open-file-button"
-          style={ICON_BUTTON_STYLE}
+          className="kf-icon-btn"
         >
           <svg
             width="20"
@@ -130,8 +118,6 @@ export const Header: React.FC<HeaderProps> = ({
         <Divider />
         <PlaybackControls audioEngine={audioEngine} score={score} />
         <Divider />
-        <LoopControl />
-        <Divider />
         <TempoControl />
         <Divider />
         <PracticeModeSelector />
@@ -147,6 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
             flexShrink: 0,
           }}
         >
+
           <button
             type="button"
             onClick={onOpenLibrary}
@@ -157,7 +144,7 @@ export const Header: React.FC<HeaderProps> = ({
             }
             title={isReturnToScoreMode ? t.header.returnToScoreTitle : t.header.libraryButtonTitle}
             data-testid="header-library-button"
-            style={ICON_BUTTON_STYLE}
+            className="kf-icon-btn"
           >
             <svg
               width="20"
@@ -183,7 +170,7 @@ export const Header: React.FC<HeaderProps> = ({
             aria-expanded={isQuickPanelOpen}
             title={t.header.quickPanelTitle}
             data-testid="quick-panel-toggle"
-            style={ICON_BUTTON_STYLE}
+            className={`kf-icon-btn ${isQuickPanelOpen ? 'kf-icon-btn--active' : ''}`}
           >
             <svg
               width="20"
@@ -213,7 +200,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onOpenSettings}
             title={t.header.settingsTitle}
             aria-label={t.header.settingsAriaLabel}
-            style={ICON_BUTTON_STYLE}
+            className="kf-icon-btn"
           >
             <svg
               width="20"
@@ -243,6 +230,8 @@ export const Header: React.FC<HeaderProps> = ({
           score={score}
           onFingeringSuggested={onFingeringSuggested}
           fingeringDisabled={fingeringDisabled}
+          fingeringEditMode={fingeringEditMode}
+          onFingeringEditModeChange={onFingeringEditModeChange}
         />
       </Popover>
     </div>

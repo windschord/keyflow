@@ -1886,6 +1886,20 @@ describe('App - ライブラリ統合（TASK-103, US-017）', () => {
     expect(screen.getByTestId('mock-library-view')).toBeInTheDocument();
   });
 
+  it('hides the header on the library view and shows it only on the score view', () => {
+    render(<App />);
+    // Header はアンマウントせず、ラッパーコンテナの display で切り替える
+    // （ScoreRenderer/PianoKeyboard と同パターン。結線テストの前提も維持）。
+    const headerWrapper = screen.getByTestId('mock-header').parentElement as HTMLElement;
+    expect(headerWrapper.style.display).toBe('none');
+
+    act(() => {
+      usePracticeStore.setState({ activeView: 'score' });
+    });
+    expect(headerWrapper.style.display).toBe('block');
+  });
+
+
   it('registers the score opened via the file dialog to the library with title/composer/path (REQ-017-001)', async () => {
     const showOpenDialogMock = vi.fn().mockResolvedValue('/scores/test.xml');
     const readMock = vi.fn().mockResolvedValue(XML_WITH_METADATA);

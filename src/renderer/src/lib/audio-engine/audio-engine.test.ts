@@ -490,15 +490,17 @@ describe('AudioEngineService', () => {
         time: string;
         note: string;
         duration: string;
+        tick: number;
+        measure: number;
       }[];
 
       // 3 sounding notes (rest excluded)
       expect(events).toHaveLength(3);
       expect(events).toEqual(
         expect.arrayContaining([
-          { time: '0i', note: 'C4', duration: '480i' },
-          { time: '0i', note: 'C3', duration: '480i' },
-          { time: '480i', note: 'D4', duration: '480i' },
+          { time: '0i', note: 'C4', duration: '480i', tick: 0, measure: 1 },
+          { time: '0i', note: 'C3', duration: '480i', tick: 0, measure: 1 },
+          { time: '480i', note: 'D4', duration: '480i', tick: 480, measure: 1 },
         ])
       );
     });
@@ -682,6 +684,98 @@ describe('AudioEngineService', () => {
     });
   });
 
+  describe('setupPlaybackSequence (小节序列跳转/循环)', () => {
+    beforeEach(() => {
+      // 重置共享 mock transport 的 ticks：前一测试的 jump 回调会把 ticks 改为
+      // 段起点（如 3840），若不清空，单段范围的 endTick(=3839) 会被
+      // 「跳过过期 boundary」逻辑误判为已过期，导致不再注册 schedule。
+      (Tone.getTransport() as unknown as { ticks?: number }).ticks = 0;
+      (Tone.getTransport().schedule as Mock).mockClear();
+      (Tone.getTransport().stop as Mock).mockClear();
+      (Tone.getTransport().pause as Mock).mockClear();
+      (Tone.getTransport().start as Mock).mockClear();
+    });
+
+    // 3 小节乐谱：小节1(0..1919) / 小节2(1920..3839) / 小节3(3840..)
+    function makeThreeMeasureScore(): Score {
+      const score = makeScore();
+      score.measures.push({
+        number: 2,
+        startTick: 1920,
+        notes: [makeNote({ id: 'P1-M2-N0', startTick: 1920, durationTicks: 480 })],
+      });
+      score.measures.push({
+        number: 3,
+        startTick: 3840,
+        notes: [makeNote({ id: 'P1-M3-N0', startTick: 3840, durationTicks: 480 })],
+      });
+      return score;
+    }
+
+    it('registers jump boundaries between segments and a stop at the end when loop is off', () => {
+      service.setupPlaybackSequence(makeThreeMeasureScore(), '1-2, 3');
+
+      // 递归调度：初始只注册第1个 boundary（第1段末尾 jump）
+      const scheduleMock = Tone.getTransport().schedule as unknown as Mock;
+      expect(scheduleMock).toHaveBeenCalledTimes(1);
+      const firstBoundaryCallback = scheduleMock.mock.calls[0][0] as (time: number) => void;
+      firstBoundaryCallback(0);
+
+      // jump 触发后调度第2个 boundary（最后段 stop）
+      expect(scheduleMock).toHaveBeenCalledTimes(2);
+      const stopBoundaryCallback = scheduleMock.mock.calls[1][0] as (time: number) => void;
+      (Tone.getTransport().stop as Mock).mockClear();
+      stopBoundaryCallback(0);
+      expect(Tone.getTransport().stop).toHaveBeenCalled();
+    });
+
+    it('jumps back to the first segment start at the end when loop is on', () => {
+      const service2 = new AudioEngineService();
+      service2.setupPlaybackSequence(makeThreeMeasureScore(), '1-2, 3', true);
+
+      const scheduleMock = Tone.getTransport().schedule as unknown as Mock;
+      expect(scheduleMock).toHaveBeenCalledTimes(1);
+      const firstBoundaryCallback = scheduleMock.mock.calls[0][0] as (time: number) => void;
+      firstBoundaryCallback(0);
+      // jump 触发后调度最后段 boundary（loop 模式 = 回绕到第一段）
+      expect(scheduleMock).toHaveBeenCalledTimes(2);
+      const wrapBoundaryCallback = scheduleMock.mock.calls[1][0] as (time: number) => void;
+      (Tone.getTransport().pause as Mock).mockClear();
+      (Tone.getTransport().start as Mock).mockClear();
+      (Tone.getTransport().stop as Mock).mockClear();
+      wrapBoundaryCallback(0);
+
+      // 循环回绕走 jump 分支：pause + 重置 ticks + 重新 start，而非 stop
+      expect(Tone.getTransport().pause).toHaveBeenCalled();
+      expect(Tone.getTransport().stop).not.toHaveBeenCalled();
+      expect(Tone.getTransport().start).toHaveBeenCalled();
+    });
+
+    it('registers a stop (not a jump) at the end for a single-segment range when loop is off', () => {
+      service.setupPlaybackSequence(makeThreeMeasureScore(), '1-2');
+
+      const scheduleMock = Tone.getTransport().schedule as unknown as Mock;
+      expect(scheduleMock).toHaveBeenCalledTimes(1);
+      const stopBoundaryCallback = scheduleMock.mock.calls[0][0] as (time: number) => void;
+      stopBoundaryCallback(0);
+      expect(Tone.getTransport().stop).toHaveBeenCalled();
+    });
+
+    it('registers a jump back to the first segment when loop is on for a single-segment range', () => {
+      service.setupPlaybackSequence(makeThreeMeasureScore(), '1-2', true);
+
+      const scheduleMock = Tone.getTransport().schedule as unknown as Mock;
+      expect(scheduleMock).toHaveBeenCalledTimes(1);
+      const wrapBoundaryCallback = scheduleMock.mock.calls[0][0] as (time: number) => void;
+      (Tone.getTransport().pause as Mock).mockClear();
+      (Tone.getTransport().stop as Mock).mockClear();
+      wrapBoundaryCallback(0);
+
+      expect(Tone.getTransport().pause).toHaveBeenCalled();
+      expect(Tone.getTransport().stop).not.toHaveBeenCalled();
+    });
+  });
+
   describe('loadScore practiceMode filter (TASK-051, REQ-010-010)', () => {
     it('schedules all sounding notes (both hands) when practiceMode is "both" (default, backward compatible)', () => {
       service.loadScore(makeHandScore());
@@ -697,12 +791,14 @@ describe('AudioEngineService', () => {
         time: string;
         note: string;
         duration: string;
+        tick: number;
+        measure: number;
       }[];
       expect(events).toHaveLength(2);
       expect(events).toEqual(
         expect.arrayContaining([
-          { time: '0i', note: 'C4', duration: '480i' },
-          { time: '480i', note: 'D4', duration: '480i' },
+          { time: '0i', note: 'C4', duration: '480i', tick: 0, measure: 1 },
+          { time: '480i', note: 'D4', duration: '480i', tick: 480, measure: 1 },
         ])
       );
     });
@@ -714,9 +810,11 @@ describe('AudioEngineService', () => {
         time: string;
         note: string;
         duration: string;
+        tick: number;
+        measure: number;
       }[];
       expect(events).toHaveLength(1);
-      expect(events).toEqual([{ time: '0i', note: 'C3', duration: '480i' }]);
+      expect(events).toEqual([{ time: '0i', note: 'C3', duration: '480i', tick: 0, measure: 1 }]);
     });
 
     it('does not change the judgement-group position schedule (cursor tracking) based on practiceMode', () => {
@@ -1686,8 +1784,10 @@ describe('AudioEngineService', () => {
         time: string;
         note: string;
         duration: string;
+        tick: number;
+        measure: number;
       }[];
-      expect(events).toEqual([{ time: '0i', note: 'C4', duration: '960i' }]);
+      expect(events).toEqual([{ time: '0i', note: 'C4', duration: '960i', tick: 0, measure: 1 }]);
     });
 
     it('keeps the notated duration unchanged when the score has no pedal spans (non-regression, REQ-014-004)', () => {
@@ -1697,8 +1797,10 @@ describe('AudioEngineService', () => {
         time: string;
         note: string;
         duration: string;
+        tick: number;
+        measure: number;
       }[];
-      expect(events).toEqual([{ time: '0i', note: 'C4', duration: '480i' }]);
+      expect(events).toEqual([{ time: '0i', note: 'C4', duration: '480i', tick: 0, measure: 1 }]);
     });
 
     it('does not change the sounding-notes boundary tick (registerBoundary) used for the keyboard highlight, even when the playback duration is extended', () => {
@@ -1776,5 +1878,103 @@ describe('AudioEngineService', () => {
 
       expect(clearSpy).toHaveBeenCalled();
     });
+  });
+});
+
+// ===== deriveRepeatPlayRange の純関数テスト（TASK-繰り返し記号の播放順序） =====
+import { deriveRepeatPlayRange, segmentsToRangeString } from './index';
+
+describe('deriveRepeatPlayRange', () => {
+  function makeMeasure(
+    number: number,
+    opts: {
+      repeatStart?: boolean;
+      repeatEnd?: { times?: number };
+      endingStartNumbers?: number[];
+      endingEnd?: boolean;
+    } = {}
+  ): Score['measures'][number] {
+    return {
+      number,
+      startTick: (number - 1) * 480,
+      notes: [],
+      repeatStart: opts.repeatStart,
+      repeatEnd: opts.repeatEnd ? { times: opts.repeatEnd.times ?? 2 } : undefined,
+      endingStart: opts.endingStartNumbers ? { numbers: opts.endingStartNumbers } : undefined,
+      endingEnd: opts.endingEnd,
+    };
+  }
+
+  function makeScore(measureCount: number): Score {
+    return {
+      title: 'T',
+      parts: [],
+      tempo: 120,
+      ticksPerQuarter: 480,
+      tempoMap: [{ tick: 0, bpm: 120 }],
+      timeSignature: { beats: 4, beatType: 4 },
+      keySignature: 0,
+      pedalSpans: [],
+      measures: Array.from({ length: measureCount }, (_, i) => makeMeasure(i + 1)),
+    };
+  }
+
+  it('正常反复（1房子が1小節だけ）では従来どおり動作する', () => {
+    const score = makeScore(50);
+    // 左反复 21 / 右反复 44 / 1房子 44 / 2房子 45
+    score.measures[20] = makeMeasure(21, { repeatStart: true });
+    score.measures[43] = makeMeasure(44, {
+      repeatEnd: { times: 2 },
+      endingStartNumbers: [1],
+      endingEnd: true,
+    });
+    score.measures[44] = makeMeasure(45, {
+      endingStartNumbers: [2],
+      endingEnd: true,
+    });
+
+    const segs = deriveRepeatPlayRange(score);
+    expect(segmentsToRangeString(segs)).toBe('1-44, 21-43, 45-50');
+  });
+
+  it('1房子が複数小節にまたがる場合、第2遍は1房子の開始前から飛ばす（回帰修正）', () => {
+    const score = makeScore(53);
+    // 左反复 21 / 右反复 44 / 1房子 37-44（跨多小节）/ 2房子 45
+    score.measures[20] = makeMeasure(21, { repeatStart: true });
+    score.measures[36] = makeMeasure(37, { endingStartNumbers: [1] }); // 1房子开始
+    // 37～44 都是 1房子 区间（中间小节不算 ending 边界，只有末尾 44 是）
+    score.measures[43] = makeMeasure(44, {
+      repeatEnd: { times: 2 },
+      endingStartNumbers: [1],
+      endingEnd: true,
+    });
+    score.measures[44] = makeMeasure(45, {
+      endingStartNumbers: [2],
+      endingEnd: true,
+    });
+
+    const segs = deriveRepeatPlayRange(score);
+    // 期望：1-44, 21-36, 45-53（第2遍跳过 37-44 的 1房子）
+    expect(segmentsToRangeString(segs)).toBe('1-44, 21-36, 45-53');
+  });
+
+  it('1房子が複数小節にまたがる場合でも、開始小節にendingStartが無く終了小節だけの場合をフォールバック', () => {
+    const score = makeScore(53);
+    score.measures[20] = makeMeasure(21, { repeatStart: true });
+    // 1房子の開始小節（37）に ending マークが無い場合（譜面によっては開始小節に
+    // 記号が無い場合がある）でも、終了小節（44）の endingEnd から開始を補完する。
+    score.measures[43] = makeMeasure(44, {
+      repeatEnd: { times: 2 },
+      endingStartNumbers: [1],
+      endingEnd: true,
+    });
+    score.measures[44] = makeMeasure(45, {
+      endingStartNumbers: [2],
+      endingEnd: true,
+    });
+
+    const segs = deriveRepeatPlayRange(score);
+    // 1房子開始が特定できない場合のフォールバック：従来どおり ending1End-1 で 21-43
+    expect(segmentsToRangeString(segs)).toBe('1-44, 21-43, 45-53');
   });
 });

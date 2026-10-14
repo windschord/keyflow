@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { KEYBOARD_SIZES, KeyboardSize } from '../../types';
+import type { ScoreLayout } from '../../types/score-layout';
 import type { PlaybackVoiceId } from '../../lib/audio-engine/voices';
 import type { MetronomeVoiceId } from '../../lib/audio-engine/metronome-voices';
 import type { Language } from '../../lib/i18n/types';
@@ -17,6 +18,13 @@ export interface UiSlice {
   metronomeAccentEnabled: boolean;
   zoom: number;
   pianoHeight: number;
+  /**
+   * 楽譜ページの配置方向（vertical=縦積み / horizontal=横並び）。初期値'horizontal'。
+   * electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.scoreLayout）
+   * と一致させる。ScoreRenderer はこの値でページの並べ方を CSS のみで切り替える
+   * （OSMD 再描画なし）。
+   */
+  scoreLayout: ScoreLayout;
   /**
    * 選択中のMIDI入力デバイスid（REQ-004-008）。`null`は「すべてのデバイス」を
    * 意味する。SettingsModalでの変更・起動時の設定ロード
@@ -82,6 +90,8 @@ export interface UiSlice {
   /** メトロノームの一拍目アクセントの有効/無効を切り替える（TASK-063）。 */
   setMetronomeAccentEnabled: (enabled: boolean) => void;
   setZoom: (zoom: number) => void;
+  /** 楽譜ページの配置方向を設定する（vertical/horizontal）。 */
+  setScoreLayout: (layout: ScoreLayout) => void;
   /**
    * 鍵盤の高さ（px）を設定する。80〜300pxにクランプする
    * （注意事項: 妥当な範囲を超えるとPianoKeyboardのレイアウトが崩れるため）。
@@ -124,6 +134,7 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   metronomeEnabled: false,
   metronomeAccentEnabled: true,
   zoom: 1.0,
+  scoreLayout: 'horizontal',
   // electron-store側のデフォルト（src/main/settings.ts DEFAULT_SETTINGS.ui.pianoHeight）
   // と一致させる（TASK-045）。以前は150固定でelectron-storeの120と食い違っており、
   // 起動時ロードが実装されるまで不整合が隠蔽されていた。単一の値に揃えることで
@@ -159,6 +170,7 @@ export const createUiSlice: StateCreator<UiSlice> = (set, get) => ({
   setMetronomeEnabled: (enabled) => set({ metronomeEnabled: enabled }),
   setMetronomeAccentEnabled: (enabled) => set({ metronomeAccentEnabled: enabled }),
   setZoom: (zoom) => set({ zoom }),
+  setScoreLayout: (layout) => set({ scoreLayout: layout }),
   setPianoHeight: (height) => set({ pianoHeight: Math.max(80, Math.min(300, height)) }),
   setMidiDeviceId: (deviceId) => set({ midiDeviceId: deviceId }),
   setVolume: (volume) => set({ volume: Math.max(0, Math.min(100, volume)) }),

@@ -18,16 +18,18 @@ const ZOOM_LEVELS: Array<{ value: number; label: string }> = [
 
 /**
  * 楽譜の表示倍率（ズーム）を変更するUI（REQ-002-006）。
- * `setZoom`（ui-slice）を直接呼び出すため、モーダルを開閉せずに
- * ScoreRenderer（osmd-controller.setZoom）へ即座に反映される。
+ * `setZoom`（ui-slice）を直接呼び出す。ScoreRenderer 側は CSS zoom で
+ * 倍率を適用するため、変更しても OSMD の再描画は発生しない。
+ * Ctrl+滚轮连续缩放会产生预设以外的任意值，此时在列表前部显示当前百分比。
  */
 export const ZoomControl: React.FC = () => {
   const { zoom, setZoom } = usePracticeStore();
   const t = useTranslation();
+  const isPreset = ZOOM_LEVELS.some((level) => level.value === zoom);
 
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-      <label htmlFor="zoom-select" style={{ fontSize: '14px', color: '#374151' }}>
+      <label htmlFor="zoom-select" style={{ fontSize: '14px', color: 'var(--kf-text-2)' }}>
         {t.zoomControl.label}
       </label>
       <select
@@ -36,15 +38,11 @@ export const ZoomControl: React.FC = () => {
         value={String(zoom)}
         onChange={(e) => setZoom(Number(e.target.value))}
         title={t.zoomControl.title}
-        style={{
-          height: '44px',
-          fontSize: '15px',
-          padding: '0 8px',
-          borderRadius: '6px',
-          border: '1px solid #d1d5db',
-          cursor: 'pointer',
-        }}
+        className="kf-select"
       >
+        {!isPreset && (
+          <option value={zoom}>{Math.round(zoom * 100)}%</option>
+        )}
         {ZOOM_LEVELS.map((level) => (
           <option key={level.value} value={level.value}>
             {level.label}

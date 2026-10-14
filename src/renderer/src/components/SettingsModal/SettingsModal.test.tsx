@@ -200,8 +200,8 @@ describe('SettingsModal', () => {
 
     render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-    const select = await screen.findByLabelText('既定のエラーモード');
-    fireEvent.change(select, { target: { value: 'pass' } });
+    fireEvent.click(await screen.findByLabelText('既定のエラーモード'));
+    fireEvent.click(await screen.findByRole('option', { name: '誤りがあっても先へ進む' }));
 
     await waitFor(() =>
       expect(settingsApi.set).toHaveBeenCalledWith(
@@ -224,11 +224,12 @@ describe('SettingsModal', () => {
 
     render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-    const select = (await screen.findByLabelText('既定のエラーモード')) as HTMLSelectElement;
-    await waitFor(() => expect(select.value).toBe('wait'));
+    const trigger = await screen.findByLabelText('既定のエラーモード');
+    await waitFor(() => expect(trigger).toHaveTextContent('正しい音を待つ'));
     expect(usePracticeStore.getState().errorMode).toBe('wait');
 
-    fireEvent.change(select, { target: { value: 'pass' } });
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole('option', { name: '誤りがあっても先へ進む' }));
 
     await waitFor(() => expect(usePracticeStore.getState().errorMode).toBe('pass'));
     expect(settingsApi.set).toHaveBeenCalledWith(
@@ -250,15 +251,16 @@ describe('SettingsModal', () => {
 
     render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-    const select = (await screen.findByLabelText('既定のエラーモード')) as HTMLSelectElement;
-    await waitFor(() => expect(select.value).toBe('wait'));
+    const trigger = await screen.findByLabelText('既定のエラーモード');
+    await waitFor(() => expect(trigger).toHaveTextContent('正しい音を待つ'));
 
-    fireEvent.change(select, { target: { value: 'pass' } });
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole('option', { name: '誤りがあっても先へ進む' }));
 
     await waitFor(() =>
       expect(window.alert).toHaveBeenCalledWith('設定の保存に失敗しました。変更を元に戻しました。')
     );
-    expect(select.value).toBe('wait');
+    expect(trigger).toHaveTextContent('正しい音を待つ');
     expect(usePracticeStore.getState().errorMode).toBe('wait');
   });
 
@@ -285,11 +287,12 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} webMidiService={webMidiService} />);
 
-      const select = (await screen.findByLabelText('MIDI入力デバイス')) as HTMLSelectElement;
-      expect(screen.getByText('すべてのデバイス')).toBeInTheDocument();
-      expect(screen.getByText('Keyboard A')).toBeInTheDocument();
-      expect(screen.getByText('Keyboard B')).toBeInTheDocument();
-      expect(select.value).toBe('');
+      const trigger = await screen.findByLabelText('MIDI入力デバイス');
+      fireEvent.click(trigger);
+      expect(screen.getByRole('option', { name: 'すべてのデバイス' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Keyboard A' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Keyboard B' })).toBeInTheDocument();
+      expect(trigger).toHaveTextContent('すべてのデバイス');
     });
 
     it('renders only the "all devices" option when no webMidiService is provided (no crash)', async () => {
@@ -303,9 +306,11 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('MIDI入力デバイス')) as HTMLSelectElement;
-      expect(select.options).toHaveLength(1);
-      expect(select.options[0].textContent).toBe('すべてのデバイス');
+      const trigger = await screen.findByLabelText('MIDI入力デバイス');
+      fireEvent.click(trigger);
+      const options = screen.getAllByRole('option');
+      expect(options).toHaveLength(1);
+      expect(options[0]).toHaveTextContent('すべてのデバイス');
     });
 
     it('selecting a device saves midi.selectedDeviceId and reflects it to the ui-slice midiDeviceId immediately', async () => {
@@ -322,10 +327,11 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} webMidiService={webMidiService} />);
 
-      const select = (await screen.findByLabelText('MIDI入力デバイス')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe(''));
+      const trigger = await screen.findByLabelText('MIDI入力デバイス');
+      await waitFor(() => expect(trigger).toHaveTextContent('すべてのデバイス'));
 
-      fireEvent.change(select, { target: { value: 'device-1' } });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: 'Keyboard A' }));
 
       await waitFor(() => expect(usePracticeStore.getState().midiDeviceId).toBe('device-1'));
       expect(settingsApi.set).toHaveBeenCalledWith(
@@ -348,17 +354,18 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} webMidiService={webMidiService} />);
 
-      const select = (await screen.findByLabelText('MIDI入力デバイス')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe(''));
+      const trigger = await screen.findByLabelText('MIDI入力デバイス');
+      await waitFor(() => expect(trigger).toHaveTextContent('すべてのデバイス'));
 
-      fireEvent.change(select, { target: { value: 'device-1' } });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: 'Keyboard A' }));
 
       await waitFor(() =>
         expect(window.alert).toHaveBeenCalledWith(
           '設定の保存に失敗しました。変更を元に戻しました。'
         )
       );
-      expect(select.value).toBe('');
+      expect(trigger).toHaveTextContent('すべてのデバイス');
       expect(usePracticeStore.getState().midiDeviceId).toBeNull();
     });
 
@@ -378,10 +385,11 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} webMidiService={webMidiService} />);
 
-      const select = (await screen.findByLabelText('MIDI入力デバイス')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe('device-1'));
+      const trigger = await screen.findByLabelText('MIDI入力デバイス');
+      await waitFor(() => expect(trigger).toHaveTextContent('Keyboard A'));
 
-      fireEvent.change(select, { target: { value: '' } });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: 'すべてのデバイス' }));
 
       await waitFor(() => expect(usePracticeStore.getState().midiDeviceId).toBeNull());
       expect(settingsApi.set).toHaveBeenCalledWith(
@@ -488,8 +496,8 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('鍵盤数')) as HTMLSelectElement;
-      expect(select).toBeInTheDocument();
+      const trigger = await screen.findByLabelText('鍵盤数');
+      expect(trigger).toBeInTheDocument();
     });
 
     it('shows the persisted keyboardSize value on the select', async () => {
@@ -503,8 +511,8 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('鍵盤数')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe('61'));
+      const trigger = await screen.findByLabelText('鍵盤数');
+      await waitFor(() => expect(trigger).toHaveTextContent('61鍵'));
     });
 
     it('reflects selection changes to the ui-slice keyboardSize state immediately and persists via electron-store', async () => {
@@ -519,10 +527,11 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('鍵盤数')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe('88'));
+      const trigger = await screen.findByLabelText('鍵盤数');
+      await waitFor(() => expect(trigger).toHaveTextContent('88鍵（フルサイズピアノ）'));
 
-      fireEvent.change(select, { target: { value: '61' } });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: '61鍵' }));
 
       await waitFor(() => expect(usePracticeStore.getState().keyboardSize).toBe(61));
       expect(settingsApi.set).toHaveBeenCalledWith(
@@ -543,17 +552,18 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('鍵盤数')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe('88'));
+      const trigger = await screen.findByLabelText('鍵盤数');
+      await waitFor(() => expect(trigger).toHaveTextContent('88鍵（フルサイズピアノ）'));
 
-      fireEvent.change(select, { target: { value: '49' } });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: '49鍵' }));
 
       await waitFor(() =>
         expect(window.alert).toHaveBeenCalledWith(
           '設定の保存に失敗しました。変更を元に戻しました。'
         )
       );
-      expect(select.value).toBe('88');
+      expect(trigger).toHaveTextContent('88鍵（フルサイズピアノ）');
       expect(usePracticeStore.getState().keyboardSize).toBe(88);
     });
   });
@@ -578,13 +588,11 @@ describe('SettingsModal', () => {
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
       expect(await screen.findByText('音色')).toBeInTheDocument();
-      const playbackSelect = (await screen.findByLabelText('再生音色')) as HTMLSelectElement;
-      const metronomeSelect = (await screen.findByLabelText(
-        'メトロノーム音色'
-      )) as HTMLSelectElement;
+      const playbackTrigger = await screen.findByLabelText('再生音色');
+      const metronomeTrigger = await screen.findByLabelText('メトロノーム音色');
 
-      await waitFor(() => expect(playbackSelect.value).toBe('organ'));
-      expect(metronomeSelect.value).toBe('cowbell');
+      await waitFor(() => expect(playbackTrigger).toHaveTextContent('オルガン'));
+      expect(metronomeTrigger).toHaveTextContent('カウベル');
     });
 
     it('falls back to the defaults (grand-piano/click) when the persisted audio settings are absent', async () => {
@@ -598,9 +606,9 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const playbackSelect = (await screen.findByLabelText('再生音色')) as HTMLSelectElement;
-      await waitFor(() => expect(playbackSelect.value).toBe('grand-piano'));
-      expect(screen.getByLabelText('メトロノーム音色')).toHaveValue('click');
+      const playbackTrigger = await screen.findByLabelText('再生音色');
+      await waitFor(() => expect(playbackTrigger).toHaveTextContent('グランドピアノ'));
+      expect(screen.getByLabelText('メトロノーム音色')).toHaveTextContent('クリック');
     });
 
     it('changing the playback voice select updates the ui-slice playbackVoice and persists via settings:set (結線テスト)', async () => {
@@ -610,10 +618,11 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('再生音色')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe('grand-piano'));
+      const trigger = await screen.findByLabelText('再生音色');
+      await waitFor(() => expect(trigger).toHaveTextContent('グランドピアノ'));
 
-      fireEvent.change(select, { target: { value: 'organ' } });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: 'オルガン' }));
 
       await waitFor(() => expect(usePracticeStore.getState().playbackVoice).toBe('organ'));
       expect(settingsApi.set).toHaveBeenCalledWith(
@@ -629,10 +638,11 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('メトロノーム音色')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe('click'));
+      const trigger = await screen.findByLabelText('メトロノーム音色');
+      await waitFor(() => expect(trigger).toHaveTextContent('クリック'));
 
-      fireEvent.change(select, { target: { value: 'beep' } });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: 'ビープ' }));
 
       await waitFor(() => expect(usePracticeStore.getState().metronomeVoice).toBe('beep'));
       expect(settingsApi.set).toHaveBeenCalledWith(
@@ -648,17 +658,18 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('再生音色')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe('grand-piano'));
+      const trigger = await screen.findByLabelText('再生音色');
+      await waitFor(() => expect(trigger).toHaveTextContent('グランドピアノ'));
 
-      fireEvent.change(select, { target: { value: 'synth' } });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: 'シンセ' }));
 
       await waitFor(() =>
         expect(window.alert).toHaveBeenCalledWith(
           '設定の保存に失敗しました。変更を元に戻しました。'
         )
       );
-      expect(select.value).toBe('grand-piano');
+      expect(trigger).toHaveTextContent('グランドピアノ');
       expect(usePracticeStore.getState().playbackVoice).toBe('grand-piano');
     });
   });
@@ -694,17 +705,39 @@ describe('SettingsModal', () => {
         return Promise.resolve(undefined);
       });
 
-    it('shows self-representation fixed options ("日本語"/"English") regardless of the current display language', async () => {
+    it('shows self-representation fixed options ("日本語"/"English"/"中文") regardless of the current display language', async () => {
       usePracticeStore.setState({ language: 'en' });
       settingsApi.get.mockImplementation(mockGetWithUi({ language: 'ja' }));
       settingsApi.getRecentFiles.mockResolvedValue([]);
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('Language')) as HTMLSelectElement;
-      expect(select).toBeInTheDocument();
-      expect(screen.getByText('日本語')).toBeInTheDocument();
-      expect(screen.getByText('English')).toBeInTheDocument();
+      const trigger = await screen.findByLabelText('Language');
+      expect(trigger).toBeInTheDocument();
+      fireEvent.click(trigger);
+      expect(screen.getByRole('option', { name: '日本語' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'English' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: '中文' })).toBeInTheDocument();
+    });
+
+    it('switching to 中文 updates the ui-slice language to zh and persists ui.language via settings:set', async () => {
+      settingsApi.get.mockImplementation(mockGetWithUi({ language: 'ja' }));
+      settingsApi.getRecentFiles.mockResolvedValue([]);
+      settingsApi.set.mockResolvedValue(undefined);
+
+      render(<SettingsModal isOpen onClose={vi.fn()} />);
+
+      const trigger = await screen.findByLabelText('言語');
+      await waitFor(() => expect(trigger).toHaveTextContent('日本語'));
+
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: '中文' }));
+
+      await waitFor(() => expect(usePracticeStore.getState().language).toBe('zh'));
+      expect(settingsApi.set).toHaveBeenCalledWith(
+        'ui',
+        expect.objectContaining({ language: 'zh' })
+      );
     });
 
     it('changing the language selector updates the ui-slice language immediately and persists ui.language via settings:set', async () => {
@@ -714,10 +747,11 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('言語')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe('ja'));
+      const trigger = await screen.findByLabelText('言語');
+      await waitFor(() => expect(trigger).toHaveTextContent('日本語'));
 
-      fireEvent.change(select, { target: { value: 'en' } });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: 'English' }));
 
       await waitFor(() => expect(usePracticeStore.getState().language).toBe('en'));
       expect(settingsApi.set).toHaveBeenCalledWith(
@@ -733,10 +767,11 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('言語')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe('ja'));
+      const trigger = await screen.findByLabelText('言語');
+      await waitFor(() => expect(trigger).toHaveTextContent('日本語'));
 
-      fireEvent.change(select, { target: { value: 'en' } });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: 'English' }));
 
       await waitFor(() =>
         expect(window.alert).toHaveBeenCalledWith(
@@ -755,8 +790,8 @@ describe('SettingsModal', () => {
 
       render(<SettingsModal isOpen onClose={vi.fn()} />);
 
-      const select = (await screen.findByLabelText('Language')) as HTMLSelectElement;
-      await waitFor(() => expect(select.value).toBe('en'));
+      const trigger = await screen.findByLabelText('Language');
+      await waitFor(() => expect(trigger).toHaveTextContent('English'));
       expect(settingsApi.set).not.toHaveBeenCalledWith(
         'ui',
         expect.objectContaining({ language: expect.anything() })

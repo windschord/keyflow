@@ -1,5 +1,6 @@
 import { ja } from './ja';
 import { en } from './en';
+import { zh } from './zh';
 import type { Language, Messages } from './types';
 
 type MessagesLike = Record<string, unknown>;
@@ -53,7 +54,7 @@ export function getMessages(language: Language): Messages {
   const cached = cache.get(language);
   if (cached) return cached;
 
-  const overrideResource = language === 'ja' ? ja : en;
+  const overrideResource = language === 'ja' ? ja : language === 'zh' ? zh : en;
   const messages = mergeMessages(en, overrideResource) as Messages;
   cache.set(language, messages);
   return messages;

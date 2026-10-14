@@ -23,6 +23,9 @@ const OPEN_MUSICXML_DIALOG_OPTIONS: OpenDialogOptions = {
  * ファイル選択が成功した場合、選択パスを PathAllowlist に許可登録するとともに
  * SettingsService.addRecentFile を呼び出し「最近開いたファイル」履歴へ追加する（REQ-001-006）。
  * キャンセル時やファイル未選択時は履歴・許可リストのいずれも変更しない。
+ *
+ * パフォーマンス: addRecentFile は electron-store の同期書込みで主プロセスをブロックする
+ * ため、setImmediate で遅延実行し IPCハンドラは即座に return する。
  */
 export function createShowOpenDialogHandler(
   dialogModule: DialogLike,
@@ -37,7 +40,13 @@ export function createShowOpenDialogHandler(
 
     const selectedPath = filePaths[0];
     pathAllowlist.allowMusicXml(selectedPath);
-    settingsService.addRecentFile(selectedPath);
+    setImmediate(() => {
+      try {
+        settingsService.addRecentFile(selectedPath);
+      } catch (err) {
+        console.error('[main] addRecentFile (deferred) failed:', err);
+      }
+    });
     return selectedPath;
   };
 }
@@ -58,6 +67,9 @@ function hasAcceptedMusicXmlExtension(filePath: string): boolean {
  * 拡張子が `.xml` / `.musicxml` / `.mxl`（大文字小文字を区別しない）のいずれかである
  * 場合のみ登録する。それ以外の拡張子は登録を拒否し false を返す
  * （allowlist・履歴のいずれにも変更を加えない）。
+ *
+ * パフォーマンス: addRecentFile は electron-store の同期書込みで主プロセスをブロックする
+ * ため、setImmediate で遅延実行し IPCハンドラは即座に return する。
  */
 export function createRegisterDroppedFileHandler(
   pathAllowlist: PathAllowlist,
@@ -69,7 +81,13 @@ export function createRegisterDroppedFileHandler(
     }
 
     pathAllowlist.allowMusicXml(filePath);
-    settingsService.addRecentFile(filePath);
+    setImmediate(() => {
+      try {
+        settingsService.addRecentFile(filePath);
+      } catch (err) {
+        console.error('[main] addRecentFile (deferred) failed:', err);
+      }
+    });
     return true;
   };
 }

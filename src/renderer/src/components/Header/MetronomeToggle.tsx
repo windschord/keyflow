@@ -2,27 +2,6 @@ import React from 'react';
 import { usePracticeStore } from '../../store';
 import { useTranslation } from '../../lib/i18n/useTranslation';
 
-const ICON_BUTTON_STYLE: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: '36px',
-  height: '36px',
-  flexShrink: 0,
-  padding: 0,
-  backgroundColor: 'transparent',
-  border: 'none',
-  borderRadius: '6px',
-  color: '#374151',
-  cursor: 'pointer',
-};
-
-const ICON_BUTTON_ACTIVE_STYLE: React.CSSProperties = {
-  ...ICON_BUTTON_STYLE,
-  backgroundColor: '#dbeafe',
-  color: '#3b82f6',
-};
-
 /**
  * メトロノームON/OFFのヘッダー常駐アイコントグル（TASK-079）。
  *
@@ -47,7 +26,7 @@ export const MetronomeToggle: React.FC = () => {
       aria-label={t.metronome.toggleLabel}
       title={t.metronome.toggleLabel}
       data-testid="metronome-toggle"
-      style={metronomeEnabled ? ICON_BUTTON_ACTIVE_STYLE : ICON_BUTTON_STYLE}
+      className={`kf-icon-btn ${metronomeEnabled ? 'kf-icon-btn--active' : ''}`}
     >
       <svg
         width="20"
@@ -84,21 +63,14 @@ export const MetronomeAccentToggle: React.FC = () => {
   return (
     <label
       title={t.metronome.accentTitle}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        height: '32px',
-        cursor: 'pointer',
-        fontSize: '14px',
-        color: '#374151',
-      }}
+      className="kf-settings-check"
+      style={{ height: '32px' }}
     >
       <input
         type="checkbox"
         checked={metronomeAccentEnabled}
         onChange={(e) => setMetronomeAccentEnabled(e.target.checked)}
-        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+        className="kf-check"
         data-testid="metronome-accent-checkbox"
       />
       {t.metronome.accentLabel}

@@ -15,6 +15,9 @@ const mockShowFingerings = vi.fn();
 const mockClearFingerings = vi.fn();
 const mockBuildNoteIdMap = vi.fn();
 const mockDispose = vi.fn();
+const mockSuppressNextClick = vi.fn();
+const mockSetFingeringEditMode = vi.fn();
+const mockSetOnFingeringClick = vi.fn();
 // デフォルトは即時解決（既存テストの前提を維持）。M4の再入テストのみ
 // mockImplementationOnce で解決タイミングを個別に制御する。
 const mockLoad = vi.fn().mockResolvedValue(undefined);
@@ -28,13 +31,15 @@ vi.mock('./osmd-controller', () => {
         setGrayedOutNotes: mockSetGrayedOutNotes,
         drawLoopBracket: mockDrawLoopBracket,
         clearLoopBracket: mockClearLoopBracket,
-        setZoom: vi.fn(),
         highlightNote: mockHighlightNote,
         setOnMeasureClick: mockSetOnMeasureClick,
         setOnNoteContextMenu: mockSetOnNoteContextMenu,
         buildNoteIdMap: mockBuildNoteIdMap,
         showFingerings: mockShowFingerings,
         clearFingerings: mockClearFingerings,
+        suppressNextClick: mockSuppressNextClick,
+        setFingeringEditMode: mockSetFingeringEditMode,
+        setOnFingeringClick: mockSetOnFingeringClick,
         dispose: mockDispose,
       };
     }),
@@ -56,6 +61,9 @@ describe('ScoreRenderer', () => {
     mockClearFingerings.mockClear();
     mockBuildNoteIdMap.mockClear();
     mockDispose.mockClear();
+    mockSuppressNextClick.mockClear();
+    mockSetFingeringEditMode.mockClear();
+    mockSetOnFingeringClick.mockClear();
     mockLoad.mockClear();
     mockLoad.mockResolvedValue(undefined);
   });
@@ -117,6 +125,74 @@ describe('ScoreRenderer', () => {
     // （二重スクロールコンテナの解消）。
     expect(osmdContainer.style.overflowY).toBe('');
     expect(osmdContainer.style.height).toBe('');
+  });
+
+  it('keeps horizontal layout by default (scroll row, container flex-row)', () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+    const osmdContainer = screen.getByTestId('osmd-container');
+    const outerContainer = osmdContainer.parentElement as HTMLElement;
+    expect(outerContainer.style.flexDirection).toBe('row');
+    expect(osmdContainer.style.display).toBe('flex');
+    expect(osmdContainer.style.flexDirection).toBe('row');
+  });
+
+  it('switches to vertical layout (flex-column) when scoreLayout="vertical"', () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        scoreLayout="vertical"
+        onNoteClick={() => {}}
+      />
+    );
+    const osmdContainer = screen.getByTestId('osmd-container');
+    const outerContainer = osmdContainer.parentElement as HTMLElement;
+    expect(outerContainer.style.flexDirection).toBe('column');
+    expect(osmdContainer.style.display).toBe('block');
+  });
+
+  it('switches to horizontal layout (flex-row) when scoreLayout="horizontal"', () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        scoreLayout="horizontal"
+        onNoteClick={() => {}}
+      />
+    );
+
+    const osmdContainer = screen.getByTestId('osmd-container');
+    const outerContainer = osmdContainer.parentElement as HTMLElement;
+
+    // 横向布局: 滚动容器主轴切换为 row，osmd-container 变为 flex-row 并排页面。
+    // 交叉轴（垂直）不用 alignItems:center（会溢出不可达、纵向滚动条卡顶部），
+    // 而是 flex-start + osmd-container 的 margin:auto 实现居中且可滚动。
+    // 容器四周加 padding，使滚动范围覆盖到 A4 纸边缘之外（auto margin 不参与滚动范围）。
+    expect(outerContainer.style.flexDirection).toBe('row');
+    expect(outerContainer.style.alignItems).toBe('flex-start');
+    expect(outerContainer.style.padding).toBe('32px');
+    expect(osmdContainer.style.display).toBe('flex');
+    expect(osmdContainer.style.flexDirection).toBe('row');
+    expect(osmdContainer.style.marginTop).toBe('auto');
+    expect(osmdContainer.style.marginBottom).toBe('auto');
   });
 
   it('draws a loop bracket once the score is loaded and a loopRange is provided', async () => {
@@ -486,5 +562,137 @@ describe('ScoreRenderer', () => {
     );
 
     await waitFor(() => expect(mockBuildNoteIdMap).toHaveBeenCalledWith(mockScore));
+  });
+
+  it('keeps the default cursor by default (grab hand only appears while dragging)', () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+    const el = screen.getByTestId('score-scroll-container') as HTMLElement;
+    expect(el.style.cursor).toBe('');
+    expect(el.style.userSelect).toBe('none');
+  });
+
+  it('drags on the scroll container to pan the score and suppresses the following click (MuseScore 式 pan)', () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+    const el = screen.getByTestId('score-scroll-container') as HTMLElement;
+
+    el.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 100, clientY: 100 })
+    );
+    // 光标始终保持默认样式（不显示手型）
+    expect(el.style.cursor).toBe('');
+
+    // 未超阈值（<5px）的小移动不算拖动：滚动不动，也不抑制 click（保持正常点击）
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 103, clientY: 102 }));
+    expect(el.scrollLeft).toBe(0);
+    expect(el.scrollTop).toBe(0);
+    expect(mockSuppressNextClick).not.toHaveBeenCalled();
+
+    // 超过阈值 → 进入拖动：滚动位置跟随鼠标（向左拖 → 向右翻页），并抑制随后的 click
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, clientY: 120 }));
+    expect(mockSuppressNextClick).toHaveBeenCalledTimes(1);
+    expect(el.scrollLeft).toBe(-50); // 0 - (150-100)
+    expect(el.scrollTop).toBe(-20); // 0 - (120-100)
+
+    // 继续拖动时滚动位置持续更新
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 130 }));
+    expect(el.scrollLeft).toBe(-100);
+    expect(el.scrollTop).toBe(-30);
+
+    // 松手后光标仍为默认样式
+    window.dispatchEvent(new MouseEvent('mouseup', {}));
+    expect(el.style.cursor).toBe('');
+  });
+
+  it('ignores non-left-button presses (right-click context menu is unaffected by pan)', () => {
+    render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+    const el = screen.getByTestId('score-scroll-container') as HTMLElement;
+
+    el.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, button: 2, clientX: 100, clientY: 100 })
+    );
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 200 }));
+    expect(el.style.cursor).toBe(''); // 未进入拖动（不显示手型）
+    expect(el.scrollLeft).toBe(0);
+    expect(mockSuppressNextClick).not.toHaveBeenCalled();
+  });
+
+  it('forwards fingeringEditMode to OSMDController.setFingeringEditMode', async () => {
+    const { rerender } = render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+      />
+    );
+    expect(mockSetFingeringEditMode).toHaveBeenCalledWith(false);
+
+    rerender(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+        fingeringEditMode
+      />
+    );
+    await waitFor(() => expect(mockSetFingeringEditMode).toHaveBeenCalledWith(true));
+  });
+
+  it('registers and unregisters onFingeringClick on the controller', async () => {
+    const onFingeringClick = vi.fn();
+    const { unmount } = render(
+      <ScoreRenderer
+        score={mockScore}
+        musicXmlContent="<score-partwise/>"
+        currentNoteId={null}
+        practiceMode="both"
+        loopRange={null}
+        zoom={1.0}
+        onNoteClick={() => {}}
+        onFingeringClick={onFingeringClick}
+      />
+    );
+    await waitFor(() => expect(mockSetOnFingeringClick).toHaveBeenCalledWith(onFingeringClick));
+
+    mockSetOnFingeringClick.mockClear();
+    unmount();
+    expect(mockSetOnFingeringClick).toHaveBeenCalledWith(null);
   });
 });

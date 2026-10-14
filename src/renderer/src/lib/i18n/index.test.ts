@@ -47,8 +47,15 @@ describe('getMessages', () => {
     expect(typeof messages.settings.language).toBe('string');
   });
 
+  it('"zh"を指定するとMessages型に適合するオブジェクトを返す（中文リソース）', () => {
+    const messages = getMessages('zh');
+    expect(typeof messages.settings.language).toBe('string');
+    expect(messages.settings.title).toBe('设置');
+  });
+
   it('同じ言語に対しては同一の参照をメモ化して返す（毎レンダーのオブジェクト生成を避けるため）', () => {
     expect(getMessages('ja')).toBe(getMessages('ja'));
     expect(getMessages('en')).toBe(getMessages('en'));
+    expect(getMessages('zh')).toBe(getMessages('zh'));
   });
 });

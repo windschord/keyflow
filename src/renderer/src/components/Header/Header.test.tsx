@@ -83,14 +83,12 @@ describe('Header', () => {
     expect(headerRow.style.flexWrap).toBe('nowrap');
   });
 
-  it('renders the frequently used controls: open file, playback, loop, tempo, practice mode', () => {
+  it('renders the frequently used controls: open file, playback, tempo, practice mode', () => {
     renderHeader();
     expect(screen.getByRole('button', { name: 'ファイルを開く' })).toBeInTheDocument();
     expect(screen.getByTestId('playback-play')).toBeInTheDocument();
     expect(screen.getByTestId('playback-pause')).toBeInTheDocument();
     expect(screen.getByTestId('playback-stop')).toBeInTheDocument();
-    expect(screen.getByTestId('loop-start')).toBeInTheDocument();
-    expect(screen.getByTestId('loop-end')).toBeInTheDocument();
     expect(screen.getByTestId('tempo-input')).toBeInTheDocument();
     expect(screen.getByTestId('tempo-slider')).toBeInTheDocument();
     expect(screen.getByTestId('mode-left')).toBeInTheDocument();
@@ -328,22 +326,6 @@ describe('Header', () => {
     });
   });
 
-  describe('ループ (LoopControl integration)', () => {
-    it('shows an error when loop start >= end', () => {
-      renderHeader();
-      const startInput = screen.getByTestId('loop-start') as HTMLInputElement;
-      const endInput = screen.getByTestId('loop-end') as HTMLInputElement;
-
-      fireEvent.change(startInput, { target: { value: '5' } });
-      fireEvent.change(endInput, { target: { value: '3' } });
-      fireEvent.blur(endInput);
-
-      expect(screen.getByText('開始 < 終了')).toBeInTheDocument();
-      expect(usePracticeStore.getState().loopStart).toBe(1);
-      expect(usePracticeStore.getState().loopEnd).toBe(2);
-    });
-  });
-
   describe('再生コントロール (PlaybackControls integration)', () => {
     // PlaybackControlsはscore===nullの場合に再生系ボタンを無効化する（REQ-010-002）
     // ため、再生操作の検証では楽譜読み込み済みを模したダミーのScoreを渡す。
@@ -398,4 +380,6 @@ describe('Header', () => {
       expect(screen.getByRole('button', { name: 'Library' })).toBeInTheDocument();
     });
   });
+
+
 });

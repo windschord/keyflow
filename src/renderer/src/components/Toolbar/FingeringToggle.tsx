@@ -76,21 +76,7 @@ export const FingeringToggle: React.FC = () => {
       aria-pressed={showFingerings}
       data-testid="fingering-toggle"
       title={showFingerings ? t.fingeringToggle.titleHide : t.fingeringToggle.titleShow}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        height: '44px',
-        padding: '0 14px',
-        fontSize: '14px',
-        fontWeight: 500,
-        borderRadius: '6px',
-        border: '1px solid #9ca3af',
-        backgroundColor: 'white',
-        color: '#374151',
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-      }}
+      className="kf-toggle"
     >
       <span>{t.fingeringToggle.label}</span>
       <span
@@ -101,7 +87,7 @@ export const FingeringToggle: React.FC = () => {
           width: '36px',
           height: '20px',
           borderRadius: '10px',
-          backgroundColor: showFingerings ? '#3b82f6' : '#9ca3af',
+          backgroundColor: showFingerings ? '#18181b' : '#9ca3af',
           transition: 'background-color 0.15s ease',
           flexShrink: 0,
         }}

@@ -33,7 +33,7 @@ describe('LibraryView', () => {
     usePracticeStore.setState({ language: 'ja' });
   });
 
-  it('renders title, composer, and last opened date for each entry (REQ-017-003)', async () => {
+  it('renders title, composer and last opened date for each entry (REQ-017-003)', async () => {
     libraryApi.getAll.mockResolvedValue([
       makeEntry({ path: '/a', title: 'Moonlight Sonata', composer: 'Beethoven' }),
     ]);
@@ -56,6 +56,53 @@ describe('LibraryView', () => {
 
     expect(onOpenEntry).toHaveBeenCalledWith('/scores/a.musicxml');
   });
+
+  it('renders the settings button in the top bar and invokes onOpenSettings', async () => {
+    libraryApi.getAll.mockResolvedValue([makeEntry({})]);
+    const onOpenSettings = vi.fn();
+
+    render(
+      <LibraryView
+        onOpenEntry={vi.fn()}
+        onOpenFileDialog={vi.fn()}
+        onOpenSettings={onOpenSettings}
+      />
+    );
+
+    fireEvent.click(await screen.findByTestId('library-settings-button'));
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+
+  it('does not render the settings button when the callback is not provided', async () => {
+    libraryApi.getAll.mockResolvedValue([makeEntry({})]);
+
+    render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
+
+    await screen.findByText('Example');
+    expect(screen.queryByTestId('library-settings-button')).not.toBeInTheDocument();
+  });
+
+
+  it('renders the open-file button in the top bar and invokes onOpenFileDialog', async () => {
+    libraryApi.getAll.mockResolvedValue([makeEntry({})]);
+    const onOpenFileDialog = vi.fn();
+
+    render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={onOpenFileDialog} />);
+
+    fireEvent.click(await screen.findByTestId('library-open-file-button'));
+    expect(onOpenFileDialog).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the top bar open-file button even in the empty state', async () => {
+    libraryApi.getAll.mockResolvedValue([]);
+
+    render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
+
+    await screen.findByText('ライブラリに楽譜がありません');
+    expect(screen.getByTestId('library-open-file-button')).toBeInTheDocument();
+  });
+
 
   it('filters the list by title/composer with a case-insensitive partial match (REQ-017-004)', async () => {
     libraryApi.getAll.mockResolvedValue([
@@ -83,7 +130,7 @@ describe('LibraryView', () => {
     render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
     await screen.findByText('Newer');
 
-    const rows = screen.getAllByRole('row').slice(1); // 先頭はヘッダー行
+    const rows = screen.getAllByRole('row');
     expect(within(rows[0]).getByText('Newer')).toBeInTheDocument();
     expect(within(rows[1]).getByText('Older')).toBeInTheDocument();
   });
@@ -97,10 +144,13 @@ describe('LibraryView', () => {
     render(<LibraryView onOpenEntry={vi.fn()} onOpenFileDialog={vi.fn()} />);
     await screen.findByText('Banana');
 
-    fireEvent.change(screen.getByLabelText('並べ替え'), { target: { value: 'title' } });
-    fireEvent.change(screen.getByLabelText('順序'), { target: { value: 'asc' } });
+    fireEvent.click(screen.getByLabelText('並べ替え'));
+    fireEvent.click(screen.getByRole('option', { name: 'タイトル' }));
 
-    const rows = screen.getAllByRole('row').slice(1);
+    fireEvent.click(screen.getByLabelText('順序'));
+    fireEvent.click(screen.getByRole('option', { name: '昇順' }));
+
+    const rows = screen.getAllByRole('row');
     expect(within(rows[0]).getByText('Apple')).toBeInTheDocument();
     expect(within(rows[1]).getByText('Banana')).toBeInTheDocument();
   });

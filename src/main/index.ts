@@ -28,6 +28,7 @@ import { isAllowedPermission } from './permission-policy';
 import { resolveLanguage, type Language } from './locale';
 import { createSettingsSetHandler } from './settings-handlers';
 
+
 function createWindow(): void {
   // TASK-088: 実起動E2E（Playwright for Electron）実行時のみ環境変数KEYFLOW_E2E=1が
   // 渡される。preloadへ'--keyflow-e2e'引数を渡すことでE2E専用計装
@@ -67,6 +68,7 @@ function createWindow(): void {
       event.preventDefault();
     }
   });
+
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
@@ -122,6 +124,7 @@ app.whenReady().then(() => {
     createShowOpenDialogHandler(dialog, pathAllowlist, settingsService)
   );
 
+
   // TASK-053: ドラッグ＆ドロップで開かれたファイルも file:write（アノテーション保存）の
   // allowlist に載せ、ファイル履歴（addRecentFile）に反映するための登録専用IPC。
   // 拡張子検証は createRegisterDroppedFileHandler 内で行う。
@@ -138,7 +141,8 @@ app.whenReady().then(() => {
   // アノテーションのサイドカーファイル（*.annotation.json）のように「存在しないのが
   // 正常」なファイル用。ENOENTはエラーではなくnullを返す（file:readをそのまま使うと
   // 初回オープンのたびにメインプロセスへ未処理エラーがログされるため。2026-07-05）。
-  ipcMain.handle('file:read-if-exists', createReadFileIfExistsHandler(pathAllowlist, fs.promises));
+  // 诊断 handler 在下方注册，这里先不注册原 handler
+  // ipcMain.handle('file:read-if-exists', createReadFileIfExistsHandler(pathAllowlist, fs.promises));
 
   ipcMain.handle('file:read-binary', createReadBinaryFileHandler(pathAllowlist, fs.promises));
 
@@ -148,7 +152,9 @@ app.whenReady().then(() => {
     if (typeof path !== 'string' || typeof content !== 'string') {
       throw new Error('file:write requires string path and content');
     }
-    const allowedPath = pathAllowlist.assertAllowedAnnotationPath(path);
+    // 本项目缓存机制需要写 *.scoremap.cache.json（上游 M-2 曾收窄为仅 annotation），
+    // 因此保留 SidecarWritePath（*.annotation.json + *.scoremap.cache.json 两种后缀）。
+    const allowedPath = pathAllowlist.assertAllowedSidecarWritePath(path);
 
     // Security: Verify that parent directory chain is not escaped via symlinks
     const parentDir = dirname(allowedPath);
@@ -245,11 +251,14 @@ app.whenReady().then(() => {
   // 同様の拡張子検証に加え、存在確認・allowlist登録・recent追加をfsモジュール経由で行う。
   ipcMain.handle('library:get-all', createLibraryGetAllHandler(libraryService));
   ipcMain.handle('library:upsert', createLibraryUpsertHandler(libraryService));
-  ipcMain.handle('library:remove', createLibraryRemoveHandler(libraryService));
+  ipcMain.handle('library:remove', createLibraryRemoveHandler(libraryService, fs.promises));
   ipcMain.handle(
     'library:open',
     createLibraryOpenHandler(pathAllowlist, settingsService, fs.promises, libraryService)
   );
+
+  // 渲染进程注解/缓存读取仍依赖 file:read-if-exists，注册干净版本（无诊断日志）。
+  ipcMain.handle('file:read-if-exists', createReadFileIfExistsHandler(pathAllowlist, fs.promises));
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

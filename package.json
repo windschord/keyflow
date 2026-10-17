@@ -61,11 +61,11 @@
     "@types/jsdom": "^28.0.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^5.2.0",
+    "@vitejs/plugin-react": "^6.0.5",
     "@vitest/coverage-v8": "^4.1.10",
     "electron": "^42.11.8",
     "electron-builder": "^26.15.3",
-    "electron-vite": "^5.0.0",
+    "electron-vite": "^6.0.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-react": "^7.37.0",
@@ -79,7 +79,7 @@
     "textlint-rule-preset-ja-technical-writing": "^12.0.2",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.67.0",
-    "vite": "^7.3.6",
+    "vite": "^8.2.1",
     "vitest": "^4.1.11"
   }
 }
